@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL, getProveedores } from "../../api";
 
@@ -16,19 +16,19 @@ function clampMaxLen(s, max) {
   return str.length > max ? str.slice(0, max) : str;
 }
 
-// Permite letras, números y *
 function onlyAlnumAndStar(s) {
   return (s ?? "").toString().replace(/[^a-zA-Z0-9*]/g, "");
 }
+
 function limit10(s) {
   return onlyAlnumAndStar(s).slice(0, 10);
 }
+
 function pad10WithStars(s) {
   const v = limit10(s);
   return (v + "**********").slice(0, 10);
 }
 
-// rellena SIEMPRE a 10 con *
 function pad10WithStarsAny(s) {
   const v = limit10(s);
   return (v + "**********").slice(0, 10);
@@ -38,11 +38,48 @@ function serialItem(serial, idx) {
   return `${serial}-${String(idx + 1).padStart(2, "0")}`;
 }
 
-// Formato con punto de mil (es-CO)
+function fmtDateOnly(v) {
+  const s = (v ?? "").toString().trim();
+  if (!s) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  const short = s.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(short)) return short;
+
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return s;
+
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatFechaVencPrint(v) {
+  const s = fmtDateOnly(v);
+  if (!s) return "";
+  return s.replaceAll("-", ".");
+}
+
+function cleanLoteProveedorPrint(v) {
+  return (v ?? "").toString().replaceAll("*", "").trim();
+}
+
+function escapeHtml(v) {
+  return (v ?? "")
+    .toString()
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 const fmtCO = new Intl.NumberFormat("es-CO", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+
 function formatMoney(n) {
   const x = Number(n);
   if (!Number.isFinite(x)) return "";
@@ -62,7 +99,6 @@ const DRAFT_KEY = "wms_recibo_draft";
 
 export default function Recibo() {
   const navigate = useNavigate();
-  const printRef = useRef(null);
 
   // ===== Usuario por clave =====
   const [usuario, setUsuario] = useState("");
@@ -73,12 +109,15 @@ export default function Recibo() {
       setUsuario(saved);
       return;
     }
+
     const clave = prompt('Ingrese su clave (ej: "*768*")');
     const nombre = USUARIOS[clave?.trim()] || "";
+
     if (!nombre) {
       alert("Clave inválida.");
       return;
     }
+
     localStorage.setItem("wms_user", nombre);
     setUsuario(nombre);
   }, []);
@@ -144,7 +183,6 @@ export default function Recibo() {
 
   const [errores, setErrores] = useState({});
 
-  // ===== Cargar borrador si existe =====
   useEffect(() => {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
@@ -215,7 +253,9 @@ export default function Recibo() {
     ]);
   };
 
-  const removeLinea = (idx) => setLineas((prev) => prev.filter((_, i) => i !== idx));
+  const removeLinea = (idx) => {
+    setLineas((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   const onCodigoChange = (idx, codigo) => {
     const code = codigo.trim();
@@ -237,13 +277,17 @@ export default function Recibo() {
 
   const onUmbChange = (idx, value) => {
     setLineas((prev) =>
-      prev.map((ln, i) => (i === idx ? { ...ln, umb: value, total: recomputeTotal(value, ln.cantidad) } : ln))
+      prev.map((ln, i) =>
+        i === idx ? { ...ln, umb: value, total: recomputeTotal(value, ln.cantidad) } : ln
+      )
     );
   };
 
   const onCantidadChange = (idx, value) => {
     setLineas((prev) =>
-      prev.map((ln, i) => (i === idx ? { ...ln, cantidad: value, total: recomputeTotal(ln.umb, value) } : ln))
+      prev.map((ln, i) =>
+        i === idx ? { ...ln, cantidad: value, total: recomputeTotal(ln.umb, value) } : ln
+      )
     );
   };
 
@@ -287,6 +331,7 @@ export default function Recibo() {
       if ((ln.lote_proveedor ?? "").toString().trim().length !== 10) {
         errs[`loteprov_${idx}`] = "Lote proveedor debe ser exactamente 10.";
       }
+
       if (!ln.fecha_vencimiento) errs[`fv_${idx}`] = "Fecha vencimiento obligatoria.";
     });
 
@@ -327,79 +372,87 @@ export default function Recibo() {
   };
 
   const onImprimir = () => {
-    const el = printRef.current;
-    if (!el) {
-      window.print();
-      return;
-    }
-
-    const w = window.open("", "_blank", "width=1600,height=1000");
+    const w = window.open("", "_blank", "width=1700,height=1100");
     if (!w) {
       alert("El navegador bloqueó la ventana de impresión.");
       return;
     }
 
-    const clone = el.cloneNode(true);
+    const proveedorPrint = header.proveedor || "";
+    const acreedorPrint = header.acreedor || "";
+    const remesaPrint = pad10WithStars(header.remesa_transp || "");
+    const documentoPrint = pad10WithStars(header.documento || "");
+    const ordenCompraPrint = pad10WithStars(header.orden_compra || "");
+    const fechaRecepPrint = fmtDateOnly(header.fecha_recepcion || todayISODate());
 
-    const inputs = clone.querySelectorAll("input, select, textarea, button");
-    inputs.forEach((node) => {
-      if (node.tagName.toLowerCase() === "button") {
-        node.remove();
-        return;
-      }
-
-      let value = "";
-      if (node.tagName.toLowerCase() === "select") {
-        const sel = node;
-        value = sel.options?.[sel.selectedIndex]?.text || sel.value || "";
-      } else {
-        value = node.value ?? node.getAttribute("value") ?? "";
-      }
-
-      const span = w.document.createElement("span");
-      span.textContent = value || "";
-      span.style.display = "inline-block";
-      span.style.minWidth = node.style?.width || "auto";
-      span.style.whiteSpace = "pre-wrap";
-      span.style.wordBreak = "break-word";
-      span.style.fontSize = "10.5px";
-      node.replaceWith(span);
-    });
+    const tableRowsHtml = lineas
+      .map((ln, idx) => {
+        return `
+          <tr>
+            <td>${escapeHtml(serialItem(header.serial, idx))}</td>
+            <td>${idx + 1}</td>
+            <td>${escapeHtml(fmtDateOnly(ln.fecha_recepcion || fechaRecepPrint))}</td>
+            <td>${escapeHtml(ln.codigo || "")}</td>
+            <td>${escapeHtml(ln.descripcion || "")}</td>
+            <td>${escapeHtml(ln.empaque || "")}</td>
+            <td style="text-align:right;">${escapeHtml(ln.umb || "")}</td>
+            <td>${escapeHtml(ln.um || "")}</td>
+            <td style="text-align:right;">${escapeHtml(ln.cantidad || "")}</td>
+            <td style="text-align:right;">${escapeHtml(formatMoney(ln.total || 0))}</td>
+            <td>${escapeHtml(ln.lote_proveedor || "")}</td>
+            <td>${escapeHtml(fmtDateOnly(ln.fecha_fabricacion))}</td>
+            <td>${escapeHtml(fmtDateOnly(ln.fecha_vencimiento))}</td>
+          </tr>
+        `;
+      })
+      .join("");
 
     const barcodeCardsHtml = lineas
       .map((ln, idx) => {
         const serial = serialItem(header.serial, idx);
         const cantidad = formatMoney(ln.total || 0);
-        const loteProveedor = (ln.lote_proveedor || "").trim() || "VACIO";
-        const fechaVenc = (ln.fecha_vencimiento || "").trim() || "SIN_FECHA";
+        const loteProveedorText = cleanLoteProveedorPrint(ln.lote_proveedor) || "VACIO";
+        const fechaVencText = formatFechaVencPrint(ln.fecha_vencimiento) || "SIN_FECHA";
 
         return `
-          <div class="barcode-card">
-            <div class="barcode-card-head">
-              <div class="barcode-head-box">
-                <div class="mini-label"># SERIAL</div>
-                <div class="mini-value">${serial}</div>
+          <div class="card">
+            <div class="card-head">
+              <div class="card-brand">
+                <div class="mini-logo-wrap">
+                  <img src="/INOVA.png" alt="INOVA" class="mini-logo" />
+                </div>
+                <div>
+                  <div class="brand-title">WMS INOVA</div>
+                  <div class="brand-sub">Tarjeta de identificación</div>
+                </div>
               </div>
-              <div class="barcode-head-box">
-                <div class="mini-label">CANTIDAD</div>
-                <div class="mini-value">${cantidad}</div>
+              <div class="card-serial-box">
+                <div class="card-label"># SERIAL</div>
+                <div class="card-serial">${escapeHtml(serial)}</div>
               </div>
             </div>
 
-            <div class="barcode-block">
-              <div class="barcode-label">LOTE PROVEEDOR</div>
-              <div class="barcode-svg-wrap">
-                <svg id="barcode-lote-${idx}"></svg>
+            <div class="card-mid">
+              <div class="card-info">
+                <span class="card-label">CANTIDAD</span>
+                <span class="card-value">${escapeHtml(cantidad)}</span>
               </div>
-              <div class="barcode-text">${loteProveedor}</div>
+              <div class="card-info">
+                <span class="card-label">CÓDIGO</span>
+                <span class="card-value">${escapeHtml(ln.codigo || "")}</span>
+              </div>
             </div>
 
-            <div class="barcode-block">
-              <div class="barcode-label">FECHA VENCIMIENTO</div>
-              <div class="barcode-svg-wrap">
-                <svg id="barcode-fv-${idx}"></svg>
-              </div>
-              <div class="barcode-text">${fechaVenc}</div>
+            <div class="barcode-box">
+              <div class="barcode-title">LOTE PROVEEDOR</div>
+              <svg id="barcode-lote-${idx}"></svg>
+              <div class="barcode-text">${escapeHtml(loteProveedorText)}</div>
+            </div>
+
+            <div class="barcode-box">
+              <div class="barcode-title">FECHA VENCIMIENTO</div>
+              <svg id="barcode-fv-${idx}"></svg>
+              <div class="barcode-text">${escapeHtml(fechaVencText)}</div>
             </div>
           </div>
         `;
@@ -408,17 +461,17 @@ export default function Recibo() {
 
     const barcodeScript = lineas
       .map((ln, idx) => {
-        const loteProveedor = JSON.stringify((ln.lote_proveedor || "").trim() || "VACIO");
-        const fechaVenc = JSON.stringify((ln.fecha_vencimiento || "").trim() || "SIN_FECHA");
+        const loteProveedor = JSON.stringify(cleanLoteProveedorPrint(ln.lote_proveedor) || "VACIO");
+        const fechaVenc = JSON.stringify(formatFechaVencPrint(ln.fecha_vencimiento) || "SIN_FECHA");
 
         return `
           try {
             JsBarcode("#barcode-lote-${idx}", ${loteProveedor}, {
               format: "CODE128",
               displayValue: false,
-              height: 95,
-              width: 2.4,
-              margin: 10
+              height: 58,
+              width: 1.9,
+              margin: 0
             });
           } catch (e) {
             console.error("Error barcode lote ${idx}", e);
@@ -428,9 +481,9 @@ export default function Recibo() {
             JsBarcode("#barcode-fv-${idx}", ${fechaVenc}, {
               format: "CODE128",
               displayValue: false,
-              height: 95,
-              width: 2.4,
-              margin: 10
+              height: 58,
+              width: 1.9,
+              margin: 0
             });
           } catch (e) {
             console.error("Error barcode fv ${idx}", e);
@@ -442,99 +495,51 @@ export default function Recibo() {
     const html = `
       <html>
         <head>
-          <title>Recibo ciego - ${header.serial}</title>
+          <title>Recibo ciego - ${escapeHtml(header.serial)}</title>
           <meta charset="utf-8" />
           <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
           <style>
-            @page { size: A4 landscape; margin: 8mm; }
-            html, body { height: 100%; }
-            body {
-              font-family: Arial, sans-serif;
-              color: #0f172a;
+            @page {
+              size: A4 landscape;
+              margin: 8mm;
+            }
+
+            * {
+              box-sizing: border-box;
+            }
+
+            html, body {
               margin: 0;
               padding: 0;
-              background: #fff;
+              font-family: Arial, sans-serif;
+              color: #0f172a;
+              background: #ffffff;
             }
 
-            .page-1 {
+            .page {
               width: 100%;
             }
 
-            .print-wrap {
-              width: 100%;
+            .page-break {
+              page-break-before: always;
             }
-
-            .scale {
-              transform-origin: top left;
-              transform: scale(0.92);
-              width: 108%;
-            }
-
-            .muted {
-              color: #64748b;
-              font-size: 12px;
-            }
-
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              table-layout: fixed;
-              page-break-inside: auto;
-            }
-
-            thead {
-              display: table-header-group;
-            }
-
-            tr {
-              page-break-inside: avoid;
-              page-break-after: auto;
-            }
-
-            th, td {
-              border: 1px solid #111827;
-              padding: 5px;
-              font-size: 10.5px;
-              vertical-align: top;
-              word-wrap: break-word;
-              overflow-wrap: anywhere;
-            }
-
-            th {
-              background: #f1f5f9;
-              text-align: left;
-            }
-
-            th:nth-child(1), td:nth-child(1) { width: 80px; }
-            th:nth-child(2), td:nth-child(2) { width: 35px; }
-            th:nth-child(3), td:nth-child(3) { width: 80px; }
-            th:nth-child(4), td:nth-child(4) { width: 70px; }
-            th:nth-child(5), td:nth-child(5) { width: 190px; }
-            th:nth-child(6), td:nth-child(6) { width: 80px; }
-            th:nth-child(7), td:nth-child(7) { width: 55px; }
-            th:nth-child(8), td:nth-child(8) { width: 55px; }
-            th:nth-child(9), td:nth-child(9) { width: 70px; }
-            th:nth-child(10), td:nth-child(10) { width: 75px; }
-            th:nth-child(11), td:nth-child(11) { width: 110px; }
-            th:nth-child(12), td:nth-child(12) { width: 90px; }
-            th:nth-child(13), td:nth-child(13) { width: 90px; }
-            th:nth-child(14), td:nth-child(14) { width: 70px; }
 
             .titlebar {
               display: flex;
               align-items: center;
               gap: 12px;
-              margin-bottom: 10px;
+              margin-bottom: 12px;
             }
 
             .logo {
-              width: 46px;
-              height: 46px;
+              width: 52px;
+              height: 52px;
               border: 1px solid #e2e8f0;
               border-radius: 12px;
               overflow: hidden;
               display: grid;
               place-items: center;
+              flex: 0 0 auto;
             }
 
             .logo img {
@@ -543,147 +548,355 @@ export default function Recibo() {
               object-fit: cover;
             }
 
-            .barcode-pages {
-              page-break-before: always;
-              padding: 0;
+            .title-main {
+              font-size: 16px;
+              font-weight: 900;
               margin: 0;
             }
 
-            .barcode-titlebar {
+            .title-sub {
+              color: #475569;
+              font-size: 12px;
+              margin-top: 4px;
+            }
+
+            .header-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
+              margin-bottom: 12px;
+            }
+
+            .header-box {
+              border: 1px solid #dbe2ea;
+              border-radius: 12px;
+              padding: 12px;
+              min-height: 138px;
+            }
+
+            .header-line {
+              margin-bottom: 10px;
+            }
+
+            .header-label {
+              font-size: 11px;
+              font-weight: 900;
+              color: #1e293b;
+              margin-bottom: 2px;
+              text-transform: uppercase;
+            }
+
+            .header-value {
+              font-size: 12px;
+              font-weight: 700;
+              color: #0f172a;
+            }
+
+            .header-total {
+              display: flex;
+              justify-content: space-between;
+              align-items: end;
+              margin-top: 12px;
+            }
+
+            .header-total-value {
+              font-size: 20px;
+              font-weight: 900;
+            }
+
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              table-layout: fixed;
+            }
+
+            thead {
+              display: table-header-group;
+            }
+
+            tr {
+              page-break-inside: avoid;
+            }
+
+            th, td {
+              border: 1px solid #111827;
+              padding: 5px 6px;
+              font-size: 9.5px;
+              vertical-align: top;
+              word-break: break-word;
+            }
+
+            th {
+              background: #f1f5f9;
+              text-align: left;
+              font-weight: 900;
+            }
+
+            th:nth-child(1), td:nth-child(1) { width: 8.5%; }
+            th:nth-child(2), td:nth-child(2) { width: 4.2%; }
+            th:nth-child(3), td:nth-child(3) { width: 8.8%; }
+            th:nth-child(4), td:nth-child(4) { width: 7.5%; }
+            th:nth-child(5), td:nth-child(5) { width: 18.5%; }
+            th:nth-child(6), td:nth-child(6) { width: 8.2%; }
+            th:nth-child(7), td:nth-child(7) { width: 5.4%; }
+            th:nth-child(8), td:nth-child(8) { width: 5.4%; }
+            th:nth-child(9), td:nth-child(9) { width: 7.2%; }
+            th:nth-child(10), td:nth-child(10) { width: 8%; }
+            th:nth-child(11), td:nth-child(11) { width: 11.2%; }
+            th:nth-child(12), td:nth-child(12) { width: 9.2%; }
+            th:nth-child(13), td:nth-child(13) { width: 9.2%; }
+
+            .cards-page {
+              page-break-before: always;
+            }
+
+            .cards-title {
               display: flex;
               align-items: center;
               gap: 12px;
               margin-bottom: 12px;
-              border-bottom: 2px solid #072B5A;
-              padding-bottom: 8px;
             }
 
-            .barcode-main-title {
-              font-size: 20px;
-              font-weight: 900;
-              color: #072B5A;
-              margin: 0;
-            }
-
-            .barcode-subtitle {
-              font-size: 12px;
-              color: #64748b;
-              margin-top: 4px;
-            }
-
-            .barcode-card {
-              border: 2px solid #cbd5e1;
-              border-radius: 14px;
-              padding: 18px;
-              margin-bottom: 18px;
-              page-break-inside: avoid;
-              background: #fff;
-            }
-
-            .barcode-card:not(:last-child) {
-              page-break-after: auto;
-            }
-
-            .barcode-card-head {
+            .cards-grid {
               display: grid;
               grid-template-columns: 1fr 1fr;
-              gap: 14px;
-              margin-bottom: 18px;
+              gap: 12px;
             }
 
-            .barcode-head-box {
-              border: 1px solid #dbe2ea;
+            .card {
+              border: 1px solid #cbd5e1;
               border-radius: 12px;
-              padding: 12px 14px;
-              background: #f8fafc;
+              padding: 12px;
+              min-height: 255px;
+              page-break-inside: avoid;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
             }
 
-            .mini-label {
-              font-size: 11px;
-              font-weight: 900;
-              color: #64748b;
-              letter-spacing: .6px;
+            .card-head {
+              display: flex;
+              justify-content: space-between;
+              align-items: start;
+              gap: 10px;
+              margin-bottom: 10px;
             }
 
-            .mini-value {
-              margin-top: 6px;
-              font-size: 22px;
+            .card-brand {
+              display: flex;
+              align-items: center;
+              gap: 10px;
+            }
+
+            .mini-logo-wrap {
+              width: 40px;
+              height: 40px;
+              border: 1px solid #dbe2ea;
+              border-radius: 10px;
+              overflow: hidden;
+              display: grid;
+              place-items: center;
+              flex: 0 0 auto;
+            }
+
+            .mini-logo {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+            }
+
+            .brand-title {
+              font-size: 14px;
               font-weight: 900;
               color: #072B5A;
+              line-height: 1.1;
             }
 
-            .barcode-block {
-              border: 1px solid #dbe2ea;
-              border-radius: 12px;
-              padding: 16px;
-              margin-bottom: 14px;
-              text-align: center;
+            .brand-sub {
+              font-size: 11px;
+              color: #64748b;
+              margin-top: 2px;
             }
 
-            .barcode-label {
-              font-size: 15px;
+            .card-serial-box {
+              text-align: right;
+              min-width: 110px;
+            }
+
+            .card-label {
+              display: block;
+              font-size: 10px;
+              font-weight: 900;
+              color: #64748b;
+              margin-bottom: 2px;
+            }
+
+            .card-serial {
+              font-size: 22px;
               font-weight: 900;
               color: #0f172a;
-              margin-bottom: 12px;
-              letter-spacing: .5px;
+              line-height: 1;
             }
 
-            .barcode-svg-wrap {
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              min-height: 130px;
+            .card-mid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 10px;
+              margin-bottom: 10px;
+            }
+
+            .card-info {
+              border: 1px solid #e2e8f0;
+              border-radius: 10px;
+              padding: 8px 10px;
+            }
+
+            .card-value {
+              display: block;
+              font-size: 16px;
+              font-weight: 900;
+              color: #0f172a;
+              margin-top: 3px;
+            }
+
+            .barcode-box {
+              border: 1px solid #e2e8f0;
+              border-radius: 10px;
+              padding: 10px;
+              text-align: center;
+              margin-top: 8px;
+            }
+
+            .barcode-title {
+              font-size: 11px;
+              font-weight: 900;
+              color: #334155;
+              margin-bottom: 8px;
+              text-transform: uppercase;
             }
 
             .barcode-text {
-              margin-top: 10px;
-              font-size: 18px;
+              margin-top: 8px;
+              font-size: 12px;
               font-weight: 800;
               word-break: break-all;
-              letter-spacing: .6px;
             }
 
             svg {
+              width: 100%;
               max-width: 100%;
-              height: 110px;
+              height: 64px;
             }
           </style>
         </head>
         <body>
-          <div class="page-1">
-            <div class="print-wrap">
-              <div class="scale">
-                <div class="titlebar">
-                  <div class="logo"><img src="/INOVA.png" alt="INOVA"/></div>
-                  <div>
-                    <div style="font-weight:900; font-size:16px;">WMS INOVA</div>
-                    <div class="muted">Recibo ciego • Serial ${header.serial} • Usuario ${usuario || ""}</div>
-                  </div>
+          <div class="page">
+            <div class="titlebar">
+              <div class="logo">
+                <img src="/INOVA.png" alt="INOVA" />
+              </div>
+              <div>
+                <div class="title-main">WMS INOVA</div>
+                <div class="title-sub">
+                  Recibo ciego • Serial ${escapeHtml(header.serial)} • Usuario ${escapeHtml(usuario || "")}
                 </div>
-                ${clone.innerHTML}
               </div>
             </div>
+
+            <div class="header-grid">
+              <div class="header-box">
+                <div class="header-line">
+                  <div class="header-label"># Serial</div>
+                  <div class="header-value">${escapeHtml(header.serial || "")}</div>
+                </div>
+
+                <div class="header-line">
+                  <div class="header-label">Nombre Proveedor</div>
+                  <div class="header-value">${escapeHtml(proveedorPrint)}</div>
+                </div>
+
+                <div class="header-line">
+                  <div class="header-label">Acreedor</div>
+                  <div class="header-value">${escapeHtml(acreedorPrint)}</div>
+                </div>
+
+                <div class="header-line">
+                  <div class="header-label">Fecha recepción</div>
+                  <div class="header-value">${escapeHtml(fechaRecepPrint)}</div>
+                </div>
+              </div>
+
+              <div class="header-box">
+                <div class="header-line">
+                  <div class="header-label"># Remesa Transp (10)</div>
+                  <div class="header-value">${escapeHtml(remesaPrint)}</div>
+                </div>
+
+                <div class="header-line">
+                  <div class="header-label"># Documento (10)</div>
+                  <div class="header-value">${escapeHtml(documentoPrint)}</div>
+                </div>
+
+                <div class="header-line">
+                  <div class="header-label"># Orden de Compra (10)</div>
+                  <div class="header-value">${escapeHtml(ordenCompraPrint)}</div>
+                </div>
+
+                <div class="header-total">
+                  <div class="header-label" style="margin:0;">Total Recibo</div>
+                  <div class="header-total-value">${escapeHtml(formatMoney(totalRecibo))}</div>
+                </div>
+              </div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th># Serial</th>
+                  <th>Item</th>
+                  <th>Fecha Recepción</th>
+                  <th>Código</th>
+                  <th>Texto breve material</th>
+                  <th>Empaque</th>
+                  <th>UMB</th>
+                  <th>UM</th>
+                  <th>Cantidad</th>
+                  <th>Total</th>
+                  <th>Lote Proveedor (10)</th>
+                  <th>Fecha Fabricación</th>
+                  <th>Fecha Vencimiento</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tableRowsHtml}
+              </tbody>
+            </table>
           </div>
 
-          <div class="barcode-pages">
-            <div class="barcode-titlebar">
-              <div class="logo"><img src="/INOVA.png" alt="INOVA"/></div>
+          <div class="cards-page">
+            <div class="cards-title">
+              <div class="logo">
+                <img src="/INOVA.png" alt="INOVA" />
+              </div>
               <div>
-                <div class="barcode-main-title">TARJETAS DE CÓDIGOS DE BARRAS</div>
-                <div class="barcode-subtitle">Recibo ${header.serial} · Una tarjeta por línea · Formato escaneable</div>
+                <div class="title-main">Tarjetas del recibo</div>
+                <div class="title-sub">4 por hoja • listas para escanear</div>
               </div>
             </div>
 
-            ${barcodeCardsHtml}
+            <div class="cards-grid">
+              ${barcodeCardsHtml}
+            </div>
           </div>
 
           <script>
             ${barcodeScript}
+
             window.onload = () => {
               setTimeout(() => {
                 window.print();
                 window.close();
-              }, 700);
+              }, 500);
             };
           </script>
         </body>
@@ -719,7 +932,7 @@ export default function Recibo() {
         </div>
       )}
 
-      <div ref={printRef}>
+      <div>
         <div
           style={{
             display: "grid",
@@ -790,9 +1003,7 @@ export default function Recibo() {
                   maxLength={10}
                   style={{ width: "100%", marginTop: 6 }}
                 />
-                {errores.remesa_transp && (
-                  <div style={{ color: "crimson", marginTop: 4 }}>{errores.remesa_transp}</div>
-                )}
+                {errores.remesa_transp && <div style={{ color: "crimson", marginTop: 4 }}>{errores.remesa_transp}</div>}
               </div>
 
               <div>
@@ -816,9 +1027,7 @@ export default function Recibo() {
                   maxLength={10}
                   style={{ width: "100%", marginTop: 6 }}
                 />
-                {errores.orden_compra && (
-                  <div style={{ color: "crimson", marginTop: 4 }}>{errores.orden_compra}</div>
-                )}
+                {errores.orden_compra && <div style={{ color: "crimson", marginTop: 4 }}>{errores.orden_compra}</div>}
               </div>
 
               <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -873,9 +1082,7 @@ export default function Recibo() {
                       placeholder="Código"
                       style={{ width: 120 }}
                     />
-                    {errores[`codigo_${idx}`] && (
-                      <div style={{ color: "crimson" }}>{errores[`codigo_${idx}`]}</div>
-                    )}
+                    {errores[`codigo_${idx}`] && <div style={{ color: "crimson" }}>{errores[`codigo_${idx}`]}</div>}
                   </td>
 
                   <td>
@@ -899,9 +1106,7 @@ export default function Recibo() {
                         </option>
                       ))}
                     </select>
-                    {errores[`empaque_${idx}`] && (
-                      <div style={{ color: "crimson" }}>{errores[`empaque_${idx}`]}</div>
-                    )}
+                    {errores[`empaque_${idx}`] && <div style={{ color: "crimson" }}>{errores[`empaque_${idx}`]}</div>}
                   </td>
 
                   <td>
@@ -911,9 +1116,7 @@ export default function Recibo() {
                       onChange={(e) => onUmbChange(idx, e.target.value)}
                       style={{ width: 90 }}
                     />
-                    {errores[`umb_${idx}`] && (
-                      <div style={{ color: "crimson" }}>{errores[`umb_${idx}`]}</div>
-                    )}
+                    {errores[`umb_${idx}`] && <div style={{ color: "crimson" }}>{errores[`umb_${idx}`]}</div>}
                   </td>
 
                   <td>
@@ -927,9 +1130,7 @@ export default function Recibo() {
                       onChange={(e) => onCantidadChange(idx, e.target.value)}
                       style={{ width: 110 }}
                     />
-                    {errores[`cantidad_${idx}`] && (
-                      <div style={{ color: "crimson" }}>{errores[`cantidad_${idx}`]}</div>
-                    )}
+                    {errores[`cantidad_${idx}`] && <div style={{ color: "crimson" }}>{errores[`cantidad_${idx}`]}</div>}
                   </td>
 
                   <td>
@@ -944,14 +1145,14 @@ export default function Recibo() {
                     <input
                       value={ln.lote_proveedor}
                       onChange={(e) => onLoteProveedorChange(idx, e.target.value)}
-                      onBlur={() => setLinea(idx, { lote_proveedor: pad10WithStarsAny(ln.lote_proveedor) })}
+                      onBlur={() =>
+                        setLinea(idx, { lote_proveedor: pad10WithStarsAny(ln.lote_proveedor) })
+                      }
                       maxLength={10}
                       placeholder="10 caracteres"
                       style={{ width: 160 }}
                     />
-                    {errores[`loteprov_${idx}`] && (
-                      <div style={{ color: "crimson" }}>{errores[`loteprov_${idx}`]}</div>
-                    )}
+                    {errores[`loteprov_${idx}`] && <div style={{ color: "crimson" }}>{errores[`loteprov_${idx}`]}</div>}
                   </td>
 
                   <td>
