@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL, getProveedores } from "../../api";
 
@@ -38,13 +38,18 @@ function serialItem(serial, idx) {
   return `${serial}-${String(idx + 1).padStart(2, "0")}`;
 }
 
-function fmtDateOnly(v) {
-  const s = (v ?? "").toString().trim();
+function formatPrintDateDots(v) {
+  const s = String(v || "").trim();
   if (!s) return "";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return s.replaceAll("-", ".");
+  }
 
   const short = s.slice(0, 10);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(short)) return short;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(short)) {
+    return short.replaceAll("-", ".");
+  }
 
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return s;
@@ -52,27 +57,11 @@ function fmtDateOnly(v) {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+  return `${yyyy}.${mm}.${dd}`;
 }
 
-function formatFechaVencPrint(v) {
-  const s = fmtDateOnly(v);
-  if (!s) return "";
-  return s.replaceAll("-", ".");
-}
-
-function cleanLoteProveedorPrint(v) {
-  return (v ?? "").toString().replaceAll("*", "").trim();
-}
-
-function escapeHtml(v) {
-  return (v ?? "")
-    .toString()
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+function stripStars(value) {
+  return String(value || "").replace(/\*/g, "").trim();
 }
 
 const fmtCO = new Intl.NumberFormat("es-CO", {
@@ -99,6 +88,7 @@ const DRAFT_KEY = "wms_recibo_draft";
 
 export default function Recibo() {
   const navigate = useNavigate();
+  const printRef = useRef(null);
 
   // ===== Usuario por clave =====
   const [usuario, setUsuario] = useState("");
@@ -183,6 +173,7 @@ export default function Recibo() {
 
   const [errores, setErrores] = useState({});
 
+  // ===== Cargar borrador si existe =====
   useEffect(() => {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
@@ -260,6 +251,7 @@ export default function Recibo() {
   const onCodigoChange = (idx, codigo) => {
     const code = codigo.trim();
     const mat = materiales.find((m) => m.codigo === code);
+
     setLinea(idx, {
       codigo: code,
       descripcion: mat ? mat.descripcion : "",
@@ -293,6 +285,7 @@ export default function Recibo() {
 
   const onLoteProveedorChange = (idx, value) => {
     const clamped = limit10(value);
+
     setLinea(idx, {
       lote_proveedor: clamped,
       lote: "",
@@ -372,87 +365,87 @@ export default function Recibo() {
   };
 
   const onImprimir = () => {
-    const w = window.open("", "_blank", "width=1700,height=1100");
+    const el = printRef.current;
+    if (!el) {
+      window.print();
+      return;
+    }
+
+    const w = window.open("", "_blank", "width=1600,height=1000");
     if (!w) {
       alert("El navegador bloqueó la ventana de impresión.");
       return;
     }
 
-    const proveedorPrint = header.proveedor || "";
-    const acreedorPrint = header.acreedor || "";
-    const remesaPrint = pad10WithStars(header.remesa_transp || "");
-    const documentoPrint = pad10WithStars(header.documento || "");
-    const ordenCompraPrint = pad10WithStars(header.orden_compra || "");
-    const fechaRecepPrint = fmtDateOnly(header.fecha_recepcion || todayISODate());
+    const clone = el.cloneNode(true);
 
-    const tableRowsHtml = lineas
-      .map((ln, idx) => {
-        return `
-          <tr>
-            <td>${escapeHtml(serialItem(header.serial, idx))}</td>
-            <td>${idx + 1}</td>
-            <td>${escapeHtml(fmtDateOnly(ln.fecha_recepcion || fechaRecepPrint))}</td>
-            <td>${escapeHtml(ln.codigo || "")}</td>
-            <td>${escapeHtml(ln.descripcion || "")}</td>
-            <td>${escapeHtml(ln.empaque || "")}</td>
-            <td style="text-align:right;">${escapeHtml(ln.umb || "")}</td>
-            <td>${escapeHtml(ln.um || "")}</td>
-            <td style="text-align:right;">${escapeHtml(ln.cantidad || "")}</td>
-            <td style="text-align:right;">${escapeHtml(formatMoney(ln.total || 0))}</td>
-            <td>${escapeHtml(ln.lote_proveedor || "")}</td>
-            <td>${escapeHtml(fmtDateOnly(ln.fecha_fabricacion))}</td>
-            <td>${escapeHtml(fmtDateOnly(ln.fecha_vencimiento))}</td>
-          </tr>
-        `;
-      })
-      .join("");
+    const inputs = clone.querySelectorAll("input, select, textarea, button");
+    inputs.forEach((node) => {
+      const tag = node.tagName.toLowerCase();
 
-    const barcodeCardsHtml = lineas
+      if (tag === "button") {
+        node.remove();
+        return;
+      }
+
+      let value = "";
+
+      if (tag === "select") {
+        value = node.options?.[node.selectedIndex]?.text || node.value || "";
+      } else {
+        value = node.value ?? node.getAttribute("value") ?? "";
+      }
+
+      const span = w.document.createElement("span");
+      span.textContent = value || "";
+      span.style.display = "inline-block";
+      span.style.width = "100%";
+      span.style.whiteSpace = "pre-wrap";
+      span.style.wordBreak = "break-word";
+      span.style.fontSize = "10.5px";
+      span.style.lineHeight = "1.2";
+      node.replaceWith(span);
+    });
+
+    const barcodeRowsHtml = lineas
       .map((ln, idx) => {
         const serial = serialItem(header.serial, idx);
         const cantidad = formatMoney(ln.total || 0);
-        const loteProveedorText = cleanLoteProveedorPrint(ln.lote_proveedor) || "VACIO";
-        const fechaVencText = formatFechaVencPrint(ln.fecha_vencimiento) || "SIN_FECHA";
+        const loteProveedorTexto = stripStars(ln.lote_proveedor || "");
+        const fechaVencTexto = formatPrintDateDots(ln.fecha_vencimiento || "");
+        const proveedorTexto = header.proveedor || "";
 
         return `
-          <div class="card">
-            <div class="card-head">
-              <div class="card-brand">
-                <div class="mini-logo-wrap">
-                  <img src="/INOVA.png" alt="INOVA" class="mini-logo" />
-                </div>
-                <div>
-                  <div class="brand-title">WMS INOVA</div>
-                  <div class="brand-sub">Tarjeta de identificación</div>
-                </div>
+          <div class="barcode-card">
+            <div class="barcode-card-head">
+              <div class="barcode-card-head-left">
+                <div class="mini-label">CÓDIGO</div>
+                <div class="mini-value">${ln.codigo || "-"}</div>
               </div>
-              <div class="card-serial-box">
-                <div class="card-label"># SERIAL</div>
-                <div class="card-serial">${escapeHtml(serial)}</div>
+              <div class="barcode-card-head-right">
+                <div class="mini-label">CANTIDAD</div>
+                <div class="mini-value">${cantidad || "0,00"}</div>
               </div>
             </div>
 
-            <div class="card-mid">
-              <div class="card-info">
-                <span class="card-label">CANTIDAD</span>
-                <span class="card-value">${escapeHtml(cantidad)}</span>
-              </div>
-              <div class="card-info">
-                <span class="card-label">CÓDIGO</span>
-                <span class="card-value">${escapeHtml(ln.codigo || "")}</span>
-              </div>
+            <div class="barcode-meta-stack">
+              <div><b>Fecha vencimiento:</b> ${fechaVencTexto || "-"}</div>
+              <div><b>Proveedor:</b> ${proveedorTexto || "-"}</div>
+              <div><b># Serial:</b> ${serial}</div>
             </div>
 
-            <div class="barcode-box">
-              <div class="barcode-title">LOTE PROVEEDOR</div>
-              <svg id="barcode-lote-${idx}"></svg>
-              <div class="barcode-text">${escapeHtml(loteProveedorText)}</div>
-            </div>
+            <div class="barcode-grid">
+              <div class="barcode-box">
+                <div class="barcode-label">LOTE PROVEEDOR</div>
+                <svg id="barcode-lote-${idx}"></svg>
+                <div class="barcode-text">${loteProveedorTexto || "-"}</div>
+              </div>
 
-            <div class="barcode-box">
-              <div class="barcode-title">FECHA VENCIMIENTO</div>
-              <svg id="barcode-fv-${idx}"></svg>
-              <div class="barcode-text">${escapeHtml(fechaVencText)}</div>
+              <div class="barcode-box">
+                <div class="barcode-label">FECHA VENCIMIENTO</div>
+                <svg id="barcode-fv-${idx}"></svg>
+                <div class="barcode-text">${fechaVencTexto || "-"}</div>
+              </div>
             </div>
           </div>
         `;
@@ -461,8 +454,8 @@ export default function Recibo() {
 
     const barcodeScript = lineas
       .map((ln, idx) => {
-        const loteProveedor = JSON.stringify(cleanLoteProveedorPrint(ln.lote_proveedor) || "VACIO");
-        const fechaVenc = JSON.stringify(formatFechaVencPrint(ln.fecha_vencimiento) || "SIN_FECHA");
+        const loteProveedor = JSON.stringify(stripStars(ln.lote_proveedor || "") || "VACIO");
+        const fechaVenc = JSON.stringify(formatPrintDateDots(ln.fecha_vencimiento || "") || "SIN.FECHA");
 
         return `
           try {
@@ -495,7 +488,7 @@ export default function Recibo() {
     const html = `
       <html>
         <head>
-          <title>Recibo ciego - ${escapeHtml(header.serial)}</title>
+          <title>Recibo ciego - ${header.serial}</title>
           <meta charset="utf-8" />
           <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
           <style>
@@ -504,110 +497,37 @@ export default function Recibo() {
               margin: 8mm;
             }
 
-            * {
-              box-sizing: border-box;
+            html, body {
+              height: 100%;
             }
 
-            html, body {
-              margin: 0;
-              padding: 0;
+            body {
               font-family: Arial, sans-serif;
               color: #0f172a;
-              background: #ffffff;
-            }
-
-            .page {
-              width: 100%;
-            }
-
-            .page-break {
-              page-break-before: always;
-            }
-
-            .titlebar {
-              display: flex;
-              align-items: center;
-              gap: 12px;
-              margin-bottom: 12px;
-            }
-
-            .logo {
-              width: 52px;
-              height: 52px;
-              border: 1px solid #e2e8f0;
-              border-radius: 12px;
-              overflow: hidden;
-              display: grid;
-              place-items: center;
-              flex: 0 0 auto;
-            }
-
-            .logo img {
-              width: 100%;
-              height: 100%;
-              object-fit: cover;
-            }
-
-            .title-main {
-              font-size: 16px;
-              font-weight: 900;
               margin: 0;
+              padding: 0;
             }
 
-            .title-sub {
-              color: #475569;
+            .print-wrap {
+              width: 100%;
+            }
+
+            .scale {
+              transform-origin: top left;
+              transform: scale(0.94);
+              width: 106%;
+            }
+
+            .muted {
+              color: #64748b;
               font-size: 12px;
-              margin-top: 4px;
-            }
-
-            .header-grid {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 12px;
-              margin-bottom: 12px;
-            }
-
-            .header-box {
-              border: 1px solid #dbe2ea;
-              border-radius: 12px;
-              padding: 12px;
-              min-height: 138px;
-            }
-
-            .header-line {
-              margin-bottom: 10px;
-            }
-
-            .header-label {
-              font-size: 11px;
-              font-weight: 900;
-              color: #1e293b;
-              margin-bottom: 2px;
-              text-transform: uppercase;
-            }
-
-            .header-value {
-              font-size: 12px;
-              font-weight: 700;
-              color: #0f172a;
-            }
-
-            .header-total {
-              display: flex;
-              justify-content: space-between;
-              align-items: end;
-              margin-top: 12px;
-            }
-
-            .header-total-value {
-              font-size: 20px;
-              font-weight: 900;
             }
 
             table {
               width: 100%;
               border-collapse: collapse;
               table-layout: fixed;
+              page-break-inside: auto;
             }
 
             thead {
@@ -616,282 +536,186 @@ export default function Recibo() {
 
             tr {
               page-break-inside: avoid;
+              page-break-after: auto;
             }
 
             th, td {
               border: 1px solid #111827;
-              padding: 5px 6px;
-              font-size: 9.5px;
+              padding: 5px;
+              font-size: 10.5px;
               vertical-align: top;
-              word-break: break-word;
+              word-wrap: break-word;
+              overflow-wrap: anywhere;
             }
 
             th {
               background: #f1f5f9;
               text-align: left;
-              font-weight: 900;
             }
 
-            th:nth-child(1), td:nth-child(1) { width: 8.5%; }
-            th:nth-child(2), td:nth-child(2) { width: 4.2%; }
-            th:nth-child(3), td:nth-child(3) { width: 8.8%; }
-            th:nth-child(4), td:nth-child(4) { width: 7.5%; }
-            th:nth-child(5), td:nth-child(5) { width: 18.5%; }
-            th:nth-child(6), td:nth-child(6) { width: 8.2%; }
-            th:nth-child(7), td:nth-child(7) { width: 5.4%; }
-            th:nth-child(8), td:nth-child(8) { width: 5.4%; }
-            th:nth-child(9), td:nth-child(9) { width: 7.2%; }
-            th:nth-child(10), td:nth-child(10) { width: 8%; }
-            th:nth-child(11), td:nth-child(11) { width: 11.2%; }
-            th:nth-child(12), td:nth-child(12) { width: 9.2%; }
-            th:nth-child(13), td:nth-child(13) { width: 9.2%; }
+            th:nth-child(1), td:nth-child(1) { width: 80px; }
+            th:nth-child(2), td:nth-child(2) { width: 35px; }
+            th:nth-child(3), td:nth-child(3) { width: 90px; }
+            th:nth-child(4), td:nth-child(4) { width: 80px; }
+            th:nth-child(5), td:nth-child(5) { width: 210px; }
+            th:nth-child(6), td:nth-child(6) { width: 90px; }
+            th:nth-child(7), td:nth-child(7) { width: 60px; }
+            th:nth-child(8), td:nth-child(8) { width: 60px; }
+            th:nth-child(9), td:nth-child(9) { width: 80px; }
+            th:nth-child(10), td:nth-child(10) { width: 80px; }
+            th:nth-child(11), td:nth-child(11) { width: 115px; }
+            th:nth-child(12), td:nth-child(12) { width: 95px; }
+            th:nth-child(13), td:nth-child(13) { width: 95px; }
+            th:nth-child(14), td:nth-child(14) { width: 70px; }
 
-            .cards-page {
-              page-break-before: always;
-            }
-
-            .cards-title {
+            .titlebar {
               display: flex;
               align-items: center;
               gap: 12px;
-              margin-bottom: 12px;
-            }
-
-            .cards-grid {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 12px;
-            }
-
-            .card {
-              border: 1px solid #cbd5e1;
-              border-radius: 12px;
-              padding: 12px;
-              min-height: 255px;
-              page-break-inside: avoid;
-              display: flex;
-              flex-direction: column;
-              justify-content: space-between;
-            }
-
-            .card-head {
-              display: flex;
-              justify-content: space-between;
-              align-items: start;
-              gap: 10px;
               margin-bottom: 10px;
             }
 
-            .card-brand {
-              display: flex;
-              align-items: center;
-              gap: 10px;
-            }
-
-            .mini-logo-wrap {
-              width: 40px;
-              height: 40px;
-              border: 1px solid #dbe2ea;
-              border-radius: 10px;
+            .logo {
+              width: 46px;
+              height: 46px;
+              border: 1px solid #e2e8f0;
+              border-radius: 12px;
               overflow: hidden;
               display: grid;
               place-items: center;
-              flex: 0 0 auto;
             }
 
-            .mini-logo {
+            .logo img {
               width: 100%;
               height: 100%;
               object-fit: cover;
             }
 
-            .brand-title {
-              font-size: 14px;
+            .barcode-section {
+              margin-top: 20px;
+              page-break-before: always;
+            }
+
+            .barcode-section-title {
+              font-size: 16px;
               font-weight: 900;
+              margin-bottom: 12px;
               color: #072B5A;
-              line-height: 1.1;
             }
 
-            .brand-sub {
-              font-size: 11px;
-              color: #64748b;
-              margin-top: 2px;
-            }
-
-            .card-serial-box {
-              text-align: right;
-              min-width: 110px;
-            }
-
-            .card-label {
-              display: block;
-              font-size: 10px;
-              font-weight: 900;
-              color: #64748b;
-              margin-bottom: 2px;
-            }
-
-            .card-serial {
-              font-size: 22px;
-              font-weight: 900;
-              color: #0f172a;
-              line-height: 1;
-            }
-
-            .card-mid {
+            .barcode-cards-grid {
               display: grid;
               grid-template-columns: 1fr 1fr;
-              gap: 10px;
+              gap: 12px;
+            }
+
+            .barcode-card {
+              border: 1px solid #cbd5e1;
+              border-radius: 10px;
+              padding: 12px;
+              page-break-inside: avoid;
+              min-height: 240px;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+            }
+
+            .barcode-card-head {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              gap: 16px;
               margin-bottom: 10px;
             }
 
-            .card-info {
-              border: 1px solid #e2e8f0;
-              border-radius: 10px;
-              padding: 8px 10px;
+            .barcode-card-head-left,
+            .barcode-card-head-right {
+              width: 48%;
             }
 
-            .card-value {
-              display: block;
-              font-size: 16px;
+            .barcode-card-head-right {
+              text-align: right;
+            }
+
+            .mini-label {
+              font-size: 11px;
+              font-weight: 900;
+              color: #475569;
+              margin-bottom: 4px;
+            }
+
+            .mini-value {
+              font-size: 20px;
               font-weight: 900;
               color: #0f172a;
-              margin-top: 3px;
+              word-break: break-word;
+            }
+
+            .barcode-meta-stack {
+              margin-bottom: 10px;
+              font-size: 12px;
+              line-height: 1.5;
+            }
+
+            .barcode-grid {
+              display: grid;
+              grid-template-columns: 1fr;
+              gap: 10px;
             }
 
             .barcode-box {
               border: 1px solid #e2e8f0;
-              border-radius: 10px;
+              border-radius: 8px;
               padding: 10px;
               text-align: center;
-              margin-top: 8px;
             }
 
-            .barcode-title {
+            .barcode-label {
               font-size: 11px;
               font-weight: 900;
-              color: #334155;
               margin-bottom: 8px;
-              text-transform: uppercase;
+              color: #334155;
             }
 
             .barcode-text {
               margin-top: 8px;
-              font-size: 12px;
+              font-size: 13px;
               font-weight: 800;
+              letter-spacing: 0.5px;
               word-break: break-all;
             }
 
             svg {
               width: 100%;
               max-width: 100%;
-              height: 64px;
+              height: 62px;
             }
           </style>
         </head>
         <body>
-          <div class="page">
-            <div class="titlebar">
-              <div class="logo">
-                <img src="/INOVA.png" alt="INOVA" />
-              </div>
-              <div>
-                <div class="title-main">WMS INOVA</div>
-                <div class="title-sub">
-                  Recibo ciego • Serial ${escapeHtml(header.serial)} • Usuario ${escapeHtml(usuario || "")}
-                </div>
-              </div>
-            </div>
-
-            <div class="header-grid">
-              <div class="header-box">
-                <div class="header-line">
-                  <div class="header-label"># Serial</div>
-                  <div class="header-value">${escapeHtml(header.serial || "")}</div>
-                </div>
-
-                <div class="header-line">
-                  <div class="header-label">Nombre Proveedor</div>
-                  <div class="header-value">${escapeHtml(proveedorPrint)}</div>
-                </div>
-
-                <div class="header-line">
-                  <div class="header-label">Acreedor</div>
-                  <div class="header-value">${escapeHtml(acreedorPrint)}</div>
-                </div>
-
-                <div class="header-line">
-                  <div class="header-label">Fecha recepción</div>
-                  <div class="header-value">${escapeHtml(fechaRecepPrint)}</div>
+          <div class="print-wrap">
+            <div class="scale">
+              <div class="titlebar">
+                <div class="logo"><img src="/INOVA.png" alt="INOVA"/></div>
+                <div>
+                  <div style="font-weight:900; font-size:16px;">WMS INOVA</div>
+                  <div class="muted">Recibo ciego • Serial ${header.serial} • Usuario ${usuario || ""}</div>
                 </div>
               </div>
 
-              <div class="header-box">
-                <div class="header-line">
-                  <div class="header-label"># Remesa Transp (10)</div>
-                  <div class="header-value">${escapeHtml(remesaPrint)}</div>
-                </div>
+              ${clone.innerHTML}
 
-                <div class="header-line">
-                  <div class="header-label"># Documento (10)</div>
-                  <div class="header-value">${escapeHtml(documentoPrint)}</div>
-                </div>
-
-                <div class="header-line">
-                  <div class="header-label"># Orden de Compra (10)</div>
-                  <div class="header-value">${escapeHtml(ordenCompraPrint)}</div>
-                </div>
-
-                <div class="header-total">
-                  <div class="header-label" style="margin:0;">Total Recibo</div>
-                  <div class="header-total-value">${escapeHtml(formatMoney(totalRecibo))}</div>
+              <div class="barcode-section">
+                <div class="barcode-section-title">Tarjetas del recibo</div>
+                <div class="barcode-cards-grid">
+                  ${barcodeRowsHtml}
                 </div>
               </div>
-            </div>
-
-            <table>
-              <thead>
-                <tr>
-                  <th># Serial</th>
-                  <th>Item</th>
-                  <th>Fecha Recepción</th>
-                  <th>Código</th>
-                  <th>Texto breve material</th>
-                  <th>Empaque</th>
-                  <th>UMB</th>
-                  <th>UM</th>
-                  <th>Cantidad</th>
-                  <th>Total</th>
-                  <th>Lote Proveedor (10)</th>
-                  <th>Fecha Fabricación</th>
-                  <th>Fecha Vencimiento</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${tableRowsHtml}
-              </tbody>
-            </table>
-          </div>
-
-          <div class="cards-page">
-            <div class="cards-title">
-              <div class="logo">
-                <img src="/INOVA.png" alt="INOVA" />
-              </div>
-              <div>
-                <div class="title-main">Tarjetas del recibo</div>
-                <div class="title-sub">4 por hoja • listas para escanear</div>
-              </div>
-            </div>
-
-            <div class="cards-grid">
-              ${barcodeCardsHtml}
             </div>
           </div>
 
           <script>
             ${barcodeScript}
-
             window.onload = () => {
               setTimeout(() => {
                 window.print();
@@ -910,7 +734,14 @@ export default function Recibo() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 10,
+        }}
+      >
         <h2 style={{ margin: 0 }}>📥 Recibo ciego</h2>
 
         <div style={{ display: "flex", gap: 10 }}>
@@ -932,7 +763,7 @@ export default function Recibo() {
         </div>
       )}
 
-      <div>
+      <div ref={printRef}>
         <div
           style={{
             display: "grid",
@@ -1003,7 +834,9 @@ export default function Recibo() {
                   maxLength={10}
                   style={{ width: "100%", marginTop: 6 }}
                 />
-                {errores.remesa_transp && <div style={{ color: "crimson", marginTop: 4 }}>{errores.remesa_transp}</div>}
+                {errores.remesa_transp && (
+                  <div style={{ color: "crimson", marginTop: 4 }}>{errores.remesa_transp}</div>
+                )}
               </div>
 
               <div>
@@ -1015,7 +848,9 @@ export default function Recibo() {
                   maxLength={10}
                   style={{ width: "100%", marginTop: 6 }}
                 />
-                {errores.documento && <div style={{ color: "crimson", marginTop: 4 }}>{errores.documento}</div>}
+                {errores.documento && (
+                  <div style={{ color: "crimson", marginTop: 4 }}>{errores.documento}</div>
+                )}
               </div>
 
               <div>
@@ -1027,7 +862,9 @@ export default function Recibo() {
                   maxLength={10}
                   style={{ width: "100%", marginTop: 6 }}
                 />
-                {errores.orden_compra && <div style={{ color: "crimson", marginTop: 4 }}>{errores.orden_compra}</div>}
+                {errores.orden_compra && (
+                  <div style={{ color: "crimson", marginTop: 4 }}>{errores.orden_compra}</div>
+                )}
               </div>
 
               <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -1082,7 +919,9 @@ export default function Recibo() {
                       placeholder="Código"
                       style={{ width: 120 }}
                     />
-                    {errores[`codigo_${idx}`] && <div style={{ color: "crimson" }}>{errores[`codigo_${idx}`]}</div>}
+                    {errores[`codigo_${idx}`] && (
+                      <div style={{ color: "crimson" }}>{errores[`codigo_${idx}`]}</div>
+                    )}
                   </td>
 
                   <td>
@@ -1106,7 +945,9 @@ export default function Recibo() {
                         </option>
                       ))}
                     </select>
-                    {errores[`empaque_${idx}`] && <div style={{ color: "crimson" }}>{errores[`empaque_${idx}`]}</div>}
+                    {errores[`empaque_${idx}`] && (
+                      <div style={{ color: "crimson" }}>{errores[`empaque_${idx}`]}</div>
+                    )}
                   </td>
 
                   <td>
@@ -1116,11 +957,17 @@ export default function Recibo() {
                       onChange={(e) => onUmbChange(idx, e.target.value)}
                       style={{ width: 90 }}
                     />
-                    {errores[`umb_${idx}`] && <div style={{ color: "crimson" }}>{errores[`umb_${idx}`]}</div>}
+                    {errores[`umb_${idx}`] && (
+                      <div style={{ color: "crimson" }}>{errores[`umb_${idx}`]}</div>
+                    )}
                   </td>
 
                   <td>
-                    <input value={ln.um} readOnly style={{ width: 90, background: "#f3f3f3" }} />
+                    <input
+                      value={ln.um}
+                      readOnly
+                      style={{ width: 90, background: "#f3f3f3" }}
+                    />
                   </td>
 
                   <td>
@@ -1130,7 +977,9 @@ export default function Recibo() {
                       onChange={(e) => onCantidadChange(idx, e.target.value)}
                       style={{ width: 110 }}
                     />
-                    {errores[`cantidad_${idx}`] && <div style={{ color: "crimson" }}>{errores[`cantidad_${idx}`]}</div>}
+                    {errores[`cantidad_${idx}`] && (
+                      <div style={{ color: "crimson" }}>{errores[`cantidad_${idx}`]}</div>
+                    )}
                   </td>
 
                   <td>
@@ -1146,13 +995,17 @@ export default function Recibo() {
                       value={ln.lote_proveedor}
                       onChange={(e) => onLoteProveedorChange(idx, e.target.value)}
                       onBlur={() =>
-                        setLinea(idx, { lote_proveedor: pad10WithStarsAny(ln.lote_proveedor) })
+                        setLinea(idx, {
+                          lote_proveedor: pad10WithStarsAny(ln.lote_proveedor),
+                        })
                       }
                       maxLength={10}
                       placeholder="10 caracteres"
                       style={{ width: 160 }}
                     />
-                    {errores[`loteprov_${idx}`] && <div style={{ color: "crimson" }}>{errores[`loteprov_${idx}`]}</div>}
+                    {errores[`loteprov_${idx}`] && (
+                      <div style={{ color: "crimson" }}>{errores[`loteprov_${idx}`]}</div>
+                    )}
                   </td>
 
                   <td>
@@ -1169,7 +1022,9 @@ export default function Recibo() {
                       value={ln.fecha_vencimiento}
                       onChange={(e) => setLinea(idx, { fecha_vencimiento: e.target.value })}
                     />
-                    {errores[`fv_${idx}`] && <div style={{ color: "crimson" }}>{errores[`fv_${idx}`]}</div>}
+                    {errores[`fv_${idx}`] && (
+                      <div style={{ color: "crimson" }}>{errores[`fv_${idx}`]}</div>
+                    )}
                   </td>
 
                   <td>
