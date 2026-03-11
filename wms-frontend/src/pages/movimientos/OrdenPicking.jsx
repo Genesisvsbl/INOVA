@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-
-const API = "http://127.0.0.1:8000";
+import { API_URL } from "../../api";
 
 const colors = {
   navy: "#072B5A",
@@ -100,8 +99,8 @@ export default function OrdenPicking() {
 
     try {
       const [pickRes, despRes] = await Promise.all([
-        fetch(`${API}/despachos/picking/${encodeURIComponent(reserva)}`),
-        fetch(`${API}/despachos?reserva=${encodeURIComponent(reserva)}`),
+        fetch(`${API_URL}/despachos/picking/${encodeURIComponent(reserva)}`),
+        fetch(`${API_URL}/despachos?reserva=${encodeURIComponent(reserva)}`),
       ]);
 
       if (!pickRes.ok) throw new Error(await pickRes.text());
@@ -295,11 +294,14 @@ export default function OrdenPicking() {
         })),
       };
 
-      const res = await fetch(`${API}/despachos/confirmar-picking/${encodeURIComponent(reserva)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch(
+        `${API_URL}/despachos/confirmar-picking/${encodeURIComponent(reserva)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
 
       if (!res.ok) throw new Error(await res.text());
 

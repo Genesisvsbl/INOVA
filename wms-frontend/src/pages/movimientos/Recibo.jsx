@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getProveedores } from "../../api";
+import { API_URL, getProveedores } from "../../api";
 
 // ===== Helpers =====
 function todayISODate() {
@@ -117,8 +117,11 @@ export default function Recibo() {
   const [materiales, setMateriales] = useState([]);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/materiales?limit=1000")
-      .then((r) => r.json())
+    fetch(`${API_URL}/materiales?limit=1000`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error(await r.text());
+        return r.json();
+      })
       .then((data) => setMateriales(Array.isArray(data) ? data : []))
       .catch(() => setMateriales([]));
   }, []);
@@ -356,14 +359,12 @@ export default function Recibo() {
       return;
     }
 
-    // ✅ Copia de HTML pero sin inputs/selects (los dejamos como texto)
     const clone = el.cloneNode(true);
 
-    // Reemplazar inputs/selects por spans para impresión bonita
     const inputs = clone.querySelectorAll("input, select, textarea, button");
     inputs.forEach((node) => {
       if (node.tagName.toLowerCase() === "button") {
-        node.remove(); // no imprimir botones
+        node.remove();
         return;
       }
 
@@ -394,11 +395,10 @@ export default function Recibo() {
             html, body { height: 100%; }
             body { font-family: Arial, sans-serif; color: #0f172a; }
 
-            /* Para que NUNCA corte la tabla */
             .print-wrap { width: 100%; }
             .scale {
               transform-origin: top left;
-              transform: scale(0.92); /* ✅ si aún queda ancho, baja a 0.88 */
+              transform: scale(0.92);
             }
 
             h2 { margin: 0 0 8px; font-size: 16px; }
@@ -409,10 +409,10 @@ export default function Recibo() {
             table {
               width: 100%;
               border-collapse: collapse;
-              table-layout: fixed; /* ✅ clave */
+              table-layout: fixed;
               page-break-inside: auto;
             }
-            thead { display: table-header-group; } /* ✅ repite encabezado */
+            thead { display: table-header-group; }
             tr { page-break-inside: avoid; page-break-after: auto; }
             th, td {
               border: 1px solid #111827;
@@ -424,21 +424,20 @@ export default function Recibo() {
             }
             th { background: #f1f5f9; text-align: left; }
 
-            /* Ajuste de columnas por ancho (puedes modificar si quieres) */
-            th:nth-child(1), td:nth-child(1) { width: 80px; }   /* Serial */
-            th:nth-child(2), td:nth-child(2) { width: 35px; }   /* Item */
-            th:nth-child(3), td:nth-child(3) { width: 80px; }   /* Fecha */
-            th:nth-child(4), td:nth-child(4) { width: 70px; }   /* Código */
-            th:nth-child(5), td:nth-child(5) { width: 190px; }  /* Descripción */
-            th:nth-child(6), td:nth-child(6) { width: 80px; }   /* Empaque */
-            th:nth-child(7), td:nth-child(7) { width: 55px; }   /* UMB */
-            th:nth-child(8), td:nth-child(8) { width: 55px; }   /* UM */
-            th:nth-child(9), td:nth-child(9) { width: 70px; }   /* Cant */
-            th:nth-child(10), td:nth-child(10){ width: 75px; }  /* Total */
-            th:nth-child(11), td:nth-child(11){ width: 110px; } /* Lote Prov */
-            th:nth-child(12), td:nth-child(12){ width: 90px; }  /* Fabric */
-            th:nth-child(13), td:nth-child(13){ width: 90px; }  /* Venc */
-            th:nth-child(14), td:nth-child(14){ width: 70px; }  /* Acción */
+            th:nth-child(1), td:nth-child(1) { width: 80px; }
+            th:nth-child(2), td:nth-child(2) { width: 35px; }
+            th:nth-child(3), td:nth-child(3) { width: 80px; }
+            th:nth-child(4), td:nth-child(4) { width: 70px; }
+            th:nth-child(5), td:nth-child(5) { width: 190px; }
+            th:nth-child(6), td:nth-child(6) { width: 80px; }
+            th:nth-child(7), td:nth-child(7) { width: 55px; }
+            th:nth-child(8), td:nth-child(8) { width: 55px; }
+            th:nth-child(9), td:nth-child(9) { width: 70px; }
+            th:nth-child(10), td:nth-child(10){ width: 75px; }
+            th:nth-child(11), td:nth-child(11){ width: 110px; }
+            th:nth-child(12), td:nth-child(12){ width: 90px; }
+            th:nth-child(13), td:nth-child(13){ width: 90px; }
+            th:nth-child(14), td:nth-child(14){ width: 70px; }
 
             .titlebar { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
             .logo { width: 46px; height: 46px; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; display:grid; place-items:center; }
@@ -473,7 +472,6 @@ export default function Recibo() {
 
   return (
     <div>
-      {/* Botones arriba */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <h2 style={{ margin: 0 }}>📥 Recibo ciego</h2>
 
@@ -496,9 +494,7 @@ export default function Recibo() {
         </div>
       )}
 
-      {/* ✅ SOLO ESTO SE IMPRIME */}
       <div ref={printRef}>
-        {/* CABECERA */}
         <div
           style={{
             display: "grid",
@@ -586,7 +582,6 @@ export default function Recibo() {
           </div>
         </div>
 
-        {/* TABLA */}
         <div style={{ overflowX: "auto" }}>
           <table border="1" cellPadding="6" style={{ borderCollapse: "collapse", width: "100%" }}>
             <thead>
@@ -667,7 +662,7 @@ export default function Recibo() {
                     <input
                       value={ln.lote_proveedor}
                       onChange={(e) => onLoteProveedorChange(idx, e.target.value)}
-                      onBlur={() => setLinea(idx, { lote_proveedor: pad10WithStarsAny(ln.lote_proveedor) })} // ✅ RELLENA CON *
+                      onBlur={() => setLinea(idx, { lote_proveedor: pad10WithStarsAny(ln.lote_proveedor) })}
                       maxLength={10}
                       placeholder="10 caracteres"
                       style={{ width: 160 }}
@@ -704,7 +699,6 @@ export default function Recibo() {
         </div>
       </div>
 
-      {/* Botones abajo */}
       <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
         <button onClick={addLinea}>+ Agregar línea</button>
         <button onClick={onImprimir}>🖨️ Imprimir</button>
