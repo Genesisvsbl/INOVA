@@ -28,7 +28,7 @@ function pad10WithStars(s) {
   return (v + "**********").slice(0, 10);
 }
 
-// ✅ NUEVO: rellena SIEMPRE a 10 con *
+// rellena SIEMPRE a 10 con *
 function pad10WithStarsAny(s) {
   const v = limit10(s);
   return (v + "**********").slice(0, 10);
@@ -38,7 +38,7 @@ function serialItem(serial, idx) {
   return `${serial}-${String(idx + 1).padStart(2, "0")}`;
 }
 
-// ✅ Formato con punto de mil (es-CO)
+// Formato con punto de mil (es-CO)
 const fmtCO = new Intl.NumberFormat("es-CO", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
@@ -62,8 +62,6 @@ const DRAFT_KEY = "wms_recibo_draft";
 
 export default function Recibo() {
   const navigate = useNavigate();
-
-  // ✅ área imprimible
   const printRef = useRef(null);
 
   // ===== Usuario por clave =====
@@ -137,20 +135,16 @@ export default function Recibo() {
       um: "",
       cantidad: "",
       total: 0,
-
-      // ✅ AHORA en Recibo se digita esto:
-      lote_proveedor: "", // 10
-      fecha_fabricacion: "", // date
-      fecha_vencimiento: "", // date
-
-      // (queda por compatibilidad, ya no se usa aquí)
+      lote_proveedor: "",
+      fecha_fabricacion: "",
+      fecha_vencimiento: "",
       lote: "",
     },
   ]);
 
   const [errores, setErrores] = useState({});
 
-  // ✅ Cargar borrador si existe (para cuando vuelves desde Movimientos)
+  // ===== Cargar borrador si existe =====
   useEffect(() => {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
@@ -163,11 +157,13 @@ export default function Recibo() {
     }
   }, []);
 
-  const totalRecibo = useMemo(() => lineas.reduce((acc, ln) => acc + (Number(ln.total) || 0), 0), [lineas]);
+  const totalRecibo = useMemo(
+    () => lineas.reduce((acc, ln) => acc + (Number(ln.total) || 0), 0),
+    [lineas]
+  );
 
   const setHeaderField = (k, v) => setHeader((prev) => ({ ...prev, [k]: v }));
 
-  // ✅ Proveedor dropdown (BD) => Acreedor automático
   const onProveedorSelect = (proveedorId) => {
     const p = proveedores.find((x) => String(x.id) === String(proveedorId));
     setHeader((prev) => ({
@@ -178,7 +174,6 @@ export default function Recibo() {
     }));
   };
 
-  // 10 caracteres (alfanum + *)
   const onField10Change = (key, raw) => {
     const v = limit10(raw);
     setHeaderField(key, v);
@@ -193,9 +188,9 @@ export default function Recibo() {
       });
     }
   };
+
   const onField10Blur = (key) => setHeaderField(key, pad10WithStars(header[key]));
 
-  // ===== Líneas helpers =====
   const setLinea = (idx, patch) => {
     setLineas((prev) => prev.map((ln, i) => (i === idx ? { ...ln, ...patch } : ln)));
   };
@@ -212,11 +207,9 @@ export default function Recibo() {
         um: "",
         cantidad: "",
         total: 0,
-
         lote_proveedor: "",
         fecha_fabricacion: "",
         fecha_vencimiento: "",
-
         lote: "",
       },
     ]);
@@ -254,12 +247,10 @@ export default function Recibo() {
     );
   };
 
-  // ✅ NUEVO: lote proveedor (10) se digita aquí
   const onLoteProveedorChange = (idx, value) => {
     const clamped = limit10(value);
     setLinea(idx, {
       lote_proveedor: clamped,
-      // lote ya no se usa aquí
       lote: "",
     });
 
@@ -293,20 +284,16 @@ export default function Recibo() {
       if (!ln.cantidad || Number(ln.cantidad) <= 0) errs[`cantidad_${idx}`] = "Cantidad > 0 obligatoria.";
       if (!ln.umb || Number(ln.umb) <= 0) errs[`umb_${idx}`] = "UMB (valor) > 0 obligatoria.";
 
-      // ✅ CAMBIO CLAVE:
       if ((ln.lote_proveedor ?? "").toString().trim().length !== 10) {
         errs[`loteprov_${idx}`] = "Lote proveedor debe ser exactamente 10.";
       }
       if (!ln.fecha_vencimiento) errs[`fv_${idx}`] = "Fecha vencimiento obligatoria.";
-      // if (!ln.fecha_fabricacion) errs[`ff_${idx}`] = "Fecha fabricación obligatoria.";
     });
 
     setErrores(errs);
     return Object.keys(errs).length === 0;
   };
 
-  // ✅ aquí NO guardamos aún en BD
-  // ✅ guardamos borrador y mandamos a Movimientos (solo ubicación)
   const onGuardarRecibo = async () => {
     ["remesa_transp", "documento", "orden_compra"].forEach((k) => {
       setHeaderField(k, pad10WithStars(header[k]));
@@ -318,34 +305,27 @@ export default function Recibo() {
         return;
       }
 
-      const codigo_cita = header.serial; // ✅ CITA = SERIAL
+      const codigo_cita = header.serial;
 
       const draft = {
-        tipo: "ENTRADA", // recibo = entrada
+        tipo: "ENTRADA",
         header: { ...header, usuario, codigo_cita },
-
-        // ✅ Enviamos lo que se digitó: lote_proveedor + fechas
-        // ✅ Y FORZAMOS lote_proveedor a 10 con *
         lineas: lineas.map((ln) => ({
           ...ln,
-          lote: "", // ya no usamos lote almacén en recibo
+          lote: "",
           lote_proveedor: pad10WithStarsAny(ln.lote_proveedor),
           fecha_fabricacion: ln.fecha_fabricacion || "",
           fecha_vencimiento: ln.fecha_vencimiento || "",
         })),
-
         totalRecibo,
         createdAtISO: new Date().toISOString(),
       };
 
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-
-      // 👉 te mando a hoja de movimientos desde recibo
       navigate("/movimientos/desde-recibo");
     }, 0);
   };
 
-  // ✅ Imprimir completo (tabla completa)
   const onImprimir = () => {
     const el = printRef.current;
     if (!el) {
@@ -353,7 +333,7 @@ export default function Recibo() {
       return;
     }
 
-    const w = window.open("", "_blank", "width=1400,height=900");
+    const w = window.open("", "_blank", "width=1600,height=1000");
     if (!w) {
       alert("El navegador bloqueó la ventana de impresión.");
       return;
@@ -382,29 +362,118 @@ export default function Recibo() {
       span.style.minWidth = node.style?.width || "auto";
       span.style.whiteSpace = "pre-wrap";
       span.style.wordBreak = "break-word";
+      span.style.fontSize = "10.5px";
       node.replaceWith(span);
     });
+
+    const barcodeCardsHtml = lineas
+      .map((ln, idx) => {
+        const serial = serialItem(header.serial, idx);
+        const cantidad = formatMoney(ln.total || 0);
+        const loteProveedor = (ln.lote_proveedor || "").trim() || "VACIO";
+        const fechaVenc = (ln.fecha_vencimiento || "").trim() || "SIN_FECHA";
+
+        return `
+          <div class="barcode-card">
+            <div class="barcode-card-head">
+              <div class="barcode-head-box">
+                <div class="mini-label"># SERIAL</div>
+                <div class="mini-value">${serial}</div>
+              </div>
+              <div class="barcode-head-box">
+                <div class="mini-label">CANTIDAD</div>
+                <div class="mini-value">${cantidad}</div>
+              </div>
+            </div>
+
+            <div class="barcode-block">
+              <div class="barcode-label">LOTE PROVEEDOR</div>
+              <div class="barcode-svg-wrap">
+                <svg id="barcode-lote-${idx}"></svg>
+              </div>
+              <div class="barcode-text">${loteProveedor}</div>
+            </div>
+
+            <div class="barcode-block">
+              <div class="barcode-label">FECHA VENCIMIENTO</div>
+              <div class="barcode-svg-wrap">
+                <svg id="barcode-fv-${idx}"></svg>
+              </div>
+              <div class="barcode-text">${fechaVenc}</div>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    const barcodeScript = lineas
+      .map((ln, idx) => {
+        const loteProveedor = JSON.stringify((ln.lote_proveedor || "").trim() || "VACIO");
+        const fechaVenc = JSON.stringify((ln.fecha_vencimiento || "").trim() || "SIN_FECHA");
+
+        return `
+          try {
+            JsBarcode("#barcode-lote-${idx}", ${loteProveedor}, {
+              format: "CODE128",
+              displayValue: false,
+              height: 95,
+              width: 2.4,
+              margin: 10
+            });
+          } catch (e) {
+            console.error("Error barcode lote ${idx}", e);
+          }
+
+          try {
+            JsBarcode("#barcode-fv-${idx}", ${fechaVenc}, {
+              format: "CODE128",
+              displayValue: false,
+              height: 95,
+              width: 2.4,
+              margin: 10
+            });
+          } catch (e) {
+            console.error("Error barcode fv ${idx}", e);
+          }
+        `;
+      })
+      .join("\n");
 
     const html = `
       <html>
         <head>
           <title>Recibo ciego - ${header.serial}</title>
           <meta charset="utf-8" />
+          <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
           <style>
             @page { size: A4 landscape; margin: 8mm; }
             html, body { height: 100%; }
-            body { font-family: Arial, sans-serif; color: #0f172a; }
+            body {
+              font-family: Arial, sans-serif;
+              color: #0f172a;
+              margin: 0;
+              padding: 0;
+              background: #fff;
+            }
 
-            .print-wrap { width: 100%; }
+            .page-1 {
+              width: 100%;
+            }
+
+            .print-wrap {
+              width: 100%;
+            }
+
             .scale {
               transform-origin: top left;
               transform: scale(0.92);
+              width: 108%;
             }
 
-            h2 { margin: 0 0 8px; font-size: 16px; }
-            .muted { color: #64748b; font-size: 12px; }
-            .box { border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; margin-bottom: 10px; }
-            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+            .muted {
+              color: #64748b;
+              font-size: 12px;
+            }
 
             table {
               width: 100%;
@@ -412,8 +481,16 @@ export default function Recibo() {
               table-layout: fixed;
               page-break-inside: auto;
             }
-            thead { display: table-header-group; }
-            tr { page-break-inside: avoid; page-break-after: auto; }
+
+            thead {
+              display: table-header-group;
+            }
+
+            tr {
+              page-break-inside: avoid;
+              page-break-after: auto;
+            }
+
             th, td {
               border: 1px solid #111827;
               padding: 5px;
@@ -422,7 +499,11 @@ export default function Recibo() {
               word-wrap: break-word;
               overflow-wrap: anywhere;
             }
-            th { background: #f1f5f9; text-align: left; }
+
+            th {
+              background: #f1f5f9;
+              text-align: left;
+            }
 
             th:nth-child(1), td:nth-child(1) { width: 80px; }
             th:nth-child(2), td:nth-child(2) { width: 35px; }
@@ -433,33 +514,177 @@ export default function Recibo() {
             th:nth-child(7), td:nth-child(7) { width: 55px; }
             th:nth-child(8), td:nth-child(8) { width: 55px; }
             th:nth-child(9), td:nth-child(9) { width: 70px; }
-            th:nth-child(10), td:nth-child(10){ width: 75px; }
-            th:nth-child(11), td:nth-child(11){ width: 110px; }
-            th:nth-child(12), td:nth-child(12){ width: 90px; }
-            th:nth-child(13), td:nth-child(13){ width: 90px; }
-            th:nth-child(14), td:nth-child(14){ width: 70px; }
+            th:nth-child(10), td:nth-child(10) { width: 75px; }
+            th:nth-child(11), td:nth-child(11) { width: 110px; }
+            th:nth-child(12), td:nth-child(12) { width: 90px; }
+            th:nth-child(13), td:nth-child(13) { width: 90px; }
+            th:nth-child(14), td:nth-child(14) { width: 70px; }
 
-            .titlebar { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
-            .logo { width: 46px; height: 46px; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; display:grid; place-items:center; }
-            .logo img { width:100%; height:100%; object-fit:cover; }
+            .titlebar {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              margin-bottom: 10px;
+            }
+
+            .logo {
+              width: 46px;
+              height: 46px;
+              border: 1px solid #e2e8f0;
+              border-radius: 12px;
+              overflow: hidden;
+              display: grid;
+              place-items: center;
+            }
+
+            .logo img {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+            }
+
+            .barcode-pages {
+              page-break-before: always;
+              padding: 0;
+              margin: 0;
+            }
+
+            .barcode-titlebar {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              margin-bottom: 12px;
+              border-bottom: 2px solid #072B5A;
+              padding-bottom: 8px;
+            }
+
+            .barcode-main-title {
+              font-size: 20px;
+              font-weight: 900;
+              color: #072B5A;
+              margin: 0;
+            }
+
+            .barcode-subtitle {
+              font-size: 12px;
+              color: #64748b;
+              margin-top: 4px;
+            }
+
+            .barcode-card {
+              border: 2px solid #cbd5e1;
+              border-radius: 14px;
+              padding: 18px;
+              margin-bottom: 18px;
+              page-break-inside: avoid;
+              background: #fff;
+            }
+
+            .barcode-card:not(:last-child) {
+              page-break-after: auto;
+            }
+
+            .barcode-card-head {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 14px;
+              margin-bottom: 18px;
+            }
+
+            .barcode-head-box {
+              border: 1px solid #dbe2ea;
+              border-radius: 12px;
+              padding: 12px 14px;
+              background: #f8fafc;
+            }
+
+            .mini-label {
+              font-size: 11px;
+              font-weight: 900;
+              color: #64748b;
+              letter-spacing: .6px;
+            }
+
+            .mini-value {
+              margin-top: 6px;
+              font-size: 22px;
+              font-weight: 900;
+              color: #072B5A;
+            }
+
+            .barcode-block {
+              border: 1px solid #dbe2ea;
+              border-radius: 12px;
+              padding: 16px;
+              margin-bottom: 14px;
+              text-align: center;
+            }
+
+            .barcode-label {
+              font-size: 15px;
+              font-weight: 900;
+              color: #0f172a;
+              margin-bottom: 12px;
+              letter-spacing: .5px;
+            }
+
+            .barcode-svg-wrap {
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              min-height: 130px;
+            }
+
+            .barcode-text {
+              margin-top: 10px;
+              font-size: 18px;
+              font-weight: 800;
+              word-break: break-all;
+              letter-spacing: .6px;
+            }
+
+            svg {
+              max-width: 100%;
+              height: 110px;
+            }
           </style>
         </head>
         <body>
-          <div class="print-wrap">
-            <div class="scale">
-              <div class="titlebar">
-                <div class="logo"><img src="/INOVA.png" alt="INOVA"/></div>
-                <div>
-                  <div style="font-weight:900; font-size:16px;">WMS INOVA</div>
-                  <div class="muted">Recibo ciego • Serial ${header.serial} • Usuario ${usuario || ""}</div>
+          <div class="page-1">
+            <div class="print-wrap">
+              <div class="scale">
+                <div class="titlebar">
+                  <div class="logo"><img src="/INOVA.png" alt="INOVA"/></div>
+                  <div>
+                    <div style="font-weight:900; font-size:16px;">WMS INOVA</div>
+                    <div class="muted">Recibo ciego • Serial ${header.serial} • Usuario ${usuario || ""}</div>
+                  </div>
                 </div>
+                ${clone.innerHTML}
               </div>
-              ${clone.innerHTML}
             </div>
           </div>
 
+          <div class="barcode-pages">
+            <div class="barcode-titlebar">
+              <div class="logo"><img src="/INOVA.png" alt="INOVA"/></div>
+              <div>
+                <div class="barcode-main-title">TARJETAS DE CÓDIGOS DE BARRAS</div>
+                <div class="barcode-subtitle">Recibo ${header.serial} · Una tarjeta por línea · Formato escaneable</div>
+              </div>
+            </div>
+
+            ${barcodeCardsHtml}
+          </div>
+
           <script>
-            window.onload = () => { window.print(); window.close(); };
+            ${barcodeScript}
+            window.onload = () => {
+              setTimeout(() => {
+                window.print();
+                window.close();
+              }, 700);
+            };
           </script>
         </body>
       </html>
@@ -507,12 +732,20 @@ export default function Recibo() {
           <div style={{ border: "1px solid #e5e5e5", borderRadius: 12, padding: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <b># Serial</b>
-              <input value={header.serial} onChange={(e) => setHeaderField("serial", clampMaxLen(e.target.value, 10))} style={{ width: 140 }} />
+              <input
+                value={header.serial}
+                onChange={(e) => setHeaderField("serial", clampMaxLen(e.target.value, 10))}
+                style={{ width: 140 }}
+              />
             </div>
 
             <div style={{ marginTop: 10 }}>
               <b>Nombre Proveedor</b>
-              <select value={header.proveedor_id} onChange={(e) => onProveedorSelect(e.target.value)} style={{ width: "100%", marginTop: 6 }}>
+              <select
+                value={header.proveedor_id}
+                onChange={(e) => onProveedorSelect(e.target.value)}
+                style={{ width: "100%", marginTop: 6 }}
+              >
                 <option value="">Seleccione proveedor...</option>
                 {proveedores.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -525,13 +758,23 @@ export default function Recibo() {
 
             <div style={{ marginTop: 10 }}>
               <b>Acreedor</b>
-              <input value={header.acreedor} readOnly placeholder="Auto por proveedor" style={{ width: "100%", marginTop: 6, background: "#f3f3f3" }} />
+              <input
+                value={header.acreedor}
+                readOnly
+                placeholder="Auto por proveedor"
+                style={{ width: "100%", marginTop: 6, background: "#f3f3f3" }}
+              />
               {errores.acreedor && <div style={{ color: "crimson", marginTop: 4 }}>{errores.acreedor}</div>}
             </div>
 
             <div style={{ marginTop: 10 }}>
               <b>Fecha recepción</b>
-              <input type="date" value={header.fecha_recepcion} readOnly style={{ width: "100%", marginTop: 6, background: "#f3f3f3" }} />
+              <input
+                type="date"
+                value={header.fecha_recepcion}
+                readOnly
+                style={{ width: "100%", marginTop: 6, background: "#f3f3f3" }}
+              />
               <div style={{ color: "#666", marginTop: 4 }}>(Automática del día)</div>
             </div>
           </div>
@@ -547,7 +790,9 @@ export default function Recibo() {
                   maxLength={10}
                   style={{ width: "100%", marginTop: 6 }}
                 />
-                {errores.remesa_transp && <div style={{ color: "crimson", marginTop: 4 }}>{errores.remesa_transp}</div>}
+                {errores.remesa_transp && (
+                  <div style={{ color: "crimson", marginTop: 4 }}>{errores.remesa_transp}</div>
+                )}
               </div>
 
               <div>
@@ -571,7 +816,9 @@ export default function Recibo() {
                   maxLength={10}
                   style={{ width: "100%", marginTop: 6 }}
                 />
-                {errores.orden_compra && <div style={{ color: "crimson", marginTop: 4 }}>{errores.orden_compra}</div>}
+                {errores.orden_compra && (
+                  <div style={{ color: "crimson", marginTop: 4 }}>{errores.orden_compra}</div>
+                )}
               </div>
 
               <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -610,7 +857,12 @@ export default function Recibo() {
                   <td>{idx + 1}</td>
 
                   <td>
-                    <input type="date" value={ln.fecha_recepcion} readOnly style={{ background: "#f3f3f3" }} />
+                    <input
+                      type="date"
+                      value={ln.fecha_recepcion}
+                      readOnly
+                      style={{ background: "#f3f3f3" }}
+                    />
                   </td>
 
                   <td>
@@ -621,15 +873,25 @@ export default function Recibo() {
                       placeholder="Código"
                       style={{ width: 120 }}
                     />
-                    {errores[`codigo_${idx}`] && <div style={{ color: "crimson" }}>{errores[`codigo_${idx}`]}</div>}
+                    {errores[`codigo_${idx}`] && (
+                      <div style={{ color: "crimson" }}>{errores[`codigo_${idx}`]}</div>
+                    )}
                   </td>
 
                   <td>
-                    <input value={ln.descripcion} readOnly style={{ width: 260, background: "#f3f3f3" }} />
+                    <input
+                      value={ln.descripcion}
+                      readOnly
+                      style={{ width: 260, background: "#f3f3f3" }}
+                    />
                   </td>
 
                   <td>
-                    <select value={ln.empaque} onChange={(e) => setLinea(idx, { empaque: e.target.value })} style={{ width: 150 }}>
+                    <select
+                      value={ln.empaque}
+                      onChange={(e) => setLinea(idx, { empaque: e.target.value })}
+                      style={{ width: 150 }}
+                    >
                       <option value="">Seleccione...</option>
                       {EMPAQUES.map((op) => (
                         <option key={op} value={op}>
@@ -637,12 +899,21 @@ export default function Recibo() {
                         </option>
                       ))}
                     </select>
-                    {errores[`empaque_${idx}`] && <div style={{ color: "crimson" }}>{errores[`empaque_${idx}`]}</div>}
+                    {errores[`empaque_${idx}`] && (
+                      <div style={{ color: "crimson" }}>{errores[`empaque_${idx}`]}</div>
+                    )}
                   </td>
 
                   <td>
-                    <input type="number" value={ln.umb} onChange={(e) => onUmbChange(idx, e.target.value)} style={{ width: 90 }} />
-                    {errores[`umb_${idx}`] && <div style={{ color: "crimson" }}>{errores[`umb_${idx}`]}</div>}
+                    <input
+                      type="number"
+                      value={ln.umb}
+                      onChange={(e) => onUmbChange(idx, e.target.value)}
+                      style={{ width: 90 }}
+                    />
+                    {errores[`umb_${idx}`] && (
+                      <div style={{ color: "crimson" }}>{errores[`umb_${idx}`]}</div>
+                    )}
                   </td>
 
                   <td>
@@ -650,12 +921,23 @@ export default function Recibo() {
                   </td>
 
                   <td>
-                    <input type="number" value={ln.cantidad} onChange={(e) => onCantidadChange(idx, e.target.value)} style={{ width: 110 }} />
-                    {errores[`cantidad_${idx}`] && <div style={{ color: "crimson" }}>{errores[`cantidad_${idx}`]}</div>}
+                    <input
+                      type="number"
+                      value={ln.cantidad}
+                      onChange={(e) => onCantidadChange(idx, e.target.value)}
+                      style={{ width: 110 }}
+                    />
+                    {errores[`cantidad_${idx}`] && (
+                      <div style={{ color: "crimson" }}>{errores[`cantidad_${idx}`]}</div>
+                    )}
                   </td>
 
                   <td>
-                    <input value={formatMoney(ln.total || 0)} readOnly style={{ width: 120, background: "#f3f3f3" }} />
+                    <input
+                      value={formatMoney(ln.total || 0)}
+                      readOnly
+                      style={{ width: 120, background: "#f3f3f3" }}
+                    />
                   </td>
 
                   <td>
@@ -667,15 +949,25 @@ export default function Recibo() {
                       placeholder="10 caracteres"
                       style={{ width: 160 }}
                     />
-                    {errores[`loteprov_${idx}`] && <div style={{ color: "crimson" }}>{errores[`loteprov_${idx}`]}</div>}
+                    {errores[`loteprov_${idx}`] && (
+                      <div style={{ color: "crimson" }}>{errores[`loteprov_${idx}`]}</div>
+                    )}
                   </td>
 
                   <td>
-                    <input type="date" value={ln.fecha_fabricacion} onChange={(e) => setLinea(idx, { fecha_fabricacion: e.target.value })} />
+                    <input
+                      type="date"
+                      value={ln.fecha_fabricacion}
+                      onChange={(e) => setLinea(idx, { fecha_fabricacion: e.target.value })}
+                    />
                   </td>
 
                   <td>
-                    <input type="date" value={ln.fecha_vencimiento} onChange={(e) => setLinea(idx, { fecha_vencimiento: e.target.value })} />
+                    <input
+                      type="date"
+                      value={ln.fecha_vencimiento}
+                      onChange={(e) => setLinea(idx, { fecha_vencimiento: e.target.value })}
+                    />
                     {errores[`fv_${idx}`] && <div style={{ color: "crimson" }}>{errores[`fv_${idx}`]}</div>}
                   </td>
 
