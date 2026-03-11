@@ -4,6 +4,19 @@ import { API_URL } from "../../api";
 
 const DRAFT_KEY = "wms_recibo_draft";
 
+const colors = {
+  navy: "#072B5A",
+  blue: "#0A6ED1",
+  bg: "#F5F7FB",
+  text: "#0F172A",
+  muted: "#64748B",
+  card: "#FFFFFF",
+  border: "#E2E8F0",
+  good: "#16a34a",
+  bad: "#dc2626",
+  warn: "#f59e0b",
+};
+
 function todayISODate() {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -44,7 +57,7 @@ function getISOWeek(dateInput) {
   date.setUTCDate(date.getUTCDate() + 4 - dayNum);
 
   const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-  const weekNum = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  const weekNum = Math.ceil(((date - yearStart) / 86400000 + 1) / 7);
 
   return String(weekNum).padStart(2, "0");
 }
@@ -85,6 +98,37 @@ function formatQty(n) {
   const x = Number(n);
   if (!Number.isFinite(x)) return "";
   return fmtCO.format(x);
+}
+
+function Chip({ label, tone = "neutral" }) {
+  const stylesByTone = {
+    neutral: { bg: "#F1F5F9", bd: "#E2E8F0", tx: colors.text },
+    blue: { bg: "rgba(10,110,209,.10)", bd: "rgba(10,110,209,.25)", tx: colors.blue },
+    green: { bg: "rgba(22,163,74,.10)", bd: "rgba(22,163,74,.25)", tx: colors.good },
+    red: { bg: "rgba(220,38,38,.10)", bd: "rgba(220,38,38,.25)", tx: colors.bad },
+    amber: { bg: "rgba(245,158,11,.10)", bd: "rgba(245,158,11,.28)", tx: colors.warn },
+  };
+
+  const st = stylesByTone[tone] || stylesByTone.neutral;
+
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "6px 10px",
+        borderRadius: 999,
+        background: st.bg,
+        border: `1px solid ${st.bd}`,
+        color: st.tx,
+        fontSize: 12,
+        fontWeight: 800,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </span>
+  );
 }
 
 export default function DesdeRecibo() {
@@ -166,13 +210,11 @@ export default function DesdeRecibo() {
         ln.unidad_medida ||
         draft?.header?.um ||
         ""
-      ).toString().trim();
+      )
+        .toString()
+        .trim();
 
-      const umb = (
-        ln.umb ||
-        draft?.header?.umb ||
-        ""
-      ).toString().trim();
+      const umb = (ln.umb || draft?.header?.umb || "").toString().trim();
 
       return {
         idx,
@@ -195,11 +237,7 @@ export default function DesdeRecibo() {
         cantidadFmt,
         proveedor: (draft?.header?.proveedor || "").toString().trim(),
         documento: (draft?.header?.documento || "").toString().trim(),
-        remesa: (
-          draft?.header?.remesa ||
-          draft?.header?.remesa_transp ||
-          ""
-        ).toString().trim(),
+        remesa: (draft?.header?.remesa || draft?.header?.remesa_transp || "").toString().trim(),
         ordenCompra: (draft?.header?.orden_compra || "").toString().trim(),
       };
     });
@@ -256,11 +294,7 @@ export default function DesdeRecibo() {
     const documento = (draft?.header?.documento || "").toString().trim();
     const usuario = (draft?.header?.usuario || "").toString().trim();
     const ordenCompra = (draft?.header?.orden_compra || "").toString().trim();
-    const remesa = (
-      draft?.header?.remesa ||
-      draft?.header?.remesa_transp ||
-      ""
-    ).toString().trim();
+    const remesa = (draft?.header?.remesa || draft?.header?.remesa_transp || "").toString().trim();
 
     const loteProv =
       (linea.lote_proveedor || "").toString().trim().slice(0, 10) ||
@@ -280,13 +314,11 @@ export default function DesdeRecibo() {
       linea.unidad_medida ||
       draft?.header?.um ||
       ""
-    ).toString().trim();
+    )
+      .toString()
+      .trim();
 
-    const umbMovimiento = (
-      linea.umb ||
-      draft?.header?.umb ||
-      ""
-    ).toString().trim();
+    const umbMovimiento = (linea.umb || draft?.header?.umb || "").toString().trim();
 
     return {
       fecha: new Date().toISOString(),
@@ -314,11 +346,7 @@ export default function DesdeRecibo() {
     const proveedor = (draft?.header?.proveedor || "").toString().trim();
     const documento = (draft?.header?.documento || "").toString().trim();
     const ordenCompra = (draft?.header?.orden_compra || "").toString().trim();
-    const remesa = (
-      draft?.header?.remesa ||
-      draft?.header?.remesa_transp ||
-      ""
-    ).toString().trim();
+    const remesa = (draft?.header?.remesa || draft?.header?.remesa_transp || "").toString().trim();
     const fechaRecep = todayISODate();
 
     return draft.lineas.map((linea, i) => {
@@ -339,7 +367,9 @@ export default function DesdeRecibo() {
         linea.unidad_medida ||
         draft?.header?.um ||
         ""
-      ).toString().trim();
+      )
+        .toString()
+        .trim();
 
       return {
         impresion,
@@ -354,11 +384,7 @@ export default function DesdeRecibo() {
         sku,
         texto_breve: (linea.descripcion || "").toString().trim(),
         um,
-        umb: (
-          linea.umb ||
-          draft?.header?.umb ||
-          ""
-        ).toString().trim(),
+        umb: (linea.umb || draft?.header?.umb || "").toString().trim(),
         fecha_fabricacion: ff || null,
         fecha_vencimiento: fv || null,
         lote_proveedor: loteProv,
@@ -469,110 +495,254 @@ export default function DesdeRecibo() {
 
   return (
     <div>
-      <h2>🔄 Movimientos (desde Recibo)</h2>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "end",
+          gap: 12,
+          marginBottom: 14,
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900 }}>
+            🔄 MOVIMIENTOS DESDE RECIBO
+          </div>
+          <h1 style={{ margin: "6px 0 0", color: colors.navy }}>
+            Confirmación de movimientos
+          </h1>
+          <div style={{ marginTop: 6, color: colors.muted }}>
+            Revisa las líneas, asigna ubicación si aplica y guarda en almacenado o en tránsito.
+          </div>
+        </div>
 
-      <div style={{ marginBottom: 12, color: "#444" }}>
-        <b>Proveedor:</b> {draft.header.proveedor} <br />
-        <b>Documento:</b> {draft.header.documento} <br />
-        <b>Remesa:</b> {draft.header.remesa || draft.header.remesa_transp || ""} <br />
-        <b>Usuario:</b> {draft.header.usuario} <br />
-        <b>Serial (cita):</b> {draft.header.serial} <br />
-        <b>Líneas:</b> {draft.lineas.length}
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <Chip label={`Líneas: ${draft.lineas.length}`} tone="blue" />
+          <Chip label={`Serial: ${draft.header.serial || ""}`} tone="green" />
+          {guardando && <Chip label="Guardando..." tone="amber" />}
+        </div>
+      </div>
+
+      <div
+        style={{
+          background: colors.card,
+          border: `1px solid ${colors.border}`,
+          borderRadius: 18,
+          padding: 16,
+          marginBottom: 16,
+          boxShadow: "0 14px 34px rgba(2,6,23,.06)",
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(220px, 1fr))",
+            gap: 12,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>PROVEEDOR</div>
+            <div style={{ marginTop: 4, fontWeight: 800, color: colors.text }}>
+              {draft.header.proveedor}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>DOCUMENTO</div>
+            <div style={{ marginTop: 4, fontWeight: 800, color: colors.text }}>
+              {draft.header.documento}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>REMESA</div>
+            <div style={{ marginTop: 4, fontWeight: 800, color: colors.text }}>
+              {draft.header.remesa || draft.header.remesa_transp || ""}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>USUARIO</div>
+            <div style={{ marginTop: 4, fontWeight: 800, color: colors.text }}>
+              {draft.header.usuario}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>SERIAL (CITA)</div>
+            <div style={{ marginTop: 4, fontWeight: 800, color: colors.text }}>
+              {draft.header.serial}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>LÍNEAS</div>
+            <div style={{ marginTop: 4, fontWeight: 800, color: colors.text }}>
+              {draft.lineas.length}
+            </div>
+          </div>
+        </div>
       </div>
 
       {ubicacionesError && (
-        <div style={{ color: "crimson", marginBottom: 10 }}>
+        <div style={{ color: colors.bad, marginBottom: 10, fontWeight: 800 }}>
           Error cargando ubicaciones: {ubicacionesError}
         </div>
       )}
 
-      <div style={{ overflowX: "auto" }}>
-        <table border="1" cellPadding="6" style={{ borderCollapse: "collapse", width: "100%" }}>
-          <thead>
-            <tr>
-              <th>Ubicación</th>
-              <th>Fecha</th>
-              <th>Movimiento</th>
-              <th>ID</th>
-              <th>Usuario</th>
-              <th>Codigo Cita</th>
-              <th>SKU</th>
-              <th>Texto Breve del Material</th>
-              <th>Lote Almacen</th>
-              <th>Lote Proveedor</th>
-              <th>Fecha de Fabricación</th>
-              <th>Fecha de Vencimiento</th>
-              <th>Semana</th>
-              <th>UM</th>
-              <th>UMB</th>
-              <th>Cantidad</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filasMov.map((r) => (
-              <tr key={r.idx}>
-                <td>
-                  <input
-                    list="ubicacionesList"
-                    value={r.ubicacion}
-                    onChange={(e) => onChangeUbic(r.idx, e.target.value)}
-                    placeholder="Escriba o seleccione..."
-                    style={{ width: 160 }}
-                  />
-                </td>
-                <td><input value={r.fecha} readOnly style={{ width: 110, background: "#f3f3f3" }} /></td>
-                <td><input value={r.movimiento} readOnly style={{ width: 110, background: "#f3f3f3" }} /></td>
-                <td><input value={r.id} readOnly style={{ width: 80, background: "#f3f3f3" }} /></td>
-                <td><input value={r.usuario} readOnly style={{ width: 170, background: "#f3f3f3" }} /></td>
-                <td><input value={r.codigoCita} readOnly style={{ width: 120, background: "#f3f3f3" }} /></td>
-                <td><input value={r.sku} readOnly style={{ width: 110, background: "#f3f3f3" }} /></td>
-                <td><input value={r.texto} readOnly style={{ width: 360, background: "#f3f3f3" }} /></td>
-                <td><input value={r.loteAlm} readOnly style={{ width: 160, background: "#f3f3f3" }} /></td>
-                <td><input value={r.loteProv} readOnly style={{ width: 130, background: "#f3f3f3" }} /></td>
-                <td><input value={r.ff} readOnly style={{ width: 130, background: "#f3f3f3" }} /></td>
-                <td><input value={r.fv} readOnly style={{ width: 130, background: "#f3f3f3" }} /></td>
-                <td><input value={r.numeroSemana} readOnly style={{ width: 80, background: "#f3f3f3" }} /></td>
-                <td><input value={r.um} readOnly style={{ width: 100, background: "#f3f3f3" }} /></td>
-                <td><input value={r.umb} readOnly style={{ width: 100, background: "#f3f3f3" }} /></td>
-                <td>
-                  <input
-                    value={r.cantidadFmt}
-                    readOnly
-                    style={{ width: 130, background: "#f3f3f3", textAlign: "right" }}
-                  />
-                </td>
+      <div
+        style={{
+          background: colors.card,
+          border: `1px solid ${colors.border}`,
+          borderRadius: 18,
+          overflow: "hidden",
+          boxShadow: "0 14px 34px rgba(2,6,23,.06)",
+        }}
+      >
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 2200 }}>
+            <thead>
+              <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${colors.border}` }}>
+                <th style={{ padding: 12, textAlign: "left" }}>Ubicación</th>
+                <th style={{ padding: 12, textAlign: "left" }}>Fecha</th>
+                <th style={{ padding: 12, textAlign: "left" }}>Movimiento</th>
+                <th style={{ padding: 12, textAlign: "left" }}>ID</th>
+                <th style={{ padding: 12, textAlign: "left" }}>Usuario</th>
+                <th style={{ padding: 12, textAlign: "left" }}>Codigo Cita</th>
+                <th style={{ padding: 12, textAlign: "left" }}>SKU</th>
+                <th style={{ padding: 12, textAlign: "left" }}>Texto Breve del Material</th>
+                <th style={{ padding: 12, textAlign: "left" }}>Lote Almacen</th>
+                <th style={{ padding: 12, textAlign: "left" }}>Lote Proveedor</th>
+                <th style={{ padding: 12, textAlign: "left" }}>Fecha de Fabricación</th>
+                <th style={{ padding: 12, textAlign: "left" }}>Fecha de Vencimiento</th>
+                <th style={{ padding: 12, textAlign: "left" }}>Semana</th>
+                <th style={{ padding: 12, textAlign: "left" }}>UM</th>
+                <th style={{ padding: 12, textAlign: "left" }}>UMB</th>
+                <th style={{ padding: 12, textAlign: "right" }}>Cantidad</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
 
-        <datalist id="ubicacionesList">
-          {ubicaciones.map((u) => (
-            <option key={u.id} value={u.ubicacion}>
-              {u.ubicacion}
-            </option>
-          ))}
-        </datalist>
+            <tbody>
+              {filasMov.map((r) => (
+                <tr key={r.idx} style={{ borderBottom: `1px solid ${colors.border}` }}>
+                  <td style={{ padding: 12 }}>
+                    <input
+                      list="ubicacionesList"
+                      value={r.ubicacion}
+                      onChange={(e) => onChangeUbic(r.idx, e.target.value)}
+                      placeholder="Escriba o seleccione..."
+                      style={{ width: 160 }}
+                    />
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <input value={r.fecha} readOnly style={{ width: 110, background: "#f3f3f3" }} />
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <input value={r.movimiento} readOnly style={{ width: 110, background: "#f3f3f3" }} />
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <input value={r.id} readOnly style={{ width: 80, background: "#f3f3f3" }} />
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <input value={r.usuario} readOnly style={{ width: 170, background: "#f3f3f3" }} />
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <input value={r.codigoCita} readOnly style={{ width: 120, background: "#f3f3f3" }} />
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <input value={r.sku} readOnly style={{ width: 110, background: "#f3f3f3" }} />
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <input value={r.texto} readOnly style={{ width: 360, background: "#f3f3f3" }} />
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <input value={r.loteAlm} readOnly style={{ width: 160, background: "#f3f3f3" }} />
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <input value={r.loteProv} readOnly style={{ width: 130, background: "#f3f3f3" }} />
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <input value={r.ff} readOnly style={{ width: 130, background: "#f3f3f3" }} />
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <input value={r.fv} readOnly style={{ width: 130, background: "#f3f3f3" }} />
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <input value={r.numeroSemana} readOnly style={{ width: 80, background: "#f3f3f3" }} />
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <input value={r.um} readOnly style={{ width: 100, background: "#f3f3f3" }} />
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <input value={r.umb} readOnly style={{ width: 100, background: "#f3f3f3" }} />
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <input
+                      value={r.cantidadFmt}
+                      readOnly
+                      style={{ width: 130, background: "#f3f3f3", textAlign: "right" }}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <datalist id="ubicacionesList">
+            {ubicaciones.map((u) => (
+              <option key={u.id} value={u.ubicacion}>
+                {u.ubicacion}
+              </option>
+            ))}
+          </datalist>
+        </div>
       </div>
 
       <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <button onClick={() => navigate("/movimientos/recibo")}>🔙 Regresar al Recibo</button>
+        <button
+          onClick={() => navigate("/movimientos/recibo")}
+          style={{
+            padding: "10px 14px",
+            borderRadius: 12,
+            border: `1px solid ${colors.border}`,
+            background: colors.card,
+            fontWeight: 900,
+            cursor: "pointer",
+          }}
+        >
+          🔙 Regresar al Recibo
+        </button>
 
-        <button onClick={guardarMovimientos} disabled={guardando} style={{ fontWeight: 800 }}>
-          💾 Guardar con ubicación
+        <button
+          onClick={guardarMovimientos}
+          disabled={guardando}
+          style={{
+            padding: "10px 14px",
+            borderRadius: 12,
+            border: "none",
+            background: colors.blue,
+            color: "#fff",
+            fontWeight: 900,
+            cursor: guardando ? "not-allowed" : "pointer",
+            opacity: guardando ? 0.7 : 1,
+          }}
+        >
+          {guardando ? "Guardando..." : "💾 Guardar con ubicación"}
         </button>
 
         <button
           onClick={guardarEnTransito}
           disabled={guardando}
           style={{
-            fontWeight: 800,
-            background: "#f59e0b",
-            color: "#fff",
+            padding: "10px 14px",
+            borderRadius: 12,
             border: "none",
-            padding: "8px 12px",
-            borderRadius: 8,
+            background: colors.warn,
+            color: "#fff",
+            fontWeight: 900,
+            cursor: guardando ? "not-allowed" : "pointer",
+            opacity: guardando ? 0.7 : 1,
           }}
         >
           🚚 Guardar en tránsito

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { API_URL } from "../api";
+import { API_URL } from "../../api";
 
 const colors = {
   navy: "#072B5A",
@@ -176,9 +176,20 @@ export default function Rotulos() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "end", gap: 12, marginBottom: 14 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "end",
+          gap: 12,
+          marginBottom: 14,
+          flexWrap: "wrap",
+        }}
+      >
         <div>
-          <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900 }}>🏷️ HISTORIAL DE RÓTULOS</div>
+          <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900 }}>
+            🏷️ HISTORIAL DE RÓTULOS
+          </div>
           <h1 style={{ margin: "6px 0 0", color: colors.navy }}>Rótulos por serial o impresión</h1>
           <div style={{ marginTop: 6, color: colors.muted }}>
             Escribe <b>13002</b> para ver todo el serial o <b>13002-01</b> para un rótulo exacto.
@@ -325,25 +336,75 @@ export default function Rotulos() {
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 2200 }}>
             <thead>
-              <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${colors.border}`, textAlign: "left" }}>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Serial impresión</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Serial (cita)</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Fecha recepción</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Semana</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Proveedor</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Documento</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Remesa</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Orden compra</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000, textAlign: "right" }}>Cantidad</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>SKU</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Texto breve</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>UM</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>UMB</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>F. fabricación</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>F. vencimiento</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Lote proveedor</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Lote almacén</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Acción</th>
+              <tr
+                style={{
+                  background: "#F8FAFC",
+                  borderBottom: `1px solid ${colors.border}`,
+                  textAlign: "left",
+                }}
+              >
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Serial impresión
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Serial (cita)
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Fecha recepción
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Semana
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Proveedor
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Documento
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Remesa
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Orden compra
+                </th>
+                <th
+                  style={{
+                    padding: 12,
+                    fontSize: 12,
+                    color: colors.muted,
+                    fontWeight: 1000,
+                    textAlign: "right",
+                  }}
+                >
+                  Cantidad
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  SKU
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Texto breve
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  UM
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  UMB
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  F. fabricación
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  F. vencimiento
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Lote proveedor
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Lote almacén
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Acción
+                </th>
               </tr>
             </thead>
 
@@ -358,15 +419,21 @@ export default function Rotulos() {
 
               {rows.map((r) => (
                 <tr key={r.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
-                  <td style={{ padding: 12, fontWeight: 900, color: colors.navy }}>{r.impresion || ""}</td>
-                  <td style={{ padding: 12, fontWeight: 900, color: colors.blue }}>{r.codigo_cita || ""}</td>
+                  <td style={{ padding: 12, fontWeight: 900, color: colors.navy }}>
+                    {r.impresion || ""}
+                  </td>
+                  <td style={{ padding: 12, fontWeight: 900, color: colors.blue }}>
+                    {r.codigo_cita || ""}
+                  </td>
                   <td style={{ padding: 12, fontWeight: 800 }}>{fmtDate(r.fecha_recepcion)}</td>
                   <td style={{ padding: 12, fontWeight: 800 }}>{r.numero_semana || ""}</td>
                   <td style={{ padding: 12, fontWeight: 800 }}>{r.proveedor || ""}</td>
                   <td style={{ padding: 12, fontWeight: 800 }}>{r.documento || ""}</td>
                   <td style={{ padding: 12, fontWeight: 800 }}>{r.remesa || ""}</td>
                   <td style={{ padding: 12, fontWeight: 800 }}>{r.orden_compra || ""}</td>
-                  <td style={{ padding: 12, fontWeight: 1000, textAlign: "right" }}>{formatQty(r.cantidad)}</td>
+                  <td style={{ padding: 12, fontWeight: 1000, textAlign: "right" }}>
+                    {formatQty(r.cantidad)}
+                  </td>
                   <td style={{ padding: 12, fontWeight: 900 }}>{r.sku || ""}</td>
                   <td style={{ padding: 12, fontWeight: 700 }}>{r.texto_breve || ""}</td>
                   <td style={{ padding: 12, fontWeight: 800 }}>{r.um || ""}</td>

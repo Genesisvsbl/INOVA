@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { API_URL } from "../api";
+import { API_URL } from "../../api";
 
 const colors = {
   navy: "#072B5A",
@@ -84,6 +84,7 @@ function Chip({ label, tone = "neutral" }) {
     red: { bg: "rgba(220,38,38,.10)", bd: "rgba(220,38,38,.25)", tx: colors.bad },
     amber: { bg: "rgba(245,158,11,.10)", bd: "rgba(245,158,11,.28)", tx: colors.warn },
   };
+
   const st = stylesByTone[tone] || stylesByTone.neutral;
 
   return (
@@ -182,7 +183,7 @@ export default function Proveedores() {
   };
 
   const onEditar = async (item) => {
-    const nombre = prompt("Editar nombre del proveedor:", item.nombre);
+    const nombre = prompt("Editar nombre del proveedor:", item.nombre || "");
     if (nombre === null) return;
 
     const acreedor = prompt("Editar acreedor:", item.acreedor || "");
@@ -397,7 +398,8 @@ export default function Proveedores() {
               background: colors.warn,
               color: "#fff",
               fontWeight: 900,
-              cursor: "pointer",
+              cursor: importando ? "not-allowed" : "pointer",
+              opacity: importando ? 0.7 : 1,
               boxShadow: "0 10px 24px rgba(245,158,11,.25)",
             }}
           >
@@ -406,7 +408,8 @@ export default function Proveedores() {
         </div>
 
         <div style={{ marginTop: 10, color: colors.muted, fontSize: 12, fontWeight: 700 }}>
-          El archivo debe contener las columnas: <b>nombre</b> y <b>acreedor</b>. También acepta encabezados como <b>nombre proveedor</b> y <b>codigo acreedor</b>.
+          El archivo debe contener las columnas: <b>nombre</b> y <b>acreedor</b>. También acepta
+          encabezados como <b>nombre proveedor</b> y <b>codigo acreedor</b>.
         </div>
       </div>
 
@@ -420,7 +423,9 @@ export default function Proveedores() {
           boxShadow: "0 14px 34px rgba(2,6,23,.06)",
         }}
       >
-        <div style={{ fontWeight: 1000, color: colors.navy, marginBottom: 12 }}>Crear proveedor</div>
+        <div style={{ fontWeight: 1000, color: colors.navy, marginBottom: 12 }}>
+          Crear proveedor
+        </div>
 
         <div
           style={{
@@ -479,7 +484,8 @@ export default function Proveedores() {
               background: colors.blue,
               color: "#fff",
               fontWeight: 900,
-              cursor: "pointer",
+              cursor: saving ? "not-allowed" : "pointer",
+              opacity: saving ? 0.7 : 1,
               boxShadow: "0 10px 24px rgba(10,110,209,.25)",
             }}
           >
@@ -506,11 +512,25 @@ export default function Proveedores() {
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900 }}>
             <thead>
-              <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${colors.border}`, textAlign: "left" }}>
-                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>ID</th>
-                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>Proveedor</th>
-                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>Acreedor</th>
-                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>Acciones</th>
+              <tr
+                style={{
+                  background: "#F8FAFC",
+                  borderBottom: `1px solid ${colors.border}`,
+                  textAlign: "left",
+                }}
+              >
+                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>
+                  ID
+                </th>
+                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>
+                  Proveedor
+                </th>
+                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>
+                  Acreedor
+                </th>
+                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -524,7 +544,9 @@ export default function Proveedores() {
                 items.map((p) => (
                   <tr key={p.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
                     <td style={{ padding: 12, fontWeight: 900 }}>{p.id}</td>
-                    <td style={{ padding: 12, fontWeight: 800, color: colors.navy }}>{p.nombre}</td>
+                    <td style={{ padding: 12, fontWeight: 800, color: colors.navy }}>
+                      {p.nombre}
+                    </td>
                     <td style={{ padding: 12, fontWeight: 800 }}>{p.acreedor}</td>
                     <td style={{ padding: 12 }}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -574,7 +596,8 @@ export default function Proveedores() {
             background: "#FCFDFE",
           }}
         >
-          Tip: ya puedes importar proveedores directamente desde esta pantalla sin usar Swagger ni CMD.
+          Tip: ya puedes importar proveedores directamente desde esta pantalla sin usar Swagger ni
+          CMD.
         </div>
       </div>
     </div>

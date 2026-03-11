@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { API_URL } from "../api";
+import { getMotor } from "../../api";
 
 const colors = {
   navy: "#072B5A",
@@ -18,11 +18,13 @@ function fmtDateTime(v) {
   if (!v) return "";
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return String(v);
+
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   const hh = String(d.getHours()).padStart(2, "0");
   const mi = String(d.getMinutes()).padStart(2, "0");
+
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
 }
 
@@ -99,6 +101,7 @@ function Chip({ label, tone = "neutral" }) {
     red: { bg: "rgba(220,38,38,.10)", bd: "rgba(220,38,38,.25)", tx: colors.bad },
     amber: { bg: "rgba(245,158,11,.10)", bd: "rgba(245,158,11,.28)", tx: colors.warn },
   };
+
   const st = stylesByTone[tone] || stylesByTone.neutral;
 
   return (
@@ -134,25 +137,26 @@ export default function MotorPrincipal() {
 
   useEffect(() => {
     let mounted = true;
-    setLoading(true);
-    setErr("");
 
-    fetch(`${API_URL}/motor?limit=2000`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error(await r.text());
-        return r.json();
-      })
-      .then((data) => {
+    async function load() {
+      try {
+        setLoading(true);
+        setErr("");
+
+        const data = await getMotor(2000);
+
         if (!mounted) return;
         setRows(Array.isArray(data) ? data : []);
-        setLoading(false);
-      })
-      .catch((e) => {
+      } catch (e) {
         if (!mounted) return;
         setErr(String(e?.message || e));
         setRows([]);
-        setLoading(false);
-      });
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    load();
 
     return () => {
       mounted = false;
@@ -161,19 +165,23 @@ export default function MotorPrincipal() {
 
   const bodegas = useMemo(() => {
     const set = new Set();
+
     rows.forEach((r) => {
       const v = (r.bodega ?? "").toString().trim();
       if (v) set.add(v);
     });
+
     return ["TODAS", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [rows]);
 
   const zonas = useMemo(() => {
     const set = new Set();
+
     rows.forEach((r) => {
       const v = (r.zona ?? "").toString().trim();
       if (v) set.add(v);
     });
+
     return ["TODAS", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [rows]);
 
@@ -218,10 +226,12 @@ export default function MotorPrincipal() {
       (acc, r) => acc + (Number(r.cantidad ?? 0) >= 0 ? Number(r.cantidad || 0) : 0),
       0
     );
+
     const sumSalidasAbs = filtered.reduce(
       (acc, r) => acc + (Number(r.cantidad ?? 0) < 0 ? Math.abs(Number(r.cantidad || 0)) : 0),
       0
     );
+
     const enTransito = filtered.filter(
       (r) => String(r.estado || "").toUpperCase() === "EN_TRANSITO"
     ).length;
@@ -235,6 +245,7 @@ export default function MotorPrincipal() {
     const yyyy = stamp.getFullYear();
     const mm = String(stamp.getMonth() + 1).padStart(2, "0");
     const dd = String(stamp.getDate()).padStart(2, "0");
+
     downloadText(`motor_principal_${yyyy}-${mm}-${dd}.csv`, csv);
   };
 
@@ -255,6 +266,7 @@ export default function MotorPrincipal() {
           alignItems: "end",
           gap: 12,
           marginBottom: 14,
+          flexWrap: "wrap",
         }}
       >
         <div>
@@ -265,7 +277,8 @@ export default function MotorPrincipal() {
             Entradas & Salidas (Base única)
           </h1>
           <div style={{ marginTop: 6, color: colors.muted }}>
-            Aquí cae todo lo del Recibo (ENTRADA), Despacho (SALIDA) y también lo que está EN TRANSITO.
+            Aquí cae todo lo del Recibo (ENTRADA), Despacho (SALIDA) y también lo que está
+            EN TRANSITO.
           </div>
         </div>
 
@@ -387,7 +400,7 @@ export default function MotorPrincipal() {
           >
             <option value="TODOS">TODOS</option>
             <option value="ALMACENADO">ALMACENADO</option>
-            <option value="EN_TRANSITO">EN TRANSITO</option>
+            <option value="EN_TRANSITO">EN_TRANSITO</option>
           </select>
         </div>
 
@@ -490,7 +503,9 @@ export default function MotorPrincipal() {
             boxShadow: "0 14px 34px rgba(2,6,23,.06)",
           }}
         >
-          <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900 }}>TOTAL ENTRADAS (SUMA)</div>
+          <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900 }}>
+            TOTAL ENTRADAS (SUMA)
+          </div>
           <div style={{ marginTop: 6, fontSize: 22, fontWeight: 1000, color: colors.good }}>
             {fmtNumberCO(stats.sumEntradas || 0)}
           </div>
@@ -505,7 +520,9 @@ export default function MotorPrincipal() {
             boxShadow: "0 14px 34px rgba(2,6,23,.06)",
           }}
         >
-          <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900 }}>TOTAL SALIDAS (ABS)</div>
+          <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900 }}>
+            TOTAL SALIDAS (ABS)
+          </div>
           <div style={{ marginTop: 6, fontSize: 22, fontWeight: 1000, color: colors.bad }}>
             {fmtNumberCO(stats.sumSalidasAbs || 0)}
           </div>
@@ -520,7 +537,9 @@ export default function MotorPrincipal() {
             boxShadow: "0 14px 34px rgba(2,6,23,.06)",
           }}
         >
-          <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900 }}>BALANCE (ENT - SAL)</div>
+          <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900 }}>
+            BALANCE (ENT - SAL)
+          </div>
           <div style={{ marginTop: 6, fontSize: 22, fontWeight: 1000, color: colors.blue }}>
             {fmtNumberCO((stats.sumEntradas || 0) - (stats.sumSalidasAbs || 0))}
           </div>
@@ -571,22 +590,60 @@ export default function MotorPrincipal() {
                   textAlign: "left",
                 }}
               >
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Fecha</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Tipo</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Estado</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Usuario</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Documento</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Material</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Descripción</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>UM</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Familia</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Ubicación</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Zona</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Bodega</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Lote almacén</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Lote prov.</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Venc.</th>
-                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000, textAlign: "right" }}>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Fecha
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Tipo
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Estado
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Usuario
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Documento
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Material
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Descripción
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  UM
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Familia
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Ubicación
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Zona
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Bodega
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Lote almacén
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Lote prov.
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Venc.
+                </th>
+                <th
+                  style={{
+                    padding: 12,
+                    fontSize: 12,
+                    color: colors.muted,
+                    fontWeight: 1000,
+                    textAlign: "right",
+                  }}
+                >
                   Cantidad
                 </th>
               </tr>
@@ -609,7 +666,9 @@ export default function MotorPrincipal() {
 
                 return (
                   <tr key={r.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
-                    <td style={{ padding: 12, fontWeight: 800, color: colors.text }}>{fmtDateTime(r.fecha)}</td>
+                    <td style={{ padding: 12, fontWeight: 800, color: colors.text }}>
+                      {fmtDateTime(r.fecha)}
+                    </td>
 
                     <td style={{ padding: 12 }}>
                       {String(r.tipo || "").toUpperCase() === "ENTRADA" ? (
@@ -627,13 +686,25 @@ export default function MotorPrincipal() {
                       )}
                     </td>
 
-                    <td style={{ padding: 12, fontWeight: 800, color: colors.text }}>{r.usuario || ""}</td>
-                    <td style={{ padding: 12, fontWeight: 800, color: colors.text }}>{r.documento || ""}</td>
+                    <td style={{ padding: 12, fontWeight: 800, color: colors.text }}>
+                      {r.usuario || ""}
+                    </td>
+                    <td style={{ padding: 12, fontWeight: 800, color: colors.text }}>
+                      {r.documento || ""}
+                    </td>
 
-                    <td style={{ padding: 12, fontWeight: 1000, color: colors.navy }}>{r.codigo_material || ""}</td>
-                    <td style={{ padding: 12, color: colors.text, fontWeight: 700 }}>{r.descripcion_material || ""}</td>
-                    <td style={{ padding: 12, color: colors.text, fontWeight: 800 }}>{r.unidad_medida || ""}</td>
-                    <td style={{ padding: 12, color: colors.text, fontWeight: 700 }}>{r.familia || ""}</td>
+                    <td style={{ padding: 12, fontWeight: 1000, color: colors.navy }}>
+                      {r.codigo_material || ""}
+                    </td>
+                    <td style={{ padding: 12, color: colors.text, fontWeight: 700 }}>
+                      {r.descripcion_material || ""}
+                    </td>
+                    <td style={{ padding: 12, color: colors.text, fontWeight: 800 }}>
+                      {r.unidad_medida || ""}
+                    </td>
+                    <td style={{ padding: 12, color: colors.text, fontWeight: 700 }}>
+                      {r.familia || ""}
+                    </td>
 
                     <td
                       style={{
@@ -644,12 +715,22 @@ export default function MotorPrincipal() {
                     >
                       {ubicTexto || "EN TRANSITO"}
                     </td>
-                    <td style={{ padding: 12, color: colors.text, fontWeight: 700 }}>{r.zona || ""}</td>
-                    <td style={{ padding: 12, color: colors.text, fontWeight: 700 }}>{r.bodega || ""}</td>
+                    <td style={{ padding: 12, color: colors.text, fontWeight: 700 }}>
+                      {r.zona || ""}
+                    </td>
+                    <td style={{ padding: 12, color: colors.text, fontWeight: 700 }}>
+                      {r.bodega || ""}
+                    </td>
 
-                    <td style={{ padding: 12, color: colors.text, fontWeight: 700 }}>{r.lote_almacen || ""}</td>
-                    <td style={{ padding: 12, color: colors.text, fontWeight: 700 }}>{r.lote_proveedor || ""}</td>
-                    <td style={{ padding: 12, color: colors.text, fontWeight: 700 }}>{r.fecha_vencimiento || ""}</td>
+                    <td style={{ padding: 12, color: colors.text, fontWeight: 700 }}>
+                      {r.lote_almacen || ""}
+                    </td>
+                    <td style={{ padding: 12, color: colors.text, fontWeight: 700 }}>
+                      {r.lote_proveedor || ""}
+                    </td>
+                    <td style={{ padding: 12, color: colors.text, fontWeight: 700 }}>
+                      {r.fecha_vencimiento || ""}
+                    </td>
 
                     <td
                       style={{
@@ -679,7 +760,8 @@ export default function MotorPrincipal() {
       </div>
 
       <div style={{ marginTop: 12, color: colors.muted, fontSize: 12, fontWeight: 800 }}>
-        Tip: Recibo guarda como <b>+</b> y Despacho como <b>-</b>. Además, si no tiene ubicación queda como <b>EN TRANSITO</b>.
+        Tip: Recibo guarda como <b>+</b> y Despacho como <b>-</b>. Además, si no tiene ubicación
+        queda como <b>EN TRANSITO</b>.
       </div>
     </div>
   );

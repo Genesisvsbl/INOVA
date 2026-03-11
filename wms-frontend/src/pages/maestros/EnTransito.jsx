@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { API_URL } from "../api";
+import { API_URL } from "../../api";
 
 const colors = {
   navy: "#072B5A",
@@ -363,7 +363,7 @@ export default function EnTransito() {
             <div class="header">
               <div class="header-left">
                 <img
-                  src="${window.location.origin}/logo.png"
+                  src="${window.location.origin}/INOVA.png"
                   alt="Logo"
                   class="logo"
                   onerror="this.style.display='none'"
@@ -655,7 +655,9 @@ export default function EnTransito() {
                   <td style={{ padding: 12, fontWeight: 700 }}>{r.proveedor || ""}</td>
                   <td style={{ padding: 12, fontWeight: 700 }}>{r.remesa || ""}</td>
                   <td style={{ padding: 12, fontWeight: 700 }}>{r.orden_compra || ""}</td>
-                  <td style={{ padding: 12, fontWeight: 1000, color: colors.navy }}>{r.codigo_material || ""}</td>
+                  <td style={{ padding: 12, fontWeight: 1000, color: colors.navy }}>
+                    {r.codigo_material || ""}
+                  </td>
                   <td style={{ padding: 12, fontWeight: 700 }}>{r.descripcion_material || ""}</td>
                   <td style={{ padding: 12, fontWeight: 700 }}>{r.unidad_medida || ""}</td>
                   <td style={{ padding: 12, fontWeight: 700 }}>{r.familia || ""}</td>
@@ -665,7 +667,14 @@ export default function EnTransito() {
                   <td style={{ padding: 12, fontWeight: 700 }}>{r.lote_proveedor || ""}</td>
                   <td style={{ padding: 12, fontWeight: 700 }}>{r.fecha_fabricacion || ""}</td>
                   <td style={{ padding: 12, fontWeight: 700 }}>{r.fecha_vencimiento || ""}</td>
-                  <td style={{ padding: 12, textAlign: "right", fontWeight: 1000, color: colors.good }}>
+                  <td
+                    style={{
+                      padding: 12,
+                      textAlign: "right",
+                      fontWeight: 1000,
+                      color: colors.good,
+                    }}
+                  >
                     {fmtNumberCO(r.cantidad)}
                   </td>
 
@@ -690,7 +699,8 @@ export default function EnTransito() {
                         background: colors.blue,
                         color: "#fff",
                         fontWeight: 900,
-                        cursor: "pointer",
+                        cursor: savingId === r.id ? "not-allowed" : "pointer",
+                        opacity: savingId === r.id ? 0.7 : 1,
                       }}
                     >
                       {savingId === r.id ? "Guardando..." : "Asignar"}

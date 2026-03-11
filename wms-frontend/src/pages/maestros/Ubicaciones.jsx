@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { API_URL } from "../api";
+import { API_URL } from "../../api";
 
 const colors = {
   navy: "#072B5A",
@@ -84,6 +84,7 @@ function Chip({ label, tone = "neutral" }) {
     red: { bg: "rgba(220,38,38,.10)", bd: "rgba(220,38,38,.25)", tx: colors.bad },
     amber: { bg: "rgba(245,158,11,.10)", bd: "rgba(245,158,11,.28)", tx: colors.warn },
   };
+
   const st = stylesByTone[tone] || stylesByTone.neutral;
 
   return (
@@ -126,6 +127,7 @@ export default function Ubicaciones() {
   const filtered = useMemo(() => {
     const s = (search || "").trim().toLowerCase();
     if (!s) return items;
+
     return items.filter((x) => {
       const u = (x.ubicacion || "").toLowerCase();
       const z = (x.zona || "").toLowerCase();
@@ -138,6 +140,7 @@ export default function Ubicaciones() {
   const cargar = async () => {
     setLoading(true);
     setError("");
+
     try {
       const params = new URLSearchParams();
       if (search.trim()) params.set("search", search.trim());
@@ -426,7 +429,8 @@ export default function Ubicaciones() {
               background: colors.warn,
               color: "#fff",
               fontWeight: 900,
-              cursor: "pointer",
+              cursor: importando ? "not-allowed" : "pointer",
+              opacity: importando ? 0.7 : 1,
               boxShadow: "0 10px 24px rgba(245,158,11,.25)",
             }}
           >
@@ -435,7 +439,8 @@ export default function Ubicaciones() {
         </div>
 
         <div style={{ marginTop: 10, color: colors.muted, fontSize: 12, fontWeight: 700 }}>
-          El archivo debe contener la columna <b>ubicacion</b>. También puede incluir <b>zona</b>, <b>familias</b> y <b>bodega</b>.
+          El archivo debe contener la columna <b>ubicacion</b>. También puede incluir <b>zona</b>,{" "}
+          <b>familias</b> y <b>bodega</b>.
         </div>
       </div>
 
@@ -449,7 +454,9 @@ export default function Ubicaciones() {
           boxShadow: "0 14px 34px rgba(2,6,23,.06)",
         }}
       >
-        <div style={{ fontWeight: 1000, color: colors.navy, marginBottom: 12 }}>Crear ubicación</div>
+        <div style={{ fontWeight: 1000, color: colors.navy, marginBottom: 12 }}>
+          Crear ubicación
+        </div>
 
         <div
           style={{
@@ -546,7 +553,8 @@ export default function Ubicaciones() {
               background: colors.blue,
               color: "#fff",
               fontWeight: 900,
-              cursor: "pointer",
+              cursor: saving ? "not-allowed" : "pointer",
+              opacity: saving ? 0.7 : 1,
               boxShadow: "0 10px 24px rgba(10,110,209,.25)",
             }}
           >
@@ -573,12 +581,28 @@ export default function Ubicaciones() {
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1300 }}>
             <thead>
-              <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${colors.border}`, textAlign: "left" }}>
-                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>UBICACIÓN</th>
-                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>ZONA</th>
-                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>FAMILIAS</th>
-                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>BODEGA</th>
-                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>ACCIONES</th>
+              <tr
+                style={{
+                  background: "#F8FAFC",
+                  borderBottom: `1px solid ${colors.border}`,
+                  textAlign: "left",
+                }}
+              >
+                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>
+                  UBICACIÓN
+                </th>
+                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>
+                  ZONA
+                </th>
+                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>
+                  FAMILIAS
+                </th>
+                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>
+                  BODEGA
+                </th>
+                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>
+                  ACCIONES
+                </th>
               </tr>
             </thead>
 
@@ -592,7 +616,9 @@ export default function Ubicaciones() {
               ) : (
                 filtered.map((u) => (
                   <tr key={u.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
-                    <td style={{ padding: 12, fontWeight: 900, color: colors.navy }}>{u.ubicacion || ""}</td>
+                    <td style={{ padding: 12, fontWeight: 900, color: colors.navy }}>
+                      {u.ubicacion || ""}
+                    </td>
                     <td style={{ padding: 12 }}>{u.zona || ""}</td>
                     <td style={{ padding: 12 }}>{u.familias || ""}</td>
                     <td style={{ padding: 12 }}>{u.bodega || ""}</td>
@@ -645,7 +671,8 @@ export default function Ubicaciones() {
             fontWeight: 800,
           }}
         >
-          Esta tabla sale de <b>GET /ubicaciones</b>. Ya puedes importar datos masivamente desde esta misma pantalla sin usar Swagger ni CMD.
+          Esta tabla sale de <b>GET /ubicaciones</b>. Ya puedes importar datos masivamente desde
+          esta misma pantalla sin usar Swagger ni CMD.
         </div>
       </div>
     </div>
