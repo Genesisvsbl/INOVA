@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { API_URL } from "../api";
 
 const colors = {
   navy: "#072B5A",
@@ -142,7 +143,7 @@ export default function Ubicaciones() {
       if (search.trim()) params.set("search", search.trim());
 
       const qs = params.toString();
-      const r = await fetch(`http://127.0.0.1:8000/ubicaciones${qs ? `?${qs}` : ""}`);
+      const r = await fetch(`${API_URL}/ubicaciones${qs ? `?${qs}` : ""}`);
       if (!r.ok) throw new Error(await r.text());
 
       const data = await r.json();
@@ -172,7 +173,7 @@ export default function Ubicaciones() {
 
     setSaving(true);
     try {
-      const r = await fetch("http://127.0.0.1:8000/ubicaciones", {
+      const r = await fetch(`${API_URL}/ubicaciones`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -220,7 +221,7 @@ export default function Ubicaciones() {
     }
 
     try {
-      const r = await fetch(`http://127.0.0.1:8000/ubicaciones/${item.id}`, {
+      const r = await fetch(`${API_URL}/ubicaciones/${item.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -245,7 +246,7 @@ export default function Ubicaciones() {
     if (!ok) return;
 
     try {
-      const r = await fetch(`http://127.0.0.1:8000/ubicaciones/${item.id}`, {
+      const r = await fetch(`${API_URL}/ubicaciones/${item.id}`, {
         method: "DELETE",
       });
 
@@ -276,7 +277,7 @@ export default function Ubicaciones() {
       const formData = new FormData();
       formData.append("file", archivoExcel);
 
-      const r = await fetch("http://127.0.0.1:8000/ubicaciones/importar", {
+      const r = await fetch(`${API_URL}/ubicaciones/importar`, {
         method: "POST",
         body: formData,
       });

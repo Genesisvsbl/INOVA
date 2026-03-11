@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { API_URL } from "../api";
 
 const colors = {
   navy: "#072B5A",
@@ -130,8 +131,8 @@ export default function EnTransito() {
 
     try {
       const [resRows, resUbis] = await Promise.all([
-        fetch("http://127.0.0.1:8000/movimientos/en-transito?limit=2000"),
-        fetch("http://127.0.0.1:8000/ubicaciones?limit=2000"),
+        fetch(`${API_URL}/movimientos/en-transito?limit=2000`),
+        fetch(`${API_URL}/ubicaciones?limit=2000`),
       ]);
 
       if (!resRows.ok) {
@@ -455,7 +456,7 @@ export default function EnTransito() {
     setSavingId(row.id);
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/movimientos/${row.id}/asignar-ubicacion`, {
+      const res = await fetch(`${API_URL}/movimientos/${row.id}/asignar-ubicacion`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ codigo_ubicacion: ubicacion }),

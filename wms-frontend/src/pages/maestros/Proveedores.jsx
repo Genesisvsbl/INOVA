@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { API_URL } from "../api";
 
 const colors = {
   navy: "#072B5A",
@@ -129,7 +130,7 @@ export default function Proveedores() {
       if (searchText.trim()) params.set("search", searchText.trim());
 
       const qs = params.toString();
-      const res = await fetch(`http://127.0.0.1:8000/proveedores${qs ? `?${qs}` : ""}`);
+      const res = await fetch(`${API_URL}/proveedores${qs ? `?${qs}` : ""}`);
       if (!res.ok) throw new Error(await res.text());
 
       const data = await res.json();
@@ -159,7 +160,7 @@ export default function Proveedores() {
 
     setSaving(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/proveedores", {
+      const res = await fetch(`${API_URL}/proveedores`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -193,7 +194,7 @@ export default function Proveedores() {
     }
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/proveedores/${item.id}`, {
+      const res = await fetch(`${API_URL}/proveedores/${item.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -216,7 +217,7 @@ export default function Proveedores() {
     if (!ok) return;
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/proveedores/${item.id}`, {
+      const res = await fetch(`${API_URL}/proveedores/${item.id}`, {
         method: "DELETE",
       });
 
@@ -247,7 +248,7 @@ export default function Proveedores() {
       const formData = new FormData();
       formData.append("file", archivoExcel);
 
-      const res = await fetch("http://127.0.0.1:8000/proveedores/importar", {
+      const res = await fetch(`${API_URL}/proveedores/importar`, {
         method: "POST",
         body: formData,
       });

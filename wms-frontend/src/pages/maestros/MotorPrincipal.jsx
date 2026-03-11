@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { API_URL } from "../api";
 
 const colors = {
   navy: "#072B5A",
@@ -25,11 +26,11 @@ function fmtDateTime(v) {
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
 }
 
-// ✅ Formato con punto de mil (es-CO)
 const fmtCO = new Intl.NumberFormat("es-CO", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+
 function fmtNumberCO(v) {
   const n = Number(v);
   if (!Number.isFinite(n)) return "";
@@ -125,20 +126,18 @@ export default function MotorPrincipal() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  // filtros
   const [q, setQ] = useState("");
-  const [tipo, setTipo] = useState("TODOS"); // ENTRADA | SALIDA | TODOS
-  const [estado, setEstado] = useState("TODOS"); // ALMACENADO | EN_TRANSITO | TODOS
+  const [tipo, setTipo] = useState("TODOS");
+  const [estado, setEstado] = useState("TODOS");
   const [bodega, setBodega] = useState("TODAS");
   const [zona, setZona] = useState("TODAS");
 
-  // cargar motor
   useEffect(() => {
     let mounted = true;
     setLoading(true);
     setErr("");
 
-    fetch("http://127.0.0.1:8000/motor?limit=2000")
+    fetch(`${API_URL}/motor?limit=2000`)
       .then(async (r) => {
         if (!r.ok) throw new Error(await r.text());
         return r.json();
@@ -189,7 +188,6 @@ export default function MotorPrincipal() {
 
       if (!needle) return true;
 
-      // búsqueda en campos clave
       const hay = [
         r.usuario,
         r.documento,
@@ -213,12 +211,20 @@ export default function MotorPrincipal() {
 
   const stats = useMemo(() => {
     const total = filtered.length;
-    const entradas = filtered.filter((r) => (r.cantidad ?? 0) >= 0).length;
+    const entradas = filtered.filter((r) => Number(r.cantidad ?? 0) >= 0).length;
     const salidas = total - entradas;
 
-    const sumEntradas = filtered.reduce((acc, r) => acc + ((r.cantidad ?? 0) >= 0 ? Number(r.cantidad || 0) : 0), 0);
-    const sumSalidasAbs = filtered.reduce((acc, r) => acc + ((r.cantidad ?? 0) < 0 ? Math.abs(Number(r.cantidad || 0)) : 0), 0);
-    const enTransito = filtered.filter((r) => String(r.estado || "").toUpperCase() === "EN_TRANSITO").length;
+    const sumEntradas = filtered.reduce(
+      (acc, r) => acc + (Number(r.cantidad ?? 0) >= 0 ? Number(r.cantidad || 0) : 0),
+      0
+    );
+    const sumSalidasAbs = filtered.reduce(
+      (acc, r) => acc + (Number(r.cantidad ?? 0) < 0 ? Math.abs(Number(r.cantidad || 0)) : 0),
+      0
+    );
+    const enTransito = filtered.filter(
+      (r) => String(r.estado || "").toUpperCase() === "EN_TRANSITO"
+    ).length;
 
     return { total, entradas, salidas, sumEntradas, sumSalidasAbs, enTransito };
   }, [filtered]);
@@ -242,7 +248,6 @@ export default function MotorPrincipal() {
 
   return (
     <div>
-      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -288,7 +293,6 @@ export default function MotorPrincipal() {
         </div>
       </div>
 
-      {/* filtros */}
       <div
         style={{
           display: "grid",
@@ -469,7 +473,6 @@ export default function MotorPrincipal() {
         </button>
       </div>
 
-      {/* resumen cuantitativo */}
       <div
         style={{
           display: "grid",
@@ -524,7 +527,6 @@ export default function MotorPrincipal() {
         </div>
       </div>
 
-      {/* tabla */}
       <div
         style={{
           background: colors.card,
@@ -574,20 +576,16 @@ export default function MotorPrincipal() {
                 <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Estado</th>
                 <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Usuario</th>
                 <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Documento</th>
-
                 <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Material</th>
                 <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Descripción</th>
                 <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>UM</th>
                 <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Familia</th>
-
                 <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Ubicación</th>
                 <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Zona</th>
                 <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Bodega</th>
-
                 <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Lote almacén</th>
                 <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Lote prov.</th>
                 <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>Venc.</th>
-
                 <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000, textAlign: "right" }}>
                   Cantidad
                 </th>
@@ -674,13 +672,12 @@ export default function MotorPrincipal() {
           <div style={{ padding: 14, color: colors.bad, fontWeight: 900 }}>
             Error API: {err}
             <div style={{ marginTop: 6, color: colors.muted, fontWeight: 800, fontSize: 12 }}>
-              Revisa que el backend esté corriendo en <b>http://127.0.0.1:8000</b> y que exista <b>GET /motor</b>.
+              Revisa la conexión con la API y que exista <b>GET /motor</b>.
             </div>
           </div>
         )}
       </div>
 
-      {/* footer tip */}
       <div style={{ marginTop: 12, color: colors.muted, fontSize: 12, fontWeight: 800 }}>
         Tip: Recibo guarda como <b>+</b> y Despacho como <b>-</b>. Además, si no tiene ubicación queda como <b>EN TRANSITO</b>.
       </div>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { API_URL } from "../api";
 
 const colors = {
   navy: "#072B5A",
@@ -104,7 +105,7 @@ export default function Rotulos() {
     if (kind === "impresion") params.set("impresion", value);
     params.set("limit", "2000");
 
-    fetch(`http://127.0.0.1:8000/rotulos?${params.toString()}`)
+    fetch(`${API_URL}/rotulos?${params.toString()}`)
       .then(async (r) => {
         if (!r.ok) throw new Error(await r.text());
         return r.json();
@@ -122,14 +123,13 @@ export default function Rotulos() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const stats = useMemo(() => ({ total: rows.length }), [rows]);
 
   const exportCSV = () => {
     const { kind, value } = classifySerialInput(serial);
-    const url = `http://127.0.0.1:8000/rotulos/export`;
+    const url = `${API_URL}/rotulos/export`;
 
     if (kind === "none") return window.open(url, "_blank");
     if (kind === "codigo_cita") {
@@ -140,7 +140,7 @@ export default function Rotulos() {
 
   const imprimir = async (rotulo_id) => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/rotulos/imprimir", {
+      const res = await fetch(`${API_URL}/rotulos/imprimir`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rotulo_id, copias: 1 }),
@@ -161,7 +161,7 @@ export default function Rotulos() {
     if (!ok) return;
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/rotulos/${r.id}`, {
+      const res = await fetch(`${API_URL}/rotulos/${r.id}`, {
         method: "DELETE",
       });
 

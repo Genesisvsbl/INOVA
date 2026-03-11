@@ -9,6 +9,8 @@ async function handle(res) {
   return res.json();
 }
 
+export { API_URL, handle };
+
 export function getMateriales(search = "") {
   const url = new URL(`${API_URL}/materiales`);
   if (search) url.searchParams.set("search", search);

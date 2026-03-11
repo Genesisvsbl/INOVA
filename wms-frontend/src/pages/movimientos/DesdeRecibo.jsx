@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "../../api";
 
 const DRAFT_KEY = "wms_recibo_draft";
 
@@ -120,7 +121,7 @@ export default function DesdeRecibo() {
   }, [navigate]);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/ubicaciones?limit=2000")
+    fetch(`${API_URL}/ubicaciones?limit=2000`)
       .then((r) => {
         if (!r.ok) throw new Error("No se pudo listar ubicaciones");
         return r.json();
@@ -345,23 +346,19 @@ export default function DesdeRecibo() {
         codigo_cita: serial,
         fecha_recepcion: fechaRecep,
         numero_semana: getISOWeek(fv),
-
         proveedor: proveedor || "",
         documento: documento || "",
         remesa: remesa || "",
         orden_compra: ordenCompra || "",
-
         cantidad,
         sku,
         texto_breve: (linea.descripcion || "").toString().trim(),
-
         um,
         umb: (
           linea.umb ||
           draft?.header?.umb ||
           ""
         ).toString().trim(),
-
         fecha_fabricacion: ff || null,
         fecha_vencimiento: fv || null,
         lote_proveedor: loteProv,
@@ -373,7 +370,7 @@ export default function DesdeRecibo() {
   const guardarRotulos = async () => {
     const rotulosItems = construirRotulosItems();
 
-    const rotRes = await fetch("http://127.0.0.1:8000/rotulos/bulk", {
+    const rotRes = await fetch(`${API_URL}/rotulos/bulk`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ items: rotulosItems }),
@@ -404,7 +401,7 @@ export default function DesdeRecibo() {
           estado: "ALMACENADO",
         });
 
-        const res = await fetch("http://127.0.0.1:8000/movimientos", {
+        const res = await fetch(`${API_URL}/movimientos`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -446,7 +443,7 @@ export default function DesdeRecibo() {
           estado: "EN_TRANSITO",
         });
 
-        const res = await fetch("http://127.0.0.1:8000/movimientos", {
+        const res = await fetch(`${API_URL}/movimientos`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -569,7 +566,14 @@ export default function DesdeRecibo() {
         <button
           onClick={guardarEnTransito}
           disabled={guardando}
-          style={{ fontWeight: 800, background: "#f59e0b", color: "#fff", border: "none", padding: "8px 12px", borderRadius: 8 }}
+          style={{
+            fontWeight: 800,
+            background: "#f59e0b",
+            color: "#fff",
+            border: "none",
+            padding: "8px 12px",
+            borderRadius: 8,
+          }}
         >
           🚚 Guardar en tránsito
         </button>
