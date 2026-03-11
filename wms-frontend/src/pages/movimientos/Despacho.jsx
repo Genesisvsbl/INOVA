@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-const API = "http://127.0.0.1:8000";
+import { API_URL } from "../../api";
 
 const colors = {
   navy: "#072B5A",
@@ -107,7 +106,8 @@ export default function Despacho() {
       const params = new URLSearchParams();
       if (reservaBuscar.trim()) params.set("reserva", reservaBuscar.trim());
 
-      const res = await fetch(`${API}/despachos?${params.toString()}`);
+      const qs = params.toString();
+      const res = await fetch(`${API_URL}/despachos${qs ? `?${qs}` : ""}`);
       if (!res.ok) throw new Error(await res.text());
 
       const data = await res.json();
@@ -130,7 +130,7 @@ export default function Despacho() {
 
     try {
       const res = await fetch(
-        `${API}/despachos/picking/${encodeURIComponent(reservaBuscar.trim())}`
+        `${API_URL}/despachos/picking/${encodeURIComponent(reservaBuscar.trim())}`
       );
 
       if (!res.ok) {
@@ -164,7 +164,7 @@ export default function Despacho() {
       const form = new FormData();
       form.append("file", file);
 
-      const res = await fetch(`${API}/despachos/importar`, {
+      const res = await fetch(`${API_URL}/despachos/importar`, {
         method: "POST",
         body: form,
       });
@@ -182,6 +182,9 @@ export default function Despacho() {
       setReserva("");
       setPickingRows([]);
       setFile(null);
+
+      const input = document.getElementById("input-despacho-excel");
+      if (input) input.value = "";
     } catch (e) {
       alert("❌ Error importando despacho:\n" + (e?.message || e));
     } finally {
@@ -208,7 +211,7 @@ export default function Despacho() {
 
     try {
       const res = await fetch(
-        `${API}/despachos/generar-picking/${encodeURIComponent(reserva.trim())}`,
+        `${API_URL}/despachos/generar-picking/${encodeURIComponent(reserva.trim())}`,
         {
           method: "POST",
         }
@@ -309,6 +312,7 @@ export default function Despacho() {
               IMPORTAR EXCEL DESPACHO
             </div>
             <input
+              id="input-despacho-excel"
               type="file"
               accept=".xlsx,.xls"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
@@ -602,7 +606,7 @@ export default function Despacho() {
                     {formatQty(r.cantidad_requerida)}
                   </td>
                   <td style={{ padding: 12, textAlign: "right", fontWeight: 900, color: colors.good }}>
-                    {formatQty(r.cantidad_a_retirar)}
+                    {formatQty(r.cantidad_a_retirar ?? r.cantidad_sugerida)}
                   </td>
                   <td style={{ padding: 12, fontWeight: 800 }}>{r.ubicacion || ""}</td>
                   <td style={{ padding: 12, fontWeight: 700 }}>{r.lote_almacen || ""}</td>
