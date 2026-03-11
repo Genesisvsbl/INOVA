@@ -21,8 +21,8 @@ from database import SessionLocal, engine
 # CONFIG BARTENDER
 # =========================================================
 BARTENDER_EXE = r"C:\Program Files\Seagull\BarTender Suite\bartend.exe"
-BTW_RECEPCION_MP = r"C:\Users\JOSUE\Documents\VSBL\ALMACENAMIENTO\ROTULOS\1. RECEPCION MP.btw"
-BTW_RECEPCION_MP_COD_TRAZ = r"C:\Users\JOSUE\Documents\VSBL\ALMACENAMIENTO\ROTULOS\5. RECEPCION MP COD + TRAZ.btw"
+BTW_RECEPCION_MP = r"C:\Users\JOSUE\Documents\INOVA_ALM\wms\1. RECEPCION MP.btw"
+BTW_RECEPCION_MP_COD_TRAZ = r"C:\Users\JOSUE\Documents\INOVA_ALM\wms\5. RECEPCION MP COD + TRAZ.btw"
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -1115,13 +1115,7 @@ def exportar_rotulos_csv(
             ]
         )
 
-    tag = "todos"
-    if impresion and impresion.strip():
-        tag = impresion.strip()
-    if codigo_cita and codigo_cita.strip():
-        tag = codigo_cita.strip()
-
-    filename = f"rotulos_{tag}.csv"
+    filename = "rotulo_print.csv"
     return Response(
         content=buff.getvalue(),
         media_type="text/csv",
@@ -1148,7 +1142,7 @@ def imprimir_rotulo(
     if not os.path.exists(BARTENDER_EXE):
         raise HTTPException(status_code=500, detail="No se encontró bartend.exe")
 
-    csv_path = r"C:\Users\JOSUE\Documents\VSBL\ALMACENAMIENTO\ROTULOS\rotulo_print.csv"
+    csv_path = r"C:\Users\JOSUE\Documents\INOVA_ALM\wms\rotulo_print.csv"
 
     cols = [
         "IMPRESION",
