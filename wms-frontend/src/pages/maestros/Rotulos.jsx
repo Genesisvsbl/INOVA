@@ -14,6 +14,8 @@ const colors = {
   warn: "#f59e0b",
 };
 
+const DOWNLOAD_HINT_PATH = "C:\\Users\\JOSUE\\Documents\\INOVA_ALM\\wms\\rotulo_print.csv";
+
 function fmtDate(v) {
   if (!v) return "";
 
@@ -131,26 +133,25 @@ export default function Rotulos() {
     const { kind, value } = classifySerialInput(serial);
     const url = `${API_URL}/rotulos/export`;
 
-    if (kind === "none") return window.open(url, "_blank");
-    if (kind === "codigo_cita") {
-      return window.open(`${url}?codigo_cita=${encodeURIComponent(value)}`, "_blank");
+    if (kind === "none") {
+      window.open(url, "_blank");
+    } else if (kind === "codigo_cita") {
+      window.open(`${url}?codigo_cita=${encodeURIComponent(value)}`, "_blank");
+    } else {
+      window.open(`${url}?impresion=${encodeURIComponent(value)}`, "_blank");
     }
-    return window.open(`${url}?impresion=${encodeURIComponent(value)}`, "_blank");
+
+    alert(
+      `Se descargará el archivo rotulo_print.csv.\n\nGuárdalo o reemplázalo en esta ruta:\n${DOWNLOAD_HINT_PATH}\n\nLuego abre BarTender y dale Imprimir.`
+    );
   };
 
-  const imprimir = async (rotulo_id) => {
-    try {
-      const res = await fetch(`${API_URL}/rotulos/imprimir`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rotulo_id, copias: 1 }),
-      });
+  const exportarFila = (rotuloId) => {
+    window.open(`${API_URL}/rotulos/export?rotulo_id=${rotuloId}`, "_blank");
 
-      if (!res.ok) throw new Error(await res.text());
-      alert("✅ Enviado a impresión");
-    } catch (e) {
-      alert("❌ Error imprimiendo:\n" + (e?.message || e));
-    }
+    alert(
+      `Se descargará solo esa línea como rotulo_print.csv.\n\nGuárdalo o reemplázalo en esta ruta:\n${DOWNLOAD_HINT_PATH}\n\nLuego abre BarTender y dale Imprimir.`
+    );
   };
 
   const eliminarRotulo = async (r) => {
@@ -213,7 +214,7 @@ export default function Rotulos() {
               fontWeight: 900,
               cursor: "pointer",
             }}
-            title="Exportar CSV (para Bartender)"
+            title="Exportar CSV para BarTender"
           >
             ⬇️ Exportar CSV
           </button>
@@ -446,7 +447,7 @@ export default function Rotulos() {
                   <td style={{ padding: 12 }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       <button
-                        onClick={() => imprimir(r.id)}
+                        onClick={() => exportarFila(r.id)}
                         style={{
                           padding: "8px 10px",
                           borderRadius: 12,
@@ -455,8 +456,9 @@ export default function Rotulos() {
                           fontWeight: 900,
                           cursor: "pointer",
                         }}
+                        title="Exportar solo esta línea como rotulo_print.csv"
                       >
-                        🖨️ Imprimir
+                        ⬇️ Exportar
                       </button>
 
                       <button
@@ -486,6 +488,11 @@ export default function Rotulos() {
             Error API: {err}
           </div>
         )}
+      </div>
+
+      <div style={{ marginTop: 12, color: colors.muted, fontSize: 12, fontWeight: 800 }}>
+        Tip: usa <b>Exportar</b> por fila para bajar solo un rótulo como <b>rotulo_print.csv</b>,
+        guárdalo en <b>{DOWNLOAD_HINT_PATH}</b> y luego abre BarTender para imprimir.
       </div>
     </div>
   );
