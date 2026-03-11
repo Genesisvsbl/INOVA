@@ -47,11 +47,8 @@ class Movimiento(Base):
     umb = Column(String)
 
     material_id = Column(Integer, ForeignKey("materiales.id"), nullable=False)
-
-    # AHORA PUEDE SER NULL PARA EN TRANSITO
     ubicacion_id = Column(Integer, ForeignKey("ubicaciones.id"), nullable=True)
 
-    # NUEVO
     estado = Column(String, nullable=False, default="ALMACENADO", index=True)
 
     lote_almacen = Column(String)
@@ -105,7 +102,7 @@ class Rotulo(Base):
 
 
 class DespachoCarga(Base):
-    __tablename__ = "despachos_carga"
+    __tablename__ = "despacho_cargas"
 
     id = Column(Integer, primary_key=True, index=True)
     fecha_carga = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -115,27 +112,28 @@ class DespachoCarga(Base):
 
 
 class DespachoDetalle(Base):
-    __tablename__ = "despachos_detalle"
+    __tablename__ = "despacho_detalles"
 
     id = Column(Integer, primary_key=True, index=True)
+    carga_id = Column(Integer, ForeignKey("despacho_cargas.id"), nullable=False)
 
-    carga_id = Column(Integer, ForeignKey("despachos_carga.id"), nullable=False)
-
-    fecha_necesidad = Column(Date)
+    fecha_necesidad = Column(Date, nullable=True)
     reserva = Column(String, index=True, nullable=False)
-    sku = Column(String, index=True, nullable=False)
-    texto_breve = Column(String)
+    sku = Column(String, nullable=False)
+    texto_breve = Column(String, nullable=True)
     cantidad = Column(Float, nullable=False)
 
     cantidad_retirada = Column(Float, default=0)
     diferencia = Column(Float, default=0)
     lineas_usadas = Column(Integer, default=0)
-
     pct_cumplimiento_sku = Column(Float, default=0)
     pct_cumplimiento_reserva = Column(Float, default=0)
+    clasificacion_sku = Column(String, default="NO CUMPLIDA")
+    clasificacion_final = Column(String, default="NO CUMPLIDA")
 
-    clasificacion_sku = Column(String)
-    clasificacion_final = Column(String)
+    estado_operativo = Column(String, default="ABIERTA", nullable=False)
+    cerrada = Column(Boolean, default=False, nullable=False)
+    fecha_cierre = Column(DateTime, nullable=True)
 
     carga = relationship("DespachoCarga", back_populates="detalles")
     picks = relationship("PickingDetalle", back_populates="despacho_detalle", cascade="all, delete")
@@ -162,5 +160,5 @@ class PickingDetalle(Base):
     impreso = Column(Boolean, nullable=False, default=False)
     confirmado = Column(Boolean, nullable=False, default=False)
 
-    despacho_detalle_id = Column(Integer, ForeignKey("despachos_detalle.id"), nullable=True)
+    despacho_detalle_id = Column(Integer, ForeignKey("despacho_detalles.id"), nullable=True)
     despacho_detalle = relationship("DespachoDetalle", back_populates="picks")

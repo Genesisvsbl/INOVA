@@ -288,25 +288,27 @@ class RotuloBulkCreate(BaseModel):
 
 class DespachoDetalleOut(BaseModel):
     id: int
+    carga_id: int
     fecha_necesidad: Optional[date] = None
     reserva: str
     sku: str
     texto_breve: Optional[str] = None
     cantidad: float
-
     cantidad_retirada: float
     diferencia: float
     lineas_usadas: int
-
     pct_cumplimiento_sku: float
     pct_cumplimiento_reserva: float
+    clasificacion_sku: str
+    clasificacion_final: str
 
-    clasificacion_sku: Optional[str] = None
-    clasificacion_final: Optional[str] = None
+    # NUEVO
+    estado_operativo: Optional[str] = "ABIERTA"
+    cerrada: Optional[bool] = False
+    fecha_cierre: Optional[datetime] = None
 
     class Config:
         from_attributes = True
-
 
 class PickingDetalleOut(BaseModel):
     id: int
