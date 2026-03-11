@@ -1051,11 +1051,15 @@ def listar_rotulos(
 
 @app.get("/rotulos/export")
 def exportar_rotulos_csv(
+    rotulo_id: Optional[int] = None,
     codigo_cita: Optional[str] = None,
     impresion: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     q = db.query(models.Rotulo)
+
+    if rotulo_id is not None:
+        q = q.filter(models.Rotulo.id == rotulo_id)
 
     if codigo_cita and codigo_cita.strip():
         q = q.filter(models.Rotulo.codigo_cita == codigo_cita.strip())
@@ -1121,7 +1125,6 @@ def exportar_rotulos_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
-
 
 @app.post("/rotulos/imprimir")
 def imprimir_rotulo(
