@@ -16,19 +16,17 @@ function clampMaxLen(s, max) {
   return str.length > max ? str.slice(0, max) : str;
 }
 
+// Permite letras, números y *
 function onlyAlnumAndStar(s) {
   return (s ?? "").toString().replace(/[^a-zA-Z0-9*]/g, "");
 }
-
 function limit10(s) {
   return onlyAlnumAndStar(s).slice(0, 10);
 }
-
 function pad10WithStars(s) {
   const v = limit10(s);
   return (v + "**********").slice(0, 10);
 }
-
 function pad10WithStarsAny(s) {
   const v = limit10(s);
   return (v + "**********").slice(0, 10);
@@ -38,18 +36,13 @@ function serialItem(serial, idx) {
   return `${serial}-${String(idx + 1).padStart(2, "0")}`;
 }
 
-function formatPrintDateDots(v) {
-  const s = String(v || "").trim();
-  if (!s) return "";
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-    return s.replaceAll("-", ".");
-  }
+function formatDateDisplay(v) {
+  if (!v) return "";
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
 
   const short = s.slice(0, 10);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(short)) {
-    return short.replaceAll("-", ".");
-  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(short)) return short;
 
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return s;
@@ -57,18 +50,36 @@ function formatPrintDateDots(v) {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}.${mm}.${dd}`;
+  return `${yyyy}-${mm}-${dd}`;
 }
 
-function stripStars(value) {
-  return String(value || "").replace(/\*/g, "").trim();
+// Solo impresión tarjetas: 2026.03.13
+function formatDateDots(v) {
+  const iso = formatDateDisplay(v);
+  if (!iso) return "";
+  return iso.replaceAll("-", ".");
 }
 
+function cleanBarcodeValue(v) {
+  return String(v ?? "")
+    .trim()
+    .replaceAll("*", "");
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+// ✅ Formato con punto de mil (es-CO)
 const fmtCO = new Intl.NumberFormat("es-CO", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
-
 function formatMoney(n) {
   const x = Number(n);
   if (!Number.isFinite(x)) return "";
@@ -99,15 +110,12 @@ export default function Recibo() {
       setUsuario(saved);
       return;
     }
-
     const clave = prompt('Ingrese su clave (ej: "*768*")');
     const nombre = USUARIOS[clave?.trim()] || "";
-
     if (!nombre) {
       alert("Clave inválida.");
       return;
     }
-
     localStorage.setItem("wms_user", nombre);
     setUsuario(nombre);
   }, []);
@@ -173,7 +181,7 @@ export default function Recibo() {
 
   const [errores, setErrores] = useState({});
 
-  // ===== Cargar borrador si existe =====
+  // ✅ Cargar borrador si existe
   useEffect(() => {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
@@ -244,14 +252,11 @@ export default function Recibo() {
     ]);
   };
 
-  const removeLinea = (idx) => {
-    setLineas((prev) => prev.filter((_, i) => i !== idx));
-  };
+  const removeLinea = (idx) => setLineas((prev) => prev.filter((_, i) => i !== idx));
 
   const onCodigoChange = (idx, codigo) => {
     const code = codigo.trim();
     const mat = materiales.find((m) => m.codigo === code);
-
     setLinea(idx, {
       codigo: code,
       descripcion: mat ? mat.descripcion : "",
@@ -285,7 +290,6 @@ export default function Recibo() {
 
   const onLoteProveedorChange = (idx, value) => {
     const clamped = limit10(value);
-
     setLinea(idx, {
       lote_proveedor: clamped,
       lote: "",
@@ -324,7 +328,6 @@ export default function Recibo() {
       if ((ln.lote_proveedor ?? "").toString().trim().length !== 10) {
         errs[`loteprov_${idx}`] = "Lote proveedor debe ser exactamente 10.";
       }
-
       if (!ln.fecha_vencimiento) errs[`fv_${idx}`] = "Fecha vencimiento obligatoria.";
     });
 
@@ -364,131 +367,142 @@ export default function Recibo() {
     }, 0);
   };
 
-  const onImprimir = () => {
-    const el = printRef.current;
-    if (!el) {
-      window.print();
-      return;
-    }
+  const buildReciboRowsHtml = () => {
+    return lineas
+      .map((ln, idx) => {
+        const serial = serialItem(header.serial, idx);
+        return `
+          <tr>
+            <td>${escapeHtml(serial)}</td>
+            <td>${idx + 1}</td>
+            <td>${escapeHtml(formatDateDisplay(ln.fecha_recepcion))}</td>
+            <td>${escapeHtml(ln.codigo)}</td>
+            <td>${escapeHtml(ln.descripcion)}</td>
+            <td>${escapeHtml(ln.empaque)}</td>
+            <td style="text-align:right;">${escapeHtml(ln.umb)}</td>
+            <td>${escapeHtml(ln.um)}</td>
+            <td style="text-align:right;">${escapeHtml(ln.cantidad)}</td>
+            <td style="text-align:right;">${escapeHtml(formatMoney(ln.total || 0))}</td>
+            <td>${escapeHtml(ln.lote_proveedor)}</td>
+            <td>${escapeHtml(formatDateDisplay(ln.fecha_fabricacion))}</td>
+            <td>${escapeHtml(formatDateDisplay(ln.fecha_vencimiento))}</td>
+          </tr>
+        `;
+      })
+      .join("");
+  };
 
+  const buildTarjetasHtml = () => {
+    return lineas
+      .map((ln, idx) => {
+        const serial = serialItem(header.serial, idx);
+        const codigo = (ln.codigo || "").trim();
+        const cantidad = formatMoney(ln.total || 0);
+        const fechaVenc = formatDateDots(ln.fecha_vencimiento);
+        const loteProveedorClean = cleanBarcodeValue(ln.lote_proveedor || "");
+
+        return `
+          <div class="card">
+            <div class="card-head">
+              <div class="card-logo-wrap">
+                <div class="card-logo">
+                  <img src="/INOVA.png" alt="INOVA" />
+                </div>
+                <div class="card-brand">
+                  <div class="card-brand-title">WMS INOVA</div>
+                  <div class="card-brand-sub">Tarjeta de identificación</div>
+                </div>
+              </div>
+
+              <div class="card-serial-box">
+                <div class="mini-label"># SERIAL</div>
+                <div class="serial-big">${escapeHtml(serial)}</div>
+              </div>
+            </div>
+
+            <div class="row top-inline">
+              <div class="half">
+                <div class="mini-label">CÓDIGO</div>
+                <div class="value-big left">${escapeHtml(codigo || "-")}</div>
+              </div>
+              <div class="half right-align">
+                <div class="mini-label">CANTIDAD</div>
+                <div class="value-big">${escapeHtml(cantidad || "0,00")}</div>
+              </div>
+            </div>
+
+            <div class="barcode-block">
+              <div class="mini-label">FECHA VENCIMIENTO</div>
+              <svg id="barcode-fv-${idx}"></svg>
+              <div class="barcode-text">${escapeHtml(fechaVenc || "-")}</div>
+            </div>
+
+            <div class="barcode-block">
+              <div class="mini-label">LOTE PROVEEDOR</div>
+              <svg id="barcode-lp-${idx}"></svg>
+              <div class="barcode-text">${escapeHtml(loteProveedorClean || "-")}</div>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  };
+
+  const buildBarcodeScript = () => {
+    return lineas
+      .map((ln, idx) => {
+        const fechaVenc = JSON.stringify(formatDateDots(ln.fecha_vencimiento) || "SIN.FECHA");
+        const loteProveedorClean = JSON.stringify(cleanBarcodeValue(ln.lote_proveedor || "") || "VACIO");
+
+        return `
+          try {
+            JsBarcode("#barcode-fv-${idx}", ${fechaVenc}, {
+              format: "CODE128",
+              displayValue: false,
+              height: 52,
+              width: 1.5,
+              margin: 0
+            });
+          } catch (e) {
+            console.error("Error barcode fecha vencimiento ${idx}", e);
+          }
+
+          try {
+            JsBarcode("#barcode-lp-${idx}", ${loteProveedorClean}, {
+              format: "CODE128",
+              displayValue: false,
+              height: 52,
+              width: 1.5,
+              margin: 0
+            });
+          } catch (e) {
+            console.error("Error barcode lote proveedor ${idx}", e);
+          }
+        `;
+      })
+      .join("\n");
+  };
+
+  const onImprimir = () => {
     const w = window.open("", "_blank", "width=1600,height=1000");
     if (!w) {
       alert("El navegador bloqueó la ventana de impresión.");
       return;
     }
 
-    const clone = el.cloneNode(true);
+    const proveedorNombre =
+      proveedores.find((x) => String(x.id) === String(header.proveedor_id))?.nombre ||
+      header.proveedor ||
+      "";
 
-    const inputs = clone.querySelectorAll("input, select, textarea, button");
-    inputs.forEach((node) => {
-      const tag = node.tagName.toLowerCase();
-
-      if (tag === "button") {
-        node.remove();
-        return;
-      }
-
-      let value = "";
-
-      if (tag === "select") {
-        value = node.options?.[node.selectedIndex]?.text || node.value || "";
-      } else {
-        value = node.value ?? node.getAttribute("value") ?? "";
-      }
-
-      const span = w.document.createElement("span");
-      span.textContent = value || "";
-      span.style.display = "inline-block";
-      span.style.width = "100%";
-      span.style.whiteSpace = "pre-wrap";
-      span.style.wordBreak = "break-word";
-      span.style.fontSize = "10.5px";
-      span.style.lineHeight = "1.2";
-      node.replaceWith(span);
-    });
-
-    const barcodeRowsHtml = lineas
-      .map((ln, idx) => {
-        const serial = serialItem(header.serial, idx);
-        const cantidad = formatMoney(ln.total || 0);
-        const loteProveedorTexto = stripStars(ln.lote_proveedor || "");
-        const fechaVencTexto = formatPrintDateDots(ln.fecha_vencimiento || "");
-        const proveedorTexto = header.proveedor || "";
-
-        return `
-          <div class="barcode-card">
-            <div class="barcode-card-head">
-              <div class="barcode-card-head-left">
-                <div class="mini-label">CÓDIGO</div>
-                <div class="mini-value">${ln.codigo || "-"}</div>
-              </div>
-              <div class="barcode-card-head-right">
-                <div class="mini-label">CANTIDAD</div>
-                <div class="mini-value">${cantidad || "0,00"}</div>
-              </div>
-            </div>
-
-            <div class="barcode-meta-stack">
-              <div><b>Fecha vencimiento:</b> ${fechaVencTexto || "-"}</div>
-              <div><b>Proveedor:</b> ${proveedorTexto || "-"}</div>
-              <div><b># Serial:</b> ${serial}</div>
-            </div>
-
-            <div class="barcode-grid">
-              <div class="barcode-box">
-                <div class="barcode-label">LOTE PROVEEDOR</div>
-                <svg id="barcode-lote-${idx}"></svg>
-                <div class="barcode-text">${loteProveedorTexto || "-"}</div>
-              </div>
-
-              <div class="barcode-box">
-                <div class="barcode-label">FECHA VENCIMIENTO</div>
-                <svg id="barcode-fv-${idx}"></svg>
-                <div class="barcode-text">${fechaVencTexto || "-"}</div>
-              </div>
-            </div>
-          </div>
-        `;
-      })
-      .join("");
-
-    const barcodeScript = lineas
-      .map((ln, idx) => {
-        const loteProveedor = JSON.stringify(stripStars(ln.lote_proveedor || "") || "VACIO");
-        const fechaVenc = JSON.stringify(formatPrintDateDots(ln.fecha_vencimiento || "") || "SIN.FECHA");
-
-        return `
-          try {
-            JsBarcode("#barcode-lote-${idx}", ${loteProveedor}, {
-              format: "CODE128",
-              displayValue: false,
-              height: 58,
-              width: 1.9,
-              margin: 0
-            });
-          } catch (e) {
-            console.error("Error barcode lote ${idx}", e);
-          }
-
-          try {
-            JsBarcode("#barcode-fv-${idx}", ${fechaVenc}, {
-              format: "CODE128",
-              displayValue: false,
-              height: 58,
-              width: 1.9,
-              margin: 0
-            });
-          } catch (e) {
-            console.error("Error barcode fv ${idx}", e);
-          }
-        `;
-      })
-      .join("\n");
+    const reciboRowsHtml = buildReciboRowsHtml();
+    const tarjetasHtml = buildTarjetasHtml();
+    const barcodeScript = buildBarcodeScript();
 
     const html = `
       <html>
         <head>
-          <title>Recibo ciego - ${header.serial}</title>
+          <title>Recibo ciego - ${escapeHtml(header.serial)}</title>
           <meta charset="utf-8" />
           <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
           <style>
@@ -497,76 +511,26 @@ export default function Recibo() {
               margin: 8mm;
             }
 
-            html, body {
-              height: 100%;
+            * {
+              box-sizing: border-box;
             }
 
-            body {
-              font-family: Arial, sans-serif;
-              color: #0f172a;
+            html, body {
               margin: 0;
               padding: 0;
+              font-family: Arial, sans-serif;
+              color: #0f172a;
+              background: #fff;
             }
 
-            .print-wrap {
+            .sheet {
               width: 100%;
+              page-break-after: always;
             }
 
-            .scale {
-              transform-origin: top left;
-              transform: scale(0.94);
-              width: 106%;
-            }
-
-            .muted {
-              color: #64748b;
-              font-size: 12px;
-            }
-
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              table-layout: fixed;
-              page-break-inside: auto;
-            }
-
-            thead {
-              display: table-header-group;
-            }
-
-            tr {
-              page-break-inside: avoid;
+            .sheet:last-child {
               page-break-after: auto;
             }
-
-            th, td {
-              border: 1px solid #111827;
-              padding: 5px;
-              font-size: 10.5px;
-              vertical-align: top;
-              word-wrap: break-word;
-              overflow-wrap: anywhere;
-            }
-
-            th {
-              background: #f1f5f9;
-              text-align: left;
-            }
-
-            th:nth-child(1), td:nth-child(1) { width: 80px; }
-            th:nth-child(2), td:nth-child(2) { width: 35px; }
-            th:nth-child(3), td:nth-child(3) { width: 90px; }
-            th:nth-child(4), td:nth-child(4) { width: 80px; }
-            th:nth-child(5), td:nth-child(5) { width: 210px; }
-            th:nth-child(6), td:nth-child(6) { width: 90px; }
-            th:nth-child(7), td:nth-child(7) { width: 60px; }
-            th:nth-child(8), td:nth-child(8) { width: 60px; }
-            th:nth-child(9), td:nth-child(9) { width: 80px; }
-            th:nth-child(10), td:nth-child(10) { width: 80px; }
-            th:nth-child(11), td:nth-child(11) { width: 115px; }
-            th:nth-child(12), td:nth-child(12) { width: 95px; }
-            th:nth-child(13), td:nth-child(13) { width: 95px; }
-            th:nth-child(14), td:nth-child(14) { width: 70px; }
 
             .titlebar {
               display: flex;
@@ -576,146 +540,373 @@ export default function Recibo() {
             }
 
             .logo {
-              width: 46px;
-              height: 46px;
-              border: 1px solid #e2e8f0;
-              border-radius: 12px;
+              width: 58px;
+              height: 58px;
+              border: 1px solid #dbe2ea;
+              border-radius: 14px;
               overflow: hidden;
               display: grid;
               place-items: center;
+              flex: 0 0 auto;
             }
 
             .logo img {
               width: 100%;
               height: 100%;
-              object-fit: cover;
+              object-fit: contain;
             }
 
-            .barcode-section {
-              margin-top: 20px;
-              page-break-before: always;
+            .title-main {
+              font-weight: 900;
+              font-size: 16px;
+              line-height: 1.1;
             }
 
-            .barcode-section-title {
+            .title-sub {
+              margin-top: 3px;
+              color: #475569;
+              font-size: 12px;
+            }
+
+            .header-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
+              margin-bottom: 10px;
+            }
+
+            .box {
+              border: 1px solid #dbe2ea;
+              border-radius: 12px;
+              padding: 12px 14px;
+              min-height: 150px;
+            }
+
+            .field {
+              margin-bottom: 12px;
+            }
+
+            .field:last-child {
+              margin-bottom: 0;
+            }
+
+            .label {
+              font-weight: 900;
+              font-size: 12px;
+              color: #0f172a;
+              margin-bottom: 3px;
+            }
+
+            .value {
+              font-size: 12px;
+              color: #111827;
+              line-height: 1.25;
+              white-space: pre-wrap;
+              word-break: break-word;
+            }
+
+            .value-big-total {
               font-size: 16px;
               font-weight: 900;
-              margin-bottom: 12px;
+              text-align: right;
+            }
+
+            .table-wrap {
+              width: 100%;
+              overflow: hidden;
+            }
+
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              table-layout: fixed;
+            }
+
+            th, td {
+              border: 1px solid #1f2937;
+              padding: 4px 5px;
+              font-size: 9.4px;
+              vertical-align: top;
+              overflow-wrap: anywhere;
+              word-break: break-word;
+            }
+
+            th {
+              background: #f1f5f9;
+              text-align: left;
+              font-weight: 900;
+            }
+
+            .recibo-table th:nth-child(1), .recibo-table td:nth-child(1) { width: 8%; }
+            .recibo-table th:nth-child(2), .recibo-table td:nth-child(2) { width: 4%; }
+            .recibo-table th:nth-child(3), .recibo-table td:nth-child(3) { width: 9%; }
+            .recibo-table th:nth-child(4), .recibo-table td:nth-child(4) { width: 8%; }
+            .recibo-table th:nth-child(5), .recibo-table td:nth-child(5) { width: 20%; }
+            .recibo-table th:nth-child(6), .recibo-table td:nth-child(6) { width: 9%; }
+            .recibo-table th:nth-child(7), .recibo-table td:nth-child(7) { width: 6%; }
+            .recibo-table th:nth-child(8), .recibo-table td:nth-child(8) { width: 6%; }
+            .recibo-table th:nth-child(9), .recibo-table td:nth-child(9) { width: 7%; }
+            .recibo-table th:nth-child(10), .recibo-table td:nth-child(10) { width: 8%; }
+            .recibo-table th:nth-child(11), .recibo-table td:nth-child(11) { width: 11%; }
+            .recibo-table th:nth-child(12), .recibo-table td:nth-child(12) { width: 9%; }
+            .recibo-table th:nth-child(13), .recibo-table td:nth-child(13) { width: 9%; }
+
+            /* ===== SEGUNDA HOJA ===== */
+            .cards-sheet-header {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              margin-bottom: 14px;
+            }
+
+            .cards-title {
+              font-size: 16px;
+              font-weight: 900;
               color: #072B5A;
             }
 
-            .barcode-cards-grid {
+            .cards-subtitle {
+              font-size: 12px;
+              color: #475569;
+              margin-top: 3px;
+            }
+
+            .cards-grid {
               display: grid;
               grid-template-columns: 1fr 1fr;
               gap: 12px;
             }
 
-            .barcode-card {
+            .card {
               border: 1px solid #cbd5e1;
-              border-radius: 10px;
+              border-radius: 14px;
               padding: 12px;
               page-break-inside: avoid;
-              min-height: 240px;
-              display: flex;
-              flex-direction: column;
-              justify-content: space-between;
+              min-height: 250px;
             }
 
-            .barcode-card-head {
+            .card-head {
               display: flex;
               justify-content: space-between;
               align-items: flex-start;
-              gap: 16px;
+              gap: 12px;
               margin-bottom: 10px;
             }
 
-            .barcode-card-head-left,
-            .barcode-card-head-right {
-              width: 48%;
+            .card-logo-wrap {
+              display: flex;
+              align-items: center;
+              gap: 10px;
             }
 
-            .barcode-card-head-right {
+            .card-logo {
+              width: 58px;
+              height: 58px;
+              border: 1px solid #dbe2ea;
+              border-radius: 12px;
+              overflow: hidden;
+              display: grid;
+              place-items: center;
+              flex: 0 0 auto;
+            }
+
+            .card-logo img {
+              width: 100%;
+              height: 100%;
+              object-fit: contain;
+            }
+
+            .card-brand-title {
+              font-size: 14px;
+              font-weight: 900;
+              color: #072B5A;
+              line-height: 1.1;
+            }
+
+            .card-brand-sub {
+              font-size: 11px;
+              color: #334155;
+              margin-top: 3px;
+            }
+
+            .card-serial-box {
               text-align: right;
             }
 
             .mini-label {
-              font-size: 11px;
+              font-size: 10px;
               font-weight: 900;
-              color: #475569;
+              color: #334155;
               margin-bottom: 4px;
+              text-transform: uppercase;
+              letter-spacing: .3px;
             }
 
-            .mini-value {
-              font-size: 20px;
-              font-weight: 900;
+            .serial-big {
+              font-size: 16px;
+              font-weight: 1000;
+              color: #0f172a;
+            }
+
+            .top-inline {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
+              margin-bottom: 10px;
+            }
+
+            .half {
+              min-width: 0;
+            }
+
+            .right-align {
+              text-align: right;
+            }
+
+            .value-big {
+              font-size: 15px;
+              font-weight: 1000;
               color: #0f172a;
               word-break: break-word;
             }
 
-            .barcode-meta-stack {
-              margin-bottom: 10px;
-              font-size: 12px;
-              line-height: 1.5;
+            .left {
+              text-align: left;
             }
 
-            .barcode-grid {
-              display: grid;
-              grid-template-columns: 1fr;
-              gap: 10px;
-            }
-
-            .barcode-box {
+            .barcode-block {
               border: 1px solid #e2e8f0;
-              border-radius: 8px;
+              border-radius: 10px;
               padding: 10px;
+              margin-bottom: 10px;
               text-align: center;
             }
 
-            .barcode-label {
-              font-size: 11px;
-              font-weight: 900;
-              margin-bottom: 8px;
-              color: #334155;
+            .barcode-block:last-child {
+              margin-bottom: 0;
             }
 
             .barcode-text {
               margin-top: 8px;
-              font-size: 13px;
+              font-size: 11px;
               font-weight: 800;
-              letter-spacing: 0.5px;
               word-break: break-all;
             }
 
             svg {
               width: 100%;
-              max-width: 100%;
-              height: 62px;
+              height: 58px;
+              display: block;
             }
           </style>
         </head>
         <body>
-          <div class="print-wrap">
-            <div class="scale">
-              <div class="titlebar">
-                <div class="logo"><img src="/INOVA.png" alt="INOVA"/></div>
-                <div>
-                  <div style="font-weight:900; font-size:16px;">WMS INOVA</div>
-                  <div class="muted">Recibo ciego • Serial ${header.serial} • Usuario ${usuario || ""}</div>
+          <!-- HOJA 1 -->
+          <div class="sheet">
+            <div class="titlebar">
+              <div class="logo">
+                <img src="/INOVA.png" alt="INOVA" />
+              </div>
+              <div>
+                <div class="title-main">WMS INOVA</div>
+                <div class="title-sub">
+                  Recibo ciego • Serial ${escapeHtml(header.serial)} • Usuario ${escapeHtml(usuario || "")}
+                </div>
+              </div>
+            </div>
+
+            <div class="header-grid">
+              <div class="box">
+                <div class="field">
+                  <div class="label"># Serial</div>
+                  <div class="value">${escapeHtml(header.serial)}</div>
+                </div>
+
+                <div class="field">
+                  <div class="label">Nombre Proveedor</div>
+                  <div class="value">${escapeHtml(proveedorNombre || "")}</div>
+                </div>
+
+                <div class="field">
+                  <div class="label">Acreedor</div>
+                  <div class="value">${escapeHtml(header.acreedor || "")}</div>
+                </div>
+
+                <div class="field">
+                  <div class="label">Fecha recepción</div>
+                  <div class="value">${escapeHtml(formatDateDisplay(header.fecha_recepcion))}</div>
                 </div>
               </div>
 
-              ${clone.innerHTML}
+              <div class="box">
+                <div class="field">
+                  <div class="label"># Remesa Transp (10)</div>
+                  <div class="value">${escapeHtml(header.remesa_transp || "")}</div>
+                </div>
 
-              <div class="barcode-section">
-                <div class="barcode-section-title">Tarjetas del recibo</div>
-                <div class="barcode-cards-grid">
-                  ${barcodeRowsHtml}
+                <div class="field">
+                  <div class="label"># Documento (10)</div>
+                  <div class="value">${escapeHtml(header.documento || "")}</div>
+                </div>
+
+                <div class="field">
+                  <div class="label"># Orden de Compra (10)</div>
+                  <div class="value">${escapeHtml(header.orden_compra || "")}</div>
+                </div>
+
+                <div class="field">
+                  <div class="label">Total Recibo</div>
+                  <div class="value-big-total">${escapeHtml(formatMoney(totalRecibo))}</div>
                 </div>
               </div>
+            </div>
+
+            <div class="table-wrap">
+              <table class="recibo-table">
+                <thead>
+                  <tr>
+                    <th># Serial</th>
+                    <th>Item</th>
+                    <th>Fecha Recepción</th>
+                    <th>Código</th>
+                    <th>Texto breve material</th>
+                    <th>Empaque</th>
+                    <th>UMB</th>
+                    <th>UM</th>
+                    <th>Cantidad</th>
+                    <th>Total</th>
+                    <th>Lote Proveedor (10)</th>
+                    <th>Fecha Fabricación</th>
+                    <th>Fecha Vencimiento</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${reciboRowsHtml}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- HOJA 2 -->
+          <div class="sheet">
+            <div class="cards-sheet-header">
+              <div class="logo">
+                <img src="/INOVA.png" alt="INOVA" />
+              </div>
+              <div>
+                <div class="cards-title">Tarjetas del recibo</div>
+                <div class="cards-subtitle">4 por hoja • listas para escanear</div>
+              </div>
+            </div>
+
+            <div class="cards-grid">
+              ${tarjetasHtml}
             </div>
           </div>
 
           <script>
             ${barcodeScript}
+
             window.onload = () => {
               setTimeout(() => {
                 window.print();
@@ -734,14 +925,7 @@ export default function Recibo() {
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 10,
-        }}
-      >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <h2 style={{ margin: 0 }}>📥 Recibo ciego</h2>
 
         <div style={{ display: "flex", gap: 10 }}>
@@ -848,9 +1032,7 @@ export default function Recibo() {
                   maxLength={10}
                   style={{ width: "100%", marginTop: 6 }}
                 />
-                {errores.documento && (
-                  <div style={{ color: "crimson", marginTop: 4 }}>{errores.documento}</div>
-                )}
+                {errores.documento && <div style={{ color: "crimson", marginTop: 4 }}>{errores.documento}</div>}
               </div>
 
               <div>
@@ -903,12 +1085,7 @@ export default function Recibo() {
                   <td>{idx + 1}</td>
 
                   <td>
-                    <input
-                      type="date"
-                      value={ln.fecha_recepcion}
-                      readOnly
-                      style={{ background: "#f3f3f3" }}
-                    />
+                    <input type="date" value={ln.fecha_recepcion} readOnly style={{ background: "#f3f3f3" }} />
                   </td>
 
                   <td>
@@ -919,17 +1096,11 @@ export default function Recibo() {
                       placeholder="Código"
                       style={{ width: 120 }}
                     />
-                    {errores[`codigo_${idx}`] && (
-                      <div style={{ color: "crimson" }}>{errores[`codigo_${idx}`]}</div>
-                    )}
+                    {errores[`codigo_${idx}`] && <div style={{ color: "crimson" }}>{errores[`codigo_${idx}`]}</div>}
                   </td>
 
                   <td>
-                    <input
-                      value={ln.descripcion}
-                      readOnly
-                      style={{ width: 260, background: "#f3f3f3" }}
-                    />
+                    <input value={ln.descripcion} readOnly style={{ width: 260, background: "#f3f3f3" }} />
                   </td>
 
                   <td>
@@ -945,9 +1116,7 @@ export default function Recibo() {
                         </option>
                       ))}
                     </select>
-                    {errores[`empaque_${idx}`] && (
-                      <div style={{ color: "crimson" }}>{errores[`empaque_${idx}`]}</div>
-                    )}
+                    {errores[`empaque_${idx}`] && <div style={{ color: "crimson" }}>{errores[`empaque_${idx}`]}</div>}
                   </td>
 
                   <td>
@@ -957,17 +1126,11 @@ export default function Recibo() {
                       onChange={(e) => onUmbChange(idx, e.target.value)}
                       style={{ width: 90 }}
                     />
-                    {errores[`umb_${idx}`] && (
-                      <div style={{ color: "crimson" }}>{errores[`umb_${idx}`]}</div>
-                    )}
+                    {errores[`umb_${idx}`] && <div style={{ color: "crimson" }}>{errores[`umb_${idx}`]}</div>}
                   </td>
 
                   <td>
-                    <input
-                      value={ln.um}
-                      readOnly
-                      style={{ width: 90, background: "#f3f3f3" }}
-                    />
+                    <input value={ln.um} readOnly style={{ width: 90, background: "#f3f3f3" }} />
                   </td>
 
                   <td>
@@ -994,11 +1157,7 @@ export default function Recibo() {
                     <input
                       value={ln.lote_proveedor}
                       onChange={(e) => onLoteProveedorChange(idx, e.target.value)}
-                      onBlur={() =>
-                        setLinea(idx, {
-                          lote_proveedor: pad10WithStarsAny(ln.lote_proveedor),
-                        })
-                      }
+                      onBlur={() => setLinea(idx, { lote_proveedor: pad10WithStarsAny(ln.lote_proveedor) })}
                       maxLength={10}
                       placeholder="10 caracteres"
                       style={{ width: 160 }}
@@ -1022,9 +1181,7 @@ export default function Recibo() {
                       value={ln.fecha_vencimiento}
                       onChange={(e) => setLinea(idx, { fecha_vencimiento: e.target.value })}
                     />
-                    {errores[`fv_${idx}`] && (
-                      <div style={{ color: "crimson" }}>{errores[`fv_${idx}`]}</div>
-                    )}
+                    {errores[`fv_${idx}`] && <div style={{ color: "crimson" }}>{errores[`fv_${idx}`]}</div>}
                   </td>
 
                   <td>
