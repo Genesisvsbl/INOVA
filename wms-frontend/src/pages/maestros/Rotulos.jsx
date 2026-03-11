@@ -129,6 +129,12 @@ export default function Rotulos() {
 
   const stats = useMemo(() => ({ total: rows.length }), [rows]);
 
+  const mostrarAyudaDescarga = () => {
+    alert(
+      `El archivo se descargará como rotulo_print.csv.\n\nGuárdalo o reemplázalo en esta ruta:\n${DOWNLOAD_HINT_PATH}\n\nLuego abre BarTender y dale Imprimir.`
+    );
+  };
+
   const exportCSV = () => {
     const { kind, value } = classifySerialInput(serial);
     const url = `${API_URL}/rotulos/export`;
@@ -141,17 +147,12 @@ export default function Rotulos() {
       window.open(`${url}?impresion=${encodeURIComponent(value)}`, "_blank");
     }
 
-    alert(
-      `Se descargará el archivo rotulo_print.csv.\n\nGuárdalo o reemplázalo en esta ruta:\n${DOWNLOAD_HINT_PATH}\n\nLuego abre BarTender y dale Imprimir.`
-    );
+    mostrarAyudaDescarga();
   };
 
   const exportarFila = (rotuloId) => {
     window.open(`${API_URL}/rotulos/export?rotulo_id=${rotuloId}`, "_blank");
-
-    alert(
-      `Se descargará solo esa línea como rotulo_print.csv.\n\nGuárdalo o reemplázalo en esta ruta:\n${DOWNLOAD_HINT_PATH}\n\nLuego abre BarTender y dale Imprimir.`
-    );
+    mostrarAyudaDescarga();
   };
 
   const eliminarRotulo = async (r) => {
