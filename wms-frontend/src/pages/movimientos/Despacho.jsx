@@ -332,17 +332,29 @@ export default function Despacho() {
     alert(`✅ Reserva ${reservaId} cerrada correctamente.`);
   };
 
-  const reabrirReserva = (reservaId) => {
-    const ok = window.confirm(`¿Deseas reabrir la reserva ${reservaId}?`);
-    if (!ok) return;
+const reabrirReserva = (reservaId) => {
+  const ok = window.confirm(`¿Deseas reabrir la reserva ${reservaId}?`);
+  if (!ok) return;
 
-    const actual = getReservaStore();
-    delete actual[reservaId];
-    saveReservaStore(actual);
-    forceRefreshStore();
+  const actual = getReservaStore();
+  delete actual[reservaId];
+  saveReservaStore(actual);
+  forceRefreshStore();
 
-    alert(`✅ Reserva ${reservaId} reabierta.`);
-  };
+  alert(`✅ Reserva ${reservaId} reabierta.`);
+};
+
+const eliminarReserva = (reservaId) => {
+  const ok = window.confirm(`⚠️ ¿Eliminar completamente la reserva ${reservaId}?`);
+  if (!ok) return;
+
+  const actual = getReservaStore();
+  delete actual[reservaId];
+  saveReservaStore(actual);
+  forceRefreshStore();
+
+  alert(`🗑️ Reserva ${reservaId} eliminada.`);
+};
 
   const reservasResumen = useMemo(() => {
     const map = new Map();
@@ -844,77 +856,85 @@ export default function Despacho() {
                     </td>
                     <td style={{ padding: 12, fontWeight: 700 }}>{r.nota_cierre || ""}</td>
                     <td style={{ padding: 12 }}>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <button
-                          onClick={() => verReserva(r.reserva)}
-                          style={{
-                            padding: "8px 10px",
-                            borderRadius: 12,
-                            border: `1px solid ${colors.border}`,
-                            background: "#fff",
-                            fontWeight: 900,
-                            cursor: "pointer",
-                          }}
-                        >
-                          👁️ Ver
-                        </button>
+<div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
 
-                        <button
-                          onClick={() => onGenerarPicking(r.reserva)}
-                          style={{
-                            padding: "8px 10px",
-                            borderRadius: 12,
-                            border: `1px solid rgba(10,110,209,.25)`,
-                            background: "rgba(10,110,209,.08)",
-                            color: colors.blue,
-                            fontWeight: 900,
-                            cursor: "pointer",
-                          }}
-                        >
-                          ⚙️ Picking
-                        </button>
+  <button
+    onClick={() => verReserva(r.reserva)}
+    style={{
+      padding: "8px 10px",
+      borderRadius: 12,
+      border: `1px solid ${colors.border}`,
+      background: "#fff",
+      fontWeight: 900,
+      cursor: "pointer",
+    }}
+  >
+    👁️ Ver
+  </button>
 
-                        {!r.cerrada ? (
-                          <button
-                            onClick={() => cerrarReserva(r.reserva, r.clasificacion_base)}
-                            style={{
-                              padding: "8px 10px",
-                              borderRadius: 12,
-                              border: "1px solid rgba(245,158,11,.28)",
-                              background: "rgba(245,158,11,.10)",
-                              color: colors.warn,
-                              fontWeight: 900,
-                              cursor: "pointer",
-                            }}
-                          >
-                            🔒 Cerrar
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => reabrirReserva(r.reserva)}
-                            style={{
-                              padding: "8px 10px",
-                              borderRadius: 12,
-                              border: "1px solid rgba(22,163,74,.25)",
-                              background: "rgba(22,163,74,.10)",
-                              color: colors.good,
-                              fontWeight: 900,
-                              cursor: "pointer",
-                            }}
-                          >
-                            🔓 Reabrir
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+  <button
+    onClick={() => onGenerarPicking(r.reserva)}
+    style={{
+      padding: "8px 10px",
+      borderRadius: 12,
+      border: `1px solid rgba(10,110,209,.25)`,
+      background: "rgba(10,110,209,.08)",
+      color: colors.blue,
+      fontWeight: 900,
+      cursor: "pointer",
+    }}
+  >
+    ⚙️ Picking
+  </button>
 
+  {!r.cerrada ? (
+    <button
+      onClick={() => cerrarReserva(r.reserva, r.clasificacion_base)}
+      style={{
+        padding: "8px 10px",
+        borderRadius: 12,
+        border: "1px solid rgba(245,158,11,.28)",
+        background: "rgba(245,158,11,.10)",
+        color: colors.warn,
+        fontWeight: 900,
+        cursor: "pointer",
+      }}
+    >
+      🔒 Cerrar
+    </button>
+  ) : (
+    <button
+      onClick={() => reabrirReserva(r.reserva)}
+      style={{
+        padding: "8px 10px",
+        borderRadius: 12,
+        border: "1px solid rgba(22,163,74,.25)",
+        background: "rgba(22,163,74,.10)",
+        color: colors.good,
+        fontWeight: 900,
+        cursor: "pointer",
+      }}
+    >
+      🔓 Reabrir
+    </button>
+  )}
+
+  <button
+    onClick={() => eliminarReserva(r.reserva)}
+    style={{
+      padding: "8px 10px",
+      borderRadius: 12,
+      border: "1px solid rgba(220,38,38,.25)",
+      background: "rgba(220,38,38,.10)",
+      color: colors.bad,
+      fontWeight: 900,
+      cursor: "pointer",
+    }}
+  >
+    🗑️ Eliminar
+  </button>
+
+</div>
       <div
         style={{
           background: colors.card,
