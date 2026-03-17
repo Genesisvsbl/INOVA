@@ -1,2 +1,2 @@
 impresion,codigo_cita,fecha_recepcion,numero_semana,proveedor,documento,remesa,orden_compra,cantidad,sku,texto_breve,um,umb,fecha_fabricacion,fecha_vencimiento,lote_proveedor,lote_almacen
-100-02,100,2026-03-10,11,SINEA ZONA FRANCA S.A.S.,1425585856,VIGIA*****,4501142533,1250000.0,407619,TAPA ROJA PLASTICA PONY MALTA REGULAR,UN,125000,2026-03-10,2026-03-13,10032026**,10032026**46094
+123-01,123,2026-03-13,11,INGENIO CARMELITA SA,45233*****,PRUEBA****,4502356634,34000.0,100011,AZUCAR BLANCA,KG,1000,2026-03-13,2026-03-13,13356*****,13356*****46094
