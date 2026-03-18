@@ -131,6 +131,23 @@ function Chip({ label, tone = "neutral" }) {
   );
 }
 
+function esMaterialAuto(linea) {
+  const texto = [
+    linea?.familia || "",
+    linea?.descripcion || "",
+    linea?.codigo || "",
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    texto.includes("lata") ||
+    texto.includes("preforma") ||
+    texto.includes("azucar") ||
+    texto.includes("azúcar")
+  );
+}
+
 export default function DesdeRecibo() {
   const navigate = useNavigate();
 
@@ -138,7 +155,9 @@ export default function DesdeRecibo() {
   const [ubicaciones, setUbicaciones] = useState([]);
   const [ubicacionesError, setUbicacionesError] = useState("");
   const [guardando, setGuardando] = useState(false);
+
   const [ubicPorLinea, setUbicPorLinea] = useState({});
+  const [sugiriendoLinea, setSugiriendoLinea] = useState({});
 
   useEffect(() => {
     const raw = localStorage.getItem(DRAFT_KEY);
@@ -154,8 +173,14 @@ export default function DesdeRecibo() {
       setDraft(d);
 
       const init = {};
-      (d?.lineas || []).forEach((_, idx) => {
-        init[idx] = "";
+      (d?.lineas || []).forEach((ln, idx) => {
+        init[idx] = {
+          auto: esMaterialAuto(ln),
+          base: "",
+          posicion: "",
+          ubicacion: "",
+          sugeridas: [],
+        };
       });
       setUbicPorLinea(init);
     } catch {
@@ -165,7 +190,7 @@ export default function DesdeRecibo() {
   }, [navigate]);
 
   useEffect(() => {
-    fetch(`${API_URL}/ubicaciones?limit=2000`)
+    fetch(`${API_URL}/ubicaciones?limit=5000`)
       .then((r) => {
         if (!r.ok) throw new Error("No se pudo listar ubicaciones");
         return r.json();
@@ -179,6 +204,41 @@ export default function DesdeRecibo() {
         setUbicacionesError(String(e));
       });
   }, []);
+
+  const basesDisponibles = useMemo(() => {
+    const set = new Set();
+
+    ubicaciones.forEach((u) => {
+      const base = (u.ubicacion_base || "").toString().trim();
+      if (base) set.add(base);
+    });
+
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [ubicaciones]);
+
+  const posicionesPorBase = useMemo(() => {
+    const map = {};
+
+    ubicaciones.forEach((u) => {
+      const base = (u.ubicacion_base || "").toString().trim();
+      const pos = (u.posicion || "").toString().trim();
+      if (!base || !pos) return;
+
+      if (!map[base]) map[base] = [];
+      if (!map[base].includes(pos)) map[base].push(pos);
+    });
+
+    Object.keys(map).forEach((k) => {
+      map[k].sort((a, b) => {
+        const na = Number(a);
+        const nb = Number(b);
+        if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+        return a.localeCompare(b);
+      });
+    });
+
+    return map;
+  }, [ubicaciones]);
 
   const filasMov = useMemo(() => {
     if (!draft) return [];
@@ -216,9 +276,21 @@ export default function DesdeRecibo() {
 
       const umb = (ln.umb || draft?.header?.umb || "").toString().trim();
 
+      const estadoUbic = ubicPorLinea[idx] || {
+        auto: esMaterialAuto(ln),
+        base: "",
+        posicion: "",
+        ubicacion: "",
+        sugeridas: [],
+      };
+
       return {
         idx,
-        ubicacion: ubicPorLinea[idx] ?? "",
+        auto: estadoUbic.auto,
+        base: estadoUbic.base,
+        posicion: estadoUbic.posicion,
+        ubicacion: estadoUbic.ubicacion,
+        sugeridas: estadoUbic.sugeridas || [],
         fecha,
         movimiento,
         id: "",
@@ -245,8 +317,83 @@ export default function DesdeRecibo() {
 
   if (!draft) return <div>Cargando...</div>;
 
-  const onChangeUbic = (idx, value) => {
-    setUbicPorLinea((prev) => ({ ...prev, [idx]: value }));
+  const onChangeBase = (idx, value) => {
+    setUbicPorLinea((prev) => {
+      const actual = prev[idx] || {};
+      const next = {
+        ...actual,
+        base: value,
+      };
+
+      if (!actual.auto) {
+        next.ubicacion = `${value || ""}${actual.posicion || ""}`;
+      } else {
+        next.sugeridas = [];
+      }
+
+      return { ...prev, [idx]: next };
+    });
+  };
+
+  const onChangePosicion = (idx, value) => {
+    setUbicPorLinea((prev) => {
+      const actual = prev[idx] || {};
+      return {
+        ...prev,
+        [idx]: {
+          ...actual,
+          posicion: value,
+          ubicacion: `${actual.base || ""}${value || ""}`,
+        },
+      };
+    });
+  };
+
+  const sugerirLinea = async (idx, cantidadRaw) => {
+    const conf = ubicPorLinea[idx] || {};
+    const base = (conf.base || "").trim();
+
+    if (!base) {
+      alert(`Selecciona ubicación base en la línea #${idx + 1}.`);
+      return;
+    }
+
+    const cantidad = Number(cantidadRaw || 0);
+    if (!Number.isInteger(cantidad) || cantidad <= 0) {
+      alert(`La línea #${idx + 1} debe tener cantidad entera > 0 para auto ubicación.`);
+      return;
+    }
+
+    setSugiriendoLinea((p) => ({ ...p, [idx]: true }));
+
+    try {
+      const res = await fetch(`${API_URL}/ubicaciones/sugerir`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ubicacion_base: base,
+          cantidad_pallets: cantidad,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.detail || "No se pudo sugerir posiciones");
+      }
+
+      setUbicPorLinea((prev) => ({
+        ...prev,
+        [idx]: {
+          ...(prev[idx] || {}),
+          sugeridas: Array.isArray(data?.posiciones) ? data.posiciones : [],
+        },
+      }));
+    } catch (e) {
+      alert(`❌ Error sugiriendo línea #${idx + 1}:\n${e?.message || e}`);
+    } finally {
+      setSugiriendoLinea((p) => ({ ...p, [idx]: false }));
+    }
   };
 
   const validarDatosBase = () => {
@@ -280,8 +427,33 @@ export default function DesdeRecibo() {
     if (base) return base;
 
     for (let i = 0; i < (draft.lineas || []).length; i++) {
-      if (!(ubicPorLinea[i] || "").trim()) {
-        return `Falta ubicación en la línea #${i + 1}.`;
+      const ln = draft.lineas[i];
+      const conf = ubicPorLinea[i] || {};
+      const auto = esMaterialAuto(ln);
+
+      if (auto) {
+        if (!(conf.base || "").trim()) {
+          return `Falta ubicación base en la línea #${i + 1}.`;
+        }
+
+        const cant = Number(ln.total || 0);
+        if (!Number.isInteger(cant) || cant <= 0) {
+          return `La línea #${i + 1} debe tener cantidad entera > 0 para auto ubicación.`;
+        }
+
+        if (!Array.isArray(conf.sugeridas) || conf.sugeridas.length !== cant) {
+          return `Debes generar sugerencia completa en la línea #${i + 1}.`;
+        }
+      } else {
+        if (!(conf.base || "").trim()) {
+          return `Falta ubicación base en la línea #${i + 1}.`;
+        }
+        if (!(conf.posicion || "").trim()) {
+          return `Falta posición en la línea #${i + 1}.`;
+        }
+        if (!(conf.ubicacion || "").trim()) {
+          return `No se pudo construir la ubicación final en la línea #${i + 1}.`;
+        }
       }
     }
 
@@ -337,7 +509,7 @@ export default function DesdeRecibo() {
       lote_proveedor: loteProv,
       fecha_fabricacion: ff || null,
       fecha_vencimiento: fv || null,
-      cantidad_r: Number(linea.total || 0),
+      cantidad_r: Number(opts.cantidad_r ?? linea.total ?? 0),
     };
   };
 
@@ -420,22 +592,46 @@ export default function DesdeRecibo() {
     try {
       for (let i = 0; i < draft.lineas.length; i++) {
         const linea = draft.lineas[i];
-        const ubic = (ubicPorLinea[i] || "").trim();
+        const conf = ubicPorLinea[i] || {};
+        const auto = esMaterialAuto(linea);
 
-        const payload = construirPayloadMovimiento(linea, i, {
-          codigo_ubicacion: ubic,
-          estado: "ALMACENADO",
-        });
+        if (auto) {
+          for (const sug of conf.sugeridas || []) {
+            const payload = construirPayloadMovimiento(linea, i, {
+              codigo_ubicacion: sug.ubicacion,
+              estado: "ALMACENADO",
+              cantidad_r: 1,
+            });
 
-        const res = await fetch(`${API_URL}/movimientos`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+            const res = await fetch(`${API_URL}/movimientos`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
 
-        if (!res.ok) {
-          const txt = await res.text();
-          throw new Error(txt);
+            if (!res.ok) {
+              const txt = await res.text();
+              throw new Error(txt);
+            }
+          }
+        } else {
+          const ubic = (conf.ubicacion || "").trim();
+
+          const payload = construirPayloadMovimiento(linea, i, {
+            codigo_ubicacion: ubic,
+            estado: "ALMACENADO",
+          });
+
+          const res = await fetch(`${API_URL}/movimientos`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          if (!res.ok) {
+            const txt = await res.text();
+            throw new Error(txt);
+          }
         }
       }
 
@@ -513,7 +709,8 @@ export default function DesdeRecibo() {
             Confirmación de movimientos
           </h1>
           <div style={{ marginTop: 6, color: colors.muted }}>
-            Revisa las líneas, asigna ubicación si aplica y guarda en almacenado o en tránsito.
+            Para lata/preforma/azúcar eliges base y el sistema sugiere posiciones.
+            Para el resto eliges base + posición manual.
           </div>
         </div>
 
@@ -601,10 +798,13 @@ export default function DesdeRecibo() {
         }}
       >
         <div style={{ overflowX: "auto" }}>
-          <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 2200 }}>
+          <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 2600 }}>
             <thead>
               <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${colors.border}` }}>
-                <th style={{ padding: 12, textAlign: "left" }}>Ubicación</th>
+                <th style={{ padding: 12, textAlign: "left" }}>Modo</th>
+                <th style={{ padding: 12, textAlign: "left" }}>Ubicación base</th>
+                <th style={{ padding: 12, textAlign: "left" }}>Posición manual</th>
+                <th style={{ padding: 12, textAlign: "left" }}>Ubicación final / sugeridas</th>
                 <th style={{ padding: 12, textAlign: "left" }}>Fecha</th>
                 <th style={{ padding: 12, textAlign: "left" }}>Movimiento</th>
                 <th style={{ padding: 12, textAlign: "left" }}>ID</th>
@@ -624,78 +824,143 @@ export default function DesdeRecibo() {
             </thead>
 
             <tbody>
-              {filasMov.map((r) => (
-                <tr key={r.idx} style={{ borderBottom: `1px solid ${colors.border}` }}>
-                  <td style={{ padding: 12 }}>
-                    <input
-                      list="ubicacionesList"
-                      value={r.ubicacion}
-                      onChange={(e) => onChangeUbic(r.idx, e.target.value)}
-                      placeholder="Escriba o seleccione..."
-                      style={{ width: 160 }}
-                    />
-                  </td>
-                  <td style={{ padding: 12 }}>
-                    <input value={r.fecha} readOnly style={{ width: 110, background: "#f3f3f3" }} />
-                  </td>
-                  <td style={{ padding: 12 }}>
-                    <input value={r.movimiento} readOnly style={{ width: 110, background: "#f3f3f3" }} />
-                  </td>
-                  <td style={{ padding: 12 }}>
-                    <input value={r.id} readOnly style={{ width: 80, background: "#f3f3f3" }} />
-                  </td>
-                  <td style={{ padding: 12 }}>
-                    <input value={r.usuario} readOnly style={{ width: 170, background: "#f3f3f3" }} />
-                  </td>
-                  <td style={{ padding: 12 }}>
-                    <input value={r.codigoCita} readOnly style={{ width: 120, background: "#f3f3f3" }} />
-                  </td>
-                  <td style={{ padding: 12 }}>
-                    <input value={r.sku} readOnly style={{ width: 110, background: "#f3f3f3" }} />
-                  </td>
-                  <td style={{ padding: 12 }}>
-                    <input value={r.texto} readOnly style={{ width: 360, background: "#f3f3f3" }} />
-                  </td>
-                  <td style={{ padding: 12 }}>
-                    <input value={r.loteAlm} readOnly style={{ width: 160, background: "#f3f3f3" }} />
-                  </td>
-                  <td style={{ padding: 12 }}>
-                    <input value={r.loteProv} readOnly style={{ width: 130, background: "#f3f3f3" }} />
-                  </td>
-                  <td style={{ padding: 12 }}>
-                    <input value={r.ff} readOnly style={{ width: 130, background: "#f3f3f3" }} />
-                  </td>
-                  <td style={{ padding: 12 }}>
-                    <input value={r.fv} readOnly style={{ width: 130, background: "#f3f3f3" }} />
-                  </td>
-                  <td style={{ padding: 12 }}>
-                    <input value={r.numeroSemana} readOnly style={{ width: 80, background: "#f3f3f3" }} />
-                  </td>
-                  <td style={{ padding: 12 }}>
-                    <input value={r.um} readOnly style={{ width: 100, background: "#f3f3f3" }} />
-                  </td>
-                  <td style={{ padding: 12 }}>
-                    <input value={r.umb} readOnly style={{ width: 100, background: "#f3f3f3" }} />
-                  </td>
-                  <td style={{ padding: 12 }}>
-                    <input
-                      value={r.cantidadFmt}
-                      readOnly
-                      style={{ width: 130, background: "#f3f3f3", textAlign: "right" }}
-                    />
-                  </td>
-                </tr>
-              ))}
+              {filasMov.map((r) => {
+                const posicionesManual = posicionesPorBase[r.base] || [];
+
+                return (
+                  <tr key={r.idx} style={{ borderBottom: `1px solid ${colors.border}` }}>
+                    <td style={{ padding: 12 }}>
+                      {r.auto ? (
+                        <Chip label="AUTO" tone="amber" />
+                      ) : (
+                        <Chip label="MANUAL" tone="blue" />
+                      )}
+                    </td>
+
+                    <td style={{ padding: 12 }}>
+                      <select
+                        value={r.base}
+                        onChange={(e) => onChangeBase(r.idx, e.target.value)}
+                        style={{ width: 130 }}
+                      >
+                        <option value="">Seleccione...</option>
+                        {basesDisponibles.map((b) => (
+                          <option key={b} value={b}>
+                            {b}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+
+                    <td style={{ padding: 12 }}>
+                      {r.auto ? (
+                        <div style={{ color: colors.muted, fontWeight: 700 }}>Automática</div>
+                      ) : (
+                        <select
+                          value={r.posicion}
+                          onChange={(e) => onChangePosicion(r.idx, e.target.value)}
+                          style={{ width: 140 }}
+                          disabled={!r.base}
+                        >
+                          <option value="">Seleccione...</option>
+                          {posicionesManual.map((p) => (
+                            <option key={p} value={p}>
+                              {p}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
+
+                    <td style={{ padding: 12 }}>
+                      {r.auto ? (
+                        <div>
+                          <button
+                            onClick={() => sugerirLinea(r.idx, r.cantidadRaw)}
+                            disabled={!!sugiriendoLinea[r.idx] || !r.base}
+                            style={{
+                              padding: "8px 10px",
+                              borderRadius: 10,
+                              border: "none",
+                              background: colors.warn,
+                              color: "#fff",
+                              fontWeight: 900,
+                              cursor: !r.base ? "not-allowed" : "pointer",
+                              opacity: !r.base ? 0.6 : 1,
+                            }}
+                          >
+                            {sugiriendoLinea[r.idx] ? "Sugiriendo..." : "Sugerir"}
+                          </button>
+
+                          <div style={{ marginTop: 8, fontSize: 12, color: colors.text, fontWeight: 700 }}>
+                            {(r.sugeridas || []).length > 0
+                              ? r.sugeridas.map((x) => x.ubicacion).join(", ")
+                              : "Sin sugerencia"}
+                          </div>
+                        </div>
+                      ) : (
+                        <input
+                          value={r.ubicacion}
+                          readOnly
+                          style={{ width: 160, background: "#f3f3f3" }}
+                        />
+                      )}
+                    </td>
+
+                    <td style={{ padding: 12 }}>
+                      <input value={r.fecha} readOnly style={{ width: 110, background: "#f3f3f3" }} />
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      <input value={r.movimiento} readOnly style={{ width: 110, background: "#f3f3f3" }} />
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      <input value={r.id} readOnly style={{ width: 80, background: "#f3f3f3" }} />
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      <input value={r.usuario} readOnly style={{ width: 170, background: "#f3f3f3" }} />
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      <input value={r.codigoCita} readOnly style={{ width: 120, background: "#f3f3f3" }} />
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      <input value={r.sku} readOnly style={{ width: 110, background: "#f3f3f3" }} />
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      <input value={r.texto} readOnly style={{ width: 360, background: "#f3f3f3" }} />
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      <input value={r.loteAlm} readOnly style={{ width: 160, background: "#f3f3f3" }} />
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      <input value={r.loteProv} readOnly style={{ width: 130, background: "#f3f3f3" }} />
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      <input value={r.ff} readOnly style={{ width: 130, background: "#f3f3f3" }} />
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      <input value={r.fv} readOnly style={{ width: 130, background: "#f3f3f3" }} />
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      <input value={r.numeroSemana} readOnly style={{ width: 80, background: "#f3f3f3" }} />
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      <input value={r.um} readOnly style={{ width: 100, background: "#f3f3f3" }} />
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      <input value={r.umb} readOnly style={{ width: 100, background: "#f3f3f3" }} />
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      <input
+                        value={r.cantidadFmt}
+                        readOnly
+                        style={{ width: 130, background: "#f3f3f3", textAlign: "right" }}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
-
-          <datalist id="ubicacionesList">
-            {ubicaciones.map((u) => (
-              <option key={u.id} value={u.ubicacion}>
-                {u.ubicacion}
-              </option>
-            ))}
-          </datalist>
         </div>
       </div>
 

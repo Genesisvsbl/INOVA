@@ -198,6 +198,121 @@ def recalcular_reserva(reserva: str, db: Session):
 
 
 # ==============================
+# HELPERS AUTO UBICACION
+# ==============================
+def parse_posicion_layout(pos: str):
+    """
+    Formato esperado:
+    111   => modulo=1, nivel=1, estiba=1
+    121   => modulo=1, nivel=2, estiba=1
+    1210  => modulo=1, nivel=2, estiba=10
+
+    Regla:
+    - primer dígito  = modulo
+    - segundo dígito = nivel
+    - resto          = estiba / posicion
+    """
+    s = (pos or "").strip()
+    if len(s) < 3 or not s.isdigit():
+        return None
+
+    try:
+        modulo = int(s[0])
+        nivel = int(s[1])
+        estiba = int(s[2:])
+        return {
+            "modulo": modulo,
+            "nivel": nivel,
+            "estiba": estiba,
+        }
+    except Exception:
+        return None
+
+
+def ubicacion_ocupada(ubicacion_id: int, db: Session) -> bool:
+    """
+    Se considera ocupada si el stock almacenado actual en esa ubicación es > 0
+    """
+    total = (
+        db.query(func.sum(models.Movimiento.cantidad_r))
+        .filter(
+            models.Movimiento.ubicacion_id == ubicacion_id,
+            models.Movimiento.estado == "ALMACENADO",
+        )
+        .scalar()
+        or 0
+    )
+    return float(total) > 0
+
+
+def sugerir_posiciones_disponibles(ubicacion_base: str, cantidad_pallets: int, db: Session):
+    base = (ubicacion_base or "").strip()
+
+    if not base:
+        raise HTTPException(status_code=400, detail="ubicacion_base obligatoria")
+
+    if cantidad_pallets <= 0:
+        raise HTTPException(status_code=400, detail="cantidad_pallets debe ser > 0")
+
+    candidatas = db.query(models.Ubicacion).filter(
+        models.Ubicacion.ubicacion_base == base
+    ).all()
+
+    if not candidatas:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No existen posiciones configuradas para la ubicación base {base}"
+        )
+
+    disponibles = []
+    ocupadas = []
+
+    for u in candidatas:
+        parsed = parse_posicion_layout(u.posicion)
+        if not parsed:
+            continue
+
+        item = {
+            "id": u.id,
+            "ubicacion": u.ubicacion,
+            "ubicacion_base": u.ubicacion_base,
+            "posicion": u.posicion,
+            "zona": u.zona,
+            "bodega": u.bodega,
+            "modulo": parsed["modulo"],
+            "nivel": parsed["nivel"],
+            "estiba": parsed["estiba"],
+        }
+
+        if ubicacion_ocupada(u.id, db):
+            ocupadas.append(item)
+        else:
+            disponibles.append(item)
+
+    if not disponibles:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No hay posiciones disponibles para la ubicación base {base}"
+        )
+
+    # Orden logístico:
+    # 111 -> 121 -> 131 -> 112 -> 122 -> 132
+    # modulo asc, estiba asc, nivel asc
+    disponibles.sort(key=lambda x: (x["modulo"], x["estiba"], x["nivel"]))
+
+    sugeridas = disponibles[:cantidad_pallets]
+
+    return {
+        "ubicacion_base": base,
+        "cantidad_solicitada": cantidad_pallets,
+        "cantidad_disponible": len(disponibles),
+        "cantidad_sugerida": len(sugeridas),
+        "posiciones": sugeridas,
+        "ocupadas": ocupadas,
+    }
+
+
+# ==============================
 # CRUD MATERIALES
 # ==============================
 @app.post("/materiales", response_model=schemas.MaterialResponse)
@@ -937,6 +1052,32 @@ async def importar_ubicaciones(file: UploadFile = File(...), db: Session = Depen
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error importando ubicaciones: {str(e)}")
+
+
+@app.post("/ubicaciones/sugerir")
+def sugerir_ubicaciones_para_recibo(
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+):
+    ubicacion_base = (payload.get("ubicacion_base") or "").strip()
+    cantidad_pallets = payload.get("cantidad_pallets", 0)
+
+    try:
+        cantidad_pallets = int(cantidad_pallets)
+    except Exception:
+        raise HTTPException(status_code=400, detail="cantidad_pallets debe ser un entero")
+
+    resultado = sugerir_posiciones_disponibles(
+        ubicacion_base=ubicacion_base,
+        cantidad_pallets=cantidad_pallets,
+        db=db,
+    )
+
+    return {
+        "mensaje": "Sugerencia generada correctamente",
+        **resultado
+    }
+
 
 # ==============================
 # MOTOR
