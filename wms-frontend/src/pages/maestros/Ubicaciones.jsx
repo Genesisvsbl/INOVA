@@ -137,6 +137,7 @@ export default function Ubicaciones() {
       const z = (x.zona || "").toLowerCase();
       const f = (x.familias || "").toLowerCase();
       const b = (x.bodega || "").toLowerCase();
+
       return (
         u.includes(s) ||
         ub.includes(s) ||
@@ -158,7 +159,11 @@ export default function Ubicaciones() {
 
       const qs = params.toString();
       const r = await fetch(`${API_URL}/ubicaciones${qs ? `?${qs}` : ""}`);
-      if (!r.ok) throw new Error(await r.text());
+
+      if (!r.ok) {
+        const txt = await r.text();
+        throw new Error(txt || `HTTP ${r.status}`);
+      }
 
       const data = await r.json();
       setItems(Array.isArray(data) ? data : []);
@@ -465,13 +470,11 @@ export default function Ubicaciones() {
         </div>
 
         <div style={{ marginTop: 10, color: colors.muted, fontSize: 12, fontWeight: 700 }}>
-          El archivo puede venir en dos formatos:
+          El archivo debe venir en este formato:
           <br />
-          <b>1.</b> Directo: <b>ubicacion</b>, <b>zona</b>, <b>familias</b>, <b>bodega</b>
+          <b>Layout:</b> <b>ubicacion</b> + <b>posiciones</b> + <b>zona</b> + <b>bodega</b>
           <br />
-          <b>2.</b> Layout: <b>ubicacion</b> + <b>posiciones</b> + <b>zona</b> + <b>bodega</b>
-          <br />
-          En el formato layout, el sistema construye la ubicación final uniendo base + posición.
+          El sistema construye la ubicación final uniendo <b>ubicacion</b> + <b>posiciones</b>.
         </div>
       </div>
 
@@ -503,7 +506,13 @@ export default function Ubicaciones() {
             </div>
             <input
               value={nuevo.ubicacion_base}
-              onChange={(e) => setNuevo((p) => ({ ...p, ubicacion_base: e.target.value }))}
+              onChange={(e) =>
+                setNuevo((p) => ({
+                  ...p,
+                  ubicacion_base: e.target.value,
+                  ubicacion: `${e.target.value.trim()}${(p.posicion || "").trim()}`,
+                }))
+              }
               placeholder="Ej: E1"
               style={{
                 width: "100%",
@@ -527,10 +536,7 @@ export default function Ubicaciones() {
                 setNuevo((p) => ({
                   ...p,
                   posicion: val,
-                  ubicacion:
-                    p.ubicacion_base || val
-                      ? `${(p.ubicacion_base || "").trim()}${val.trim()}`
-                      : p.ubicacion,
+                  ubicacion: `${(p.ubicacion_base || "").trim()}${val.trim()}`,
                 }));
               }}
               placeholder="Ej: 111"

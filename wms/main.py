@@ -938,7 +938,6 @@ async def importar_ubicaciones(file: UploadFile = File(...), db: Session = Depen
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error importando ubicaciones: {str(e)}")
 
-
 # ==============================
 # MOTOR
 # ==============================
