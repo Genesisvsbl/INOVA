@@ -132,11 +132,7 @@ function Chip({ label, tone = "neutral" }) {
 }
 
 function esMaterialAuto(linea) {
-  const texto = [
-    linea?.familia || "",
-    linea?.descripcion || "",
-    linea?.codigo || "",
-  ]
+  const texto = [linea?.familia || "", linea?.descripcion || "", linea?.codigo || ""]
     .join(" ")
     .toLowerCase();
 
@@ -315,6 +311,51 @@ export default function DesdeRecibo() {
     });
   }, [draft, ubicPorLinea]);
 
+  const filasRender = useMemo(() => {
+    const out = [];
+
+    filasMov.forEach((r) => {
+      if (r.auto) {
+        const sugeridas = Array.isArray(r.sugeridas) ? r.sugeridas : [];
+
+        if (sugeridas.length > 0) {
+          sugeridas.forEach((sug, subIdx) => {
+            out.push({
+              ...r,
+              renderKey: `${r.idx}-auto-${subIdx}`,
+              esFilaExpandida: true,
+              ubicacionSugerida: sug?.ubicacion || "",
+              posicionSugerida: sug?.posicion || "",
+              cantidadFmt: formatQty(1),
+              cantidadRaw: 1,
+              subIdx,
+            });
+          });
+        } else {
+          out.push({
+            ...r,
+            renderKey: `${r.idx}-auto-empty`,
+            esFilaExpandida: false,
+            ubicacionSugerida: "",
+            posicionSugerida: "",
+            subIdx: 0,
+          });
+        }
+      } else {
+        out.push({
+          ...r,
+          renderKey: `${r.idx}-manual`,
+          esFilaExpandida: false,
+          ubicacionSugerida: r.ubicacion || "",
+          posicionSugerida: r.posicion || "",
+          subIdx: 0,
+        });
+      }
+    });
+
+    return out;
+  }, [filasMov]);
+
   if (!draft) return <div>Cargando...</div>;
 
   const onChangeBase = (idx, value) => {
@@ -375,7 +416,7 @@ export default function DesdeRecibo() {
       const res = await fetch(`${API_URL}/ubicaciones/sugerir`, {
         method: "POST",
         headers: {
-          "Accept": "application/json",
+          Accept: "application/json",
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
@@ -841,11 +882,11 @@ export default function DesdeRecibo() {
             </thead>
 
             <tbody>
-              {filasMov.map((r) => {
+              {filasRender.map((r) => {
                 const posicionesManual = posicionesPorBase[r.base] || [];
 
                 return (
-                  <tr key={r.idx} style={{ borderBottom: `1px solid ${colors.border}` }}>
+                  <tr key={r.renderKey} style={{ borderBottom: `1px solid ${colors.border}` }}>
                     <td style={{ padding: 12 }}>
                       {r.auto ? (
                         <Chip label="AUTO" tone="amber" />
@@ -871,7 +912,11 @@ export default function DesdeRecibo() {
 
                     <td style={{ padding: 12 }}>
                       {r.auto ? (
-                        <div style={{ color: colors.muted, fontWeight: 700 }}>Automática</div>
+                        <input
+                          value={r.posicionSugerida || ""}
+                          readOnly
+                          style={{ width: 140, background: "#f3f3f3" }}
+                        />
                       ) : (
                         <select
                           value={r.posicion}
@@ -892,28 +937,31 @@ export default function DesdeRecibo() {
                     <td style={{ padding: 12 }}>
                       {r.auto ? (
                         <div>
-                          <button
-                            onClick={() => sugerirLinea(r.idx, r.cantidadRaw)}
-                            disabled={!!sugiriendoLinea[r.idx] || !r.base}
-                            style={{
-                              padding: "8px 10px",
-                              borderRadius: 10,
-                              border: "none",
-                              background: colors.warn,
-                              color: "#fff",
-                              fontWeight: 900,
-                              cursor: !r.base ? "not-allowed" : "pointer",
-                              opacity: !r.base ? 0.6 : 1,
-                            }}
-                          >
-                            {sugiriendoLinea[r.idx] ? "Sugiriendo..." : "Sugerir"}
-                          </button>
+                          {r.subIdx === 0 && (
+                            <button
+                              onClick={() => sugerirLinea(r.idx, draft.lineas[r.idx]?.total || 0)}
+                              disabled={!!sugiriendoLinea[r.idx] || !r.base}
+                              style={{
+                                padding: "8px 10px",
+                                borderRadius: 10,
+                                border: "none",
+                                background: colors.warn,
+                                color: "#fff",
+                                fontWeight: 900,
+                                cursor: !r.base ? "not-allowed" : "pointer",
+                                opacity: !r.base ? 0.6 : 1,
+                                marginBottom: 8,
+                              }}
+                            >
+                              {sugiriendoLinea[r.idx] ? "Sugiriendo..." : "Sugerir"}
+                            </button>
+                          )}
 
-                          <div style={{ marginTop: 8, fontSize: 12, color: colors.text, fontWeight: 700 }}>
-                            {(r.sugeridas || []).length > 0
-                              ? r.sugeridas.map((x) => x.ubicacion).join(", ")
-                              : "Sin sugerencia"}
-                          </div>
+                          <input
+                            value={r.ubicacionSugerida || ""}
+                            readOnly
+                            style={{ width: 160, background: "#f3f3f3" }}
+                          />
                         </div>
                       ) : (
                         <input
