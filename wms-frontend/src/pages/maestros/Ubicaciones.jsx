@@ -119,6 +119,8 @@ export default function Ubicaciones() {
 
   const [nuevo, setNuevo] = useState({
     ubicacion: "",
+    ubicacion_base: "",
+    posicion: "",
     zona: "",
     familias: "",
     bodega: "",
@@ -130,10 +132,19 @@ export default function Ubicaciones() {
 
     return items.filter((x) => {
       const u = (x.ubicacion || "").toLowerCase();
+      const ub = (x.ubicacion_base || "").toLowerCase();
+      const p = (x.posicion || "").toLowerCase();
       const z = (x.zona || "").toLowerCase();
       const f = (x.familias || "").toLowerCase();
       const b = (x.bodega || "").toLowerCase();
-      return u.includes(s) || z.includes(s) || f.includes(s) || b.includes(s);
+      return (
+        u.includes(s) ||
+        ub.includes(s) ||
+        p.includes(s) ||
+        z.includes(s) ||
+        f.includes(s) ||
+        b.includes(s)
+      );
     });
   }, [items, search]);
 
@@ -170,7 +181,7 @@ export default function Ubicaciones() {
 
   const onCrear = async () => {
     if (!nuevo.ubicacion.trim()) {
-      alert("La ubicación es obligatoria.");
+      alert("La ubicación final es obligatoria.");
       return;
     }
 
@@ -181,6 +192,8 @@ export default function Ubicaciones() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ubicacion: nuevo.ubicacion.trim(),
+          ubicacion_base: nuevo.ubicacion_base.trim(),
+          posicion: nuevo.posicion.trim(),
           zona: nuevo.zona.trim(),
           familias: nuevo.familias.trim(),
           bodega: nuevo.bodega.trim(),
@@ -191,6 +204,8 @@ export default function Ubicaciones() {
 
       setNuevo({
         ubicacion: "",
+        ubicacion_base: "",
+        posicion: "",
         zona: "",
         familias: "",
         bodega: "",
@@ -206,7 +221,16 @@ export default function Ubicaciones() {
   };
 
   const onEditar = async (item) => {
-    const ubicacion = prompt("Editar ubicación:", item.ubicacion || "");
+    const ubicacion_base = prompt("Editar ubicación base:", item.ubicacion_base || "");
+    if (ubicacion_base === null) return;
+
+    const posicion = prompt("Editar posición:", item.posicion || "");
+    if (posicion === null) return;
+
+    const ubicacion = prompt(
+      "Editar ubicación final:",
+      item.ubicacion || `${(ubicacion_base || "").trim()}${(posicion || "").trim()}`
+    );
     if (ubicacion === null) return;
 
     const zona = prompt("Editar zona:", item.zona || "");
@@ -219,7 +243,7 @@ export default function Ubicaciones() {
     if (bodega === null) return;
 
     if (!ubicacion.trim()) {
-      alert("La ubicación es obligatoria.");
+      alert("La ubicación final es obligatoria.");
       return;
     }
 
@@ -229,6 +253,8 @@ export default function Ubicaciones() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ubicacion: ubicacion.trim(),
+          ubicacion_base: ubicacion_base.trim(),
+          posicion: posicion.trim(),
           zona: zona.trim(),
           familias: familias.trim(),
           bodega: bodega.trim(),
@@ -299,7 +325,7 @@ export default function Ubicaciones() {
       await cargar();
 
       alert(
-        `✅ Importación completada.\nUbicaciones nuevas: ${data?.ubicaciones_nuevas ?? 0}\nUbicaciones actualizadas: ${data?.ubicaciones_actualizadas ?? 0}`
+        `✅ Importación completada.\nModo: ${data?.modo || "N/A"}\nUbicaciones nuevas: ${data?.ubicaciones_nuevas ?? 0}\nUbicaciones actualizadas: ${data?.ubicaciones_actualizadas ?? 0}`
       );
     } catch (e) {
       alert("❌ Error importando Excel:\n" + (e?.message || e));
@@ -312,7 +338,7 @@ export default function Ubicaciones() {
     <div>
       <LogoHeader
         title="Ubicaciones"
-        subtitle="Administra, crea, edita, elimina e importa ubicación, zona, familias y bodega."
+        subtitle="Administra, crea, edita, elimina e importa ubicación, posición, zona, familias y bodega."
       />
 
       <div
@@ -339,7 +365,7 @@ export default function Ubicaciones() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por ubicación, zona, familias o bodega..."
+            placeholder="Buscar por ubicación final, base, posición, zona, familias o bodega..."
             style={{
               width: "100%",
               padding: "10px 12px",
@@ -439,8 +465,13 @@ export default function Ubicaciones() {
         </div>
 
         <div style={{ marginTop: 10, color: colors.muted, fontSize: 12, fontWeight: 700 }}>
-          El archivo debe contener la columna <b>ubicacion</b>. También puede incluir <b>zona</b>,{" "}
-          <b>familias</b> y <b>bodega</b>.
+          El archivo puede venir en dos formatos:
+          <br />
+          <b>1.</b> Directo: <b>ubicacion</b>, <b>zona</b>, <b>familias</b>, <b>bodega</b>
+          <br />
+          <b>2.</b> Layout: <b>ubicacion</b> + <b>posiciones</b> + <b>zona</b> + <b>bodega</b>
+          <br />
+          En el formato layout, el sistema construye la ubicación final uniendo base + posición.
         </div>
       </div>
 
@@ -461,19 +492,67 @@ export default function Ubicaciones() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr 1fr auto",
+            gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr auto",
             gap: 10,
             alignItems: "end",
           }}
         >
           <div>
             <div style={{ fontSize: 11, fontWeight: 900, color: colors.muted, marginBottom: 6 }}>
-              UBICACIÓN
+              UBICACIÓN BASE
+            </div>
+            <input
+              value={nuevo.ubicacion_base}
+              onChange={(e) => setNuevo((p) => ({ ...p, ubicacion_base: e.target.value }))}
+              placeholder="Ej: E1"
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: 12,
+                border: `1px solid ${colors.border}`,
+                outline: "none",
+                fontWeight: 700,
+              }}
+            />
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 900, color: colors.muted, marginBottom: 6 }}>
+              POSICIÓN
+            </div>
+            <input
+              value={nuevo.posicion}
+              onChange={(e) => {
+                const val = e.target.value;
+                setNuevo((p) => ({
+                  ...p,
+                  posicion: val,
+                  ubicacion:
+                    p.ubicacion_base || val
+                      ? `${(p.ubicacion_base || "").trim()}${val.trim()}`
+                      : p.ubicacion,
+                }));
+              }}
+              placeholder="Ej: 111"
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: 12,
+                border: `1px solid ${colors.border}`,
+                outline: "none",
+                fontWeight: 700,
+              }}
+            />
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 900, color: colors.muted, marginBottom: 6 }}>
+              UBICACIÓN FINAL
             </div>
             <input
               value={nuevo.ubicacion}
               onChange={(e) => setNuevo((p) => ({ ...p, ubicacion: e.target.value }))}
-              placeholder="Ej: 200111'12"
+              placeholder="Ej: E111"
               style={{
                 width: "100%",
                 padding: "10px 12px",
@@ -492,7 +571,7 @@ export default function Ubicaciones() {
             <input
               value={nuevo.zona}
               onChange={(e) => setNuevo((p) => ({ ...p, zona: e.target.value }))}
-              placeholder="Ej: ZONA 200"
+              placeholder="Ej: ZONA ESTANTERIA"
               style={{
                 width: "100%",
                 padding: "10px 12px",
@@ -511,7 +590,7 @@ export default function Ubicaciones() {
             <input
               value={nuevo.familias}
               onChange={(e) => setNuevo((p) => ({ ...p, familias: e.target.value }))}
-              placeholder="Ej: BOD-AZUCAR"
+              placeholder="Opcional"
               style={{
                 width: "100%",
                 padding: "10px 12px",
@@ -530,7 +609,7 @@ export default function Ubicaciones() {
             <input
               value={nuevo.bodega}
               onChange={(e) => setNuevo((p) => ({ ...p, bodega: e.target.value }))}
-              placeholder="Ej: BODEGAS EXTERNAS"
+              placeholder="Ej: BODEGA GENERAL"
               style={{
                 width: "100%",
                 padding: "10px 12px",
@@ -579,7 +658,7 @@ export default function Ubicaciones() {
         }}
       >
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1300 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1500 }}>
             <thead>
               <tr
                 style={{
@@ -590,6 +669,12 @@ export default function Ubicaciones() {
               >
                 <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>
                   UBICACIÓN
+                </th>
+                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>
+                  POSICIÓN
+                </th>
+                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>
+                  UBICACIÓN FINAL
                 </th>
                 <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>
                   ZONA
@@ -609,7 +694,7 @@ export default function Ubicaciones() {
             <tbody>
               {!loading && filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: 18, color: colors.muted, fontWeight: 800 }}>
+                  <td colSpan={7} style={{ padding: 18, color: colors.muted, fontWeight: 800 }}>
                     No hay ubicaciones para mostrar.
                   </td>
                 </tr>
@@ -617,6 +702,12 @@ export default function Ubicaciones() {
                 filtered.map((u) => (
                   <tr key={u.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
                     <td style={{ padding: 12, fontWeight: 900, color: colors.navy }}>
+                      {u.ubicacion_base || ""}
+                    </td>
+                    <td style={{ padding: 12, fontWeight: 900, color: colors.text }}>
+                      {u.posicion || ""}
+                    </td>
+                    <td style={{ padding: 12, fontWeight: 900, color: colors.blue }}>
                       {u.ubicacion || ""}
                     </td>
                     <td style={{ padding: 12 }}>{u.zona || ""}</td>

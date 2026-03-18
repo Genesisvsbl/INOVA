@@ -31,13 +31,20 @@ class MaterialResponse(MaterialBase):
 
 class UbicacionBase(BaseModel):
     ubicacion: str
+    ubicacion_base: Optional[str] = None
+    posicion: Optional[str] = None
     zona: Optional[str] = None
     familias: Optional[str] = None
     bodega: Optional[str] = None
 
 
-class UbicacionCreate(UbicacionBase):
-    pass
+class UbicacionCreate(BaseModel):
+    ubicacion: str
+    ubicacion_base: Optional[str] = None
+    posicion: Optional[str] = None
+    zona: Optional[str] = None
+    familias: Optional[str] = None
+    bodega: Optional[str] = None
 
 
 class UbicacionResponse(UbicacionBase):
@@ -64,10 +71,7 @@ class MovimientoCreate(BaseModel):
     umb: Optional[str] = None
 
     codigo_material: str
-
-    # AHORA OPCIONAL POR EN TRANSITO
     codigo_ubicacion: Optional[str] = None
-
     estado: Optional[str] = "ALMACENADO"
 
     lote_almacen: Optional[str] = None
@@ -178,6 +182,8 @@ class MotorRowResponse(BaseModel):
 
     estado: str
     ubicacion: str
+    ubicacion_base: Optional[str] = None
+    posicion: Optional[str] = None
     zona: Optional[str] = None
     familias: Optional[str] = None
     bodega: Optional[str] = None
@@ -302,13 +308,13 @@ class DespachoDetalleOut(BaseModel):
     clasificacion_sku: str
     clasificacion_final: str
 
-    # NUEVO
     estado_operativo: Optional[str] = "ABIERTA"
     cerrada: Optional[bool] = False
     fecha_cierre: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
 
 class PickingDetalleOut(BaseModel):
     id: int

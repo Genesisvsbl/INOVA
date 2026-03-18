@@ -52,6 +52,8 @@ function toCSV(rows) {
     "unidad_medida",
     "familia",
     "ubicacion",
+    "ubicacion_base",
+    "posicion",
     "zona",
     "familias",
     "bodega",
@@ -203,6 +205,8 @@ export default function MotorPrincipal() {
         r.descripcion_material,
         r.familia,
         r.ubicacion,
+        r.ubicacion_base,
+        r.posicion,
         r.estado,
         r.zona,
         r.bodega,
@@ -331,7 +335,7 @@ export default function MotorPrincipal() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar por material, ubicación, usuario, documento, lote, bodega..."
+            placeholder="Buscar por material, ubicación, posición, usuario, documento, lote, bodega..."
             style={{
               width: "100%",
               border: "none",
@@ -581,7 +585,7 @@ export default function MotorPrincipal() {
         </div>
 
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1400 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1700 }}>
             <thead>
               <tr
                 style={{
@@ -621,6 +625,12 @@ export default function MotorPrincipal() {
                   Ubicación
                 </th>
                 <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Posición
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
+                  Ubicación final
+                </th>
+                <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
                   Zona
                 </th>
                 <th style={{ padding: 12, fontSize: 12, color: colors.muted, fontWeight: 1000 }}>
@@ -652,7 +662,7 @@ export default function MotorPrincipal() {
             <tbody>
               {!loading && !err && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={16} style={{ padding: 18, color: colors.muted, fontWeight: 800 }}>
+                  <td colSpan={18} style={{ padding: 18, color: colors.muted, fontWeight: 800 }}>
                     No hay registros con esos filtros.
                   </td>
                 </tr>
@@ -662,7 +672,9 @@ export default function MotorPrincipal() {
                 const qty = Number(r.cantidad || 0);
                 const isIn = qty >= 0;
                 const estadoUp = String(r.estado || "").toUpperCase();
-                const ubicTexto = (r.ubicacion ?? "").toString().trim();
+                const ubicFinal = (r.ubicacion ?? "").toString().trim();
+                const ubicBase = (r.ubicacion_base ?? "").toString().trim();
+                const posicion = (r.posicion ?? "").toString().trim();
 
                 return (
                   <tr key={r.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
@@ -710,11 +722,26 @@ export default function MotorPrincipal() {
                       style={{
                         padding: 12,
                         fontWeight: 1000,
+                        color: estadoUp === "EN_TRANSITO" ? colors.warn : colors.navy,
+                      }}
+                    >
+                      {ubicBase || (estadoUp === "EN_TRANSITO" ? "EN TRANSITO" : "")}
+                    </td>
+
+                    <td style={{ padding: 12, color: colors.text, fontWeight: 900 }}>
+                      {posicion || ""}
+                    </td>
+
+                    <td
+                      style={{
+                        padding: 12,
+                        fontWeight: 1000,
                         color: estadoUp === "EN_TRANSITO" ? colors.warn : colors.blue,
                       }}
                     >
-                      {ubicTexto || "EN TRANSITO"}
+                      {ubicFinal || "EN TRANSITO"}
                     </td>
+
                     <td style={{ padding: 12, color: colors.text, fontWeight: 700 }}>
                       {r.zona || ""}
                     </td>

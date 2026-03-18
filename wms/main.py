@@ -82,6 +82,17 @@ def clean_str(v):
     return s
 
 
+def clean_excel_text(v):
+    if pd.isna(v):
+        return ""
+    s = str(v).strip()
+    if s == "" or s.lower() == "nan":
+        return ""
+    if s.endswith(".0"):
+        s = s[:-2]
+    return s
+
+
 def clean_date(v):
     if pd.isna(v):
         return None
@@ -818,70 +829,123 @@ def eliminar_ubicacion(ubicacion_id: int, db: Session = Depends(get_db)):
 
 @app.post("/ubicaciones/importar")
 async def importar_ubicaciones(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    if not file.filename.endswith((".xlsx", ".xls")):
+    if not file.filename.lower().endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="El archivo debe ser Excel (.xlsx o .xls)")
 
     contenido = await file.read()
     df = pd.read_excel(io.BytesIO(contenido))
+    df = normalize_excel_columns(df)
 
-    df.columns = [
-        unicodedata.normalize("NFKD", str(col))
-        .encode("ascii", "ignore")
-        .decode("utf-8")
-        .strip()
-        .lower()
-        for col in df.columns
-    ]
+    if df.empty:
+        raise HTTPException(status_code=400, detail="El archivo está vacío")
 
-    if "ubicacion" not in df.columns:
+    # Soporta:
+    # 1) Formato directo: ubicacion, zona, familias, bodega
+    # 2) Formato layout: ubicacion, posiciones, zona, bodega
+    tiene_ubicacion = "ubicacion" in df.columns
+    tiene_posiciones = "posiciones" in df.columns
+
+    if not tiene_ubicacion:
         raise HTTPException(
             status_code=400,
-            detail="El Excel debe tener la columna 'UBICACIÓN' (o 'UBICACION')."
+            detail="El Excel debe tener la columna 'UBICACION' o 'UBICACIÓN'."
         )
 
-    for col in ["zona", "familias", "bodega"]:
-        if col not in df.columns:
-            df[col] = ""
-
-    df["ubicacion"] = df["ubicacion"].astype(str).str.strip()
-    df["zona"] = df["zona"].astype(str).str.strip()
-    df["familias"] = df["familias"].astype(str).str.strip()
-    df["bodega"] = df["bodega"].astype(str).str.strip()
-
-    df = df[df["ubicacion"] != ""]
-    df = df.drop_duplicates(subset=["ubicacion"])
-
-    existentes = {x[0] for x in db.query(models.Ubicacion.ubicacion).all()}
+    if "zona" not in df.columns:
+        df["zona"] = ""
+    if "familias" not in df.columns:
+        df["familias"] = ""
+    if "bodega" not in df.columns:
+        df["bodega"] = ""
 
     creadas = 0
     actualizadas = 0
 
-    for _, row in df.iterrows():
-        ubi = str(row["ubicacion"]).strip()
-        zona = str(row["zona"]).strip()
-        familias = str(row["familias"]).strip()
-        bodega = str(row["bodega"]).strip()
+    if tiene_posiciones:
+        # Modo layout: E1 + 111 => E111
+        df["ubicacion"] = df["ubicacion"].apply(clean_excel_text)
+        df["posiciones"] = df["posiciones"].apply(clean_excel_text)
+        df["zona"] = df["zona"].apply(clean_excel_text)
+        df["familias"] = df["familias"].apply(clean_excel_text)
+        df["bodega"] = df["bodega"].apply(clean_excel_text)
 
-        if ubi in existentes:
-            obj = db.query(models.Ubicacion).filter(models.Ubicacion.ubicacion == ubi).first()
+        df = df[(df["ubicacion"] != "") & (df["posiciones"] != "")]
+        df["ubicacion_final"] = df["ubicacion"] + df["posiciones"]
+        df = df.drop_duplicates(subset=["ubicacion_final"], keep="last")
+
+        for _, row in df.iterrows():
+            ubi_final = clean_excel_text(row["ubicacion_final"])
+            zona = clean_excel_text(row["zona"])
+            familias = clean_excel_text(row["familias"])
+            bodega = clean_excel_text(row["bodega"])
+
+            if not ubi_final:
+                continue
+
+            obj = db.query(models.Ubicacion).filter(
+                models.Ubicacion.ubicacion == ubi_final
+            ).first()
+
             if obj:
-                obj.zona = zona or obj.zona
-                obj.familias = familias or obj.familias
-                obj.bodega = bodega or obj.bodega
+                obj.zona = zona if zona else obj.zona
+                obj.familias = familias if familias else obj.familias
+                obj.bodega = bodega if bodega else obj.bodega
                 actualizadas += 1
+            else:
+                db.add(models.Ubicacion(
+                    ubicacion=ubi_final,
+                    zona=zona or None,
+                    familias=familias or None,
+                    bodega=bodega or None
+                ))
+                creadas += 1
+
+        db.commit()
+        return {
+            "mensaje": "Importación completada",
+            "modo": "ubicacion + posiciones",
+            "ubicaciones_nuevas": creadas,
+            "ubicaciones_actualizadas": actualizadas
+        }
+
+    # Modo clásico: ya viene la ubicación completa
+    df["ubicacion"] = df["ubicacion"].apply(clean_excel_text)
+    df["zona"] = df["zona"].apply(clean_excel_text)
+    df["familias"] = df["familias"].apply(clean_excel_text)
+    df["bodega"] = df["bodega"].apply(clean_excel_text)
+
+    df = df[df["ubicacion"] != ""]
+    df = df.drop_duplicates(subset=["ubicacion"], keep="last")
+
+    for _, row in df.iterrows():
+        ubi = clean_excel_text(row["ubicacion"])
+        zona = clean_excel_text(row["zona"])
+        familias = clean_excel_text(row["familias"])
+        bodega = clean_excel_text(row["bodega"])
+
+        if not ubi:
             continue
 
-        db.add(models.Ubicacion(
-            ubicacion=ubi,
-            zona=zona,
-            familias=familias,
-            bodega=bodega
-        ))
-        creadas += 1
+        obj = db.query(models.Ubicacion).filter(models.Ubicacion.ubicacion == ubi).first()
+
+        if obj:
+            obj.zona = zona if zona else obj.zona
+            obj.familias = familias if familias else obj.familias
+            obj.bodega = bodega if bodega else obj.bodega
+            actualizadas += 1
+        else:
+            db.add(models.Ubicacion(
+                ubicacion=ubi,
+                zona=zona or None,
+                familias=familias or None,
+                bodega=bodega or None
+            ))
+            creadas += 1
 
     db.commit()
     return {
         "mensaje": "Importación completada",
+        "modo": "ubicacion directa",
         "ubicaciones_nuevas": creadas,
         "ubicaciones_actualizadas": actualizadas
     }
