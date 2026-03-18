@@ -295,10 +295,10 @@ def sugerir_posiciones_disponibles(ubicacion_base: str, cantidad_pallets: int, d
             detail=f"No hay posiciones disponibles para la ubicación base {base}"
         )
 
-    # Orden logístico:
-    # 111 -> 121 -> 131 -> 112 -> 122 -> 132
-    # modulo asc, estiba asc, nivel asc
-    disponibles.sort(key=lambda x: (x["modulo"], x["estiba"], x["nivel"]))
+    # Orden logístico real:
+    # 1127, 1227, 1327, 1126, 1226, 1326 ...
+    # modulo asc, estiba desc, nivel asc
+    disponibles.sort(key=lambda x: (x["modulo"], -x["estiba"], x["nivel"]))
 
     sugeridas = disponibles[:cantidad_pallets]
 
