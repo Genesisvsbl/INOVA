@@ -132,7 +132,11 @@ function Chip({ label, tone = "neutral" }) {
 }
 
 function esMaterialAuto(linea) {
-  const texto = [linea?.familia || "", linea?.descripcion || "", linea?.codigo || ""]
+  const texto = [
+    linea?.familia || "",
+    linea?.descripcion || "",
+    linea?.codigo || "",
+  ]
     .join(" ")
     .toLowerCase();
 
@@ -142,6 +146,26 @@ function esMaterialAuto(linea) {
     texto.includes("azucar") ||
     texto.includes("azúcar")
   );
+}
+
+function getCantidadPallets(linea) {
+  const n = Number(linea?.cantidad ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function getTotalLinea(linea) {
+  const n = Number(linea?.total ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function getCantidadPorPallet(linea) {
+  const pallets = getCantidadPallets(linea);
+  const total = getTotalLinea(linea);
+
+  if (!Number.isFinite(pallets) || pallets <= 0) return 0;
+  if (!Number.isFinite(total) || total <= 0) return 0;
+
+  return total / pallets;
 }
 
 export default function DesdeRecibo() {
@@ -257,8 +281,9 @@ export default function DesdeRecibo() {
         loteProveedorFromLoteAlmacen(ln.lote);
 
       const loteAlm = buildLoteAlmacen15(loteProv, fv);
-      const cantidadRaw = Number(ln.total || 0);
-      const cantidadFmt = formatQty(cantidadRaw);
+      const cantidadPallets = getCantidadPallets(ln);
+      const totalLinea = getTotalLinea(ln);
+      const cantidadPorPallet = getCantidadPorPallet(ln);
 
       const um = (
         ln.um ||
@@ -301,8 +326,10 @@ export default function DesdeRecibo() {
         numeroSemana: getISOWeek(fv),
         um,
         umb,
-        cantidadRaw,
-        cantidadFmt,
+        cantidadPallets,
+        totalLinea,
+        cantidadPorPallet,
+        cantidadFmt: formatQty(totalLinea),
         proveedor: (draft?.header?.proveedor || "").toString().trim(),
         documento: (draft?.header?.documento || "").toString().trim(),
         remesa: (draft?.header?.remesa || draft?.header?.remesa_transp || "").toString().trim(),
@@ -310,51 +337,6 @@ export default function DesdeRecibo() {
       };
     });
   }, [draft, ubicPorLinea]);
-
-  const filasRender = useMemo(() => {
-    const out = [];
-
-    filasMov.forEach((r) => {
-      if (r.auto) {
-        const sugeridas = Array.isArray(r.sugeridas) ? r.sugeridas : [];
-
-        if (sugeridas.length > 0) {
-          sugeridas.forEach((sug, subIdx) => {
-            out.push({
-              ...r,
-              renderKey: `${r.idx}-auto-${subIdx}`,
-              esFilaExpandida: true,
-              ubicacionSugerida: sug?.ubicacion || "",
-              posicionSugerida: sug?.posicion || "",
-              cantidadFmt: formatQty(1),
-              cantidadRaw: 1,
-              subIdx,
-            });
-          });
-        } else {
-          out.push({
-            ...r,
-            renderKey: `${r.idx}-auto-empty`,
-            esFilaExpandida: false,
-            ubicacionSugerida: "",
-            posicionSugerida: "",
-            subIdx: 0,
-          });
-        }
-      } else {
-        out.push({
-          ...r,
-          renderKey: `${r.idx}-manual`,
-          esFilaExpandida: false,
-          ubicacionSugerida: r.ubicacion || "",
-          posicionSugerida: r.posicion || "",
-          subIdx: 0,
-        });
-      }
-    });
-
-    return out;
-  }, [filasMov]);
 
   if (!draft) return <div>Cargando...</div>;
 
@@ -390,7 +372,7 @@ export default function DesdeRecibo() {
     });
   };
 
-  const sugerirLinea = async (idx, cantidadRaw) => {
+  const sugerirLinea = async (idx, cantidadPallets) => {
     const conf = ubicPorLinea[idx] || {};
     const base = (conf.base || "").trim();
 
@@ -399,7 +381,7 @@ export default function DesdeRecibo() {
       return;
     }
 
-    const cantidad = Number(cantidadRaw || 0);
+    const cantidad = Number(cantidadPallets || 0);
     if (!Number.isInteger(cantidad) || cantidad <= 0) {
       alert(`La línea #${idx + 1} debe tener cantidad entera > 0 para auto ubicación.`);
       return;
@@ -440,11 +422,13 @@ export default function DesdeRecibo() {
         );
       }
 
+      const sugeridas = Array.isArray(data?.posiciones) ? data.posiciones.slice(0, cantidad) : [];
+
       setUbicPorLinea((prev) => ({
         ...prev,
         [idx]: {
           ...(prev[idx] || {}),
-          sugeridas: Array.isArray(data?.posiciones) ? data.posiciones : [],
+          sugeridas,
         },
       }));
     } catch (e) {
@@ -494,7 +478,7 @@ export default function DesdeRecibo() {
           return `Falta ubicación base en la línea #${i + 1}.`;
         }
 
-        const cant = Number(ln.total || 0);
+        const cant = getCantidadPallets(ln);
         if (!Number.isInteger(cant) || cant <= 0) {
           return `La línea #${i + 1} debe tener cantidad entera > 0 para auto ubicación.`;
         }
@@ -654,11 +638,17 @@ export default function DesdeRecibo() {
         const auto = esMaterialAuto(linea);
 
         if (auto) {
+          const cantidadPorPallet = getCantidadPorPallet(linea);
+
+          if (cantidadPorPallet <= 0) {
+            throw new Error(`No se pudo calcular cantidad por pallet en la línea #${i + 1}`);
+          }
+
           for (const sug of conf.sugeridas || []) {
             const payload = construirPayloadMovimiento(linea, i, {
               codigo_ubicacion: sug.ubicacion,
               estado: "ALMACENADO",
-              cantidad_r: 1,
+              cantidad_r: cantidadPorPallet,
             });
 
             const res = await fetch(`${API_URL}/movimientos`, {
@@ -678,6 +668,7 @@ export default function DesdeRecibo() {
           const payload = construirPayloadMovimiento(linea, i, {
             codigo_ubicacion: ubic,
             estado: "ALMACENADO",
+            cantidad_r: getTotalLinea(linea),
           });
 
           const res = await fetch(`${API_URL}/movimientos`, {
@@ -721,6 +712,7 @@ export default function DesdeRecibo() {
         const payload = construirPayloadMovimiento(linea, i, {
           codigo_ubicacion: null,
           estado: "EN_TRANSITO",
+          cantidad_r: getTotalLinea(linea),
         });
 
         const res = await fetch(`${API_URL}/movimientos`, {
@@ -882,11 +874,11 @@ export default function DesdeRecibo() {
             </thead>
 
             <tbody>
-              {filasRender.map((r) => {
+              {filasMov.map((r) => {
                 const posicionesManual = posicionesPorBase[r.base] || [];
 
                 return (
-                  <tr key={r.renderKey} style={{ borderBottom: `1px solid ${colors.border}` }}>
+                  <tr key={r.idx} style={{ borderBottom: `1px solid ${colors.border}` }}>
                     <td style={{ padding: 12 }}>
                       {r.auto ? (
                         <Chip label="AUTO" tone="amber" />
@@ -912,11 +904,7 @@ export default function DesdeRecibo() {
 
                     <td style={{ padding: 12 }}>
                       {r.auto ? (
-                        <input
-                          value={r.posicionSugerida || ""}
-                          readOnly
-                          style={{ width: 140, background: "#f3f3f3" }}
-                        />
+                        <div style={{ color: colors.muted, fontWeight: 700 }}>Automática</div>
                       ) : (
                         <select
                           value={r.posicion}
@@ -937,31 +925,28 @@ export default function DesdeRecibo() {
                     <td style={{ padding: 12 }}>
                       {r.auto ? (
                         <div>
-                          {r.subIdx === 0 && (
-                            <button
-                              onClick={() => sugerirLinea(r.idx, draft.lineas[r.idx]?.total || 0)}
-                              disabled={!!sugiriendoLinea[r.idx] || !r.base}
-                              style={{
-                                padding: "8px 10px",
-                                borderRadius: 10,
-                                border: "none",
-                                background: colors.warn,
-                                color: "#fff",
-                                fontWeight: 900,
-                                cursor: !r.base ? "not-allowed" : "pointer",
-                                opacity: !r.base ? 0.6 : 1,
-                                marginBottom: 8,
-                              }}
-                            >
-                              {sugiriendoLinea[r.idx] ? "Sugiriendo..." : "Sugerir"}
-                            </button>
-                          )}
+                          <button
+                            onClick={() => sugerirLinea(r.idx, r.cantidadPallets)}
+                            disabled={!!sugiriendoLinea[r.idx] || !r.base}
+                            style={{
+                              padding: "8px 10px",
+                              borderRadius: 10,
+                              border: "none",
+                              background: colors.warn,
+                              color: "#fff",
+                              fontWeight: 900,
+                              cursor: !r.base ? "not-allowed" : "pointer",
+                              opacity: !r.base ? 0.6 : 1,
+                            }}
+                          >
+                            {sugiriendoLinea[r.idx] ? "Sugiriendo..." : "Sugerir"}
+                          </button>
 
-                          <input
-                            value={r.ubicacionSugerida || ""}
-                            readOnly
-                            style={{ width: 160, background: "#f3f3f3" }}
-                          />
+                          <div style={{ marginTop: 8, fontSize: 12, color: colors.text, fontWeight: 700 }}>
+                            {(r.sugeridas || []).length > 0
+                              ? r.sugeridas.map((x) => x.ubicacion).join(", ")
+                              : "Sin sugerencia"}
+                          </div>
                         </div>
                       ) : (
                         <input
