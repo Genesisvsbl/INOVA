@@ -21,10 +21,7 @@ class Ubicacion(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # UBICACION FINAL / UNICA
     ubicacion = Column(String, unique=True, index=True, nullable=False)
-
-    # NUEVO: PARA VERLO COMO EN EXCEL
     ubicacion_base = Column(String, index=True, nullable=True)
     posicion = Column(String, index=True, nullable=True)
 

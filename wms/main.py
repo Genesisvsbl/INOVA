@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, asc, desc, func
+from sqlalchemy import or_, asc, desc, func, text
 from typing import List, Optional
 import pandas as pd
 import io
@@ -25,6 +25,27 @@ BTW_RECEPCION_MP = r"C:\Users\JOSUE\Documents\INOVA_ALM\wms\1. RECEPCION MP.btw"
 BTW_RECEPCION_MP_COD_TRAZ = r"C:\Users\JOSUE\Documents\INOVA_ALM\wms\5. RECEPCION MP COD + TRAZ.btw"
 
 models.Base.metadata.create_all(bind=engine)
+
+
+def ensure_ubicaciones_columns():
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE ubicaciones ADD COLUMN ubicacion_base VARCHAR"))
+        except Exception:
+            pass
+
+        try:
+            conn.execute(text("ALTER TABLE ubicaciones ADD COLUMN posicion VARCHAR"))
+        except Exception:
+            pass
+
+        try:
+            conn.commit()
+        except Exception:
+            pass
+
+
+ensure_ubicaciones_columns()
 
 app = FastAPI(title="WMS API")
 
@@ -751,6 +772,8 @@ def listar_ubicaciones(
         query = query.filter(
             or_(
                 models.Ubicacion.ubicacion.contains(needle),
+                models.Ubicacion.ubicacion_base.contains(needle),
+                models.Ubicacion.posicion.contains(needle),
                 models.Ubicacion.zona.contains(needle),
                 models.Ubicacion.familias.contains(needle),
                 models.Ubicacion.bodega.contains(needle),
@@ -769,9 +792,9 @@ def listar_ubicaciones(
 
 @app.post("/ubicaciones", response_model=schemas.UbicacionResponse)
 def crear_ubicacion(payload: schemas.UbicacionCreate, db: Session = Depends(get_db)):
-    ubicacion = payload.ubicacion.strip()
+    ubicacion = (payload.ubicacion or "").strip()
     if not ubicacion:
-        raise HTTPException(status_code=400, detail="UBICACIÓN obligatoria")
+        raise HTTPException(status_code=400, detail="UBICACIÓN FINAL obligatoria")
 
     existe = db.query(models.Ubicacion).filter(models.Ubicacion.ubicacion == ubicacion).first()
     if existe:
@@ -779,6 +802,8 @@ def crear_ubicacion(payload: schemas.UbicacionCreate, db: Session = Depends(get_
 
     u = models.Ubicacion(
         ubicacion=ubicacion,
+        ubicacion_base=(payload.ubicacion_base or "").strip() if payload.ubicacion_base else None,
+        posicion=(payload.posicion or "").strip() if payload.posicion else None,
         zona=(payload.zona or "").strip() if payload.zona else None,
         familias=(payload.familias or "").strip() if payload.familias else None,
         bodega=(payload.bodega or "").strip() if payload.bodega else None,
@@ -795,9 +820,9 @@ def actualizar_ubicacion(ubicacion_id: int, payload: schemas.UbicacionCreate, db
     if not ubicacion_db:
         raise HTTPException(status_code=404, detail="Ubicación no encontrada")
 
-    ubicacion = payload.ubicacion.strip()
+    ubicacion = (payload.ubicacion or "").strip()
     if not ubicacion:
-        raise HTTPException(status_code=400, detail="UBICACIÓN obligatoria")
+        raise HTTPException(status_code=400, detail="UBICACIÓN FINAL obligatoria")
 
     existe = db.query(models.Ubicacion).filter(
         models.Ubicacion.ubicacion == ubicacion,
@@ -807,6 +832,8 @@ def actualizar_ubicacion(ubicacion_id: int, payload: schemas.UbicacionCreate, db
         raise HTTPException(status_code=400, detail="Ya existe otra ubicación con ese nombre")
 
     ubicacion_db.ubicacion = ubicacion
+    ubicacion_db.ubicacion_base = (payload.ubicacion_base or "").strip() if payload.ubicacion_base else None
+    ubicacion_db.posicion = (payload.posicion or "").strip() if payload.posicion else None
     ubicacion_db.zona = (payload.zona or "").strip() if payload.zona else None
     ubicacion_db.familias = (payload.familias or "").strip() if payload.familias else None
     ubicacion_db.bodega = (payload.bodega or "").strip() if payload.bodega else None
@@ -829,57 +856,50 @@ def eliminar_ubicacion(ubicacion_id: int, db: Session = Depends(get_db)):
 
 @app.post("/ubicaciones/importar")
 async def importar_ubicaciones(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    if not file.filename.lower().endswith((".xlsx", ".xls")):
-        raise HTTPException(status_code=400, detail="El archivo debe ser Excel (.xlsx o .xls)")
+    try:
+        if not file.filename.lower().endswith((".xlsx", ".xls")):
+            raise HTTPException(status_code=400, detail="El archivo debe ser Excel (.xlsx o .xls)")
 
-    contenido = await file.read()
-    df = pd.read_excel(io.BytesIO(contenido))
-    df = normalize_excel_columns(df)
+        contenido = await file.read()
+        df = pd.read_excel(io.BytesIO(contenido))
+        df = normalize_excel_columns(df)
 
-    if df.empty:
-        raise HTTPException(status_code=400, detail="El archivo está vacío")
+        if df.empty:
+            raise HTTPException(status_code=400, detail="El archivo está vacío")
 
-    # Soporta:
-    # 1) Formato directo: ubicacion, zona, familias, bodega
-    # 2) Formato layout: ubicacion, posiciones, zona, bodega
-    tiene_ubicacion = "ubicacion" in df.columns
-    tiene_posiciones = "posiciones" in df.columns
+        columnas_requeridas = ["ubicacion", "posiciones", "zona", "bodega"]
+        for col in columnas_requeridas:
+            if col not in df.columns:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Falta la columna requerida: {col}"
+                )
 
-    if not tiene_ubicacion:
-        raise HTTPException(
-            status_code=400,
-            detail="El Excel debe tener la columna 'UBICACION' o 'UBICACIÓN'."
-        )
+        if "familias" not in df.columns:
+            df["familias"] = ""
 
-    if "zona" not in df.columns:
-        df["zona"] = ""
-    if "familias" not in df.columns:
-        df["familias"] = ""
-    if "bodega" not in df.columns:
-        df["bodega"] = ""
-
-    creadas = 0
-    actualizadas = 0
-
-    if tiene_posiciones:
-        # Modo layout: E1 + 111 => E111
         df["ubicacion"] = df["ubicacion"].apply(clean_excel_text)
         df["posiciones"] = df["posiciones"].apply(clean_excel_text)
         df["zona"] = df["zona"].apply(clean_excel_text)
-        df["familias"] = df["familias"].apply(clean_excel_text)
         df["bodega"] = df["bodega"].apply(clean_excel_text)
+        df["familias"] = df["familias"].apply(clean_excel_text)
 
         df = df[(df["ubicacion"] != "") & (df["posiciones"] != "")]
         df["ubicacion_final"] = df["ubicacion"] + df["posiciones"]
         df = df.drop_duplicates(subset=["ubicacion_final"], keep="last")
 
-        for _, row in df.iterrows():
-            ubi_final = clean_excel_text(row["ubicacion_final"])
-            zona = clean_excel_text(row["zona"])
-            familias = clean_excel_text(row["familias"])
-            bodega = clean_excel_text(row["bodega"])
+        creadas = 0
+        actualizadas = 0
 
-            if not ubi_final:
+        for _, row in df.iterrows():
+            base = clean_excel_text(row["ubicacion"])
+            pos = clean_excel_text(row["posiciones"])
+            zona = clean_excel_text(row["zona"])
+            bodega = clean_excel_text(row["bodega"])
+            familias = clean_excel_text(row["familias"])
+            ubi_final = clean_excel_text(row["ubicacion_final"])
+
+            if not base or not pos or not ubi_final:
                 continue
 
             obj = db.query(models.Ubicacion).filter(
@@ -887,68 +907,36 @@ async def importar_ubicaciones(file: UploadFile = File(...), db: Session = Depen
             ).first()
 
             if obj:
-                obj.zona = zona if zona else obj.zona
-                obj.familias = familias if familias else obj.familias
-                obj.bodega = bodega if bodega else obj.bodega
+                obj.ubicacion_base = base
+                obj.posicion = pos
+                obj.zona = zona or obj.zona
+                obj.bodega = bodega or obj.bodega
+                obj.familias = familias or obj.familias
                 actualizadas += 1
             else:
                 db.add(models.Ubicacion(
                     ubicacion=ubi_final,
+                    ubicacion_base=base,
+                    posicion=pos,
                     zona=zona or None,
+                    bodega=bodega or None,
                     familias=familias or None,
-                    bodega=bodega or None
                 ))
                 creadas += 1
 
         db.commit()
+
         return {
             "mensaje": "Importación completada",
-            "modo": "ubicacion + posiciones",
+            "modo": "layout",
             "ubicaciones_nuevas": creadas,
             "ubicaciones_actualizadas": actualizadas
         }
 
-    # Modo clásico: ya viene la ubicación completa
-    df["ubicacion"] = df["ubicacion"].apply(clean_excel_text)
-    df["zona"] = df["zona"].apply(clean_excel_text)
-    df["familias"] = df["familias"].apply(clean_excel_text)
-    df["bodega"] = df["bodega"].apply(clean_excel_text)
-
-    df = df[df["ubicacion"] != ""]
-    df = df.drop_duplicates(subset=["ubicacion"], keep="last")
-
-    for _, row in df.iterrows():
-        ubi = clean_excel_text(row["ubicacion"])
-        zona = clean_excel_text(row["zona"])
-        familias = clean_excel_text(row["familias"])
-        bodega = clean_excel_text(row["bodega"])
-
-        if not ubi:
-            continue
-
-        obj = db.query(models.Ubicacion).filter(models.Ubicacion.ubicacion == ubi).first()
-
-        if obj:
-            obj.zona = zona if zona else obj.zona
-            obj.familias = familias if familias else obj.familias
-            obj.bodega = bodega if bodega else obj.bodega
-            actualizadas += 1
-        else:
-            db.add(models.Ubicacion(
-                ubicacion=ubi,
-                zona=zona or None,
-                familias=familias or None,
-                bodega=bodega or None
-            ))
-            creadas += 1
-
-    db.commit()
-    return {
-        "mensaje": "Importación completada",
-        "modo": "ubicacion directa",
-        "ubicaciones_nuevas": creadas,
-        "ubicaciones_actualizadas": actualizadas
-    }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error importando ubicaciones: {str(e)}")
 
 
 # ==============================
@@ -987,6 +975,8 @@ def listar_motor(
                 "familia": m.material.familia,
                 "estado": m.estado,
                 "ubicacion": m.ubicacion.ubicacion if m.ubicacion else "EN TRANSITO",
+                "ubicacion_base": m.ubicacion.ubicacion_base if m.ubicacion else None,
+                "posicion": m.ubicacion.posicion if m.ubicacion else None,
                 "zona": m.ubicacion.zona if m.ubicacion else None,
                 "familias": m.ubicacion.familias if m.ubicacion else None,
                 "bodega": m.ubicacion.bodega if m.ubicacion else None,
@@ -1189,6 +1179,7 @@ def exportar_rotulos_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
 
 @app.post("/rotulos/imprimir")
 def imprimir_rotulo(
