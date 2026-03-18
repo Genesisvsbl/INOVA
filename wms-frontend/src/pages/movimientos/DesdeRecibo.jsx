@@ -148,26 +148,6 @@ function esMaterialAuto(linea) {
   );
 }
 
-function getCantidadPallets(linea) {
-  const n = Number(linea?.cantidad ?? 0);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function getTotalLinea(linea) {
-  const n = Number(linea?.total ?? 0);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function getCantidadPorPallet(linea) {
-  const pallets = getCantidadPallets(linea);
-  const total = getTotalLinea(linea);
-
-  if (!Number.isFinite(pallets) || pallets <= 0) return 0;
-  if (!Number.isFinite(total) || total <= 0) return 0;
-
-  return total / pallets;
-}
-
 export default function DesdeRecibo() {
   const navigate = useNavigate();
 
@@ -260,7 +240,7 @@ export default function DesdeRecibo() {
     return map;
   }, [ubicaciones]);
 
-  const filasMov = useMemo(() => {
+  const filasRender = useMemo(() => {
     if (!draft) return [];
 
     const serial = draft?.header?.serial || "00000";
@@ -268,7 +248,9 @@ export default function DesdeRecibo() {
     const fecha = todayISODate();
     const movimiento = draft?.tipo === "SALIDA" ? "SALIDA" : "ENTRADA";
 
-    return (draft.lineas || []).map((ln, idx) => {
+    const out = [];
+
+    (draft.lineas || []).forEach((ln, idx) => {
       const codigoCita = serialItem(serial, idx);
       const sku = (ln.codigo || "").toString().trim();
       const texto = (ln.descripcion || "").toString().trim();
@@ -281,9 +263,6 @@ export default function DesdeRecibo() {
         loteProveedorFromLoteAlmacen(ln.lote);
 
       const loteAlm = buildLoteAlmacen15(loteProv, fv);
-      const cantidadPallets = getCantidadPallets(ln);
-      const totalLinea = getTotalLinea(ln);
-      const cantidadPorPallet = getCantidadPorPallet(ln);
 
       const um = (
         ln.um ||
@@ -305,37 +284,82 @@ export default function DesdeRecibo() {
         sugeridas: [],
       };
 
-      return {
-        idx,
-        auto: estadoUbic.auto,
-        base: estadoUbic.base,
-        posicion: estadoUbic.posicion,
-        ubicacion: estadoUbic.ubicacion,
-        sugeridas: estadoUbic.sugeridas || [],
-        fecha,
-        movimiento,
-        id: "",
-        usuario,
-        codigoCita,
-        sku,
-        texto,
-        loteAlm,
-        loteProv,
-        ff,
-        fv,
-        numeroSemana: getISOWeek(fv),
-        um,
-        umb,
-        cantidadPallets,
-        totalLinea,
-        cantidadPorPallet,
-        cantidadFmt: formatQty(totalLinea),
-        proveedor: (draft?.header?.proveedor || "").toString().trim(),
-        documento: (draft?.header?.documento || "").toString().trim(),
-        remesa: (draft?.header?.remesa || draft?.header?.remesa_transp || "").toString().trim(),
-        ordenCompra: (draft?.header?.orden_compra || "").toString().trim(),
-      };
+      const auto = estadoUbic.auto;
+      const sugeridas = estadoUbic.sugeridas || [];
+      const cantidadRaw = Number(ln.total || 0);
+
+      if (auto && sugeridas.length > 0) {
+        sugeridas.forEach((sug, sugIdx) => {
+          out.push({
+            key: `${idx}-${sugIdx}`,
+            sourceIdx: idx,
+            auto: true,
+            base: estadoUbic.base,
+            posicion: sug.posicion || "",
+            ubicacion: sug.ubicacion || "",
+            sugeridas,
+            fecha,
+            movimiento,
+            id: "",
+            usuario,
+            codigoCita,
+            sku,
+            texto,
+            loteAlm,
+            loteProv,
+            ff,
+            fv,
+            numeroSemana: getISOWeek(fv),
+            um,
+            umb: umb || "1000",
+            cantidadRaw: 1000,
+            cantidadFmt: formatQty(1000),
+            proveedor: (draft?.header?.proveedor || "").toString().trim(),
+            documento: (draft?.header?.documento || "").toString().trim(),
+            remesa: (draft?.header?.remesa || draft?.header?.remesa_transp || "").toString().trim(),
+            ordenCompra: (draft?.header?.orden_compra || "").toString().trim(),
+            expanded: true,
+            expandedIndex: sugIdx + 1,
+            expandedTotal: sugeridas.length,
+          });
+        });
+      } else {
+        out.push({
+          key: `${idx}`,
+          sourceIdx: idx,
+          auto,
+          base: estadoUbic.base,
+          posicion: estadoUbic.posicion,
+          ubicacion: estadoUbic.ubicacion,
+          sugeridas,
+          fecha,
+          movimiento,
+          id: "",
+          usuario,
+          codigoCita,
+          sku,
+          texto,
+          loteAlm,
+          loteProv,
+          ff,
+          fv,
+          numeroSemana: getISOWeek(fv),
+          um,
+          umb,
+          cantidadRaw,
+          cantidadFmt: formatQty(cantidadRaw),
+          proveedor: (draft?.header?.proveedor || "").toString().trim(),
+          documento: (draft?.header?.documento || "").toString().trim(),
+          remesa: (draft?.header?.remesa || draft?.header?.remesa_transp || "").toString().trim(),
+          ordenCompra: (draft?.header?.orden_compra || "").toString().trim(),
+          expanded: false,
+          expandedIndex: 1,
+          expandedTotal: 1,
+        });
+      }
     });
+
+    return out;
   }, [draft, ubicPorLinea]);
 
   if (!draft) return <div>Cargando...</div>;
@@ -372,7 +396,7 @@ export default function DesdeRecibo() {
     });
   };
 
-  const sugerirLinea = async (idx, cantidadPallets) => {
+  const sugerirLinea = async (idx, cantidadRaw) => {
     const conf = ubicPorLinea[idx] || {};
     const base = (conf.base || "").trim();
 
@@ -381,7 +405,7 @@ export default function DesdeRecibo() {
       return;
     }
 
-    const cantidad = Number(cantidadPallets || 0);
+    const cantidad = Number(cantidadRaw || 0);
     if (!Number.isInteger(cantidad) || cantidad <= 0) {
       alert(`La línea #${idx + 1} debe tener cantidad entera > 0 para auto ubicación.`);
       return;
@@ -478,7 +502,7 @@ export default function DesdeRecibo() {
           return `Falta ubicación base en la línea #${i + 1}.`;
         }
 
-        const cant = getCantidadPallets(ln);
+        const cant = Number(ln.total || 0);
         if (!Number.isInteger(cant) || cant <= 0) {
           return `La línea #${i + 1} debe tener cantidad entera > 0 para auto ubicación.`;
         }
@@ -532,7 +556,7 @@ export default function DesdeRecibo() {
       .toString()
       .trim();
 
-    const umbMovimiento = (linea.umb || draft?.header?.umb || "").toString().trim();
+    const umbMovimiento = (opts.umb ?? linea.umb ?? draft?.header?.umb ?? "").toString().trim();
 
     return {
       fecha: new Date().toISOString(),
@@ -638,17 +662,12 @@ export default function DesdeRecibo() {
         const auto = esMaterialAuto(linea);
 
         if (auto) {
-          const cantidadPorPallet = getCantidadPorPallet(linea);
-
-          if (cantidadPorPallet <= 0) {
-            throw new Error(`No se pudo calcular cantidad por pallet en la línea #${i + 1}`);
-          }
-
           for (const sug of conf.sugeridas || []) {
             const payload = construirPayloadMovimiento(linea, i, {
               codigo_ubicacion: sug.ubicacion,
               estado: "ALMACENADO",
-              cantidad_r: cantidadPorPallet,
+              cantidad_r: 1000,
+              umb: "1000",
             });
 
             const res = await fetch(`${API_URL}/movimientos`, {
@@ -668,7 +687,6 @@ export default function DesdeRecibo() {
           const payload = construirPayloadMovimiento(linea, i, {
             codigo_ubicacion: ubic,
             estado: "ALMACENADO",
-            cantidad_r: getTotalLinea(linea),
           });
 
           const res = await fetch(`${API_URL}/movimientos`, {
@@ -712,7 +730,6 @@ export default function DesdeRecibo() {
         const payload = construirPayloadMovimiento(linea, i, {
           codigo_ubicacion: null,
           estado: "EN_TRANSITO",
-          cantidad_r: getTotalLinea(linea),
         });
 
         const res = await fetch(`${API_URL}/movimientos`, {
@@ -874,11 +891,11 @@ export default function DesdeRecibo() {
             </thead>
 
             <tbody>
-              {filasMov.map((r) => {
+              {filasRender.map((r) => {
                 const posicionesManual = posicionesPorBase[r.base] || [];
 
                 return (
-                  <tr key={r.idx} style={{ borderBottom: `1px solid ${colors.border}` }}>
+                  <tr key={r.key} style={{ borderBottom: `1px solid ${colors.border}` }}>
                     <td style={{ padding: 12 }}>
                       {r.auto ? (
                         <Chip label="AUTO" tone="amber" />
@@ -890,8 +907,9 @@ export default function DesdeRecibo() {
                     <td style={{ padding: 12 }}>
                       <select
                         value={r.base}
-                        onChange={(e) => onChangeBase(r.idx, e.target.value)}
+                        onChange={(e) => onChangeBase(r.sourceIdx, e.target.value)}
                         style={{ width: 130 }}
+                        disabled={r.expanded}
                       >
                         <option value="">Seleccione...</option>
                         {basesDisponibles.map((b) => (
@@ -904,11 +922,15 @@ export default function DesdeRecibo() {
 
                     <td style={{ padding: 12 }}>
                       {r.auto ? (
-                        <div style={{ color: colors.muted, fontWeight: 700 }}>Automática</div>
+                        <input
+                          value={r.posicion || ""}
+                          readOnly
+                          style={{ width: 140, background: "#f3f3f3" }}
+                        />
                       ) : (
                         <select
                           value={r.posicion}
-                          onChange={(e) => onChangePosicion(r.idx, e.target.value)}
+                          onChange={(e) => onChangePosicion(r.sourceIdx, e.target.value)}
                           style={{ width: 140 }}
                           disabled={!r.base}
                         >
@@ -923,11 +945,11 @@ export default function DesdeRecibo() {
                     </td>
 
                     <td style={{ padding: 12 }}>
-                      {r.auto ? (
+                      {r.auto && !r.expanded ? (
                         <div>
                           <button
-                            onClick={() => sugerirLinea(r.idx, r.cantidadPallets)}
-                            disabled={!!sugiriendoLinea[r.idx] || !r.base}
+                            onClick={() => sugerirLinea(r.sourceIdx, r.cantidadRaw)}
+                            disabled={!!sugiriendoLinea[r.sourceIdx] || !r.base}
                             style={{
                               padding: "8px 10px",
                               borderRadius: 10,
@@ -939,14 +961,8 @@ export default function DesdeRecibo() {
                               opacity: !r.base ? 0.6 : 1,
                             }}
                           >
-                            {sugiriendoLinea[r.idx] ? "Sugiriendo..." : "Sugerir"}
+                            {sugiriendoLinea[r.sourceIdx] ? "Sugiriendo..." : "Sugerir"}
                           </button>
-
-                          <div style={{ marginTop: 8, fontSize: 12, color: colors.text, fontWeight: 700 }}>
-                            {(r.sugeridas || []).length > 0
-                              ? r.sugeridas.map((x) => x.ubicacion).join(", ")
-                              : "Sin sugerencia"}
-                          </div>
                         </div>
                       ) : (
                         <input
