@@ -218,6 +218,60 @@ function buildLineaExpandida({
   };
 }
 
+function ActionButtons({ guardando, onBack, onGuardar, onTransito }) {
+  return (
+    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <button
+        onClick={onBack}
+        style={{
+          padding: "10px 14px",
+          borderRadius: 12,
+          border: `1px solid ${colors.border}`,
+          background: colors.card,
+          fontWeight: 900,
+          cursor: "pointer",
+        }}
+      >
+        🔙 Regresar al Recibo
+      </button>
+
+      <button
+        onClick={onGuardar}
+        disabled={guardando}
+        style={{
+          padding: "10px 14px",
+          borderRadius: 12,
+          border: "none",
+          background: colors.blue,
+          color: "#fff",
+          fontWeight: 900,
+          cursor: guardando ? "not-allowed" : "pointer",
+          opacity: guardando ? 0.7 : 1,
+        }}
+      >
+        {guardando ? "Guardando..." : "💾 Guardar con ubicación"}
+      </button>
+
+      <button
+        onClick={onTransito}
+        disabled={guardando}
+        style={{
+          padding: "10px 14px",
+          borderRadius: 12,
+          border: "none",
+          background: colors.warn,
+          color: "#fff",
+          fontWeight: 900,
+          cursor: guardando ? "not-allowed" : "pointer",
+          opacity: guardando ? 0.7 : 1,
+        }}
+      >
+        🚚 Guardar en tránsito
+      </button>
+    </div>
+  );
+}
+
 export default function DesdeRecibo() {
   const navigate = useNavigate();
 
@@ -915,6 +969,28 @@ export default function DesdeRecibo() {
 
       <div
         style={{
+          marginBottom: 12,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ color: colors.muted, fontWeight: 800, fontSize: 12 }}>
+          Acciones rápidas
+        </div>
+
+        <ActionButtons
+          guardando={guardando}
+          onBack={() => navigate("/movimientos/recibo")}
+          onGuardar={guardarMovimientos}
+          onTransito={guardarEnTransito}
+        />
+      </div>
+
+      <div
+        style={{
           background: colors.card,
           border: `1px solid ${colors.border}`,
           borderRadius: 18,
@@ -1093,54 +1169,13 @@ export default function DesdeRecibo() {
         </div>
       </div>
 
-      <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <button
-          onClick={() => navigate("/movimientos/recibo")}
-          style={{
-            padding: "10px 14px",
-            borderRadius: 12,
-            border: `1px solid ${colors.border}`,
-            background: colors.card,
-            fontWeight: 900,
-            cursor: "pointer",
-          }}
-        >
-          🔙 Regresar al Recibo
-        </button>
-
-        <button
-          onClick={guardarMovimientos}
-          disabled={guardando}
-          style={{
-            padding: "10px 14px",
-            borderRadius: 12,
-            border: "none",
-            background: colors.blue,
-            color: "#fff",
-            fontWeight: 900,
-            cursor: guardando ? "not-allowed" : "pointer",
-            opacity: guardando ? 0.7 : 1,
-          }}
-        >
-          {guardando ? "Guardando..." : "💾 Guardar con ubicación"}
-        </button>
-
-        <button
-          onClick={guardarEnTransito}
-          disabled={guardando}
-          style={{
-            padding: "10px 14px",
-            borderRadius: 12,
-            border: "none",
-            background: colors.warn,
-            color: "#fff",
-            fontWeight: 900,
-            cursor: guardando ? "not-allowed" : "pointer",
-            opacity: guardando ? 0.7 : 1,
-          }}
-        >
-          🚚 Guardar en tránsito
-        </button>
+      <div style={{ marginTop: 12 }}>
+        <ActionButtons
+          guardando={guardando}
+          onBack={() => navigate("/movimientos/recibo")}
+          onGuardar={guardarMovimientos}
+          onTransito={guardarEnTransito}
+        />
       </div>
     </div>
   );
