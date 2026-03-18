@@ -181,6 +181,10 @@ function buildLineaExpandida({
 
   const umb = (lineaOriginal.umb || draft?.header?.umb || "").toString().trim();
 
+  const cantidadOriginal = Number(lineaOriginal.cantidad || 0);
+  const totalOriginal = Number(lineaOriginal.total || 0);
+  const totalUnitario = cantidadOriginal > 0 ? totalOriginal / cantidadOriginal : 0;
+
   return {
     rowKey: `${idxLineaOriginal}-${idxExpandido}-${ubicacionData?.ubicacion || "sin-ubi"}`,
     idxLineaOriginal,
@@ -205,7 +209,7 @@ function buildLineaExpandida({
     um,
     umb,
     cantidadRaw: 1,
-    cantidadFmt: formatQty(1),
+    cantidadFmt: formatQty(totalUnitario),
     proveedor: (draft?.header?.proveedor || "").toString().trim(),
     documento: (draft?.header?.documento || "").toString().trim(),
     remesa: (draft?.header?.remesa || draft?.header?.remesa_transp || "").toString().trim(),
@@ -309,37 +313,14 @@ export default function DesdeRecibo() {
   const filasMov = useMemo(() => {
     if (!draft) return [];
 
+    const serial = draft?.header?.serial || "00000";
+    const usuario = draft?.header?.usuario || "";
+    const fecha = todayISODate();
+    const movimiento = draft?.tipo === "SALIDA" ? "SALIDA" : "ENTRADA";
+
     const filas = [];
 
     (draft.lineas || []).forEach((ln, idx) => {
-      const estadoUbic = ubicPorLinea[idx] || {
-        auto: esMaterialAuto(ln),
-        base: "",
-        posicion: "",
-        ubicacion: "",
-        sugeridas: [],
-      };
-
-      if (estadoUbic.auto && Array.isArray(estadoUbic.sugeridas) && estadoUbic.sugeridas.length > 0) {
-        estadoUbic.sugeridas.forEach((sug, j) => {
-          filas.push(
-            buildLineaExpandida({
-              lineaOriginal: ln,
-              idxLineaOriginal: idx,
-              idxExpandido: j,
-              ubicacionData: sug,
-              draft,
-            })
-          );
-        });
-        return;
-      }
-
-      const serial = draft?.header?.serial || "00000";
-      const usuario = draft?.header?.usuario || "";
-      const fecha = todayISODate();
-      const movimiento = draft?.tipo === "SALIDA" ? "SALIDA" : "ENTRADA";
-
       const codigoCita = serialItem(serial, idx);
       const sku = (ln.codigo || "").toString().trim();
       const texto = (ln.descripcion || "").toString().trim();
@@ -352,8 +333,9 @@ export default function DesdeRecibo() {
         loteProveedorFromLoteAlmacen(ln.lote);
 
       const loteAlm = buildLoteAlmacen15(loteProv, fv);
-      const cantidadRaw = Number(ln.total || 0);
-      const cantidadFmt = formatQty(cantidadRaw);
+
+      const cantidadPallets = Number(ln.cantidad || 0);
+      const totalLinea = Number(ln.total || 0);
 
       const um = (
         ln.um ||
@@ -367,38 +349,60 @@ export default function DesdeRecibo() {
 
       const umb = (ln.umb || draft?.header?.umb || "").toString().trim();
 
-      filas.push({
-        rowKey: `${idx}-base`,
-        idx,
-        idxLineaOriginal: idx,
-        idxExpandido: 0,
-        auto: estadoUbic.auto,
-        base: estadoUbic.base,
-        posicion: estadoUbic.posicion,
-        ubicacion: estadoUbic.ubicacion,
-        sugeridas: estadoUbic.sugeridas || [],
-        fecha,
-        movimiento,
-        id: "",
-        usuario,
-        codigoCita,
-        sku,
-        texto,
-        loteAlm,
-        loteProv,
-        ff,
-        fv,
-        numeroSemana: getISOWeek(fv),
-        um,
-        umb,
-        cantidadRaw,
-        cantidadFmt,
-        proveedor: (draft?.header?.proveedor || "").toString().trim(),
-        documento: (draft?.header?.documento || "").toString().trim(),
-        remesa: (draft?.header?.remesa || draft?.header?.remesa_transp || "").toString().trim(),
-        ordenCompra: (draft?.header?.orden_compra || "").toString().trim(),
-        lineaOriginal: ln,
-      });
+      const estadoUbic = ubicPorLinea[idx] || {
+        auto: esMaterialAuto(ln),
+        base: "",
+        posicion: "",
+        ubicacion: "",
+        sugeridas: [],
+      };
+
+      if (estadoUbic.auto && Array.isArray(estadoUbic.sugeridas) && estadoUbic.sugeridas.length > 0) {
+        estadoUbic.sugeridas.forEach((sug, subIdx) => {
+          filas.push(
+            buildLineaExpandida({
+              lineaOriginal: ln,
+              idxLineaOriginal: idx,
+              idxExpandido: subIdx,
+              ubicacionData: sug,
+              draft,
+            })
+          );
+        });
+      } else {
+        filas.push({
+          rowKey: `${idx}`,
+          idx,
+          idxLineaOriginal: idx,
+          idxExpandido: 0,
+          auto: estadoUbic.auto,
+          base: estadoUbic.base,
+          posicion: estadoUbic.posicion,
+          ubicacion: estadoUbic.ubicacion,
+          sugeridas: estadoUbic.sugeridas || [],
+          fecha,
+          movimiento,
+          id: "",
+          usuario,
+          codigoCita,
+          sku,
+          texto,
+          loteAlm,
+          loteProv,
+          ff,
+          fv,
+          numeroSemana: getISOWeek(fv),
+          um,
+          umb,
+          cantidadRaw: cantidadPallets,
+          cantidadFmt: formatQty(totalLinea),
+          proveedor: (draft?.header?.proveedor || "").toString().trim(),
+          documento: (draft?.header?.documento || "").toString().trim(),
+          remesa: (draft?.header?.remesa || draft?.header?.remesa_transp || "").toString().trim(),
+          ordenCompra: (draft?.header?.orden_compra || "").toString().trim(),
+          lineaOriginal: ln,
+        });
+      }
     });
 
     return filas;
@@ -550,7 +554,7 @@ export default function DesdeRecibo() {
           return `Falta ubicación base en la línea #${i + 1}.`;
         }
 
-        const cant = Number(ln.total || 0);
+        const cant = Number(ln.cantidad || 0);
         if (!Number.isInteger(cant) || cant <= 0) {
           return `La línea #${i + 1} debe tener cantidad entera > 0 para auto ubicación.`;
         }
@@ -711,10 +715,15 @@ export default function DesdeRecibo() {
 
         if (auto) {
           for (const sug of conf.sugeridas || []) {
+            const cantidadPallets = Number(linea.cantidad || 0);
+            const totalLinea = Number(linea.total || 0);
+            const valorUnitario =
+              cantidadPallets > 0 ? totalLinea / cantidadPallets : 0;
+
             const payload = construirPayloadMovimiento(linea, i, {
               codigo_ubicacion: sug.ubicacion,
               estado: "ALMACENADO",
-              cantidad_r: 1000,
+              cantidad_r: valorUnitario,
             });
 
             const res = await fetch(`${API_URL}/movimientos`, {
@@ -734,6 +743,7 @@ export default function DesdeRecibo() {
           const payload = construirPayloadMovimiento(linea, i, {
             codigo_ubicacion: ubic,
             estado: "ALMACENADO",
+            cantidad_r: Number(linea.total || 0),
           });
 
           const res = await fetch(`${API_URL}/movimientos`, {
@@ -777,6 +787,7 @@ export default function DesdeRecibo() {
         const payload = construirPayloadMovimiento(linea, i, {
           codigo_ubicacion: null,
           estado: "EN_TRANSITO",
+          cantidad_r: Number(linea.total || 0),
         });
 
         const res = await fetch(`${API_URL}/movimientos`, {
@@ -940,7 +951,7 @@ export default function DesdeRecibo() {
             <tbody>
               {filasMov.map((r) => {
                 const posicionesManual = posicionesPorBase[r.base] || [];
-                const esFilaExpandidaAuto = r.auto && r.ubicacion && r.cantidadRaw === 1;
+                const editableManual = !r.auto;
 
                 return (
                   <tr key={r.rowKey} style={{ borderBottom: `1px solid ${colors.border}` }}>
@@ -957,7 +968,7 @@ export default function DesdeRecibo() {
                         value={r.base}
                         onChange={(e) => onChangeBase(r.idxLineaOriginal, e.target.value)}
                         style={{ width: 130 }}
-                        disabled={esFilaExpandidaAuto}
+                        disabled={r.auto && r.sugeridas.length > 0}
                       >
                         <option value="">Seleccione...</option>
                         {basesDisponibles.map((b) => (
@@ -970,21 +981,17 @@ export default function DesdeRecibo() {
 
                     <td style={{ padding: 12 }}>
                       {r.auto ? (
-                        esFilaExpandidaAuto ? (
-                          <input
-                            value={r.posicion}
-                            readOnly
-                            style={{ width: 140, background: "#f3f3f3" }}
-                          />
-                        ) : (
-                          <div style={{ color: colors.muted, fontWeight: 700 }}>Automática</div>
-                        )
+                        <input
+                          value={r.posicion}
+                          readOnly
+                          style={{ width: 140, background: "#f3f3f3" }}
+                        />
                       ) : (
                         <select
                           value={r.posicion}
                           onChange={(e) => onChangePosicion(r.idxLineaOriginal, e.target.value)}
                           style={{ width: 140 }}
-                          disabled={!r.base}
+                          disabled={!r.base || !editableManual}
                         >
                           <option value="">Seleccione...</option>
                           {posicionesManual.map((p) => (
@@ -997,39 +1004,29 @@ export default function DesdeRecibo() {
                     </td>
 
                     <td style={{ padding: 12 }}>
-                      {r.auto ? (
-                        esFilaExpandidaAuto ? (
-                          <input
-                            value={r.ubicacion}
-                            readOnly
-                            style={{ width: 160, background: "#f3f3f3" }}
-                          />
-                        ) : (
-                          <div>
-                            <button
-                              onClick={() => sugerirLinea(r.idxLineaOriginal, r.cantidadRaw)}
-                              disabled={!!sugiriendoLinea[r.idxLineaOriginal] || !r.base}
-                              style={{
-                                padding: "8px 10px",
-                                borderRadius: 10,
-                                border: "none",
-                                background: colors.warn,
-                                color: "#fff",
-                                fontWeight: 900,
-                                cursor: !r.base ? "not-allowed" : "pointer",
-                                opacity: !r.base ? 0.6 : 1,
-                              }}
-                            >
-                              {sugiriendoLinea[r.idxLineaOriginal] ? "Sugiriendo..." : "Sugerir"}
-                            </button>
+                      {r.auto && r.sugeridas.length === 0 ? (
+                        <div>
+                          <button
+                            onClick={() => sugerirLinea(r.idxLineaOriginal, r.cantidadRaw)}
+                            disabled={!!sugiriendoLinea[r.idxLineaOriginal] || !r.base}
+                            style={{
+                              padding: "8px 10px",
+                              borderRadius: 10,
+                              border: "none",
+                              background: colors.warn,
+                              color: "#fff",
+                              fontWeight: 900,
+                              cursor: !r.base ? "not-allowed" : "pointer",
+                              opacity: !r.base ? 0.6 : 1,
+                            }}
+                          >
+                            {sugiriendoLinea[r.idxLineaOriginal] ? "Sugiriendo..." : "Sugerir"}
+                          </button>
 
-                            <div style={{ marginTop: 8, fontSize: 12, color: colors.text, fontWeight: 700 }}>
-                              {(r.sugeridas || []).length > 0
-                                ? `${r.sugeridas.length} posiciones sugeridas`
-                                : "Sin sugerencia"}
-                            </div>
+                          <div style={{ marginTop: 8, fontSize: 12, color: colors.text, fontWeight: 700 }}>
+                            Sin sugerencia
                           </div>
-                        )
+                        </div>
                       ) : (
                         <input
                           value={r.ubicacion}
