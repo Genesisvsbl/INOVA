@@ -240,7 +240,7 @@ export default function DesdeRecibo() {
     return map;
   }, [ubicaciones]);
 
-  const filasRender = useMemo(() => {
+  const filasMov = useMemo(() => {
     if (!draft) return [];
 
     const serial = draft?.header?.serial || "00000";
@@ -248,7 +248,7 @@ export default function DesdeRecibo() {
     const fecha = todayISODate();
     const movimiento = draft?.tipo === "SALIDA" ? "SALIDA" : "ENTRADA";
 
-    const out = [];
+    const filas = [];
 
     (draft.lineas || []).forEach((ln, idx) => {
       const codigoCita = serialItem(serial, idx);
@@ -275,6 +275,8 @@ export default function DesdeRecibo() {
         .trim();
 
       const umb = (ln.umb || draft?.header?.umb || "").toString().trim();
+      const cantidadSolicitada = Number(ln.cantidad || 0);
+      const totalLinea = Number(ln.total || 0);
 
       const estadoUbic = ubicPorLinea[idx] || {
         auto: esMaterialAuto(ln),
@@ -286,14 +288,16 @@ export default function DesdeRecibo() {
 
       const auto = estadoUbic.auto;
       const sugeridas = estadoUbic.sugeridas || [];
-      const cantidadRaw = Number(ln.total || 0);
 
       if (auto && sugeridas.length > 0) {
-        sugeridas.forEach((sug, sugIdx) => {
-          out.push({
-            key: `${idx}-${sugIdx}`,
-            sourceIdx: idx,
-            auto: true,
+        const cantidadPorPosicion =
+          cantidadSolicitada > 0 ? totalLinea / cantidadSolicitada : 0;
+
+        sugeridas.forEach((sug, subIdx) => {
+          filas.push({
+            key: `${idx}-${subIdx}`,
+            idx,
+            auto,
             base: estadoUbic.base,
             posicion: sug.posicion || "",
             ubicacion: sug.ubicacion || "",
@@ -311,22 +315,20 @@ export default function DesdeRecibo() {
             fv,
             numeroSemana: getISOWeek(fv),
             um,
-            umb: umb || "1000",
-            cantidadRaw: 1000,
-            cantidadFmt: formatQty(1000),
+            umb,
+            cantidadRaw: cantidadPorPosicion,
+            cantidadFmt: formatQty(cantidadPorPosicion),
             proveedor: (draft?.header?.proveedor || "").toString().trim(),
             documento: (draft?.header?.documento || "").toString().trim(),
             remesa: (draft?.header?.remesa || draft?.header?.remesa_transp || "").toString().trim(),
             ordenCompra: (draft?.header?.orden_compra || "").toString().trim(),
             expanded: true,
-            expandedIndex: sugIdx + 1,
-            expandedTotal: sugeridas.length,
           });
         });
       } else {
-        out.push({
+        filas.push({
           key: `${idx}`,
-          sourceIdx: idx,
+          idx,
           auto,
           base: estadoUbic.base,
           posicion: estadoUbic.posicion,
@@ -346,20 +348,18 @@ export default function DesdeRecibo() {
           numeroSemana: getISOWeek(fv),
           um,
           umb,
-          cantidadRaw,
-          cantidadFmt: formatQty(cantidadRaw),
+          cantidadRaw: cantidadSolicitada,
+          cantidadFmt: formatQty(cantidadSolicitada),
           proveedor: (draft?.header?.proveedor || "").toString().trim(),
           documento: (draft?.header?.documento || "").toString().trim(),
           remesa: (draft?.header?.remesa || draft?.header?.remesa_transp || "").toString().trim(),
           ordenCompra: (draft?.header?.orden_compra || "").toString().trim(),
           expanded: false,
-          expandedIndex: 1,
-          expandedTotal: 1,
         });
       }
     });
 
-    return out;
+    return filas;
   }, [draft, ubicPorLinea]);
 
   if (!draft) return <div>Cargando...</div>;
@@ -396,16 +396,22 @@ export default function DesdeRecibo() {
     });
   };
 
-  const sugerirLinea = async (idx, cantidadRaw) => {
+  const sugerirLinea = async (idx) => {
     const conf = ubicPorLinea[idx] || {};
     const base = (conf.base || "").trim();
+    const linea = draft?.lineas?.[idx];
+
+    if (!linea) {
+      alert(`No se encontró la línea #${idx + 1}.`);
+      return;
+    }
 
     if (!base) {
       alert(`Selecciona ubicación base en la línea #${idx + 1}.`);
       return;
     }
 
-    const cantidad = Number(cantidadRaw || 0);
+    const cantidad = Number(linea.cantidad || 0);
     if (!Number.isInteger(cantidad) || cantidad <= 0) {
       alert(`La línea #${idx + 1} debe tener cantidad entera > 0 para auto ubicación.`);
       return;
@@ -446,13 +452,11 @@ export default function DesdeRecibo() {
         );
       }
 
-      const sugeridas = Array.isArray(data?.posiciones) ? data.posiciones.slice(0, cantidad) : [];
-
       setUbicPorLinea((prev) => ({
         ...prev,
         [idx]: {
           ...(prev[idx] || {}),
-          sugeridas,
+          sugeridas: Array.isArray(data?.posiciones) ? data.posiciones : [],
         },
       }));
     } catch (e) {
@@ -502,7 +506,7 @@ export default function DesdeRecibo() {
           return `Falta ubicación base en la línea #${i + 1}.`;
         }
 
-        const cant = Number(ln.total || 0);
+        const cant = Number(ln.cantidad || 0);
         if (!Number.isInteger(cant) || cant <= 0) {
           return `La línea #${i + 1} debe tener cantidad entera > 0 para auto ubicación.`;
         }
@@ -556,7 +560,7 @@ export default function DesdeRecibo() {
       .toString()
       .trim();
 
-    const umbMovimiento = (opts.umb ?? linea.umb ?? draft?.header?.umb ?? "").toString().trim();
+    const umbMovimiento = (linea.umb || draft?.header?.umb || "").toString().trim();
 
     return {
       fecha: new Date().toISOString(),
@@ -662,12 +666,16 @@ export default function DesdeRecibo() {
         const auto = esMaterialAuto(linea);
 
         if (auto) {
+          const cantidadSolicitada = Number(linea.cantidad || 0);
+          const totalLinea = Number(linea.total || 0);
+          const cantidadPorPosicion =
+            cantidadSolicitada > 0 ? totalLinea / cantidadSolicitada : 0;
+
           for (const sug of conf.sugeridas || []) {
             const payload = construirPayloadMovimiento(linea, i, {
               codigo_ubicacion: sug.ubicacion,
               estado: "ALMACENADO",
-              cantidad_r: 1000,
-              umb: "1000",
+              cantidad_r: cantidadPorPosicion,
             });
 
             const res = await fetch(`${API_URL}/movimientos`, {
@@ -891,7 +899,7 @@ export default function DesdeRecibo() {
             </thead>
 
             <tbody>
-              {filasRender.map((r) => {
+              {filasMov.map((r) => {
                 const posicionesManual = posicionesPorBase[r.base] || [];
 
                 return (
@@ -907,7 +915,7 @@ export default function DesdeRecibo() {
                     <td style={{ padding: 12 }}>
                       <select
                         value={r.base}
-                        onChange={(e) => onChangeBase(r.sourceIdx, e.target.value)}
+                        onChange={(e) => onChangeBase(r.idx, e.target.value)}
                         style={{ width: 130 }}
                         disabled={r.expanded}
                       >
@@ -930,7 +938,7 @@ export default function DesdeRecibo() {
                       ) : (
                         <select
                           value={r.posicion}
-                          onChange={(e) => onChangePosicion(r.sourceIdx, e.target.value)}
+                          onChange={(e) => onChangePosicion(r.idx, e.target.value)}
                           style={{ width: 140 }}
                           disabled={!r.base}
                         >
@@ -948,8 +956,8 @@ export default function DesdeRecibo() {
                       {r.auto && !r.expanded ? (
                         <div>
                           <button
-                            onClick={() => sugerirLinea(r.sourceIdx, r.cantidadRaw)}
-                            disabled={!!sugiriendoLinea[r.sourceIdx] || !r.base}
+                            onClick={() => sugerirLinea(r.idx)}
+                            disabled={!!sugiriendoLinea[r.idx] || !r.base}
                             style={{
                               padding: "8px 10px",
                               borderRadius: 10,
@@ -961,7 +969,7 @@ export default function DesdeRecibo() {
                               opacity: !r.base ? 0.6 : 1,
                             }}
                           >
-                            {sugiriendoLinea[r.sourceIdx] ? "Sugiriendo..." : "Sugerir"}
+                            {sugiriendoLinea[r.idx] ? "Sugiriendo..." : "Sugerir"}
                           </button>
                         </div>
                       ) : (
