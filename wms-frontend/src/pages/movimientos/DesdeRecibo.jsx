@@ -367,19 +367,36 @@ export default function DesdeRecibo() {
     setSugiriendoLinea((p) => ({ ...p, [idx]: true }));
 
     try {
+      const payload = {
+        ubicacion_base: base,
+        cantidad_pallets: cantidad,
+      };
+
       const res = await fetch(`${API_URL}/ubicaciones/sugerir`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ubicacion_base: base,
-          cantidad_pallets: cantidad,
-        }),
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
 
-      const data = await res.json().catch(() => null);
+      let data = null;
+      let rawText = "";
+
+      try {
+        rawText = await res.text();
+        data = rawText ? JSON.parse(rawText) : null;
+      } catch {
+        data = null;
+      }
 
       if (!res.ok) {
-        throw new Error(data?.detail || "No se pudo sugerir posiciones");
+        throw new Error(
+          data?.detail ||
+            rawText ||
+            `Error ${res.status}: ${res.statusText || "No se pudo sugerir posiciones"}`
+        );
       }
 
       setUbicPorLinea((prev) => ({
