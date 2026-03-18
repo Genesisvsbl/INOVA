@@ -122,7 +122,6 @@ export default function Ubicaciones() {
     ubicacion_base: "",
     posicion: "",
     zona: "",
-    familias: "",
     bodega: "",
   });
 
@@ -135,17 +134,9 @@ export default function Ubicaciones() {
       const ub = (x.ubicacion_base || "").toLowerCase();
       const p = (x.posicion || "").toLowerCase();
       const z = (x.zona || "").toLowerCase();
-      const f = (x.familias || "").toLowerCase();
       const b = (x.bodega || "").toLowerCase();
 
-      return (
-        u.includes(s) ||
-        ub.includes(s) ||
-        p.includes(s) ||
-        z.includes(s) ||
-        f.includes(s) ||
-        b.includes(s)
-      );
+      return u.includes(s) || ub.includes(s) || p.includes(s) || z.includes(s) || b.includes(s);
     });
   }, [items, search]);
 
@@ -200,7 +191,6 @@ export default function Ubicaciones() {
           ubicacion_base: nuevo.ubicacion_base.trim(),
           posicion: nuevo.posicion.trim(),
           zona: nuevo.zona.trim(),
-          familias: nuevo.familias.trim(),
           bodega: nuevo.bodega.trim(),
         }),
       });
@@ -212,7 +202,6 @@ export default function Ubicaciones() {
         ubicacion_base: "",
         posicion: "",
         zona: "",
-        familias: "",
         bodega: "",
       });
 
@@ -241,9 +230,6 @@ export default function Ubicaciones() {
     const zona = prompt("Editar zona:", item.zona || "");
     if (zona === null) return;
 
-    const familias = prompt("Editar familias:", item.familias || "");
-    if (familias === null) return;
-
     const bodega = prompt("Editar bodega:", item.bodega || "");
     if (bodega === null) return;
 
@@ -261,7 +247,6 @@ export default function Ubicaciones() {
           ubicacion_base: ubicacion_base.trim(),
           posicion: posicion.trim(),
           zona: zona.trim(),
-          familias: familias.trim(),
           bodega: bodega.trim(),
         }),
       });
@@ -343,7 +328,7 @@ export default function Ubicaciones() {
     <div>
       <LogoHeader
         title="Ubicaciones"
-        subtitle="Administra, crea, edita, elimina e importa ubicación, posición, zona, familias y bodega."
+        subtitle="Administra, crea, edita, elimina e importa ubicación, posición, zona y bodega."
       />
 
       <div
@@ -370,7 +355,7 @@ export default function Ubicaciones() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por ubicación final, base, posición, zona, familias o bodega..."
+            placeholder="Buscar por ubicación final, base, posición, zona o bodega..."
             style={{
               width: "100%",
               padding: "10px 12px",
@@ -495,7 +480,7 @@ export default function Ubicaciones() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr auto",
+            gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr auto",
             gap: 10,
             alignItems: "end",
           }}
@@ -591,25 +576,6 @@ export default function Ubicaciones() {
 
           <div>
             <div style={{ fontSize: 11, fontWeight: 900, color: colors.muted, marginBottom: 6 }}>
-              FAMILIAS
-            </div>
-            <input
-              value={nuevo.familias}
-              onChange={(e) => setNuevo((p) => ({ ...p, familias: e.target.value }))}
-              placeholder="Opcional"
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: 12,
-                border: `1px solid ${colors.border}`,
-                outline: "none",
-                fontWeight: 700,
-              }}
-            />
-          </div>
-
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 900, color: colors.muted, marginBottom: 6 }}>
               BODEGA
             </div>
             <input
@@ -664,7 +630,7 @@ export default function Ubicaciones() {
         }}
       >
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1500 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1400 }}>
             <thead>
               <tr
                 style={{
@@ -686,9 +652,6 @@ export default function Ubicaciones() {
                   ZONA
                 </th>
                 <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>
-                  FAMILIAS
-                </th>
-                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>
                   BODEGA
                 </th>
                 <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>
@@ -700,7 +663,7 @@ export default function Ubicaciones() {
             <tbody>
               {!loading && filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: 18, color: colors.muted, fontWeight: 800 }}>
+                  <td colSpan={6} style={{ padding: 18, color: colors.muted, fontWeight: 800 }}>
                     No hay ubicaciones para mostrar.
                   </td>
                 </tr>
@@ -717,7 +680,6 @@ export default function Ubicaciones() {
                       {u.ubicacion || ""}
                     </td>
                     <td style={{ padding: 12 }}>{u.zona || ""}</td>
-                    <td style={{ padding: 12 }}>{u.familias || ""}</td>
                     <td style={{ padding: 12 }}>{u.bodega || ""}</td>
                     <td style={{ padding: 12 }}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
