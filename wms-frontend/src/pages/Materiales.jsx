@@ -4,6 +4,7 @@ import {
   crearMaterial,
   editarMaterial,
   eliminarMaterial,
+  importarMaterialesExcel,
 } from "../api";
 
 const colors = {
@@ -112,7 +113,7 @@ function Chip({ label, tone = "neutral" }) {
 }
 
 function formatUnidad(value) {
-  if (value === null || value === undefined || value === "") return "";
+  if (value === null || value === undefined || value === "") return "-";
   const n = Number(value);
   if (Number.isNaN(n)) return String(value);
   return n.toLocaleString("es-CO", {
@@ -282,19 +283,7 @@ export default function Materiales() {
     setImportando(true);
 
     try {
-      const formData = new FormData();
-      formData.append("file", archivoExcel);
-
-      const res = await fetch("http://127.0.0.1:8000/materiales/importar", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error(data?.detail || "Error importando materiales");
-      }
+      const data = await importarMaterialesExcel(archivoExcel);
 
       setArchivoExcel(null);
 
@@ -304,7 +293,7 @@ export default function Materiales() {
       await cargar(busqueda);
 
       alert(
-        `✅ Importación completada.\nMateriales nuevos: ${data?.materiales_nuevos ?? 0}`
+        `✅ Importación completada.\nMateriales nuevos: ${data?.materiales_nuevos ?? 0}\nMateriales actualizados: ${data?.materiales_actualizados ?? 0}`
       );
     } catch (e) {
       alert("❌ Error importando Excel:\n" + (e?.message || e));

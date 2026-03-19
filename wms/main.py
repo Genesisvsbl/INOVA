@@ -441,30 +441,48 @@ async def importar_materiales(file: UploadFile = File(...), db: Session = Depend
         if col not in df.columns:
             raise HTTPException(status_code=400, detail=f"Falta la columna requerida: {col}")
 
-    df = df.drop_duplicates(subset=["codigo"])
+    df = df.drop_duplicates(subset=["codigo"], keep="last")
 
-    codigos_existentes = {m[0] for m in db.query(models.Material.codigo).all()}
     materiales_creados = 0
+    materiales_actualizados = 0
 
     for _, row in df.iterrows():
         codigo = str(row["codigo"]).strip()
-        if not codigo or codigo in codigos_existentes:
+        if not codigo:
             continue
 
+        descripcion = str(row["descripcion"]).strip()
         unidad_valor = clean_float(row["unidad"])
+        unidad_medida = str(row["unidad_medida"]).strip()
+        familia = str(row["familia"]).strip()
 
-        material = models.Material(
-            codigo=codigo,
-            descripcion=str(row["descripcion"]).strip(),
-            unidad=unidad_valor,
-            unidad_medida=str(row["unidad_medida"]).strip(),
-            familia=str(row["familia"]).strip(),
-        )
-        db.add(material)
-        materiales_creados += 1
+        existente = db.query(models.Material).filter(
+            models.Material.codigo == codigo
+        ).first()
+
+        if existente:
+            existente.descripcion = descripcion
+            existente.unidad = unidad_valor
+            existente.unidad_medida = unidad_medida
+            existente.familia = familia
+            materiales_actualizados += 1
+        else:
+            material = models.Material(
+                codigo=codigo,
+                descripcion=descripcion,
+                unidad=unidad_valor,
+                unidad_medida=unidad_medida,
+                familia=familia,
+            )
+            db.add(material)
+            materiales_creados += 1
 
     db.commit()
-    return {"mensaje": "Importación completada", "materiales_nuevos": materiales_creados}
+    return {
+        "mensaje": "Importación completada",
+        "materiales_nuevos": materiales_creados,
+        "materiales_actualizados": materiales_actualizados,
+    }
 
 
 # ==============================
