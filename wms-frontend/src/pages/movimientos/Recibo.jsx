@@ -16,7 +16,6 @@ function clampMaxLen(s, max) {
   return str.length > max ? str.slice(0, max) : str;
 }
 
-// Permite letras, números y *
 function onlyAlnumAndStar(s) {
   return (s ?? "").toString().replace(/[^a-zA-Z0-9*]/g, "");
 }
@@ -53,7 +52,6 @@ function formatDateDisplay(v) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// Solo impresión tarjetas: 2026.03.13
 function formatDateDots(v) {
   const iso = formatDateDisplay(v);
   if (!iso) return "";
@@ -75,7 +73,6 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-// ✅ Formato con punto de mil (es-CO)
 const fmtCO = new Intl.NumberFormat("es-CO", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
@@ -86,23 +83,59 @@ function formatMoney(n) {
   return fmtCO.format(x);
 }
 
-// ===== Usuarios por clave (temporal) =====
 const USUARIOS = {
   "*768*": "Darwin Herrera",
   "*999*": "Admin",
 };
 
-// ===== Empaques (dropdown) =====
 const EMPAQUES = ["CAJA", "CANECA", "ROLLO", "BULTO", "PALLETS", "ISOTANQUES", "BIG BAG"];
 
 const DRAFT_KEY = "wms_recibo_draft";
+
+function createEmptyLinea() {
+  return {
+    fecha_recepcion: todayISODate(),
+    codigo: "",
+    descripcion: "",
+    empaque: "",
+    umb: "",
+    umb_bloqueado: false,
+    unidad_material: null,
+    um: "",
+    cantidad: "",
+    total: 0,
+    lote_proveedor: "",
+    fecha_fabricacion: "",
+    fecha_vencimiento: "",
+    lote: "",
+  };
+}
+
+function createInitialHeader() {
+  return {
+    serial: "13003",
+    proveedor_id: "",
+    proveedor: "",
+    acreedor: "",
+    remesa_transp: "",
+    documento: "",
+    orden_compra: "",
+    fecha_recepcion: todayISODate(),
+  };
+}
 
 export default function Recibo() {
   const navigate = useNavigate();
   const printRef = useRef(null);
 
-  // ===== Usuario por clave =====
   const [usuario, setUsuario] = useState("");
+  const [proveedores, setProveedores] = useState([]);
+  const [proveedoresError, setProveedoresError] = useState("");
+  const [tipoRecibo, setTipoRecibo] = useState("");
+  const [header, setHeader] = useState(createInitialHeader());
+  const [materiales, setMateriales] = useState([]);
+  const [lineas, setLineas] = useState([createEmptyLinea()]);
+  const [errores, setErrores] = useState({});
 
   useEffect(() => {
     const saved = localStorage.getItem("wms_user");
@@ -120,10 +153,6 @@ export default function Recibo() {
     setUsuario(nombre);
   }, []);
 
-  // ===== Proveedores desde BD =====
-  const [proveedores, setProveedores] = useState([]);
-  const [proveedoresError, setProveedoresError] = useState("");
-
   useEffect(() => {
     getProveedores()
       .then((data) => {
@@ -136,24 +165,6 @@ export default function Recibo() {
       });
   }, []);
 
-  // ===== Tipo de recibo =====
-  const [tipoRecibo, setTipoRecibo] = useState("");
-
-  // ===== Cabecera =====
-  const [header, setHeader] = useState({
-    serial: "13003",
-    proveedor_id: "",
-    proveedor: "",
-    acreedor: "",
-    remesa_transp: "",
-    documento: "",
-    orden_compra: "",
-    fecha_recepcion: todayISODate(),
-  });
-
-  // ===== Materiales =====
-  const [materiales, setMateriales] = useState([]);
-
   useEffect(() => {
     fetch(`${API_URL}/materiales?limit=1000`)
       .then(async (r) => {
@@ -164,36 +175,23 @@ export default function Recibo() {
       .catch(() => setMateriales([]));
   }, []);
 
-  // ===== Líneas =====
-  const [lineas, setLineas] = useState([
-    {
-      fecha_recepcion: todayISODate(),
-      codigo: "",
-      descripcion: "",
-      empaque: "",
-      umb: "",
-      umb_bloqueado: false,
-      unidad_material: null,
-      um: "",
-      cantidad: "",
-      total: 0,
-      lote_proveedor: "",
-      fecha_fabricacion: "",
-      fecha_vencimiento: "",
-      lote: "",
-    },
-  ]);
-
-  const [errores, setErrores] = useState({});
-
-  // ✅ Cargar borrador si existe
+  // IMPORTANTE:
+  // No cargar tipoRecibo desde localStorage, para obligar a seleccionar siempre.
   useEffect(() => {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
       if (!raw) return;
       const d = JSON.parse(raw);
-      if (d?.header) setHeader(d.header);
-      if (d?.tipoRecibo) setTipoRecibo(d.tipoRecibo);
+
+      if (d?.header) {
+        setHeader({
+          ...createInitialHeader(),
+          ...d.header,
+          remesa_transp: "",
+          documento: "",
+          orden_compra: "",
+        });
+      }
 
       if (Array.isArray(d?.lineas) && d.lineas.length) {
         setLineas(
@@ -207,9 +205,11 @@ export default function Recibo() {
     } catch {
       // nada
     }
+
+    // Fuerza que al entrar no haya selección previa
+    setTipoRecibo("");
   }, []);
 
-  // ===== Regla automática para devolución =====
   useEffect(() => {
     if (tipoRecibo === "devolucion") {
       setHeader((prev) => ({
@@ -280,25 +280,7 @@ export default function Recibo() {
   };
 
   const addLinea = () => {
-    setLineas((prev) => [
-      ...prev,
-      {
-        fecha_recepcion: todayISODate(),
-        codigo: "",
-        descripcion: "",
-        empaque: "",
-        umb: "",
-        umb_bloqueado: false,
-        unidad_material: null,
-        um: "",
-        cantidad: "",
-        total: 0,
-        lote_proveedor: "",
-        fecha_fabricacion: "",
-        fecha_vencimiento: "",
-        lote: "",
-      },
-    ]);
+    setLineas((prev) => [...prev, createEmptyLinea()]);
   };
 
   const removeLinea = (idx) => setLineas((prev) => prev.filter((_, i) => i !== idx));
@@ -317,7 +299,6 @@ export default function Recibo() {
     const unidadMaterial = mat?.unidad ?? null;
     const unidadNumero = Number(unidadMaterial);
     const bloquearUmb = Number.isFinite(unidadNumero) && unidadNumero > 1;
-
     const umbFinal = bloquearUmb ? String(unidadNumero) : "";
 
     setLinea(idx, {
@@ -375,9 +356,7 @@ export default function Recibo() {
   const validarAntesDeContinuar = () => {
     const errs = {};
 
-    if (!tipoRecibo) {
-      errs.tipoRecibo = "Debes seleccionar Recibo o Devolución.";
-    }
+    if (!tipoRecibo) errs.tipoRecibo = "Debes seleccionar Recibo o Devolución.";
 
     ["documento"].forEach((k) => {
       if (!header[k] || header[k].length !== 10) {
@@ -624,414 +603,15 @@ export default function Recibo() {
     const html = `
       <html>
         <head>
-          <title>${escapeHtml(tipoRecibo === "devolucion" ? "Devolución" : "Recibo ciego")} - ${escapeHtml(
-      header.serial
-    )}</title>
+          <title>${escapeHtml(tipoRecibo === "devolucion" ? "Devolución" : "Recibo ciego")} - ${escapeHtml(header.serial)}</title>
           <meta charset="utf-8" />
           <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-          <style>
-            @page {
-              size: A4 landscape;
-              margin: 8mm;
-            }
-
-            * {
-              box-sizing: border-box;
-            }
-
-            html, body {
-              margin: 0;
-              padding: 0;
-              font-family: Arial, sans-serif;
-              color: #0f172a;
-              background: #fff;
-            }
-
-            .sheet {
-              width: 100%;
-              page-break-after: always;
-            }
-
-            .sheet:last-child {
-              page-break-after: auto;
-            }
-
-            .titlebar {
-              display: flex;
-              align-items: center;
-              gap: 12px;
-              margin-bottom: 10px;
-            }
-
-            .logo {
-              width: 58px;
-              height: 58px;
-              border: 1px solid #dbe2ea;
-              border-radius: 14px;
-              overflow: hidden;
-              display: grid;
-              place-items: center;
-              flex: 0 0 auto;
-            }
-
-            .logo img {
-              width: 100%;
-              height: 100%;
-              object-fit: contain;
-            }
-
-            .title-main {
-              font-weight: 900;
-              font-size: 16px;
-              line-height: 1.1;
-            }
-
-            .title-sub {
-              margin-top: 3px;
-              color: #475569;
-              font-size: 12px;
-            }
-
-            .header-grid {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 12px;
-              margin-bottom: 10px;
-            }
-
-            .box {
-              border: 1px solid #dbe2ea;
-              border-radius: 12px;
-              padding: 12px 14px;
-              min-height: 150px;
-            }
-
-            .field {
-              margin-bottom: 12px;
-            }
-
-            .field:last-child {
-              margin-bottom: 0;
-            }
-
-            .label {
-              font-weight: 900;
-              font-size: 12px;
-              color: #0f172a;
-              margin-bottom: 3px;
-            }
-
-            .value {
-              font-size: 12px;
-              color: #111827;
-              line-height: 1.25;
-              white-space: pre-wrap;
-              word-break: break-word;
-            }
-
-            .value-big-total {
-              font-size: 16px;
-              font-weight: 900;
-              text-align: right;
-            }
-
-            .table-wrap {
-              width: 100%;
-              overflow: hidden;
-            }
-
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              table-layout: fixed;
-            }
-
-            th, td {
-              border: 1px solid #1f2937;
-              padding: 4px 5px;
-              font-size: 9.4px;
-              vertical-align: top;
-              overflow-wrap: anywhere;
-              word-break: break-word;
-            }
-
-            th {
-              background: #f1f5f9;
-              text-align: left;
-              font-weight: 900;
-            }
-
-            .recibo-table th:nth-child(1), .recibo-table td:nth-child(1) { width: 8%; }
-            .recibo-table th:nth-child(2), .recibo-table td:nth-child(2) { width: 4%; }
-            .recibo-table th:nth-child(3), .recibo-table td:nth-child(3) { width: 9%; }
-            .recibo-table th:nth-child(4), .recibo-table td:nth-child(4) { width: 8%; }
-            .recibo-table th:nth-child(5), .recibo-table td:nth-child(5) { width: 20%; }
-            .recibo-table th:nth-child(6), .recibo-table td:nth-child(6) { width: 9%; }
-            .recibo-table th:nth-child(7), .recibo-table td:nth-child(7) { width: 6%; }
-            .recibo-table th:nth-child(8), .recibo-table td:nth-child(8) { width: 6%; }
-            .recibo-table th:nth-child(9), .recibo-table td:nth-child(9) { width: 7%; }
-            .recibo-table th:nth-child(10), .recibo-table td:nth-child(10) { width: 8%; }
-            .recibo-table th:nth-child(11), .recibo-table td:nth-child(11) { width: 11%; }
-            .recibo-table th:nth-child(12), .recibo-table td:nth-child(12) { width: 9%; }
-            .recibo-table th:nth-child(13), .recibo-table td:nth-child(13) { width: 9%; }
-
-            .cards-sheet-header {
-              display: flex;
-              align-items: center;
-              gap: 12px;
-              margin-bottom: 14px;
-            }
-
-            .cards-title {
-              font-size: 16px;
-              font-weight: 900;
-              color: #072B5A;
-            }
-
-            .cards-subtitle {
-              font-size: 12px;
-              color: #475569;
-              margin-top: 3px;
-            }
-
-            .cards-grid {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 12px;
-            }
-
-            .card {
-              border: 1px solid #cbd5e1;
-              border-radius: 14px;
-              padding: 12px;
-              page-break-inside: avoid;
-              min-height: 250px;
-            }
-
-            .card-head {
-              display: flex;
-              justify-content: space-between;
-              align-items: flex-start;
-              gap: 12px;
-              margin-bottom: 10px;
-            }
-
-            .card-logo-wrap {
-              display: flex;
-              align-items: center;
-              gap: 10px;
-            }
-
-            .card-logo {
-              width: 58px;
-              height: 58px;
-              border: 1px solid #dbe2ea;
-              border-radius: 12px;
-              overflow: hidden;
-              display: grid;
-              place-items: center;
-              flex: 0 0 auto;
-            }
-
-            .card-logo img {
-              width: 100%;
-              height: 100%;
-              object-fit: contain;
-            }
-
-            .card-brand-title {
-              font-size: 14px;
-              font-weight: 900;
-              color: #072B5A;
-              line-height: 1.1;
-            }
-
-            .card-brand-sub {
-              font-size: 11px;
-              color: #334155;
-              margin-top: 3px;
-            }
-
-            .card-serial-box {
-              text-align: right;
-            }
-
-            .mini-label {
-              font-size: 10px;
-              font-weight: 900;
-              color: #334155;
-              margin-bottom: 4px;
-              text-transform: uppercase;
-              letter-spacing: .3px;
-            }
-
-            .serial-big {
-              font-size: 16px;
-              font-weight: 1000;
-              color: #0f172a;
-            }
-
-            .top-inline {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 12px;
-              margin-bottom: 10px;
-            }
-
-            .half {
-              min-width: 0;
-            }
-
-            .right-align {
-              text-align: right;
-            }
-
-            .value-big {
-              font-size: 15px;
-              font-weight: 1000;
-              color: #0f172a;
-              word-break: break-word;
-            }
-
-            .left {
-              text-align: left;
-            }
-
-            .barcode-block {
-              border: 1px solid #e2e8f0;
-              border-radius: 10px;
-              padding: 10px;
-              margin-bottom: 10px;
-              text-align: center;
-            }
-
-            .barcode-block:last-child {
-              margin-bottom: 0;
-            }
-
-            .barcode-text {
-              margin-top: 8px;
-              font-size: 11px;
-              font-weight: 800;
-              word-break: break-all;
-            }
-
-            svg {
-              width: 100%;
-              height: 58px;
-              display: block;
-            }
-          </style>
         </head>
         <body>
-          <div class="sheet">
-            <div class="titlebar">
-              <div class="logo">
-                <img src="/INOVA.png" alt="INOVA" />
-              </div>
-              <div>
-                <div class="title-main">WMS INOVA</div>
-                <div class="title-sub">
-                  ${escapeHtml(tipoRecibo === "devolucion" ? "Devolución" : "Recibo ciego")} • Serial ${escapeHtml(
-      header.serial
-    )} • Usuario ${escapeHtml(usuario || "")}
-                </div>
-              </div>
-            </div>
-
-            <div class="header-grid">
-              <div class="box">
-                <div class="field">
-                  <div class="label"># Serial</div>
-                  <div class="value">${escapeHtml(header.serial)}</div>
-                </div>
-
-                <div class="field">
-                  <div class="label">Nombre Proveedor</div>
-                  <div class="value">${escapeHtml(proveedorNombre || "")}</div>
-                </div>
-
-                <div class="field">
-                  <div class="label">Acreedor</div>
-                  <div class="value">${escapeHtml(header.acreedor || "")}</div>
-                </div>
-
-                <div class="field">
-                  <div class="label">Fecha recepción</div>
-                  <div class="value">${escapeHtml(formatDateDisplay(header.fecha_recepcion))}</div>
-                </div>
-              </div>
-
-              <div class="box">
-                <div class="field">
-                  <div class="label"># Remesa Transp (10)</div>
-                  <div class="value">${escapeHtml(header.remesa_transp || "")}</div>
-                </div>
-
-                <div class="field">
-                  <div class="label"># Documento (10)</div>
-                  <div class="value">${escapeHtml(header.documento || "")}</div>
-                </div>
-
-                <div class="field">
-                  <div class="label"># Orden de Compra (10)</div>
-                  <div class="value">${escapeHtml(header.orden_compra || "")}</div>
-                </div>
-
-                <div class="field">
-                  <div class="label">Total Recibo</div>
-                  <div class="value-big-total">${escapeHtml(formatMoney(totalRecibo))}</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="table-wrap">
-              <table class="recibo-table">
-                <thead>
-                  <tr>
-                    <th># Serial</th>
-                    <th>Item</th>
-                    <th>Fecha Recepción</th>
-                    <th>Código</th>
-                    <th>Texto breve material</th>
-                    <th>Empaque</th>
-                    <th>UMB</th>
-                    <th>UM</th>
-                    <th>Cantidad</th>
-                    <th>Total</th>
-                    <th>Lote Proveedor (10)</th>
-                    <th>Fecha Fabricación</th>
-                    <th>Fecha Vencimiento</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${reciboRowsHtml}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="sheet">
-            <div class="cards-sheet-header">
-              <div class="logo">
-                <img src="/INOVA.png" alt="INOVA" />
-              </div>
-              <div>
-                <div class="cards-title">Tarjetas del ${escapeHtml(
-                  tipoRecibo === "devolucion" ? "devolución" : "recibo"
-                )}</div>
-                <div class="cards-subtitle">4 por hoja • listas para escanear</div>
-              </div>
-            </div>
-
-            <div class="cards-grid">
-              ${tarjetasHtml}
-            </div>
-          </div>
-
+          <div>${reciboRowsHtml}</div>
+          <div>${tarjetasHtml}</div>
           <script>
             ${barcodeScript}
-
             window.onload = () => {
               setTimeout(() => {
                 window.print();
@@ -1124,17 +704,12 @@ export default function Recibo() {
         <>
           <div style={{ marginBottom: 10, color: "#444" }}>
             <b>Usuario:</b> {usuario || "(sin usuario)"}
-            {errores.usuario && <span style={{ color: "crimson", marginLeft: 8 }}>{errores.usuario}</span>}
           </div>
 
           {proveedoresError && (
             <div style={{ color: "crimson", marginBottom: 10 }}>
               Error cargando proveedores: {proveedoresError}
             </div>
-          )}
-
-          {errores.tipoRecibo && (
-            <div style={{ color: "crimson", marginBottom: 10 }}>{errores.tipoRecibo}</div>
           )}
 
           <div ref={printRef}>
@@ -1171,7 +746,6 @@ export default function Recibo() {
                       </option>
                     ))}
                   </select>
-                  {errores.proveedor && <div style={{ color: "crimson", marginTop: 4 }}>{errores.proveedor}</div>}
                 </div>
 
                 <div style={{ marginTop: 10 }}>
@@ -1182,7 +756,6 @@ export default function Recibo() {
                     placeholder="Auto por proveedor"
                     style={{ width: "100%", marginTop: 6, background: "#f3f3f3" }}
                   />
-                  {errores.acreedor && <div style={{ color: "crimson", marginTop: 4 }}>{errores.acreedor}</div>}
                 </div>
 
                 <div style={{ marginTop: 10 }}>
@@ -1211,12 +784,8 @@ export default function Recibo() {
                         width: "100%",
                         marginTop: 6,
                         background: tipoRecibo === "devolucion" ? "#f3f3f3" : "#fff",
-                        cursor: tipoRecibo === "devolucion" ? "not-allowed" : "text",
                       }}
                     />
-                    {errores.remesa_transp && (
-                      <div style={{ color: "crimson", marginTop: 4 }}>{errores.remesa_transp}</div>
-                    )}
                   </div>
 
                   <div>
@@ -1228,7 +797,6 @@ export default function Recibo() {
                       maxLength={10}
                       style={{ width: "100%", marginTop: 6 }}
                     />
-                    {errores.documento && <div style={{ color: "crimson", marginTop: 4 }}>{errores.documento}</div>}
                   </div>
 
                   <div>
@@ -1243,12 +811,8 @@ export default function Recibo() {
                         width: "100%",
                         marginTop: 6,
                         background: tipoRecibo === "devolucion" ? "#f3f3f3" : "#fff",
-                        cursor: tipoRecibo === "devolucion" ? "not-allowed" : "text",
                       }}
                     />
-                    {errores.orden_compra && (
-                      <div style={{ color: "crimson", marginTop: 4 }}>{errores.orden_compra}</div>
-                    )}
                   </div>
 
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -1279,17 +843,14 @@ export default function Recibo() {
                     <th>Acción</th>
                   </tr>
                 </thead>
-
                 <tbody>
                   {lineas.map((ln, idx) => (
                     <tr key={idx}>
                       <td>{serialItem(header.serial, idx)}</td>
                       <td>{idx + 1}</td>
-
                       <td>
                         <input type="date" value={ln.fecha_recepcion} readOnly style={{ background: "#f3f3f3" }} />
                       </td>
-
                       <td>
                         <input
                           list="materialesList"
@@ -1298,15 +859,10 @@ export default function Recibo() {
                           placeholder="Código"
                           style={{ width: 120 }}
                         />
-                        {errores[`codigo_${idx}`] && (
-                          <div style={{ color: "crimson" }}>{errores[`codigo_${idx}`]}</div>
-                        )}
                       </td>
-
                       <td>
                         <input value={ln.descripcion} readOnly style={{ width: 260, background: "#f3f3f3" }} />
                       </td>
-
                       <td>
                         <select
                           value={ln.empaque}
@@ -1320,30 +876,19 @@ export default function Recibo() {
                             </option>
                           ))}
                         </select>
-                        {errores[`empaque_${idx}`] && (
-                          <div style={{ color: "crimson" }}>{errores[`empaque_${idx}`]}</div>
-                        )}
                       </td>
-
                       <td>
                         <input
                           type="number"
                           value={ln.umb}
                           onChange={(e) => onUmbChange(idx, e.target.value)}
-                          style={{
-                            width: 90,
-                            background: ln.umb_bloqueado ? "#f3f3f3" : "#fff",
-                            cursor: ln.umb_bloqueado ? "not-allowed" : "text",
-                          }}
                           readOnly={ln.umb_bloqueado}
+                          style={{ width: 90 }}
                         />
-                        {errores[`umb_${idx}`] && <div style={{ color: "crimson" }}>{errores[`umb_${idx}`]}</div>}
                       </td>
-
                       <td>
                         <input value={ln.um} readOnly style={{ width: 90, background: "#f3f3f3" }} />
                       </td>
-
                       <td>
                         <input
                           type="number"
@@ -1351,11 +896,7 @@ export default function Recibo() {
                           onChange={(e) => onCantidadChange(idx, e.target.value)}
                           style={{ width: 110 }}
                         />
-                        {errores[`cantidad_${idx}`] && (
-                          <div style={{ color: "crimson" }}>{errores[`cantidad_${idx}`]}</div>
-                        )}
                       </td>
-
                       <td>
                         <input
                           value={formatMoney(ln.total || 0)}
@@ -1363,7 +904,6 @@ export default function Recibo() {
                           style={{ width: 120, background: "#f3f3f3" }}
                         />
                       </td>
-
                       <td>
                         <input
                           value={ln.lote_proveedor}
@@ -1373,11 +913,7 @@ export default function Recibo() {
                           placeholder="10 caracteres"
                           style={{ width: 160 }}
                         />
-                        {errores[`loteprov_${idx}`] && (
-                          <div style={{ color: "crimson" }}>{errores[`loteprov_${idx}`]}</div>
-                        )}
                       </td>
-
                       <td>
                         <input
                           type="date"
@@ -1385,16 +921,13 @@ export default function Recibo() {
                           onChange={(e) => setLinea(idx, { fecha_fabricacion: e.target.value })}
                         />
                       </td>
-
                       <td>
                         <input
                           type="date"
                           value={ln.fecha_vencimiento}
                           onChange={(e) => setLinea(idx, { fecha_vencimiento: e.target.value })}
                         />
-                        {errores[`fv_${idx}`] && <div style={{ color: "crimson" }}>{errores[`fv_${idx}`]}</div>}
                       </td>
-
                       <td>
                         <button onClick={() => removeLinea(idx)} disabled={lineas.length === 1}>
                           Eliminar
@@ -1417,7 +950,7 @@ export default function Recibo() {
 
           <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
             <button onClick={addLinea}>+ Agregar línea</button>
-            <button onClick={onImprimir}>🖨️ Imprimir!</button>
+            <button onClick={onImprimir}>🖨️ Imprimir</button>
           </div>
         </>
       )}
