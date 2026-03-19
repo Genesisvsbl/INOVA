@@ -5,8 +5,8 @@ import DatosMaestros from "./pages/DatosMaestros";
 import Materiales from "./pages/Materiales";
 import Stock from "./pages/Stock";
 import Movimientos from "./pages/Movimientos";
+import Inventarios from "./pages/Inventarios";
 
-import Manual from "./pages/movimientos/Manual";
 import Recibo from "./pages/movimientos/Recibo";
 import Despacho from "./pages/movimientos/Despacho";
 import DesdeRecibo from "./pages/movimientos/DesdeRecibo";
@@ -36,13 +36,14 @@ export default function App() {
           </Route>
 
           <Route path="movimientos" element={<Movimientos />}>
-            <Route index element={<Navigate to="manual" replace />} />
-            <Route path="manual" element={<Manual />} />
+            <Route index element={<Navigate to="recibo" replace />} />
             <Route path="recibo" element={<Recibo />} />
             <Route path="despacho" element={<Despacho />} />
             <Route path="desde-recibo" element={<DesdeRecibo />} />
             <Route path="orden-picking/:reserva" element={<OrdenPicking />} />
           </Route>
+
+          <Route path="inventarios" element={<Inventarios />} />
 
           <Route path="stock" element={<Stock />} />
 

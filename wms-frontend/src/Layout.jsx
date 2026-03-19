@@ -158,17 +158,24 @@ export default function Layout() {
           </div>
 
           <nav style={{ display: "grid", gap: 10 }}>
-            {/* ✅ NUEVO: DATOS MAESTROS */}
+            {/* DATOS MAESTROS */}
             <NavLink to="/datos-maestros" style={linkStyle}>
               <span style={{ width: 22, textAlign: "center" }}>🧱</span> Datos maestros
             </NavLink>
 
+            {/* MOVIMIENTOS */}
             <NavLink to="/movimientos" style={linkStyle}>
               <span style={{ width: 22, textAlign: "center" }}>🔄</span> Movimientos
             </NavLink>
 
+            {/* STOCK */}
             <NavLink to="/stock" style={linkStyle}>
               <span style={{ width: 22, textAlign: "center" }}>📊</span> Stock
+            </NavLink>
+
+            {/* ✅ NUEVO: INVENTARIOS */}
+            <NavLink to="/inventarios" style={linkStyle}>
+              <span style={{ width: 22, textAlign: "center" }}>📦</span> Inventarios
             </NavLink>
           </nav>
 
@@ -187,7 +194,8 @@ export default function Layout() {
             <div style={{ marginTop: 6 }}>
               • Usa <b>Recibo</b> para entradas masivas. <br />
               • En <b>Manual</b> registra ajustes puntuales. <br />
-              • En <b>Datos maestros</b> administras Materiales/Proveedores/Ubicaciones.
+              • En <b>Datos maestros</b> administras Materiales/Proveedores/Ubicaciones. <br />
+              • En <b>Inventarios</b> harás conteos y ajustes físicos.
             </div>
           </div>
         </aside>
