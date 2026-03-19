@@ -18,6 +18,14 @@ import MotorPrincipal from "./pages/maestros/MotorPrincipal";
 import Rotulos from "./pages/maestros/Rotulos";
 import EnTransito from "./pages/maestros/EnTransito";
 
+/* ✅ INVENTARIOS (IMPORTS NUEVOS) */
+import CrearTarea from "./pages/inventarios/CrearTarea";
+import MisConteos from "./pages/inventarios/MisConteos";
+import ConteoFisico from "./pages/inventarios/ConteoFisico";
+import Conciliacion from "./pages/inventarios/Conciliacion";
+import Reconteos from "./pages/inventarios/Reconteos";
+import InformeInventario from "./pages/inventarios/InformeInventario";
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -25,6 +33,7 @@ export default function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="datos-maestros" replace />} />
 
+          {/* ================= DATOS MAESTROS ================= */}
           <Route path="datos-maestros" element={<DatosMaestros />}>
             <Route index element={<Navigate to="materiales" replace />} />
             <Route path="materiales" element={<Materiales />} />
@@ -35,6 +44,7 @@ export default function App() {
             <Route path="en-transito" element={<EnTransito />} />
           </Route>
 
+          {/* ================= MOVIMIENTOS ================= */}
           <Route path="movimientos" element={<Movimientos />}>
             <Route index element={<Navigate to="recibo" replace />} />
             <Route path="recibo" element={<Recibo />} />
@@ -43,10 +53,20 @@ export default function App() {
             <Route path="orden-picking/:reserva" element={<OrdenPicking />} />
           </Route>
 
-          <Route path="inventarios" element={<Inventarios />} />
+          {/* ================= INVENTARIOS (NUEVO) ================= */}
+          <Route path="inventarios" element={<Inventarios />}>
+            <Route path="crear-tarea" element={<CrearTarea />} />
+            <Route path="mis-conteos" element={<MisConteos />} />
+            <Route path="conteo-fisico" element={<ConteoFisico />} />
+            <Route path="conciliacion" element={<Conciliacion />} />
+            <Route path="reconteos" element={<Reconteos />} />
+            <Route path="informe" element={<InformeInventario />} />
+          </Route>
 
+          {/* ================= STOCK ================= */}
           <Route path="stock" element={<Stock />} />
 
+          {/* ================= 404 ================= */}
           <Route path="*" element={<div>Ruta no encontrada</div>} />
         </Route>
       </Routes>
