@@ -10,11 +10,12 @@ class Material(Base):
     id = Column(Integer, primary_key=True, index=True)
     codigo = Column(String, unique=True, index=True, nullable=False)
     descripcion = Column(String, nullable=False)
-    unidad = Column(Float, nullable=True)  # NUEVO
+    unidad = Column(Float, nullable=True)
     unidad_medida = Column(String, nullable=False)
     familia = Column(String)
 
     movimientos = relationship("Movimiento", back_populates="material", cascade="all, delete")
+    inventario_detalles = relationship("InventarioTareaDetalle", back_populates="material")
 
 
 class Ubicacion(Base):
@@ -31,6 +32,7 @@ class Ubicacion(Base):
     bodega = Column(String)
 
     movimientos = relationship("Movimiento", back_populates="ubicacion", cascade="all, delete")
+    inventario_detalles = relationship("InventarioTareaDetalle", back_populates="ubicacion")
 
 
 class Movimiento(Base):
@@ -166,3 +168,79 @@ class PickingDetalle(Base):
 
     despacho_detalle_id = Column(Integer, ForeignKey("despacho_detalles.id"), nullable=True)
     despacho_detalle = relationship("DespachoDetalle", back_populates="picks")
+
+
+# =========================================================
+# INVENTARIOS
+# =========================================================
+
+class InventarioTarea(Base):
+    __tablename__ = "inventario_tareas"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    tipo_conteo = Column(String, nullable=False, index=True)  # zona / familia / material
+    criterio = Column(String, nullable=False)                 # valor resumen
+    zona = Column(String, nullable=True, index=True)
+    familia = Column(String, nullable=True, index=True)
+    codigo_material = Column(String, nullable=True, index=True)
+
+    asignado_a = Column(String, nullable=False, index=True)
+    creado_por = Column(String, nullable=False)
+    observacion = Column(String, nullable=True)
+
+    estado = Column(String, nullable=False, default="PENDIENTE", index=True)
+    es_reconteo = Column(Boolean, nullable=False, default=False)
+    tarea_origen_id = Column(Integer, ForeignKey("inventario_tareas.id"), nullable=True)
+
+    fecha_creacion = Column(DateTime, nullable=False, default=datetime.utcnow)
+    fecha_inicio = Column(DateTime, nullable=True)
+    fecha_finalizacion = Column(DateTime, nullable=True)
+    fecha_conciliacion = Column(DateTime, nullable=True)
+    fecha_cierre = Column(DateTime, nullable=True)
+
+    total_lineas = Column(Integer, nullable=False, default=0)
+    total_coinciden = Column(Integer, nullable=False, default=0)
+    total_no_coinciden = Column(Integer, nullable=False, default=0)
+    porcentaje_exactitud = Column(Float, nullable=False, default=0)
+
+    tarea_origen = relationship("InventarioTarea", remote_side=[id])
+    detalles = relationship("InventarioTareaDetalle", back_populates="tarea", cascade="all, delete")
+
+
+class InventarioTareaDetalle(Base):
+    __tablename__ = "inventario_tarea_detalles"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    tarea_id = Column(Integer, ForeignKey("inventario_tareas.id"), nullable=False, index=True)
+
+    ubicacion_id = Column(Integer, ForeignKey("ubicaciones.id"), nullable=True)
+    material_id = Column(Integer, ForeignKey("materiales.id"), nullable=True)
+
+    ubicacion = Column(String, nullable=True, index=True)
+    ubicacion_base = Column(String, nullable=True)
+    posicion = Column(String, nullable=True)
+    zona = Column(String, nullable=True, index=True)
+    bodega = Column(String, nullable=True)
+
+    codigo_material = Column(String, nullable=False, index=True)
+    descripcion_material = Column(String, nullable=True)
+    familia = Column(String, nullable=True, index=True)
+    unidad_medida = Column(String, nullable=True)
+
+    lote_almacen = Column(String, nullable=True)
+    lote_proveedor = Column(String, nullable=True)
+    fecha_vencimiento = Column(Date, nullable=True)
+
+    cantidad_sistema = Column(Float, nullable=False, default=0)
+    cantidad_contada = Column(Float, nullable=True)
+    diferencia = Column(Float, nullable=True)
+
+    coincide = Column(Boolean, nullable=True)
+    contado = Column(Boolean, nullable=False, default=False)
+    observacion = Column(String, nullable=True)
+
+    tarea = relationship("InventarioTarea", back_populates="detalles")
+    ubicacion_rel = relationship("Ubicacion", back_populates="inventario_detalles")
+    material = relationship("Material", back_populates="inventario_detalles")

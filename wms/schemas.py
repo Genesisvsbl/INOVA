@@ -357,3 +357,141 @@ class PickingConfirmPayload(BaseModel):
     usuario: str
     documento: Optional[str] = None
     items: List[PickingConfirmItem]
+
+
+# =========================================================
+# INVENTARIOS
+# =========================================================
+
+class InventarioTareaCreate(BaseModel):
+    tipo_conteo: str                     # zona / familia / material
+    zona: Optional[str] = None
+    familia: Optional[str] = None
+    codigo_material: Optional[str] = None
+    asignado_a: str
+    creado_por: str
+    observacion: Optional[str] = None
+
+
+class InventarioTareaDetalleOut(BaseModel):
+    id: int
+    tarea_id: int
+
+    ubicacion_id: Optional[int] = None
+    material_id: Optional[int] = None
+
+    ubicacion: Optional[str] = None
+    ubicacion_base: Optional[str] = None
+    posicion: Optional[str] = None
+    zona: Optional[str] = None
+    bodega: Optional[str] = None
+
+    codigo_material: str
+    descripcion_material: Optional[str] = None
+    familia: Optional[str] = None
+    unidad_medida: Optional[str] = None
+
+    lote_almacen: Optional[str] = None
+    lote_proveedor: Optional[str] = None
+    fecha_vencimiento: Optional[date] = None
+
+    cantidad_sistema: float
+    cantidad_contada: Optional[float] = None
+    diferencia: Optional[float] = None
+
+    coincide: Optional[bool] = None
+    contado: bool
+    observacion: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class InventarioTareaOut(BaseModel):
+    id: int
+
+    tipo_conteo: str
+    criterio: str
+    zona: Optional[str] = None
+    familia: Optional[str] = None
+    codigo_material: Optional[str] = None
+
+    asignado_a: str
+    creado_por: str
+    observacion: Optional[str] = None
+
+    estado: str
+    es_reconteo: bool
+    tarea_origen_id: Optional[int] = None
+
+    fecha_creacion: datetime
+    fecha_inicio: Optional[datetime] = None
+    fecha_finalizacion: Optional[datetime] = None
+    fecha_conciliacion: Optional[datetime] = None
+    fecha_cierre: Optional[datetime] = None
+
+    total_lineas: int
+    total_coinciden: int
+    total_no_coinciden: int
+    porcentaje_exactitud: float
+
+    class Config:
+        from_attributes = True
+
+
+class InventarioTareaConDetalleOut(InventarioTareaOut):
+    detalles: List[InventarioTareaDetalleOut] = []
+
+
+class InventarioConteoCiegoDetalleOut(BaseModel):
+    id: int
+    tarea_id: int
+
+    ubicacion: Optional[str] = None
+    ubicacion_base: Optional[str] = None
+    posicion: Optional[str] = None
+    zona: Optional[str] = None
+    bodega: Optional[str] = None
+
+    codigo_material: str
+    descripcion_material: Optional[str] = None
+    familia: Optional[str] = None
+    unidad_medida: Optional[str] = None
+
+    lote_almacen: Optional[str] = None
+    lote_proveedor: Optional[str] = None
+    fecha_vencimiento: Optional[date] = None
+
+    cantidad_contada: Optional[float] = None
+    contado: bool
+    observacion: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class InventarioConteoItem(BaseModel):
+    detalle_id: int
+    cantidad_contada: float
+    observacion: Optional[str] = None
+
+
+class InventarioRegistrarConteoPayload(BaseModel):
+    usuario: str
+    items: List[InventarioConteoItem]
+
+
+class InventarioFinalizarPayload(BaseModel):
+    usuario: str
+    asignado_a_reconteo: Optional[str] = None
+
+
+class InventarioInformeOut(BaseModel):
+    tarea_id: int
+    estado: str
+    total_lineas: int
+    total_coinciden: int
+    total_no_coinciden: int
+    porcentaje_exactitud: float
+    genera_reconteo: bool
+    reconteo_tarea_id: Optional[int] = None

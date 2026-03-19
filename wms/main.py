@@ -221,6 +221,360 @@ def recalcular_reserva(reserva: str, db: Session):
 
 
 # ==============================
+# INVENTARIOS
+# ==============================
+@app.post("/inventarios/tareas", response_model=schemas.InventarioTareaConDetalleOut)
+def crear_tarea_inventario(payload: schemas.InventarioTareaCreate, db: Session = Depends(get_db)):
+    tipo_conteo = (payload.tipo_conteo or "").strip().lower()
+
+    if tipo_conteo not in ["zona", "familia", "material"]:
+        raise HTTPException(status_code=400, detail="tipo_conteo inválido. Use zona, familia o material")
+
+    if not payload.asignado_a or not payload.asignado_a.strip():
+        raise HTTPException(status_code=400, detail="asignado_a obligatorio")
+
+    if not payload.creado_por or not payload.creado_por.strip():
+        raise HTTPException(status_code=400, detail="creado_por obligatorio")
+
+    criterio = construir_criterio_inventario(
+        tipo_conteo=tipo_conteo,
+        zona=payload.zona,
+        familia=payload.familia,
+        codigo_material=payload.codigo_material,
+    )
+
+    rows = obtener_stock_para_tarea_inventario(
+        db=db,
+        tipo_conteo=tipo_conteo,
+        zona=payload.zona,
+        familia=payload.familia,
+        codigo_material=payload.codigo_material,
+    )
+
+    if not rows:
+        raise HTTPException(status_code=404, detail="No se encontró stock para generar la tarea de inventario")
+
+    tarea = models.InventarioTarea(
+        tipo_conteo=tipo_conteo,
+        criterio=criterio,
+        zona=(payload.zona or "").strip() or None,
+        familia=(payload.familia or "").strip() or None,
+        codigo_material=(payload.codigo_material or "").strip() or None,
+        asignado_a=payload.asignado_a.strip(),
+        creado_por=payload.creado_por.strip(),
+        observacion=(payload.observacion or "").strip() or None,
+        estado="PENDIENTE",
+        es_reconteo=False,
+    )
+    db.add(tarea)
+    db.commit()
+    db.refresh(tarea)
+
+    for row in rows:
+        det = models.InventarioTareaDetalle(
+            tarea_id=tarea.id,
+            ubicacion_id=row.ubicacion_id,
+            material_id=row.material_id,
+            ubicacion=row.ubicacion,
+            ubicacion_base=row.ubicacion_base,
+            posicion=row.posicion,
+            zona=row.zona,
+            bodega=row.bodega,
+            codigo_material=row.codigo_material,
+            descripcion_material=row.descripcion_material,
+            familia=row.familia,
+            unidad_medida=row.unidad_medida,
+            lote_almacen=row.lote_almacen,
+            lote_proveedor=row.lote_proveedor,
+            fecha_vencimiento=row.fecha_vencimiento,
+            cantidad_sistema=float(row.cantidad_sistema or 0),
+            cantidad_contada=None,
+            diferencia=None,
+            coincide=None,
+            contado=False,
+            observacion=None,
+        )
+        db.add(det)
+
+    db.commit()
+    db.refresh(tarea)
+
+    recalcular_resumen_tarea_inventario(tarea, db)
+    db.commit()
+    db.refresh(tarea)
+
+    return tarea
+
+
+@app.get("/inventarios/tareas", response_model=List[schemas.InventarioTareaOut])
+def listar_tareas_inventario(
+    estado: Optional[str] = None,
+    asignado_a: Optional[str] = None,
+    es_reconteo: Optional[bool] = None,
+    skip: int = 0,
+    limit: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    query = db.query(models.InventarioTarea)
+
+    if estado and estado.strip():
+        query = query.filter(models.InventarioTarea.estado == estado.strip().upper())
+
+    if asignado_a and asignado_a.strip():
+        query = query.filter(models.InventarioTarea.asignado_a == asignado_a.strip())
+
+    if es_reconteo is not None:
+        query = query.filter(models.InventarioTarea.es_reconteo == es_reconteo)
+
+    query = query.order_by(desc(models.InventarioTarea.fecha_creacion))
+    query = apply_offset_limit(query, skip, limit)
+    return query.all()
+
+
+@app.get("/inventarios/tareas/{tarea_id}", response_model=schemas.InventarioTareaConDetalleOut)
+def obtener_tarea_inventario(tarea_id: int, db: Session = Depends(get_db)):
+    tarea = db.query(models.InventarioTarea).filter(models.InventarioTarea.id == tarea_id).first()
+    if not tarea:
+        raise HTTPException(status_code=404, detail="Tarea de inventario no encontrada")
+    return tarea
+
+
+@app.get("/inventarios/tareas/{tarea_id}/conteo-ciego", response_model=List[schemas.InventarioConteoCiegoDetalleOut])
+def obtener_conteo_ciego(tarea_id: int, db: Session = Depends(get_db)):
+    tarea = db.query(models.InventarioTarea).filter(models.InventarioTarea.id == tarea_id).first()
+    if not tarea:
+        raise HTTPException(status_code=404, detail="Tarea de inventario no encontrada")
+
+    detalles = db.query(models.InventarioTareaDetalle).filter(
+        models.InventarioTareaDetalle.tarea_id == tarea_id
+    ).order_by(
+        asc(models.InventarioTareaDetalle.zona),
+        asc(models.InventarioTareaDetalle.ubicacion),
+        asc(models.InventarioTareaDetalle.codigo_material),
+        asc(models.InventarioTareaDetalle.id),
+    ).all()
+
+    return detalles
+
+
+@app.post("/inventarios/tareas/{tarea_id}/registrar-conteo")
+def registrar_conteo_inventario(
+    tarea_id: int,
+    payload: schemas.InventarioRegistrarConteoPayload,
+    db: Session = Depends(get_db),
+):
+    tarea = db.query(models.InventarioTarea).filter(models.InventarioTarea.id == tarea_id).first()
+    if not tarea:
+        raise HTTPException(status_code=404, detail="Tarea de inventario no encontrada")
+
+    if not payload.usuario or not payload.usuario.strip():
+        raise HTTPException(status_code=400, detail="usuario obligatorio")
+
+    if tarea.estado in ["CONCILIADA", "CERRADA"]:
+        raise HTTPException(status_code=400, detail="La tarea ya está cerrada y no admite conteos")
+
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="No hay items para registrar")
+
+    detalle_ids = [x.detalle_id for x in payload.items]
+    detalles = db.query(models.InventarioTareaDetalle).filter(
+        models.InventarioTareaDetalle.tarea_id == tarea_id,
+        models.InventarioTareaDetalle.id.in_(detalle_ids),
+    ).all()
+
+    detalle_map = {d.id: d for d in detalles}
+
+    if len(detalle_map) != len(set(detalle_ids)):
+        raise HTTPException(status_code=404, detail="Uno o más detalles no pertenecen a la tarea")
+
+    if tarea.fecha_inicio is None:
+        tarea.fecha_inicio = datetime.utcnow()
+
+    tarea.estado = "EN_PROCESO"
+
+    for item in payload.items:
+        det = detalle_map[item.detalle_id]
+
+        if item.cantidad_contada < 0:
+            raise HTTPException(status_code=400, detail=f"La cantidad contada no puede ser negativa en detalle {item.detalle_id}")
+
+        det.cantidad_contada = float(item.cantidad_contada)
+        det.contado = True
+        det.observacion = (item.observacion or "").strip() or None
+
+    db.commit()
+
+    return {
+        "mensaje": "Conteo registrado correctamente",
+        "tarea_id": tarea_id,
+        "items_actualizados": len(payload.items),
+        "estado": tarea.estado,
+    }
+
+
+@app.get("/inventarios/tareas/{tarea_id}/conciliacion", response_model=schemas.InventarioTareaConDetalleOut)
+def ver_conciliacion_inventario(tarea_id: int, db: Session = Depends(get_db)):
+    tarea = db.query(models.InventarioTarea).filter(models.InventarioTarea.id == tarea_id).first()
+    if not tarea:
+        raise HTTPException(status_code=404, detail="Tarea de inventario no encontrada")
+    return tarea
+
+
+@app.post("/inventarios/tareas/{tarea_id}/finalizar", response_model=schemas.InventarioInformeOut)
+def finalizar_tarea_inventario(
+    tarea_id: int,
+    payload: schemas.InventarioFinalizarPayload,
+    db: Session = Depends(get_db),
+):
+    tarea = db.query(models.InventarioTarea).filter(models.InventarioTarea.id == tarea_id).first()
+    if not tarea:
+        raise HTTPException(status_code=404, detail="Tarea de inventario no encontrada")
+
+    detalles = db.query(models.InventarioTareaDetalle).filter(
+        models.InventarioTareaDetalle.tarea_id == tarea_id
+    ).order_by(asc(models.InventarioTareaDetalle.id)).all()
+
+    if not detalles:
+        raise HTTPException(status_code=400, detail="La tarea no tiene detalles")
+
+    faltan_contar = [d.id for d in detalles if not d.contado]
+    if faltan_contar:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Faltan líneas por contar. Ejemplos: {faltan_contar[:10]}"
+        )
+
+    total_coinciden = 0
+    total_no_coinciden = 0
+    detalles_con_diferencia = []
+
+    for det in detalles:
+        sistema = float(det.cantidad_sistema or 0)
+        contado = float(det.cantidad_contada or 0)
+        diferencia = round(contado - sistema, 6)
+        coincide = abs(diferencia) < 0.000001
+
+        det.diferencia = diferencia
+        det.coincide = coincide
+
+        if coincide:
+            total_coinciden += 1
+        else:
+            total_no_coinciden += 1
+            detalles_con_diferencia.append(det)
+
+    tarea.fecha_finalizacion = datetime.utcnow()
+    tarea.fecha_conciliacion = datetime.utcnow()
+
+    resumen = recalcular_resumen_tarea_inventario(tarea, db)
+
+    reconteo_tarea_id = None
+    genera_reconteo = False
+
+    if total_no_coinciden > 0:
+        genera_reconteo = True
+        tarea.estado = "RECONTEO_PENDIENTE"
+
+        nueva_tarea = models.InventarioTarea(
+            tipo_conteo=tarea.tipo_conteo,
+            criterio=tarea.criterio,
+            zona=tarea.zona,
+            familia=tarea.familia,
+            codigo_material=tarea.codigo_material,
+            asignado_a=(payload.asignado_a_reconteo or tarea.asignado_a).strip(),
+            creado_por=payload.usuario.strip(),
+            observacion=f"Reconteo automático generado desde tarea {tarea.id}",
+            estado="PENDIENTE",
+            es_reconteo=True,
+            tarea_origen_id=tarea.id,
+        )
+        db.add(nueva_tarea)
+        db.commit()
+        db.refresh(nueva_tarea)
+
+        for det in detalles_con_diferencia:
+            nuevo_det = models.InventarioTareaDetalle(
+                tarea_id=nueva_tarea.id,
+                ubicacion_id=det.ubicacion_id,
+                material_id=det.material_id,
+                ubicacion=det.ubicacion,
+                ubicacion_base=det.ubicacion_base,
+                posicion=det.posicion,
+                zona=det.zona,
+                bodega=det.bodega,
+                codigo_material=det.codigo_material,
+                descripcion_material=det.descripcion_material,
+                familia=det.familia,
+                unidad_medida=det.unidad_medida,
+                lote_almacen=det.lote_almacen,
+                lote_proveedor=det.lote_proveedor,
+                fecha_vencimiento=det.fecha_vencimiento,
+                cantidad_sistema=float(det.cantidad_sistema or 0),
+                cantidad_contada=None,
+                diferencia=None,
+                coincide=None,
+                contado=False,
+                observacion=None,
+            )
+            db.add(nuevo_det)
+
+        db.commit()
+        db.refresh(nueva_tarea)
+
+        recalcular_resumen_tarea_inventario(nueva_tarea, db)
+        db.commit()
+        db.refresh(nueva_tarea)
+
+        reconteo_tarea_id = nueva_tarea.id
+
+    else:
+        tarea.estado = "CONCILIADA"
+        tarea.fecha_cierre = datetime.utcnow()
+
+    db.commit()
+    db.refresh(tarea)
+
+    return schemas.InventarioInformeOut(
+        tarea_id=tarea.id,
+        estado=tarea.estado,
+        total_lineas=resumen["total_lineas"],
+        total_coinciden=resumen["total_coinciden"],
+        total_no_coinciden=resumen["total_no_coinciden"],
+        porcentaje_exactitud=resumen["porcentaje_exactitud"],
+        genera_reconteo=genera_reconteo,
+        reconteo_tarea_id=reconteo_tarea_id,
+    )
+
+
+@app.get("/inventarios/tareas/{tarea_id}/informe", response_model=schemas.InventarioInformeOut)
+def informe_tarea_inventario(tarea_id: int, db: Session = Depends(get_db)):
+    tarea = db.query(models.InventarioTarea).filter(models.InventarioTarea.id == tarea_id).first()
+    if not tarea:
+        raise HTTPException(status_code=404, detail="Tarea de inventario no encontrada")
+
+    recalcular_resumen_tarea_inventario(tarea, db)
+    db.commit()
+    db.refresh(tarea)
+
+    reconteo = db.query(models.InventarioTarea).filter(
+        models.InventarioTarea.tarea_origen_id == tarea.id,
+        models.InventarioTarea.es_reconteo == True
+    ).order_by(desc(models.InventarioTarea.id)).first()
+
+    return schemas.InventarioInformeOut(
+        tarea_id=tarea.id,
+        estado=tarea.estado,
+        total_lineas=tarea.total_lineas,
+        total_coinciden=tarea.total_coinciden,
+        total_no_coinciden=tarea.total_no_coinciden,
+        porcentaje_exactitud=tarea.porcentaje_exactitud,
+        genera_reconteo=(reconteo is not None),
+        reconteo_tarea_id=reconteo.id if reconteo else None,
+    )
+
+
+
+# ==============================
 # HELPERS AUTO UBICACION
 # ==============================
 def parse_posicion_layout(pos: str):
