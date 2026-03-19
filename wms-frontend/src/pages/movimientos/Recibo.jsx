@@ -1417,7 +1417,7 @@ export default function Recibo() {
 
           <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
             <button onClick={addLinea}>+ Agregar línea</button>
-            <button onClick={onImprimir}>🖨️ Imprimir</button>
+            <button onClick={onImprimir}>🖨️ Imprimir!</button>
           </div>
         </>
       )}
