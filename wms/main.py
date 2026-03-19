@@ -45,7 +45,21 @@ def ensure_ubicaciones_columns():
             pass
 
 
+def ensure_materiales_columns():
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE materiales ADD COLUMN unidad FLOAT"))
+        except Exception:
+            pass
+
+        try:
+            conn.commit()
+        except Exception:
+            pass
+
+
 ensure_ubicaciones_columns()
+ensure_materiales_columns()
 
 app = FastAPI(title="WMS API")
 
@@ -135,7 +149,16 @@ def clean_datetime(v):
 def clean_float(v):
     if pd.isna(v):
         return None
-    n = pd.to_numeric(v, errors="coerce")
+
+    if isinstance(v, str):
+        s = v.strip()
+        if s == "" or s.lower() == "nan":
+            return None
+        s = s.replace(".", "").replace(",", ".") if ("," in s and "." in s) else s.replace(",", ".")
+        n = pd.to_numeric(s, errors="coerce")
+    else:
+        n = pd.to_numeric(v, errors="coerce")
+
     if pd.isna(n):
         return None
     return float(n)
@@ -327,6 +350,7 @@ def crear_material(material: schemas.MaterialCreate, db: Session = Depends(get_d
     db_material = models.Material(
         codigo=material.codigo.strip(),
         descripcion=material.descripcion.strip(),
+        unidad=material.unidad,
         unidad_medida=material.unidad_medida.strip(),
         familia=material.familia.strip() if material.familia else None,
     )
@@ -375,6 +399,7 @@ def actualizar_material(material_id: int, material: schemas.MaterialCreate, db: 
 
     db_material.codigo = material.codigo.strip()
     db_material.descripcion = material.descripcion.strip()
+    db_material.unidad = material.unidad
     db_material.unidad_medida = material.unidad_medida.strip()
     db_material.familia = material.familia.strip() if material.familia else None
 
@@ -411,7 +436,7 @@ async def importar_materiales(file: UploadFile = File(...), db: Session = Depend
         for col in df.columns
     ]
 
-    columnas_requeridas = ["codigo", "descripcion", "unidad_medida", "familia"]
+    columnas_requeridas = ["codigo", "descripcion", "unidad", "unidad_medida", "familia"]
     for col in columnas_requeridas:
         if col not in df.columns:
             raise HTTPException(status_code=400, detail=f"Falta la columna requerida: {col}")
@@ -426,9 +451,12 @@ async def importar_materiales(file: UploadFile = File(...), db: Session = Depend
         if not codigo or codigo in codigos_existentes:
             continue
 
+        unidad_valor = clean_float(row["unidad"])
+
         material = models.Material(
             codigo=codigo,
             descripcion=str(row["descripcion"]).strip(),
+            unidad=unidad_valor,
             unidad_medida=str(row["unidad_medida"]).strip(),
             familia=str(row["familia"]).strip(),
         )

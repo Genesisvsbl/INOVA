@@ -111,6 +111,16 @@ function Chip({ label, tone = "neutral" }) {
   );
 }
 
+function formatUnidad(value) {
+  if (value === null || value === undefined || value === "") return "";
+  const n = Number(value);
+  if (Number.isNaN(n)) return String(value);
+  return n.toLocaleString("es-CO", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 export default function Materiales() {
   const [materiales, setMateriales] = useState([]);
   const [busqueda, setBusqueda] = useState("");
@@ -122,6 +132,7 @@ export default function Materiales() {
   const [nuevoMaterial, setNuevoMaterial] = useState({
     codigo: "",
     descripcion: "",
+    unidad: "",
     unidad_medida: "",
     familia: "",
   });
@@ -152,10 +163,18 @@ export default function Materiales() {
     if (
       !nuevoMaterial.codigo.trim() ||
       !nuevoMaterial.descripcion.trim() ||
+      String(nuevoMaterial.unidad).trim() === "" ||
       !nuevoMaterial.unidad_medida.trim() ||
       !nuevoMaterial.familia.trim()
     ) {
       alert("Todos los campos son obligatorios.");
+      return;
+    }
+
+    const unidadNumerica = parseFloat(String(nuevoMaterial.unidad).replace(",", "."));
+
+    if (Number.isNaN(unidadNumerica)) {
+      alert("La columna Unidad debe ser numérica.");
       return;
     }
 
@@ -164,6 +183,7 @@ export default function Materiales() {
       await crearMaterial({
         codigo: nuevoMaterial.codigo.trim(),
         descripcion: nuevoMaterial.descripcion.trim(),
+        unidad: unidadNumerica,
         unidad_medida: nuevoMaterial.unidad_medida.trim(),
         familia: nuevoMaterial.familia.trim(),
       });
@@ -171,6 +191,7 @@ export default function Materiales() {
       setNuevoMaterial({
         codigo: "",
         descripcion: "",
+        unidad: "",
         unidad_medida: "",
         familia: "",
       });
@@ -186,12 +207,35 @@ export default function Materiales() {
 
   const onEditar = async (mat) => {
     const nuevoCodigo = prompt("Nuevo código:", mat.codigo);
-    const nuevaDescripcion = prompt("Nueva descripción:", mat.descripcion);
-    const nuevaUnidad = prompt("Nueva unidad:", mat.unidad_medida);
-    const nuevaFamilia = prompt("Nueva familia:", mat.familia);
+    if (nuevoCodigo === null) return;
 
-    if (!nuevoCodigo || !nuevaDescripcion || !nuevaUnidad || !nuevaFamilia) {
+    const nuevaDescripcion = prompt("Nueva descripción:", mat.descripcion);
+    if (nuevaDescripcion === null) return;
+
+    const nuevaUnidad = prompt("Nueva unidad:", mat.unidad ?? "");
+    if (nuevaUnidad === null) return;
+
+    const nuevaUnidadMedida = prompt("Nueva unidad de medida:", mat.unidad_medida);
+    if (nuevaUnidadMedida === null) return;
+
+    const nuevaFamilia = prompt("Nueva familia:", mat.familia ?? "");
+    if (nuevaFamilia === null) return;
+
+    if (
+      !nuevoCodigo.trim() ||
+      !nuevaDescripcion.trim() ||
+      String(nuevaUnidad).trim() === "" ||
+      !nuevaUnidadMedida.trim() ||
+      !nuevaFamilia.trim()
+    ) {
       alert("Todos los campos son obligatorios.");
+      return;
+    }
+
+    const unidadNumerica = parseFloat(String(nuevaUnidad).replace(",", "."));
+
+    if (Number.isNaN(unidadNumerica)) {
+      alert("La columna Unidad debe ser numérica.");
       return;
     }
 
@@ -199,7 +243,8 @@ export default function Materiales() {
       await editarMaterial(mat.id, {
         codigo: nuevoCodigo.trim(),
         descripcion: nuevaDescripcion.trim(),
-        unidad_medida: nuevaUnidad.trim(),
+        unidad: unidadNumerica,
+        unidad_medida: nuevaUnidadMedida.trim(),
         familia: nuevaFamilia.trim(),
       });
 
@@ -397,7 +442,7 @@ export default function Materiales() {
         </div>
 
         <div style={{ marginTop: 10, color: colors.muted, fontSize: 12, fontWeight: 700 }}>
-          El archivo debe contener las columnas: <b>codigo</b>, <b>descripcion</b>, <b>unidad_medida</b> y <b>familia</b>.
+          El archivo debe contener las columnas: <b>codigo</b>, <b>descripcion</b>, <b>unidad</b>, <b>unidad_medida</b> y <b>familia</b>.
         </div>
       </div>
 
@@ -416,7 +461,7 @@ export default function Materiales() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "0.8fr 1.6fr 0.7fr 0.9fr auto",
+            gridTemplateColumns: "0.8fr 1.8fr 0.7fr 0.8fr 1fr auto",
             gap: 10,
             alignItems: "end",
           }}
@@ -464,9 +509,28 @@ export default function Materiales() {
               UNIDAD
             </div>
             <input
+              value={nuevoMaterial.unidad}
+              onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, unidad: e.target.value })}
+              placeholder="1,00"
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: 12,
+                border: `1px solid ${colors.border}`,
+                outline: "none",
+                fontWeight: 700,
+              }}
+            />
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 900, color: colors.muted, marginBottom: 6 }}>
+              UNIDAD_MEDIDA
+            </div>
+            <input
               value={nuevoMaterial.unidad_medida}
               onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, unidad_medida: e.target.value })}
-              placeholder="UM"
+              placeholder="KG"
               style={{
                 width: "100%",
                 padding: "10px 12px",
@@ -527,13 +591,14 @@ export default function Materiales() {
         }}
       >
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1000 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1150 }}>
             <thead>
               <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${colors.border}`, textAlign: "left" }}>
                 <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>ID</th>
                 <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>CÓDIGO</th>
                 <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>DESCRIPCIÓN</th>
                 <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>UNIDAD</th>
+                <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>UNIDAD_MEDIDA</th>
                 <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>FAMILIA</th>
                 <th style={{ padding: 12, color: colors.muted, fontSize: 12, fontWeight: 1000 }}>ACCIONES</th>
               </tr>
@@ -541,7 +606,7 @@ export default function Materiales() {
             <tbody>
               {!cargando && materiales.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: 18, color: colors.muted, fontWeight: 800 }}>
+                  <td colSpan={7} style={{ padding: 18, color: colors.muted, fontWeight: 800 }}>
                     No hay materiales para mostrar.
                   </td>
                 </tr>
@@ -551,6 +616,7 @@ export default function Materiales() {
                     <td style={{ padding: 12, fontWeight: 900 }}>{mat.id}</td>
                     <td style={{ padding: 12, fontWeight: 900, color: colors.navy }}>{mat.codigo}</td>
                     <td style={{ padding: 12, fontWeight: 700 }}>{mat.descripcion}</td>
+                    <td style={{ padding: 12, fontWeight: 800 }}>{formatUnidad(mat.unidad)}</td>
                     <td style={{ padding: 12, fontWeight: 800 }}>{mat.unidad_medida}</td>
                     <td style={{ padding: 12, fontWeight: 800 }}>{mat.familia}</td>
                     <td style={{ padding: 12 }}>

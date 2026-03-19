@@ -10,6 +10,7 @@ from typing import Optional, List
 class MaterialBase(BaseModel):
     codigo: str
     descripcion: str
+    unidad: Optional[float] = None
     unidad_medida: str
     familia: Optional[str] = None
 

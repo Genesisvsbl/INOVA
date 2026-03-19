@@ -10,6 +10,7 @@ class Material(Base):
     id = Column(Integer, primary_key=True, index=True)
     codigo = Column(String, unique=True, index=True, nullable=False)
     descripcion = Column(String, nullable=False)
+    unidad = Column(Float, nullable=True)  # NUEVO
     unidad_medida = Column(String, nullable=False)
     familia = Column(String)
 
