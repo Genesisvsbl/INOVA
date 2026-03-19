@@ -137,7 +137,7 @@ export default function Recibo() {
   }, []);
 
   // ===== Tipo de recibo =====
-  const [tipoRecibo, setTipoRecibo] = useState("recibo");
+  const [tipoRecibo, setTipoRecibo] = useState("");
 
   // ===== Cabecera =====
   const [header, setHeader] = useState({
@@ -224,6 +224,14 @@ export default function Recibo() {
         delete copy.orden_compra;
         return copy;
       });
+    }
+
+    if (tipoRecibo === "recibo") {
+      setHeader((prev) => ({
+        ...prev,
+        remesa_transp: prev.remesa_transp === "**********" ? "" : prev.remesa_transp,
+        orden_compra: prev.orden_compra === "**********" ? "" : prev.orden_compra,
+      }));
     }
   }, [tipoRecibo]);
 
@@ -367,6 +375,10 @@ export default function Recibo() {
   const validarAntesDeContinuar = () => {
     const errs = {};
 
+    if (!tipoRecibo) {
+      errs.tipoRecibo = "Debes seleccionar Recibo o Devolución.";
+    }
+
     ["documento"].forEach((k) => {
       if (!header[k] || header[k].length !== 10) {
         errs[k] = "Debe quedar exactamente de 10 caracteres (se rellena con *).";
@@ -411,6 +423,11 @@ export default function Recibo() {
   };
 
   const onGuardarRecibo = async () => {
+    if (!tipoRecibo) {
+      alert("Debes seleccionar primero Recibo o Devolución.");
+      return;
+    }
+
     if (tipoRecibo === "devolucion") {
       setHeader((prev) => ({
         ...prev,
@@ -584,6 +601,11 @@ export default function Recibo() {
   };
 
   const onImprimir = () => {
+    if (!tipoRecibo) {
+      alert("Debes seleccionar primero Recibo o Devolución.");
+      return;
+    }
+
     const w = window.open("", "_blank", "width=1600,height=1000");
     if (!w) {
       alert("El navegador bloqueó la ventana de impresión.");
@@ -1029,14 +1051,22 @@ export default function Recibo() {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <h2 style={{ margin: 0 }}>📥 {tipoRecibo === "devolucion" ? "Devolución" : "Recibo ciego"}</h2>
+        <h2 style={{ margin: 0 }}>
+          📥 {!tipoRecibo
+            ? "Selecciona tipo de movimiento"
+            : tipoRecibo === "devolucion"
+            ? "Devolución"
+            : "Recibo ciego"}
+        </h2>
 
-        <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onImprimir}>🖨️ Imprimir</button>
-          <button onClick={onGuardarRecibo} style={{ fontWeight: 800 }}>
-            Guardar (Asignar Ubicación)
-          </button>
-        </div>
+        {tipoRecibo && (
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={onImprimir}>🖨️ Imprimir</button>
+            <button onClick={onGuardarRecibo} style={{ fontWeight: 800 }}>
+              Guardar (Asignar Ubicación)
+            </button>
+          </div>
+        )}
       </div>
 
       <div style={{ marginBottom: 12, display: "flex", gap: 10 }}>
@@ -1073,295 +1103,324 @@ export default function Recibo() {
         </button>
       </div>
 
-      <div style={{ marginBottom: 10, color: "#444" }}>
-        <b>Usuario:</b> {usuario || "(sin usuario)"}
-        {errores.usuario && <span style={{ color: "crimson", marginLeft: 8 }}>{errores.usuario}</span>}
-      </div>
-
-      {proveedoresError && (
-        <div style={{ color: "crimson", marginBottom: 10 }}>
-          Error cargando proveedores: {proveedoresError}
+      {!tipoRecibo && (
+        <div
+          style={{
+            border: "1px dashed #cbd5e1",
+            borderRadius: 12,
+            padding: 24,
+            marginTop: 12,
+            background: "#f8fafc",
+            textAlign: "center",
+            color: "#334155",
+            fontWeight: 600,
+          }}
+        >
+          Selecciona primero <b>Recibo</b> o <b>Devolución</b> para continuar.
         </div>
       )}
 
-      <div ref={printRef}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, minmax(260px, 1fr))",
-            gap: 12,
-            alignItems: "start",
-            marginBottom: 12,
-          }}
-        >
-          <div style={{ border: "1px solid #e5e5e5", borderRadius: 12, padding: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <b># Serial</b>
-              <input
-                value={header.serial}
-                onChange={(e) => setHeaderField("serial", clampMaxLen(e.target.value, 10))}
-                style={{ width: 140 }}
-              />
+      {tipoRecibo && (
+        <>
+          <div style={{ marginBottom: 10, color: "#444" }}>
+            <b>Usuario:</b> {usuario || "(sin usuario)"}
+            {errores.usuario && <span style={{ color: "crimson", marginLeft: 8 }}>{errores.usuario}</span>}
+          </div>
+
+          {proveedoresError && (
+            <div style={{ color: "crimson", marginBottom: 10 }}>
+              Error cargando proveedores: {proveedoresError}
+            </div>
+          )}
+
+          {errores.tipoRecibo && (
+            <div style={{ color: "crimson", marginBottom: 10 }}>{errores.tipoRecibo}</div>
+          )}
+
+          <div ref={printRef}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, minmax(260px, 1fr))",
+                gap: 12,
+                alignItems: "start",
+                marginBottom: 12,
+              }}
+            >
+              <div style={{ border: "1px solid #e5e5e5", borderRadius: 12, padding: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <b># Serial</b>
+                  <input
+                    value={header.serial}
+                    onChange={(e) => setHeaderField("serial", clampMaxLen(e.target.value, 10))}
+                    style={{ width: 140 }}
+                  />
+                </div>
+
+                <div style={{ marginTop: 10 }}>
+                  <b>Nombre Proveedor</b>
+                  <select
+                    value={header.proveedor_id}
+                    onChange={(e) => onProveedorSelect(e.target.value)}
+                    style={{ width: "100%", marginTop: 6 }}
+                  >
+                    <option value="">Seleccione proveedor...</option>
+                    {proveedores.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nombre}
+                      </option>
+                    ))}
+                  </select>
+                  {errores.proveedor && <div style={{ color: "crimson", marginTop: 4 }}>{errores.proveedor}</div>}
+                </div>
+
+                <div style={{ marginTop: 10 }}>
+                  <b>Acreedor</b>
+                  <input
+                    value={header.acreedor}
+                    readOnly
+                    placeholder="Auto por proveedor"
+                    style={{ width: "100%", marginTop: 6, background: "#f3f3f3" }}
+                  />
+                  {errores.acreedor && <div style={{ color: "crimson", marginTop: 4 }}>{errores.acreedor}</div>}
+                </div>
+
+                <div style={{ marginTop: 10 }}>
+                  <b>Fecha recepción</b>
+                  <input
+                    type="date"
+                    value={header.fecha_recepcion}
+                    readOnly
+                    style={{ width: "100%", marginTop: 6, background: "#f3f3f3" }}
+                  />
+                  <div style={{ color: "#666", marginTop: 4 }}>(Automática del día)</div>
+                </div>
+              </div>
+
+              <div style={{ border: "1px solid #e5e5e5", borderRadius: 12, padding: 12 }}>
+                <div style={{ display: "grid", gap: 10 }}>
+                  <div>
+                    <b># Remesa Transp (10)</b>
+                    <input
+                      value={header.remesa_transp}
+                      onChange={(e) => onField10Change("remesa_transp", e.target.value)}
+                      onBlur={() => onField10Blur("remesa_transp")}
+                      maxLength={10}
+                      disabled={tipoRecibo === "devolucion"}
+                      style={{
+                        width: "100%",
+                        marginTop: 6,
+                        background: tipoRecibo === "devolucion" ? "#f3f3f3" : "#fff",
+                        cursor: tipoRecibo === "devolucion" ? "not-allowed" : "text",
+                      }}
+                    />
+                    {errores.remesa_transp && (
+                      <div style={{ color: "crimson", marginTop: 4 }}>{errores.remesa_transp}</div>
+                    )}
+                  </div>
+
+                  <div>
+                    <b># Documento (10)</b>
+                    <input
+                      value={header.documento}
+                      onChange={(e) => onField10Change("documento", e.target.value)}
+                      onBlur={() => onField10Blur("documento")}
+                      maxLength={10}
+                      style={{ width: "100%", marginTop: 6 }}
+                    />
+                    {errores.documento && <div style={{ color: "crimson", marginTop: 4 }}>{errores.documento}</div>}
+                  </div>
+
+                  <div>
+                    <b># Orden de Compra (10)</b>
+                    <input
+                      value={header.orden_compra}
+                      onChange={(e) => onField10Change("orden_compra", e.target.value)}
+                      onBlur={() => onField10Blur("orden_compra")}
+                      maxLength={10}
+                      disabled={tipoRecibo === "devolucion"}
+                      style={{
+                        width: "100%",
+                        marginTop: 6,
+                        background: tipoRecibo === "devolucion" ? "#f3f3f3" : "#fff",
+                        cursor: tipoRecibo === "devolucion" ? "not-allowed" : "text",
+                      }}
+                    />
+                    {errores.orden_compra && (
+                      <div style={{ color: "crimson", marginTop: 4 }}>{errores.orden_compra}</div>
+                    )}
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <b>Total Recibo</b>
+                    <div style={{ fontSize: 18, fontWeight: 800 }}>{formatMoney(totalRecibo)}</div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div style={{ marginTop: 10 }}>
-              <b>Nombre Proveedor</b>
-              <select
-                value={header.proveedor_id}
-                onChange={(e) => onProveedorSelect(e.target.value)}
-                style={{ width: "100%", marginTop: 6 }}
-              >
-                <option value="">Seleccione proveedor...</option>
-                {proveedores.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nombre}
+            <div style={{ overflowX: "auto" }}>
+              <table border="1" cellPadding="6" style={{ borderCollapse: "collapse", width: "100%" }}>
+                <thead>
+                  <tr>
+                    <th># Serial</th>
+                    <th>Item</th>
+                    <th>Fecha Recepción</th>
+                    <th>Código</th>
+                    <th>Texto breve material</th>
+                    <th>Empaque</th>
+                    <th>UMB</th>
+                    <th>UM</th>
+                    <th>Cantidad</th>
+                    <th>Total</th>
+                    <th>Lote Proveedor (10)</th>
+                    <th>Fecha Fabricación</th>
+                    <th>Fecha Vencimiento</th>
+                    <th>Acción</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {lineas.map((ln, idx) => (
+                    <tr key={idx}>
+                      <td>{serialItem(header.serial, idx)}</td>
+                      <td>{idx + 1}</td>
+
+                      <td>
+                        <input type="date" value={ln.fecha_recepcion} readOnly style={{ background: "#f3f3f3" }} />
+                      </td>
+
+                      <td>
+                        <input
+                          list="materialesList"
+                          value={ln.codigo}
+                          onChange={(e) => onCodigoChange(idx, e.target.value)}
+                          placeholder="Código"
+                          style={{ width: 120 }}
+                        />
+                        {errores[`codigo_${idx}`] && (
+                          <div style={{ color: "crimson" }}>{errores[`codigo_${idx}`]}</div>
+                        )}
+                      </td>
+
+                      <td>
+                        <input value={ln.descripcion} readOnly style={{ width: 260, background: "#f3f3f3" }} />
+                      </td>
+
+                      <td>
+                        <select
+                          value={ln.empaque}
+                          onChange={(e) => setLinea(idx, { empaque: e.target.value })}
+                          style={{ width: 150 }}
+                        >
+                          <option value="">Seleccione...</option>
+                          {EMPAQUES.map((op) => (
+                            <option key={op} value={op}>
+                              {op}
+                            </option>
+                          ))}
+                        </select>
+                        {errores[`empaque_${idx}`] && (
+                          <div style={{ color: "crimson" }}>{errores[`empaque_${idx}`]}</div>
+                        )}
+                      </td>
+
+                      <td>
+                        <input
+                          type="number"
+                          value={ln.umb}
+                          onChange={(e) => onUmbChange(idx, e.target.value)}
+                          style={{
+                            width: 90,
+                            background: ln.umb_bloqueado ? "#f3f3f3" : "#fff",
+                            cursor: ln.umb_bloqueado ? "not-allowed" : "text",
+                          }}
+                          readOnly={ln.umb_bloqueado}
+                        />
+                        {errores[`umb_${idx}`] && <div style={{ color: "crimson" }}>{errores[`umb_${idx}`]}</div>}
+                      </td>
+
+                      <td>
+                        <input value={ln.um} readOnly style={{ width: 90, background: "#f3f3f3" }} />
+                      </td>
+
+                      <td>
+                        <input
+                          type="number"
+                          value={ln.cantidad}
+                          onChange={(e) => onCantidadChange(idx, e.target.value)}
+                          style={{ width: 110 }}
+                        />
+                        {errores[`cantidad_${idx}`] && (
+                          <div style={{ color: "crimson" }}>{errores[`cantidad_${idx}`]}</div>
+                        )}
+                      </td>
+
+                      <td>
+                        <input
+                          value={formatMoney(ln.total || 0)}
+                          readOnly
+                          style={{ width: 120, background: "#f3f3f3" }}
+                        />
+                      </td>
+
+                      <td>
+                        <input
+                          value={ln.lote_proveedor}
+                          onChange={(e) => onLoteProveedorChange(idx, e.target.value)}
+                          onBlur={() => setLinea(idx, { lote_proveedor: pad10WithStarsAny(ln.lote_proveedor) })}
+                          maxLength={10}
+                          placeholder="10 caracteres"
+                          style={{ width: 160 }}
+                        />
+                        {errores[`loteprov_${idx}`] && (
+                          <div style={{ color: "crimson" }}>{errores[`loteprov_${idx}`]}</div>
+                        )}
+                      </td>
+
+                      <td>
+                        <input
+                          type="date"
+                          value={ln.fecha_fabricacion}
+                          onChange={(e) => setLinea(idx, { fecha_fabricacion: e.target.value })}
+                        />
+                      </td>
+
+                      <td>
+                        <input
+                          type="date"
+                          value={ln.fecha_vencimiento}
+                          onChange={(e) => setLinea(idx, { fecha_vencimiento: e.target.value })}
+                        />
+                        {errores[`fv_${idx}`] && <div style={{ color: "crimson" }}>{errores[`fv_${idx}`]}</div>}
+                      </td>
+
+                      <td>
+                        <button onClick={() => removeLinea(idx)} disabled={lineas.length === 1}>
+                          Eliminar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <datalist id="materialesList">
+                {materiales.map((m) => (
+                  <option key={m.id} value={m.codigo}>
+                    {m.descripcion}
                   </option>
                 ))}
-              </select>
-              {errores.proveedor && <div style={{ color: "crimson", marginTop: 4 }}>{errores.proveedor}</div>}
-            </div>
-
-            <div style={{ marginTop: 10 }}>
-              <b>Acreedor</b>
-              <input
-                value={header.acreedor}
-                readOnly
-                placeholder="Auto por proveedor"
-                style={{ width: "100%", marginTop: 6, background: "#f3f3f3" }}
-              />
-              {errores.acreedor && <div style={{ color: "crimson", marginTop: 4 }}>{errores.acreedor}</div>}
-            </div>
-
-            <div style={{ marginTop: 10 }}>
-              <b>Fecha recepción</b>
-              <input
-                type="date"
-                value={header.fecha_recepcion}
-                readOnly
-                style={{ width: "100%", marginTop: 6, background: "#f3f3f3" }}
-              />
-              <div style={{ color: "#666", marginTop: 4 }}>(Automática del día)</div>
+              </datalist>
             </div>
           </div>
 
-          <div style={{ border: "1px solid #e5e5e5", borderRadius: 12, padding: 12 }}>
-            <div style={{ display: "grid", gap: 10 }}>
-              <div>
-                <b># Remesa Transp (10)</b>
-                <input
-                  value={header.remesa_transp}
-                  onChange={(e) => onField10Change("remesa_transp", e.target.value)}
-                  onBlur={() => onField10Blur("remesa_transp")}
-                  maxLength={10}
-                  disabled={tipoRecibo === "devolucion"}
-                  style={{
-                    width: "100%",
-                    marginTop: 6,
-                    background: tipoRecibo === "devolucion" ? "#f3f3f3" : "#fff",
-                    cursor: tipoRecibo === "devolucion" ? "not-allowed" : "text",
-                  }}
-                />
-                {errores.remesa_transp && (
-                  <div style={{ color: "crimson", marginTop: 4 }}>{errores.remesa_transp}</div>
-                )}
-              </div>
-
-              <div>
-                <b># Documento (10)</b>
-                <input
-                  value={header.documento}
-                  onChange={(e) => onField10Change("documento", e.target.value)}
-                  onBlur={() => onField10Blur("documento")}
-                  maxLength={10}
-                  style={{ width: "100%", marginTop: 6 }}
-                />
-                {errores.documento && <div style={{ color: "crimson", marginTop: 4 }}>{errores.documento}</div>}
-              </div>
-
-              <div>
-                <b># Orden de Compra (10)</b>
-                <input
-                  value={header.orden_compra}
-                  onChange={(e) => onField10Change("orden_compra", e.target.value)}
-                  onBlur={() => onField10Blur("orden_compra")}
-                  maxLength={10}
-                  disabled={tipoRecibo === "devolucion"}
-                  style={{
-                    width: "100%",
-                    marginTop: 6,
-                    background: tipoRecibo === "devolucion" ? "#f3f3f3" : "#fff",
-                    cursor: tipoRecibo === "devolucion" ? "not-allowed" : "text",
-                  }}
-                />
-                {errores.orden_compra && (
-                  <div style={{ color: "crimson", marginTop: 4 }}>{errores.orden_compra}</div>
-                )}
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <b>Total Recibo</b>
-                <div style={{ fontSize: 18, fontWeight: 800 }}>{formatMoney(totalRecibo)}</div>
-              </div>
-            </div>
+          <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
+            <button onClick={addLinea}>+ Agregar línea</button>
+            <button onClick={onImprimir}>🖨️ Imprimir</button>
           </div>
-        </div>
-
-        <div style={{ overflowX: "auto" }}>
-          <table border="1" cellPadding="6" style={{ borderCollapse: "collapse", width: "100%" }}>
-            <thead>
-              <tr>
-                <th># Serial</th>
-                <th>Item</th>
-                <th>Fecha Recepción</th>
-                <th>Código</th>
-                <th>Texto breve material</th>
-                <th>Empaque</th>
-                <th>UMB</th>
-                <th>UM</th>
-                <th>Cantidad</th>
-                <th>Total</th>
-                <th>Lote Proveedor (10)</th>
-                <th>Fecha Fabricación</th>
-                <th>Fecha Vencimiento</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {lineas.map((ln, idx) => (
-                <tr key={idx}>
-                  <td>{serialItem(header.serial, idx)}</td>
-                  <td>{idx + 1}</td>
-
-                  <td>
-                    <input type="date" value={ln.fecha_recepcion} readOnly style={{ background: "#f3f3f3" }} />
-                  </td>
-
-                  <td>
-                    <input
-                      list="materialesList"
-                      value={ln.codigo}
-                      onChange={(e) => onCodigoChange(idx, e.target.value)}
-                      placeholder="Código"
-                      style={{ width: 120 }}
-                    />
-                    {errores[`codigo_${idx}`] && <div style={{ color: "crimson" }}>{errores[`codigo_${idx}`]}</div>}
-                  </td>
-
-                  <td>
-                    <input value={ln.descripcion} readOnly style={{ width: 260, background: "#f3f3f3" }} />
-                  </td>
-
-                  <td>
-                    <select
-                      value={ln.empaque}
-                      onChange={(e) => setLinea(idx, { empaque: e.target.value })}
-                      style={{ width: 150 }}
-                    >
-                      <option value="">Seleccione...</option>
-                      {EMPAQUES.map((op) => (
-                        <option key={op} value={op}>
-                          {op}
-                        </option>
-                      ))}
-                    </select>
-                    {errores[`empaque_${idx}`] && <div style={{ color: "crimson" }}>{errores[`empaque_${idx}`]}</div>}
-                  </td>
-
-                  <td>
-                    <input
-                      type="number"
-                      value={ln.umb}
-                      onChange={(e) => onUmbChange(idx, e.target.value)}
-                      style={{
-                        width: 90,
-                        background: ln.umb_bloqueado ? "#f3f3f3" : "#fff",
-                        cursor: ln.umb_bloqueado ? "not-allowed" : "text",
-                      }}
-                      readOnly={ln.umb_bloqueado}
-                    />
-                    {errores[`umb_${idx}`] && <div style={{ color: "crimson" }}>{errores[`umb_${idx}`]}</div>}
-                  </td>
-
-                  <td>
-                    <input value={ln.um} readOnly style={{ width: 90, background: "#f3f3f3" }} />
-                  </td>
-
-                  <td>
-                    <input
-                      type="number"
-                      value={ln.cantidad}
-                      onChange={(e) => onCantidadChange(idx, e.target.value)}
-                      style={{ width: 110 }}
-                    />
-                    {errores[`cantidad_${idx}`] && (
-                      <div style={{ color: "crimson" }}>{errores[`cantidad_${idx}`]}</div>
-                    )}
-                  </td>
-
-                  <td>
-                    <input
-                      value={formatMoney(ln.total || 0)}
-                      readOnly
-                      style={{ width: 120, background: "#f3f3f3" }}
-                    />
-                  </td>
-
-                  <td>
-                    <input
-                      value={ln.lote_proveedor}
-                      onChange={(e) => onLoteProveedorChange(idx, e.target.value)}
-                      onBlur={() => setLinea(idx, { lote_proveedor: pad10WithStarsAny(ln.lote_proveedor) })}
-                      maxLength={10}
-                      placeholder="10 caracteres"
-                      style={{ width: 160 }}
-                    />
-                    {errores[`loteprov_${idx}`] && (
-                      <div style={{ color: "crimson" }}>{errores[`loteprov_${idx}`]}</div>
-                    )}
-                  </td>
-
-                  <td>
-                    <input
-                      type="date"
-                      value={ln.fecha_fabricacion}
-                      onChange={(e) => setLinea(idx, { fecha_fabricacion: e.target.value })}
-                    />
-                  </td>
-
-                  <td>
-                    <input
-                      type="date"
-                      value={ln.fecha_vencimiento}
-                      onChange={(e) => setLinea(idx, { fecha_vencimiento: e.target.value })}
-                    />
-                    {errores[`fv_${idx}`] && <div style={{ color: "crimson" }}>{errores[`fv_${idx}`]}</div>}
-                  </td>
-
-                  <td>
-                    <button onClick={() => removeLinea(idx)} disabled={lineas.length === 1}>
-                      Eliminar
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <datalist id="materialesList">
-            {materiales.map((m) => (
-              <option key={m.id} value={m.codigo}>
-                {m.descripcion}
-              </option>
-            ))}
-          </datalist>
-        </div>
-      </div>
-
-      <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
-        <button onClick={addLinea}>+ Agregar línea</button>
-        <button onClick={onImprimir}>🖨️ Imprimir</button>
-      </div>
+        </>
+      )}
     </div>
   );
 }
