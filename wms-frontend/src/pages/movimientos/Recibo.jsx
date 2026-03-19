@@ -169,6 +169,8 @@ export default function Recibo() {
       descripcion: "",
       empaque: "",
       umb: "",
+      umb_bloqueado: false,
+      unidad_material: null,
       um: "",
       cantidad: "",
       total: 0,
@@ -188,7 +190,15 @@ export default function Recibo() {
       if (!raw) return;
       const d = JSON.parse(raw);
       if (d?.header) setHeader(d.header);
-      if (Array.isArray(d?.lineas) && d.lineas.length) setLineas(d.lineas);
+      if (Array.isArray(d?.lineas) && d.lineas.length) {
+        setLineas(
+          d.lineas.map((ln) => ({
+            umb_bloqueado: false,
+            unidad_material: null,
+            ...ln,
+          }))
+        );
+      }
     } catch {
       // nada
     }
@@ -241,6 +251,8 @@ export default function Recibo() {
         descripcion: "",
         empaque: "",
         umb: "",
+        umb_bloqueado: false,
+        unidad_material: null,
         um: "",
         cantidad: "",
         total: 0,
@@ -254,17 +266,6 @@ export default function Recibo() {
 
   const removeLinea = (idx) => setLineas((prev) => prev.filter((_, i) => i !== idx));
 
-  const onCodigoChange = (idx, codigo) => {
-    const code = codigo.trim();
-    const mat = materiales.find((m) => m.codigo === code);
-    setLinea(idx, {
-      codigo: code,
-      descripcion: mat ? mat.descripcion : "",
-      umb: "",
-      um: mat ? mat.unidad_medida : "",
-    });
-  };
-
   const recomputeTotal = (umb, cantidad) => {
     const u = Number(umb);
     const c = Number(cantidad);
@@ -272,11 +273,39 @@ export default function Recibo() {
     return u * c;
   };
 
+  const onCodigoChange = (idx, codigo) => {
+    const code = codigo.trim();
+    const mat = materiales.find((m) => m.codigo === code);
+
+    const unidadMaterial = mat?.unidad ?? null;
+    const unidadNumero = Number(unidadMaterial);
+    const bloquearUmb = Number.isFinite(unidadNumero) && unidadNumero > 1;
+
+    const umbFinal = bloquearUmb ? String(unidadNumero) : "";
+
+    setLinea(idx, {
+      codigo: code,
+      descripcion: mat ? mat.descripcion : "",
+      unidad_material: unidadMaterial,
+      umb: umbFinal,
+      umb_bloqueado: bloquearUmb,
+      um: mat ? mat.unidad_medida : "",
+      total: recomputeTotal(umbFinal, lineas[idx]?.cantidad),
+    });
+  };
+
   const onUmbChange = (idx, value) => {
     setLineas((prev) =>
-      prev.map((ln, i) =>
-        i === idx ? { ...ln, umb: value, total: recomputeTotal(value, ln.cantidad) } : ln
-      )
+      prev.map((ln, i) => {
+        if (i !== idx) return ln;
+        if (ln.umb_bloqueado) return ln;
+
+        return {
+          ...ln,
+          umb: value,
+          total: recomputeTotal(value, ln.cantidad),
+        };
+      })
     );
   };
 
@@ -651,7 +680,6 @@ export default function Recibo() {
             .recibo-table th:nth-child(12), .recibo-table td:nth-child(12) { width: 9%; }
             .recibo-table th:nth-child(13), .recibo-table td:nth-child(13) { width: 9%; }
 
-            /* ===== SEGUNDA HOJA ===== */
             .cards-sheet-header {
               display: flex;
               align-items: center;
@@ -801,7 +829,6 @@ export default function Recibo() {
           </style>
         </head>
         <body>
-          <!-- HOJA 1 -->
           <div class="sheet">
             <div class="titlebar">
               <div class="logo">
@@ -887,7 +914,6 @@ export default function Recibo() {
             </div>
           </div>
 
-          <!-- HOJA 2 -->
           <div class="sheet">
             <div class="cards-sheet-header">
               <div class="logo">
@@ -1124,7 +1150,12 @@ export default function Recibo() {
                       type="number"
                       value={ln.umb}
                       onChange={(e) => onUmbChange(idx, e.target.value)}
-                      style={{ width: 90 }}
+                      style={{
+                        width: 90,
+                        background: ln.umb_bloqueado ? "#f3f3f3" : "#fff",
+                        cursor: ln.umb_bloqueado ? "not-allowed" : "text",
+                      }}
+                      readOnly={ln.umb_bloqueado}
                     />
                     {errores[`umb_${idx}`] && <div style={{ color: "crimson" }}>{errores[`umb_${idx}`]}</div>}
                   </td>
