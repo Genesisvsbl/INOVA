@@ -136,6 +136,9 @@ export default function Recibo() {
       });
   }, []);
 
+  // ===== Tipo de recibo =====
+  const [tipoRecibo, setTipoRecibo] = useState("recibo");
+
   // ===== Cabecera =====
   const [header, setHeader] = useState({
     serial: "13003",
@@ -190,6 +193,8 @@ export default function Recibo() {
       if (!raw) return;
       const d = JSON.parse(raw);
       if (d?.header) setHeader(d.header);
+      if (d?.tipoRecibo) setTipoRecibo(d.tipoRecibo);
+
       if (Array.isArray(d?.lineas) && d.lineas.length) {
         setLineas(
           d.lineas.map((ln) => ({
@@ -203,6 +208,24 @@ export default function Recibo() {
       // nada
     }
   }, []);
+
+  // ===== Regla automática para devolución =====
+  useEffect(() => {
+    if (tipoRecibo === "devolucion") {
+      setHeader((prev) => ({
+        ...prev,
+        remesa_transp: "**********",
+        orden_compra: "**********",
+      }));
+
+      setErrores((prev) => {
+        const copy = { ...prev };
+        delete copy.remesa_transp;
+        delete copy.orden_compra;
+        return copy;
+      });
+    }
+  }, [tipoRecibo]);
 
   const totalRecibo = useMemo(
     () => lineas.reduce((acc, ln) => acc + (Number(ln.total) || 0), 0),
@@ -236,7 +259,13 @@ export default function Recibo() {
     }
   };
 
-  const onField10Blur = (key) => setHeaderField(key, pad10WithStars(header[key]));
+  const onField10Blur = (key) => {
+    if (tipoRecibo === "devolucion" && (key === "remesa_transp" || key === "orden_compra")) {
+      setHeaderField(key, "**********");
+      return;
+    }
+    setHeaderField(key, pad10WithStars(header[key]));
+  };
 
   const setLinea = (idx, patch) => {
     setLineas((prev) => prev.map((ln, i) => (i === idx ? { ...ln, ...patch } : ln)));
@@ -338,11 +367,28 @@ export default function Recibo() {
   const validarAntesDeContinuar = () => {
     const errs = {};
 
-    ["remesa_transp", "documento", "orden_compra"].forEach((k) => {
+    ["documento"].forEach((k) => {
       if (!header[k] || header[k].length !== 10) {
         errs[k] = "Debe quedar exactamente de 10 caracteres (se rellena con *).";
       }
     });
+
+    if (tipoRecibo === "recibo") {
+      ["remesa_transp", "orden_compra"].forEach((k) => {
+        if (!header[k] || header[k].length !== 10) {
+          errs[k] = "Debe quedar exactamente de 10 caracteres (se rellena con *).";
+        }
+      });
+    }
+
+    if (tipoRecibo === "devolucion") {
+      if (header.remesa_transp !== "**********") {
+        errs.remesa_transp = "En devolución debe quedar en **********.";
+      }
+      if (header.orden_compra !== "**********") {
+        errs.orden_compra = "En devolución debe quedar en **********.";
+      }
+    }
 
     if (!header.proveedor_id) errs.proveedor = "Proveedor obligatorio.";
     if (!header.acreedor) errs.acreedor = "Acreedor obligatorio.";
@@ -365,9 +411,18 @@ export default function Recibo() {
   };
 
   const onGuardarRecibo = async () => {
-    ["remesa_transp", "documento", "orden_compra"].forEach((k) => {
-      setHeaderField(k, pad10WithStars(header[k]));
-    });
+    if (tipoRecibo === "devolucion") {
+      setHeader((prev) => ({
+        ...prev,
+        remesa_transp: "**********",
+        orden_compra: "**********",
+        documento: pad10WithStars(prev.documento),
+      }));
+    } else {
+      ["remesa_transp", "documento", "orden_compra"].forEach((k) => {
+        setHeaderField(k, pad10WithStars(header[k]));
+      });
+    }
 
     setTimeout(() => {
       if (!validarAntesDeContinuar()) {
@@ -377,9 +432,25 @@ export default function Recibo() {
 
       const codigo_cita = header.serial;
 
+      const headerFinal =
+        tipoRecibo === "devolucion"
+          ? {
+              ...header,
+              remesa_transp: "**********",
+              orden_compra: "**********",
+              documento: pad10WithStars(header.documento),
+            }
+          : {
+              ...header,
+              remesa_transp: pad10WithStars(header.remesa_transp),
+              documento: pad10WithStars(header.documento),
+              orden_compra: pad10WithStars(header.orden_compra),
+            };
+
       const draft = {
         tipo: "ENTRADA",
-        header: { ...header, usuario, codigo_cita },
+        tipoRecibo,
+        header: { ...headerFinal, usuario, codigo_cita },
         lineas: lineas.map((ln) => ({
           ...ln,
           lote: "",
@@ -531,7 +602,9 @@ export default function Recibo() {
     const html = `
       <html>
         <head>
-          <title>Recibo ciego - ${escapeHtml(header.serial)}</title>
+          <title>${escapeHtml(tipoRecibo === "devolucion" ? "Devolución" : "Recibo ciego")} - ${escapeHtml(
+      header.serial
+    )}</title>
           <meta charset="utf-8" />
           <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
           <style>
@@ -837,7 +910,9 @@ export default function Recibo() {
               <div>
                 <div class="title-main">WMS INOVA</div>
                 <div class="title-sub">
-                  Recibo ciego • Serial ${escapeHtml(header.serial)} • Usuario ${escapeHtml(usuario || "")}
+                  ${escapeHtml(tipoRecibo === "devolucion" ? "Devolución" : "Recibo ciego")} • Serial ${escapeHtml(
+      header.serial
+    )} • Usuario ${escapeHtml(usuario || "")}
                 </div>
               </div>
             </div>
@@ -920,7 +995,9 @@ export default function Recibo() {
                 <img src="/INOVA.png" alt="INOVA" />
               </div>
               <div>
-                <div class="cards-title">Tarjetas del recibo</div>
+                <div class="cards-title">Tarjetas del ${escapeHtml(
+                  tipoRecibo === "devolucion" ? "devolución" : "recibo"
+                )}</div>
                 <div class="cards-subtitle">4 por hoja • listas para escanear</div>
               </div>
             </div>
@@ -952,7 +1029,7 @@ export default function Recibo() {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <h2 style={{ margin: 0 }}>📥 Recibo ciego</h2>
+        <h2 style={{ margin: 0 }}>📥 {tipoRecibo === "devolucion" ? "Devolución" : "Recibo ciego"}</h2>
 
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={onImprimir}>🖨️ Imprimir</button>
@@ -960,6 +1037,40 @@ export default function Recibo() {
             Guardar (Asignar Ubicación)
           </button>
         </div>
+      </div>
+
+      <div style={{ marginBottom: 12, display: "flex", gap: 10 }}>
+        <button
+          type="button"
+          onClick={() => setTipoRecibo("recibo")}
+          style={{
+            padding: "10px 16px",
+            borderRadius: 10,
+            border: "1px solid #d0d7de",
+            background: tipoRecibo === "recibo" ? "#1976d2" : "#fff",
+            color: tipoRecibo === "recibo" ? "#fff" : "#111",
+            fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          Recibo
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setTipoRecibo("devolucion")}
+          style={{
+            padding: "10px 16px",
+            borderRadius: 10,
+            border: "1px solid #d0d7de",
+            background: tipoRecibo === "devolucion" ? "#1976d2" : "#fff",
+            color: tipoRecibo === "devolucion" ? "#fff" : "#111",
+            fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          Devolución
+        </button>
       </div>
 
       <div style={{ marginBottom: 10, color: "#444" }}>
@@ -1042,7 +1153,13 @@ export default function Recibo() {
                   onChange={(e) => onField10Change("remesa_transp", e.target.value)}
                   onBlur={() => onField10Blur("remesa_transp")}
                   maxLength={10}
-                  style={{ width: "100%", marginTop: 6 }}
+                  disabled={tipoRecibo === "devolucion"}
+                  style={{
+                    width: "100%",
+                    marginTop: 6,
+                    background: tipoRecibo === "devolucion" ? "#f3f3f3" : "#fff",
+                    cursor: tipoRecibo === "devolucion" ? "not-allowed" : "text",
+                  }}
                 />
                 {errores.remesa_transp && (
                   <div style={{ color: "crimson", marginTop: 4 }}>{errores.remesa_transp}</div>
@@ -1068,7 +1185,13 @@ export default function Recibo() {
                   onChange={(e) => onField10Change("orden_compra", e.target.value)}
                   onBlur={() => onField10Blur("orden_compra")}
                   maxLength={10}
-                  style={{ width: "100%", marginTop: 6 }}
+                  disabled={tipoRecibo === "devolucion"}
+                  style={{
+                    width: "100%",
+                    marginTop: 6,
+                    background: tipoRecibo === "devolucion" ? "#f3f3f3" : "#fff",
+                    cursor: tipoRecibo === "devolucion" ? "not-allowed" : "text",
+                  }}
                 />
                 {errores.orden_compra && (
                   <div style={{ color: "crimson", marginTop: 4 }}>{errores.orden_compra}</div>
