@@ -13,16 +13,26 @@ import {
 } from "lucide-react";
 
 const colors = {
-  navy: "#072B5A",
-  blue: "#0A6ED1",
-  bg: "#F5F7FB",
-  text: "#0F172A",
-  muted: "#64748B",
-  card: "#FFFFFF",
-  border: "#E2E8F0",
-  good: "#16a34a",
-  bad: "#dc2626",
-  warn: "#f59e0b",
+  navy: "#133454",
+  blue: "#0b57d0",
+  bg: "#f3f6fa",
+  text: "#203246",
+  muted: "#6b7c8f",
+  card: "#ffffff",
+  border: "#d9e2ec",
+  soft: "#f8fafc",
+  rowAlt: "#fbfdff",
+  good: "#1f7a3d",
+  bad: "#c62828",
+  warn: "#b26a00",
+  goodBg: "#edf8f1",
+  goodBd: "#cfe8d7",
+  badBg: "#fdf0f0",
+  badBd: "#f3c7c7",
+  warnBg: "#fff6e5",
+  warnBd: "#f1ddb0",
+  infoBg: "#eaf3ff",
+  infoBd: "#cfe0ff",
 };
 
 const fmtCO = new Intl.NumberFormat("es-CO", {
@@ -70,26 +80,26 @@ function fmtDateTime(v) {
 }
 
 function Chip({ label, tone = "neutral" }) {
-  const stylesByTone = {
-    neutral: { bg: "#F1F5F9", bd: "#E2E8F0", tx: colors.text },
-    blue: { bg: "rgba(10,110,209,.10)", bd: "rgba(10,110,209,.25)", tx: colors.blue },
-    green: { bg: "rgba(22,163,74,.10)", bd: "rgba(22,163,74,.25)", tx: colors.good },
-    red: { bg: "rgba(220,38,38,.10)", bd: "rgba(220,38,38,.25)", tx: colors.bad },
-    amber: { bg: "rgba(245,158,11,.10)", bd: "rgba(245,158,11,.28)", tx: colors.warn },
+  const tones = {
+    neutral: { bg: "#eef2f6", bd: "#dbe4ec", tx: colors.text },
+    blue: { bg: colors.infoBg, bd: colors.infoBd, tx: colors.blue },
+    green: { bg: colors.goodBg, bd: colors.goodBd, tx: colors.good },
+    red: { bg: colors.badBg, bd: colors.badBd, tx: colors.bad },
+    amber: { bg: colors.warnBg, bd: colors.warnBd, tx: colors.warn },
   };
 
-  const st = stylesByTone[tone] || stylesByTone.neutral;
+  const t = tones[tone] || tones.neutral;
 
   return (
     <span
       style={{
         display: "inline-flex",
         alignItems: "center",
-        padding: "6px 10px",
+        padding: "5px 10px",
         borderRadius: 999,
-        background: st.bg,
-        border: `1px solid ${st.bd}`,
-        color: st.tx,
+        background: t.bg,
+        border: `1px solid ${t.bd}`,
+        color: t.tx,
         fontSize: 12,
         fontWeight: 800,
         whiteSpace: "nowrap",
@@ -139,31 +149,95 @@ function resolveEstadoReserva(totalReq, totalRet) {
   return "PARCIAL";
 }
 
-const cardStyle = {
+const shellCardStyle = {
   background: colors.card,
   border: `1px solid ${colors.border}`,
-  borderRadius: 18,
-  boxShadow: "0 14px 34px rgba(2,6,23,.06)",
+  borderRadius: 12,
+  overflow: "hidden",
+  boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
 };
 
-const inputStyle = {
-  width: "100%",
-  height: 44,
-  padding: "0 12px",
-  borderRadius: 12,
-  border: `1px solid ${colors.border}`,
-  background: "#fff",
-  fontWeight: 800,
-  color: colors.text,
-  outline: "none",
+const sectionHeaderStyle = {
+  padding: "14px 16px",
+  borderBottom: `1px solid ${colors.border}`,
+  background: colors.soft,
 };
 
 const labelStyle = {
   fontSize: 11,
   color: colors.muted,
-  fontWeight: 900,
+  fontWeight: 800,
   marginBottom: 6,
-  letterSpacing: 0.4,
+  letterSpacing: ".04em",
+  textTransform: "uppercase",
+};
+
+const inputStyle = {
+  width: "100%",
+  height: 42,
+  padding: "0 12px",
+  borderRadius: 10,
+  border: `1px solid ${colors.border}`,
+  background: "#fff",
+  fontWeight: 700,
+  color: colors.text,
+  outline: "none",
+  boxSizing: "border-box",
+  fontSize: 14,
+};
+
+const buttonBase = {
+  height: 42,
+  padding: "0 16px",
+  borderRadius: 10,
+  fontWeight: 800,
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  fontSize: 14,
+};
+
+const secondaryButtonStyle = {
+  ...buttonBase,
+  border: `1px solid ${colors.border}`,
+  background: "#fff",
+  color: colors.text,
+};
+
+const primaryButtonStyle = {
+  ...buttonBase,
+  border: "1px solid #0b57d0",
+  background: "#0b57d0",
+  color: "#fff",
+};
+
+const subtleBlueButtonStyle = {
+  ...buttonBase,
+  border: `1px solid ${colors.infoBd}`,
+  background: colors.infoBg,
+  color: colors.blue,
+};
+
+const subtleWarnButtonStyle = {
+  ...buttonBase,
+  border: `1px solid ${colors.warnBd}`,
+  background: colors.warnBg,
+  color: colors.warn,
+};
+
+const subtleGreenButtonStyle = {
+  ...buttonBase,
+  border: `1px solid ${colors.goodBd}`,
+  background: colors.goodBg,
+  color: colors.good,
+};
+
+const subtleRedButtonStyle = {
+  ...buttonBase,
+  border: `1px solid ${colors.badBd}`,
+  background: colors.badBg,
+  color: colors.bad,
 };
 
 const tableWrapStyle = {
@@ -173,23 +247,69 @@ const tableWrapStyle = {
 };
 
 const thStyle = {
-  padding: 12,
-  color: colors.muted,
+  padding: "11px 12px",
+  color: "#607080",
   fontSize: 12,
-  fontWeight: 1000,
+  fontWeight: 800,
   textAlign: "left",
   borderBottom: `1px solid ${colors.border}`,
-  background: "#F8FAFC",
+  background: "#fbfcfd",
   whiteSpace: "nowrap",
 };
 
 const tdStyle = {
-  padding: 12,
-  borderBottom: `1px solid ${colors.border}`,
+  padding: "12px",
+  borderBottom: `1px solid #edf2f7`,
   color: colors.text,
   fontWeight: 700,
   whiteSpace: "nowrap",
+  fontSize: 13,
+  verticalAlign: "top",
 };
+
+function SummaryBox({ label, value, tone = "default" }) {
+  const toneStyles = {
+    default: { color: colors.navy },
+    green: { color: colors.good },
+    red: { color: colors.bad },
+    amber: { color: colors.warn },
+    blue: { color: colors.blue },
+  };
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: `1px solid ${colors.border}`,
+        borderRadius: 10,
+        padding: 14,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          color: colors.muted,
+          fontWeight: 800,
+          letterSpacing: ".04em",
+          textTransform: "uppercase",
+          marginBottom: 8,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 18,
+          fontWeight: 900,
+          color: toneStyles[tone]?.color || colors.navy,
+          lineHeight: 1.1,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
 
 export default function Despacho() {
   const navigate = useNavigate();
@@ -570,29 +690,50 @@ export default function Despacho() {
         background: colors.bg,
         minHeight: "100%",
         display: "grid",
-        gap: 12,
+        gap: 14,
       }}
     >
-      <div style={cardStyle}>
+      <div style={shellCardStyle}>
         <div
           style={{
-            padding: 18,
-            borderBottom: `1px solid ${colors.border}`,
+            ...sectionHeaderStyle,
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "end",
-            gap: 12,
+            alignItems: "flex-end",
+            gap: 16,
             flexWrap: "wrap",
           }}
         >
           <div>
-            <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, letterSpacing: 1 }}>
-              MÓDULO DESPACHO
+            <div
+              style={{
+                fontSize: 12,
+                color: colors.muted,
+                fontWeight: 900,
+                letterSpacing: ".08em",
+                textTransform: "uppercase",
+                marginBottom: 6,
+              }}
+            >
+              Módulo despacho
             </div>
-            <h1 style={{ margin: "6px 0 0", color: colors.navy, fontSize: 26 }}>
+            <div
+              style={{
+                fontSize: 22,
+                fontWeight: 800,
+                lineHeight: 1.1,
+                color: colors.navy,
+              }}
+            >
               Planeación y control de reservas
-            </h1>
-            <div style={{ marginTop: 6, color: colors.muted, fontSize: 14 }}>
+            </div>
+            <div
+              style={{
+                marginTop: 6,
+                color: colors.muted,
+                fontSize: 13,
+              }}
+            >
               Importa el Excel, filtra por fecha de necesidad, controla estados y cierra reservas desde la visual.
             </div>
           </div>
@@ -604,7 +745,7 @@ export default function Despacho() {
             <Chip label={`Ret: ${formatQty(resumen.totalRetirado)}`} tone="green" />
             <Chip label={`Pend: ${formatQty(resumen.totalDiferencia)}`} tone="red" />
             <Chip label={`Cerradas: ${resumen.totalCerradas}`} tone="neutral" />
-            {loading && <Chip label="Cargando…" tone="amber" />}
+            {loading && <Chip label="Cargando..." tone="amber" />}
             {err && <Chip label="Error" tone="red" />}
             {!loading && !err && <Chip label="OK" tone="green" />}
           </div>
@@ -614,13 +755,13 @@ export default function Despacho() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1.6fr auto auto",
-              gap: 10,
+              gridTemplateColumns: "1.8fr auto auto",
+              gap: 12,
               alignItems: "end",
             }}
           >
             <div>
-              <div style={labelStyle}>IMPORTAR EXCEL DESPACHO</div>
+              <div style={labelStyle}>Importar Excel despacho</div>
               <input
                 id="input-despacho-excel"
                 type="file"
@@ -628,29 +769,12 @@ export default function Despacho() {
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
                 style={{
                   ...inputStyle,
-                  display: "flex",
-                  alignItems: "center",
-                  paddingTop: 10,
+                  paddingTop: 9,
                 }}
               />
             </div>
 
-            <button
-              onClick={onImportar}
-              disabled={subiendo}
-              style={{
-                height: 44,
-                padding: "0 16px",
-                borderRadius: 14,
-                border: `1px solid ${colors.border}`,
-                background: "#fff",
-                fontWeight: 900,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
+            <button onClick={onImportar} disabled={subiendo} style={secondaryButtonStyle}>
               <Upload size={15} />
               {subiendo ? "Importando..." : "Importar"}
             </button>
@@ -658,9 +782,9 @@ export default function Despacho() {
             <div
               style={{
                 color: colors.muted,
-                fontWeight: 800,
+                fontWeight: 700,
                 fontSize: 12,
-                minHeight: 44,
+                minHeight: 42,
                 display: "flex",
                 alignItems: "center",
               }}
@@ -671,7 +795,7 @@ export default function Despacho() {
         </div>
       </div>
 
-      <div style={cardStyle}>
+      <div style={shellCardStyle}>
         <div style={{ padding: 16 }}>
           <div
             style={{
@@ -682,7 +806,7 @@ export default function Despacho() {
             }}
           >
             <div>
-              <div style={labelStyle}>RESERVA</div>
+              <div style={labelStyle}>Reserva</div>
               <input
                 value={reserva}
                 onChange={(e) => setReserva(e.target.value)}
@@ -692,7 +816,7 @@ export default function Despacho() {
             </div>
 
             <div>
-              <div style={labelStyle}>FECHA DESDE</div>
+              <div style={labelStyle}>Fecha desde</div>
               <input
                 type="date"
                 value={fechaDesde}
@@ -702,7 +826,7 @@ export default function Despacho() {
             </div>
 
             <div>
-              <div style={labelStyle}>FECHA HASTA</div>
+              <div style={labelStyle}>Fecha hasta</div>
               <input
                 type="date"
                 value={fechaHasta}
@@ -712,7 +836,7 @@ export default function Despacho() {
             </div>
 
             <div>
-              <div style={labelStyle}>ESTADO</div>
+              <div style={labelStyle}>Estado</div>
               <select
                 value={estadoFiltro}
                 onChange={(e) => setEstadoFiltro(e.target.value)}
@@ -729,67 +853,33 @@ export default function Despacho() {
               </select>
             </div>
 
-            <button
-              onClick={onBuscar}
-              style={{
-                height: 44,
-                padding: "0 16px",
-                borderRadius: 14,
-                border: `1px solid ${colors.border}`,
-                background: "#fff",
-                fontWeight: 900,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
+            <button onClick={onBuscar} style={secondaryButtonStyle}>
               <Search size={15} />
               Buscar
             </button>
 
-            <button
-              onClick={onLimpiar}
-              style={{
-                height: 44,
-                padding: "0 16px",
-                borderRadius: 14,
-                border: `1px solid ${colors.border}`,
-                background: "#fff",
-                fontWeight: 900,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
+            <button onClick={onLimpiar} style={secondaryButtonStyle}>
               <Eraser size={15} />
               Limpiar
             </button>
 
-            <button
-              onClick={() => onGenerarPicking()}
-              style={{
-                height: 44,
-                padding: "0 16px",
-                borderRadius: 14,
-                border: `1px solid rgba(10,110,209,.25)`,
-                background: "rgba(10,110,209,.08)",
-                color: colors.blue,
-                fontWeight: 1000,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
+            <button onClick={() => onGenerarPicking()} style={subtleBlueButtonStyle}>
               <Settings2 size={15} />
               Generar Orden Picking
             </button>
           </div>
 
           <div style={{ display: "flex", gap: 18, marginTop: 12, flexWrap: "wrap" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 800, color: colors.text }}>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontWeight: 700,
+                color: colors.text,
+                fontSize: 13,
+              }}
+            >
               <input
                 type="checkbox"
                 checked={soloPendientes}
@@ -798,7 +888,16 @@ export default function Despacho() {
               Solo pendientes
             </label>
 
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 800, color: colors.text }}>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontWeight: 700,
+                color: colors.text,
+                fontSize: 13,
+              }}
+            >
               <input
                 type="checkbox"
                 checked={soloCerradas}
@@ -810,16 +909,38 @@ export default function Despacho() {
         </div>
       </div>
 
-      <div style={cardStyle}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(6, minmax(160px, 1fr))",
+          gap: 10,
+        }}
+      >
+        <SummaryBox label="Reservas" value={resumen.totalReservas} tone="blue" />
+        <SummaryBox label="SKUs" value={resumen.totalSkus} tone="blue" />
+        <SummaryBox label="Total requerido" value={formatQty(resumen.totalRequerido)} tone="amber" />
+        <SummaryBox label="Total retirado" value={formatQty(resumen.totalRetirado)} tone="green" />
+        <SummaryBox label="Pendiente" value={formatQty(resumen.totalDiferencia)} tone="red" />
+        <SummaryBox label="Cerradas" value={resumen.totalCerradas} tone="default" />
+      </div>
+
+      <div style={shellCardStyle}>
         <div
           style={{
-            padding: 14,
-            borderBottom: `1px solid ${colors.border}`,
-            fontWeight: 1000,
-            color: colors.navy,
+            ...sectionHeaderStyle,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
           }}
         >
-          Resumen por reserva
+          <div style={{ fontWeight: 800, color: colors.navy, fontSize: 15 }}>
+            Resumen por reserva
+          </div>
+          <div style={{ fontSize: 12, color: colors.muted, fontWeight: 700 }}>
+            Mostrando {reservasFiltradas.length} reservas
+          </div>
         </div>
 
         <div style={tableWrapStyle}>
@@ -843,13 +964,13 @@ export default function Despacho() {
             <tbody>
               {!loading && reservasFiltradas.length === 0 && (
                 <tr>
-                  <td colSpan={11} style={{ padding: 18, color: colors.muted, fontWeight: 800 }}>
+                  <td colSpan={11} style={{ padding: 18, color: colors.muted, fontWeight: 700 }}>
                     No hay reservas con esos filtros.
                   </td>
                 </tr>
               )}
 
-              {reservasFiltradas.map((r) => {
+              {reservasFiltradas.map((r, idx) => {
                 const pct =
                   Number(r.total_requerido || 0) > 0
                     ? (Number(r.total_retirado || 0) / Number(r.total_requerido || 0)) * 100
@@ -860,7 +981,12 @@ export default function Despacho() {
                     key={r.reserva}
                     style={{
                       borderBottom: `1px solid ${colors.border}`,
-                      background: reservaActiva === r.reserva ? "rgba(10,110,209,.04)" : "#fff",
+                      background:
+                        reservaActiva === r.reserva
+                          ? "#eef6ff"
+                          : idx % 2 === 0
+                          ? "#fff"
+                          : colors.rowAlt,
                     }}
                   >
                     <td style={{ ...tdStyle, fontWeight: 800 }}>
@@ -878,7 +1004,7 @@ export default function Despacho() {
                           padding: 0,
                           margin: 0,
                           color: colors.blue,
-                          fontWeight: 1000,
+                          fontWeight: 800,
                           cursor: "pointer",
                         }}
                         title={`Seleccionar reserva ${r.reserva}`}
@@ -887,11 +1013,19 @@ export default function Despacho() {
                       </button>
                     </td>
 
-                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{r.total_skus}</td>
-                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{formatQty(r.total_requerido)}</td>
-                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{formatQty(r.total_retirado)}</td>
-                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{formatQty(r.total_diferencia)}</td>
-                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{formatQty(pct)}</td>
+                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>{r.total_skus}</td>
+                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                      {formatQty(r.total_requerido)}
+                    </td>
+                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                      {formatQty(r.total_retirado)}
+                    </td>
+                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                      {formatQty(r.total_diferencia)}
+                    </td>
+                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                      {formatQty(pct)}
+                    </td>
 
                     <td style={tdStyle}>
                       <Chip
@@ -900,11 +1034,19 @@ export default function Despacho() {
                       />
                     </td>
 
-                    <td style={{ ...tdStyle, fontWeight: 800 }}>
+                    <td style={{ ...tdStyle, fontWeight: 700 }}>
                       {r.cerrada ? fmtDateTime(r.fecha_cierre) : "Abierta"}
                     </td>
 
-                    <td style={{ ...tdStyle, fontWeight: 700, whiteSpace: "normal", minWidth: 180 }}>
+                    <td
+                      style={{
+                        ...tdStyle,
+                        fontWeight: 600,
+                        whiteSpace: "normal",
+                        minWidth: 180,
+                        color: "#475569",
+                      }}
+                    >
                       {r.nota_cierre || ""}
                     </td>
 
@@ -912,17 +1054,7 @@ export default function Despacho() {
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <button
                           onClick={() => verReserva(r.reserva)}
-                          style={{
-                            padding: "8px 10px",
-                            borderRadius: 12,
-                            border: `1px solid ${colors.border}`,
-                            background: "#fff",
-                            fontWeight: 900,
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 6,
-                          }}
+                          style={{ ...secondaryButtonStyle, height: 36, padding: "0 12px" }}
                         >
                           <Eye size={14} />
                           Ver
@@ -930,18 +1062,7 @@ export default function Despacho() {
 
                         <button
                           onClick={() => onGenerarPicking(r.reserva)}
-                          style={{
-                            padding: "8px 10px",
-                            borderRadius: 12,
-                            border: `1px solid rgba(10,110,209,.25)`,
-                            background: "rgba(10,110,209,.08)",
-                            color: colors.blue,
-                            fontWeight: 900,
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 6,
-                          }}
+                          style={{ ...subtleBlueButtonStyle, height: 36, padding: "0 12px" }}
                         >
                           <Settings2 size={14} />
                           Picking
@@ -950,18 +1071,7 @@ export default function Despacho() {
                         {!r.cerrada ? (
                           <button
                             onClick={() => cerrarReserva(r.reserva, r.clasificacion_base)}
-                            style={{
-                              padding: "8px 10px",
-                              borderRadius: 12,
-                              border: "1px solid rgba(245,158,11,.28)",
-                              background: "rgba(245,158,11,.10)",
-                              color: colors.warn,
-                              fontWeight: 900,
-                              cursor: "pointer",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 6,
-                            }}
+                            style={{ ...subtleWarnButtonStyle, height: 36, padding: "0 12px" }}
                           >
                             <Lock size={14} />
                             Cerrar
@@ -969,18 +1079,7 @@ export default function Despacho() {
                         ) : (
                           <button
                             onClick={() => reabrirReserva(r.reserva)}
-                            style={{
-                              padding: "8px 10px",
-                              borderRadius: 12,
-                              border: "1px solid rgba(22,163,74,.25)",
-                              background: "rgba(22,163,74,.10)",
-                              color: colors.good,
-                              fontWeight: 900,
-                              cursor: "pointer",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 6,
-                            }}
+                            style={{ ...subtleGreenButtonStyle, height: 36, padding: "0 12px" }}
                           >
                             <Unlock size={14} />
                             Reabrir
@@ -989,18 +1088,7 @@ export default function Despacho() {
 
                         <button
                           onClick={() => eliminarReserva(r.reserva)}
-                          style={{
-                            padding: "8px 10px",
-                            borderRadius: 12,
-                            border: "1px solid rgba(220,38,38,.25)",
-                            background: "rgba(220,38,38,.10)",
-                            color: colors.bad,
-                            fontWeight: 900,
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 6,
-                          }}
+                          style={{ ...subtleRedButtonStyle, height: 36, padding: "0 12px" }}
                         >
                           <Trash2 size={14} />
                           Eliminar
@@ -1015,16 +1103,11 @@ export default function Despacho() {
         </div>
       </div>
 
-      <div style={cardStyle}>
-        <div
-          style={{
-            padding: 14,
-            borderBottom: `1px solid ${colors.border}`,
-            fontWeight: 1000,
-            color: colors.navy,
-          }}
-        >
-          Cuadro despacho / validación
+      <div style={shellCardStyle}>
+        <div style={sectionHeaderStyle}>
+          <div style={{ fontWeight: 800, color: colors.navy, fontSize: 15 }}>
+            Cuadro despacho / validación
+          </div>
         </div>
 
         <div style={tableWrapStyle}>
@@ -1049,32 +1132,57 @@ export default function Despacho() {
             <tbody>
               {!loading && rowsFiltradas.length === 0 && (
                 <tr>
-                  <td colSpan={12} style={{ padding: 18, color: colors.muted, fontWeight: 800 }}>
+                  <td colSpan={12} style={{ padding: 18, color: colors.muted, fontWeight: 700 }}>
                     No hay registros cargados con esos filtros.
                   </td>
                 </tr>
               )}
 
-              {rowsFiltradas.map((r) => (
-                <tr key={r.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
+              {rowsFiltradas.map((r, idx) => (
+                <tr
+                  key={r.id}
+                  style={{
+                    borderBottom: `1px solid ${colors.border}`,
+                    background: idx % 2 === 0 ? "#fff" : colors.rowAlt,
+                  }}
+                >
                   <td style={{ ...tdStyle, fontWeight: 800 }}>{fmtDate(r.fecha_necesidad)}</td>
-                  <td style={{ ...tdStyle, fontWeight: 900, color: colors.blue }}>{r.reserva || ""}</td>
-                  <td style={{ ...tdStyle, fontWeight: 900 }}>{r.sku || ""}</td>
-                  <td style={{ ...tdStyle, fontWeight: 700, whiteSpace: "normal", minWidth: 260 }}>
+                  <td style={{ ...tdStyle, fontWeight: 800, color: colors.blue }}>
+                    {r.reserva || ""}
+                  </td>
+                  <td style={{ ...tdStyle, fontWeight: 800 }}>{r.sku || ""}</td>
+                  <td
+                    style={{
+                      ...tdStyle,
+                      fontWeight: 600,
+                      whiteSpace: "normal",
+                      minWidth: 260,
+                    }}
+                  >
                     {r.texto_breve || ""}
                   </td>
-                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{formatQty(r.cantidad)}</td>
-                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{formatQty(r.cantidad_retirada)}</td>
-                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{formatQty(r.diferencia)}</td>
-                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{r.lineas_usadas ?? 0}</td>
-                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{formatQty(r.pct_cumplimiento_sku)}</td>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                    {formatQty(r.cantidad)}
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                    {formatQty(r.cantidad_retirada)}
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                    {formatQty(r.diferencia)}
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                    {r.lineas_usadas ?? 0}
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                    {formatQty(r.pct_cumplimiento_sku)}
+                  </td>
                   <td style={tdStyle}>
                     <Chip
                       label={r.clasificacion_sku || "NO CUMPLIDA"}
                       tone={toneByClasificacion(r.clasificacion_sku)}
                     />
                   </td>
-                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
                     {formatQty(r.pct_cumplimiento_reserva)}
                   </td>
                   <td style={tdStyle}>
@@ -1090,30 +1198,34 @@ export default function Despacho() {
         </div>
 
         {err && (
-          <div style={{ padding: 14, color: colors.bad, fontWeight: 900 }}>
+          <div style={{ padding: 14, color: colors.bad, fontWeight: 800 }}>
             Error API: {err}
           </div>
         )}
       </div>
 
-      <div style={cardStyle}>
+      <div style={shellCardStyle}>
         <div
           style={{
-            padding: 14,
-            borderBottom: `1px solid ${colors.border}`,
-            fontWeight: 1000,
-            color: colors.navy,
+            ...sectionHeaderStyle,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
           }}
         >
-          Orden de picking generada
-        </div>
+          <div style={{ fontWeight: 800, color: colors.navy, fontSize: 15 }}>
+            Orden de picking generada
+          </div>
 
-        <div style={{ padding: "10px 14px", color: colors.muted, fontWeight: 700 }}>
-          {loadingPicking
-            ? "Cargando picking..."
-            : reservaActiva
-            ? `Reserva consultada: ${reservaActiva}`
-            : "Selecciona o escribe una reserva y genera el picking."}
+          <div style={{ fontSize: 12, color: colors.muted, fontWeight: 700 }}>
+            {loadingPicking
+              ? "Cargando picking..."
+              : reservaActiva
+              ? `Reserva consultada: ${reservaActiva}`
+              : "Selecciona o escribe una reserva y genera el picking."}
+          </div>
         </div>
 
         <div style={tableWrapStyle}>
@@ -1135,29 +1247,53 @@ export default function Despacho() {
             <tbody>
               {!loadingPicking && pickingRows.length === 0 && (
                 <tr>
-                  <td colSpan={9} style={{ padding: 18, color: colors.muted, fontWeight: 800 }}>
+                  <td colSpan={9} style={{ padding: 18, color: colors.muted, fontWeight: 700 }}>
                     No hay picking generado para esa reserva.
                   </td>
                 </tr>
               )}
 
-              {pickingRows.map((r) => (
-                <tr key={r.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
-                  <td style={{ ...tdStyle, fontWeight: 900, color: colors.blue }}>{r.reserva || ""}</td>
-                  <td style={{ ...tdStyle, fontWeight: 900 }}>{r.sku || ""}</td>
-                  <td style={{ ...tdStyle, fontWeight: 700, whiteSpace: "normal", minWidth: 260 }}>
+              {pickingRows.map((r, idx) => (
+                <tr
+                  key={r.id}
+                  style={{
+                    borderBottom: `1px solid ${colors.border}`,
+                    background: idx % 2 === 0 ? "#fff" : colors.rowAlt,
+                  }}
+                >
+                  <td style={{ ...tdStyle, fontWeight: 800, color: colors.blue }}>
+                    {r.reserva || ""}
+                  </td>
+                  <td style={{ ...tdStyle, fontWeight: 800 }}>{r.sku || ""}</td>
+                  <td
+                    style={{
+                      ...tdStyle,
+                      fontWeight: 600,
+                      whiteSpace: "normal",
+                      minWidth: 260,
+                    }}
+                  >
                     {r.texto_breve || ""}
                   </td>
-                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
                     {formatQty(r.cantidad_requerida)}
                   </td>
-                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900, color: colors.good }}>
+                  <td
+                    style={{
+                      ...tdStyle,
+                      textAlign: "right",
+                      fontWeight: 800,
+                      color: colors.good,
+                    }}
+                  >
                     {formatQty(r.cantidad_a_retirar ?? r.cantidad_sugerida)}
                   </td>
-                  <td style={{ ...tdStyle, fontWeight: 800 }}>{r.ubicacion || ""}</td>
-                  <td style={{ ...tdStyle, fontWeight: 700 }}>{r.lote_almacen || ""}</td>
-                  <td style={{ ...tdStyle, fontWeight: 700 }}>{r.lote_proveedor || ""}</td>
-                  <td style={{ ...tdStyle, fontWeight: 800 }}>{fmtDate(r.fecha_vencimiento)}</td>
+                  <td style={{ ...tdStyle, fontWeight: 700 }}>{r.ubicacion || ""}</td>
+                  <td style={{ ...tdStyle, fontWeight: 600 }}>{r.lote_almacen || ""}</td>
+                  <td style={{ ...tdStyle, fontWeight: 600 }}>{r.lote_proveedor || ""}</td>
+                  <td style={{ ...tdStyle, fontWeight: 700 }}>
+                    {fmtDate(r.fecha_vencimiento)}
+                  </td>
                 </tr>
               ))}
             </tbody>
