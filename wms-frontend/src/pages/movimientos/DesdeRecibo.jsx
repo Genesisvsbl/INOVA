@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../api";
+import {
+  ArrowLeft,
+  Save,
+  Truck,
+  MapPinned,
+  PackageCheck,
+  AlertTriangle,
+  Boxes,
+} from "lucide-react";
 
 const DRAFT_KEY = "wms_recibo_draft";
 
@@ -132,11 +141,7 @@ function Chip({ label, tone = "neutral" }) {
 }
 
 function esMaterialAuto(linea) {
-  const texto = [
-    linea?.familia || "",
-    linea?.descripcion || "",
-    linea?.codigo || "",
-  ]
+  const texto = [linea?.familia || "", linea?.descripcion || "", linea?.codigo || ""]
     .join(" ")
     .toLowerCase();
 
@@ -219,6 +224,47 @@ function buildLineaExpandida({
     lineaOriginal,
   };
 }
+
+const cardStyle = {
+  background: colors.card,
+  border: `1px solid ${colors.border}`,
+  borderRadius: 18,
+  boxShadow: "0 14px 34px rgba(2,6,23,.06)",
+};
+
+const inputMini = {
+  width: "100%",
+  height: 36,
+  padding: "0 10px",
+  borderRadius: 10,
+  border: `1px solid ${colors.border}`,
+  outline: "none",
+  fontWeight: 700,
+  background: "#fff",
+  color: colors.text,
+};
+
+const inputReadOnly = {
+  ...inputMini,
+  background: "#f8fafc",
+};
+
+const thStyle = {
+  padding: 12,
+  textAlign: "left",
+  fontSize: 12,
+  color: colors.muted,
+  fontWeight: 1000,
+  borderBottom: `1px solid ${colors.border}`,
+  background: "#F8FAFC",
+  whiteSpace: "nowrap",
+};
+
+const tdStyle = {
+  padding: 12,
+  borderBottom: `1px solid ${colors.border}`,
+  verticalAlign: "top",
+};
 
 export default function DesdeRecibo() {
   const navigate = useNavigate();
@@ -1054,22 +1100,28 @@ export default function DesdeRecibo() {
       <button
         onClick={() => navigate("/movimientos/recibo")}
         style={{
-          padding: "10px 14px",
+          height: 42,
+          padding: "0 14px",
           borderRadius: 12,
           border: `1px solid ${colors.border}`,
           background: colors.card,
           fontWeight: 900,
           cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
         }}
       >
-        🔙 Regresar al Recibo
+        <ArrowLeft size={16} />
+        Regresar al Recibo
       </button>
 
       <button
         onClick={guardarMovimientos}
         disabled={guardando}
         style={{
-          padding: "10px 14px",
+          height: 42,
+          padding: "0 14px",
           borderRadius: 12,
           border: "none",
           background: colors.blue,
@@ -1077,16 +1129,21 @@ export default function DesdeRecibo() {
           fontWeight: 900,
           cursor: guardando ? "not-allowed" : "pointer",
           opacity: guardando ? 0.7 : 1,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
         }}
       >
-        {guardando ? "Guardando..." : "💾 Guardar con ubicación"}
+        <Save size={16} />
+        {guardando ? "Guardando..." : "Guardar con ubicación"}
       </button>
 
       <button
         onClick={guardarEnTransito}
         disabled={guardando}
         style={{
-          padding: "10px 14px",
+          height: 42,
+          padding: "0 14px",
           borderRadius: 12,
           border: "none",
           background: colors.warn,
@@ -1094,157 +1151,227 @@ export default function DesdeRecibo() {
           fontWeight: 900,
           cursor: guardando ? "not-allowed" : "pointer",
           opacity: guardando ? 0.7 : 1,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
         }}
       >
-        🚚 Guardar en tránsito
+        <Truck size={16} />
+        Guardar en tránsito
       </button>
     </div>
   );
 
   return (
-    <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "end",
-          gap: 12,
-          marginBottom: 14,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900 }}>
-            🔄 MOVIMIENTOS DESDE RECIBO
-          </div>
-          <h1 style={{ margin: "6px 0 0", color: colors.navy }}>
-            Confirmación de movimientos
-          </h1>
-          <div style={{ marginTop: 6, color: colors.muted }}>
-            Para lata/preforma/azúcar eliges base y el sistema sugiere posiciones.
-            Para el resto eliges base + posición manual.
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <Chip label={`Líneas: ${draft.lineas.length}`} tone="blue" />
-          <Chip label={`Serial: ${draft.header.serial || ""}`} tone="green" />
-          {guardando && <Chip label="Guardando..." tone="amber" />}
-        </div>
-      </div>
-
-      <div
-        style={{
-          background: colors.card,
-          border: `1px solid ${colors.border}`,
-          borderRadius: 18,
-          padding: 16,
-          marginBottom: 16,
-          boxShadow: "0 14px 34px rgba(2,6,23,.06)",
-        }}
-      >
+    <div style={{ display: "grid", gap: 16 }}>
+      <div style={cardStyle}>
         <div
           style={{
+            padding: 18,
+            borderBottom: `1px solid ${colors.border}`,
             display: "flex",
             justifyContent: "space-between",
+            alignItems: "end",
             gap: 12,
             flexWrap: "wrap",
-            alignItems: "start",
+            background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
           }}
         >
+          <div>
+            <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, letterSpacing: 1 }}>
+              MOVIMIENTOS DESDE RECIBO
+            </div>
+            <h1 style={{ margin: "6px 0 0", color: colors.navy, fontSize: 30 }}>
+              Confirmación de movimientos
+            </h1>
+            <div style={{ marginTop: 6, color: colors.muted, fontSize: 14 }}>
+              Para lata, preforma y azúcar eliges base y el sistema sugiere posiciones.
+              Para el resto eliges base + posición manual.
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <Chip label={`Líneas: ${draft.lineas.length}`} tone="blue" />
+            <Chip label={`Serial: ${draft.header.serial || ""}`} tone="green" />
+            {guardando && <Chip label="Guardando..." tone="amber" />}
+          </div>
+        </div>
+
+        <div style={{ padding: 18 }}>
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(3, minmax(220px, 1fr))",
-              gap: 12,
-              flex: 1,
+              gridTemplateColumns: "1.4fr auto",
+              gap: 16,
+              alignItems: "start",
             }}
           >
-            <div>
-              <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>PROVEEDOR</div>
-              <div style={{ marginTop: 4, fontWeight: 800, color: colors.text }}>
-                {draft.header.proveedor}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, minmax(220px, 1fr))",
+                gap: 12,
+              }}
+            >
+              <div
+                style={{
+                  padding: 14,
+                  borderRadius: 14,
+                  border: `1px solid ${colors.border}`,
+                  background: "#FCFDFE",
+                }}
+              >
+                <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>PROVEEDOR</div>
+                <div style={{ marginTop: 6, fontWeight: 900, color: colors.text }}>
+                  {draft.header.proveedor}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: 14,
+                  borderRadius: 14,
+                  border: `1px solid ${colors.border}`,
+                  background: "#FCFDFE",
+                }}
+              >
+                <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>DOCUMENTO</div>
+                <div style={{ marginTop: 6, fontWeight: 900, color: colors.text }}>
+                  {draft.header.documento}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: 14,
+                  borderRadius: 14,
+                  border: `1px solid ${colors.border}`,
+                  background: "#FCFDFE",
+                }}
+              >
+                <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>REMESA</div>
+                <div style={{ marginTop: 6, fontWeight: 900, color: colors.text }}>
+                  {draft.header.remesa || draft.header.remesa_transp || ""}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: 14,
+                  borderRadius: 14,
+                  border: `1px solid ${colors.border}`,
+                  background: "#FCFDFE",
+                }}
+              >
+                <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>USUARIO</div>
+                <div style={{ marginTop: 6, fontWeight: 900, color: colors.text }}>
+                  {draft.header.usuario}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: 14,
+                  borderRadius: 14,
+                  border: `1px solid ${colors.border}`,
+                  background: "#FCFDFE",
+                }}
+              >
+                <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>
+                  SERIAL (CITA)
+                </div>
+                <div style={{ marginTop: 6, fontWeight: 900, color: colors.text }}>
+                  {draft.header.serial}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: 14,
+                  borderRadius: 14,
+                  border: `1px solid ${colors.border}`,
+                  background: "#FCFDFE",
+                }}
+              >
+                <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>LÍNEAS</div>
+                <div style={{ marginTop: 6, fontWeight: 900, color: colors.text }}>
+                  {draft.lineas.length}
+                </div>
               </div>
             </div>
 
-            <div>
-              <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>DOCUMENTO</div>
-              <div style={{ marginTop: 4, fontWeight: 800, color: colors.text }}>
-                {draft.header.documento}
-              </div>
-            </div>
-
-            <div>
-              <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>REMESA</div>
-              <div style={{ marginTop: 4, fontWeight: 800, color: colors.text }}>
-                {draft.header.remesa || draft.header.remesa_transp || ""}
-              </div>
-            </div>
-
-            <div>
-              <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>USUARIO</div>
-              <div style={{ marginTop: 4, fontWeight: 800, color: colors.text }}>
-                {draft.header.usuario}
-              </div>
-            </div>
-
-            <div>
-              <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>SERIAL (CITA)</div>
-              <div style={{ marginTop: 4, fontWeight: 800, color: colors.text }}>
-                {draft.header.serial}
-              </div>
-            </div>
-
-            <div>
-              <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>LÍNEAS</div>
-              <div style={{ marginTop: 4, fontWeight: 800, color: colors.text }}>
-                {draft.lineas.length}
-              </div>
-            </div>
+            <div>{renderTopButtons()}</div>
           </div>
-
-          <div>{renderTopButtons()}</div>
         </div>
       </div>
 
       {ubicacionesError && (
-        <div style={{ color: colors.bad, marginBottom: 10, fontWeight: 800 }}>
+        <div
+          style={{
+            ...cardStyle,
+            padding: 14,
+            color: colors.bad,
+            fontWeight: 900,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <AlertTriangle size={16} />
           Error cargando ubicaciones: {ubicacionesError}
         </div>
       )}
 
-      <div
-        style={{
-          background: colors.card,
-          border: `1px solid ${colors.border}`,
-          borderRadius: 18,
-          overflow: "hidden",
-          boxShadow: "0 14px 34px rgba(2,6,23,.06)",
-        }}
-      >
+      <div style={cardStyle}>
+        <div
+          style={{
+            padding: 14,
+            borderBottom: `1px solid ${colors.border}`,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 1000, color: colors.navy, fontSize: 18 }}>
+              Confirmación por línea
+            </div>
+            <div style={{ marginTop: 4, color: colors.muted, fontSize: 12, fontWeight: 700 }}>
+              Revisa ubicación manual o sugerida antes de guardar los movimientos.
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Chip label="AUTO = sugerencia por pallets" tone="amber" />
+            <Chip label="MANUAL = base + posición" tone="blue" />
+          </div>
+        </div>
+
         <div style={{ overflowX: "auto" }}>
           <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 2600 }}>
             <thead>
-              <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${colors.border}` }}>
-                <th style={{ padding: 12, textAlign: "left" }}>Modo</th>
-                <th style={{ padding: 12, textAlign: "left" }}>Ubicación base</th>
-                <th style={{ padding: 12, textAlign: "left" }}>Posición manual</th>
-                <th style={{ padding: 12, textAlign: "left" }}>Ubicación final / sugeridas</th>
-                <th style={{ padding: 12, textAlign: "left" }}>Fecha</th>
-                <th style={{ padding: 12, textAlign: "left" }}>Movimiento</th>
-                <th style={{ padding: 12, textAlign: "left" }}>ID</th>
-                <th style={{ padding: 12, textAlign: "left" }}>Usuario</th>
-                <th style={{ padding: 12, textAlign: "left" }}>Codigo Cita</th>
-                <th style={{ padding: 12, textAlign: "left" }}>SKU</th>
-                <th style={{ padding: 12, textAlign: "left" }}>Texto Breve del Material</th>
-                <th style={{ padding: 12, textAlign: "left" }}>Lote Almacen</th>
-                <th style={{ padding: 12, textAlign: "left" }}>Lote Proveedor</th>
-                <th style={{ padding: 12, textAlign: "left" }}>Fecha de Fabricación</th>
-                <th style={{ padding: 12, textAlign: "left" }}>Fecha de Vencimiento</th>
-                <th style={{ padding: 12, textAlign: "left" }}>Semana</th>
-                <th style={{ padding: 12, textAlign: "left" }}>UM</th>
-                <th style={{ padding: 12, textAlign: "left" }}>UMB</th>
-                <th style={{ padding: 12, textAlign: "right" }}>Cantidad</th>
+              <tr>
+                <th style={thStyle}>Modo</th>
+                <th style={thStyle}>Ubicación base</th>
+                <th style={thStyle}>Posición manual</th>
+                <th style={thStyle}>Ubicación final / sugeridas</th>
+                <th style={thStyle}>Fecha</th>
+                <th style={thStyle}>Movimiento</th>
+                <th style={thStyle}>ID</th>
+                <th style={thStyle}>Usuario</th>
+                <th style={thStyle}>Código Cita</th>
+                <th style={thStyle}>SKU</th>
+                <th style={thStyle}>Texto Breve del Material</th>
+                <th style={thStyle}>Lote Almacén</th>
+                <th style={thStyle}>Lote Proveedor</th>
+                <th style={thStyle}>Fecha de Fabricación</th>
+                <th style={thStyle}>Fecha de Vencimiento</th>
+                <th style={thStyle}>Semana</th>
+                <th style={thStyle}>UM</th>
+                <th style={thStyle}>UMB</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Cantidad</th>
               </tr>
             </thead>
 
@@ -1264,19 +1391,15 @@ export default function DesdeRecibo() {
                 return (
                   <>
                     <tr key={r.rowKey} style={{ borderBottom: `1px solid ${colors.border}` }}>
-                      <td style={{ padding: 12 }}>
-                        {r.auto ? (
-                          <Chip label="AUTO" tone="amber" />
-                        ) : (
-                          <Chip label="MANUAL" tone="blue" />
-                        )}
+                      <td style={tdStyle}>
+                        {r.auto ? <Chip label="AUTO" tone="amber" /> : <Chip label="MANUAL" tone="blue" />}
                       </td>
 
-                      <td style={{ padding: 12 }}>
+                      <td style={tdStyle}>
                         <select
                           value={r.base}
                           onChange={(e) => onChangeBase(r.idxLineaOriginal, e.target.value)}
-                          style={{ width: 130 }}
+                          style={{ ...inputMini, width: 150 }}
                           disabled={r.auto && (conf.sugeridas || []).length > 0}
                         >
                           <option value="">Seleccione...</option>
@@ -1288,18 +1411,14 @@ export default function DesdeRecibo() {
                         </select>
                       </td>
 
-                      <td style={{ padding: 12 }}>
+                      <td style={tdStyle}>
                         {r.auto ? (
-                          <input
-                            value={r.posicion}
-                            readOnly
-                            style={{ width: 140, background: "#f3f3f3" }}
-                          />
+                          <input value={r.posicion} readOnly style={{ ...inputReadOnly, width: 140 }} />
                         ) : (
                           <select
                             value={r.posicion}
                             onChange={(e) => onChangePosicion(r.idxLineaOriginal, e.target.value)}
-                            style={{ width: 140 }}
+                            style={{ ...inputMini, width: 140 }}
                             disabled={!r.base || !editableManual}
                           >
                             <option value="">Seleccione...</option>
@@ -1312,14 +1431,15 @@ export default function DesdeRecibo() {
                         )}
                       </td>
 
-                      <td style={{ padding: 12 }}>
+                      <td style={tdStyle}>
                         {r.auto && (conf.sugeridas || []).length === 0 ? (
                           <div>
                             <button
                               onClick={() => sugerirLinea(r.idxLineaOriginal, r.cantidadRaw)}
                               disabled={!!sugiriendoLinea[r.idxLineaOriginal] || !r.base}
                               style={{
-                                padding: "8px 10px",
+                                height: 36,
+                                padding: "0 12px",
                                 borderRadius: 10,
                                 border: "none",
                                 background: colors.warn,
@@ -1327,8 +1447,12 @@ export default function DesdeRecibo() {
                                 fontWeight: 900,
                                 cursor: !r.base ? "not-allowed" : "pointer",
                                 opacity: !r.base ? 0.6 : 1,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 8,
                               }}
                             >
+                              <MapPinned size={14} />
                               {sugiriendoLinea[r.idxLineaOriginal] ? "Sugiriendo..." : "Sugerir"}
                             </button>
 
@@ -1337,61 +1461,57 @@ export default function DesdeRecibo() {
                             </div>
                           </div>
                         ) : (
-                          <input
-                            value={r.ubicacion}
-                            readOnly
-                            style={{ width: 160, background: "#f3f3f3" }}
-                          />
+                          <input value={r.ubicacion} readOnly style={{ ...inputReadOnly, width: 160 }} />
                         )}
                       </td>
 
-                      <td style={{ padding: 12 }}>
-                        <input value={r.fecha} readOnly style={{ width: 110, background: "#f3f3f3" }} />
+                      <td style={tdStyle}>
+                        <input value={r.fecha} readOnly style={{ ...inputReadOnly, width: 115 }} />
                       </td>
-                      <td style={{ padding: 12 }}>
-                        <input value={r.movimiento} readOnly style={{ width: 110, background: "#f3f3f3" }} />
+                      <td style={tdStyle}>
+                        <input value={r.movimiento} readOnly style={{ ...inputReadOnly, width: 110 }} />
                       </td>
-                      <td style={{ padding: 12 }}>
-                        <input value={r.id} readOnly style={{ width: 80, background: "#f3f3f3" }} />
+                      <td style={tdStyle}>
+                        <input value={r.id} readOnly style={{ ...inputReadOnly, width: 80 }} />
                       </td>
-                      <td style={{ padding: 12 }}>
-                        <input value={r.usuario} readOnly style={{ width: 170, background: "#f3f3f3" }} />
+                      <td style={tdStyle}>
+                        <input value={r.usuario} readOnly style={{ ...inputReadOnly, width: 170 }} />
                       </td>
-                      <td style={{ padding: 12 }}>
-                        <input value={r.codigoCita} readOnly style={{ width: 120, background: "#f3f3f3" }} />
+                      <td style={tdStyle}>
+                        <input value={r.codigoCita} readOnly style={{ ...inputReadOnly, width: 120 }} />
                       </td>
-                      <td style={{ padding: 12 }}>
-                        <input value={r.sku} readOnly style={{ width: 110, background: "#f3f3f3" }} />
+                      <td style={tdStyle}>
+                        <input value={r.sku} readOnly style={{ ...inputReadOnly, width: 110 }} />
                       </td>
-                      <td style={{ padding: 12 }}>
-                        <input value={r.texto} readOnly style={{ width: 360, background: "#f3f3f3" }} />
+                      <td style={tdStyle}>
+                        <input value={r.texto} readOnly style={{ ...inputReadOnly, width: 360 }} />
                       </td>
-                      <td style={{ padding: 12 }}>
-                        <input value={r.loteAlm} readOnly style={{ width: 160, background: "#f3f3f3" }} />
+                      <td style={tdStyle}>
+                        <input value={r.loteAlm} readOnly style={{ ...inputReadOnly, width: 160 }} />
                       </td>
-                      <td style={{ padding: 12 }}>
-                        <input value={r.loteProv} readOnly style={{ width: 130, background: "#f3f3f3" }} />
+                      <td style={tdStyle}>
+                        <input value={r.loteProv} readOnly style={{ ...inputReadOnly, width: 130 }} />
                       </td>
-                      <td style={{ padding: 12 }}>
-                        <input value={r.ff} readOnly style={{ width: 130, background: "#f3f3f3" }} />
+                      <td style={tdStyle}>
+                        <input value={r.ff} readOnly style={{ ...inputReadOnly, width: 130 }} />
                       </td>
-                      <td style={{ padding: 12 }}>
-                        <input value={r.fv} readOnly style={{ width: 130, background: "#f3f3f3" }} />
+                      <td style={tdStyle}>
+                        <input value={r.fv} readOnly style={{ ...inputReadOnly, width: 130 }} />
                       </td>
-                      <td style={{ padding: 12 }}>
-                        <input value={r.numeroSemana} readOnly style={{ width: 80, background: "#f3f3f3" }} />
+                      <td style={tdStyle}>
+                        <input value={r.numeroSemana} readOnly style={{ ...inputReadOnly, width: 80 }} />
                       </td>
-                      <td style={{ padding: 12 }}>
-                        <input value={r.um} readOnly style={{ width: 100, background: "#f3f3f3" }} />
+                      <td style={tdStyle}>
+                        <input value={r.um} readOnly style={{ ...inputReadOnly, width: 100 }} />
                       </td>
-                      <td style={{ padding: 12 }}>
-                        <input value={r.umb} readOnly style={{ width: 100, background: "#f3f3f3" }} />
+                      <td style={tdStyle}>
+                        <input value={r.umb} readOnly style={{ ...inputReadOnly, width: 100 }} />
                       </td>
-                      <td style={{ padding: 12 }}>
+                      <td style={tdStyle}>
                         <input
                           value={r.cantidadFmt}
                           readOnly
-                          style={{ width: 130, background: "#f3f3f3", textAlign: "right" }}
+                          style={{ ...inputReadOnly, width: 130, textAlign: "right" }}
                         />
                       </td>
                     </tr>
@@ -1405,16 +1525,26 @@ export default function DesdeRecibo() {
                               gap: 16,
                               flexWrap: "wrap",
                               alignItems: "end",
-                              padding: 14,
+                              padding: 16,
                               border: `1px dashed ${colors.border}`,
                               borderRadius: 14,
+                              background: "#fff",
                             }}
                           >
-                            <div>
+                            <div
+                              style={{
+                                minWidth: 170,
+                                padding: 12,
+                                borderRadius: 12,
+                                background: "rgba(220,38,38,.06)",
+                                border: "1px solid rgba(220,38,38,.14)",
+                              }}
+                            >
                               <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
                                 FALTANTE PENDIENTE
                               </div>
-                              <div style={{ fontWeight: 900, color: colors.bad }}>
+                              <div style={{ fontWeight: 1000, color: colors.bad, display: "flex", gap: 8, alignItems: "center" }}>
+                                <AlertTriangle size={15} />
                                 {Number(conf.faltanteCantidad || 0)} pallet(s)
                               </div>
                             </div>
@@ -1426,7 +1556,7 @@ export default function DesdeRecibo() {
                               <select
                                 value={conf.baseSecundaria || ""}
                                 onChange={(e) => onChangeBaseSecundaria(r.idxLineaOriginal, e.target.value)}
-                                style={{ width: 180 }}
+                                style={{ ...inputMini, width: 220 }}
                                 disabled={Number(conf.faltanteCantidad || 0) <= 0}
                               >
                                 <option value="">Seleccione...</option>
@@ -1449,7 +1579,8 @@ export default function DesdeRecibo() {
                                   Number(conf.faltanteCantidad || 0) <= 0
                                 }
                                 style={{
-                                  padding: "10px 14px",
+                                  height: 40,
+                                  padding: "0 14px",
                                   borderRadius: 12,
                                   border: "none",
                                   background: colors.blue,
@@ -1462,8 +1593,12 @@ export default function DesdeRecibo() {
                                     Number(conf.faltanteCantidad || 0) <= 0
                                       ? 0.6
                                       : 1,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 8,
                                 }}
                               >
+                                <Boxes size={15} />
                                 {sugiriendoSecundaria[r.idxLineaOriginal]
                                   ? "Sugiriendo secundaria..."
                                   : "Sugerir secundaria"}
@@ -1474,9 +1609,13 @@ export default function DesdeRecibo() {
                               style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: 8,
+                                gap: 10,
                                 fontWeight: 800,
                                 color: colors.text,
+                                padding: "10px 12px",
+                                borderRadius: 12,
+                                border: `1px solid ${colors.border}`,
+                                background: "#fff",
                               }}
                             >
                               <input
