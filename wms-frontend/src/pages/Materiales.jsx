@@ -144,7 +144,7 @@ export default function Materiales() {
       const data = await getMateriales(search);
       setMateriales(Array.isArray(data) ? data : []);
     } catch (e) {
-      alert(String(e));
+      console.error("Error cargando materiales:", e);
       setMateriales([]);
     } finally {
       setCargando(false);
