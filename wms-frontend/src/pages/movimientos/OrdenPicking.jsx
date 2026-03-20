@@ -1,18 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_URL } from "../../api";
+import {
+  ArrowLeft,
+  Printer,
+  Save,
+  User,
+  FileText,
+} from "lucide-react";
 
 const colors = {
-  navy: "#072B5A",
-  blue: "#0A6ED1",
-  bg: "#F5F7FB",
-  text: "#0F172A",
-  muted: "#64748B",
-  card: "#FFFFFF",
-  border: "#E2E8F0",
-  good: "#16a34a",
-  bad: "#dc2626",
-  warn: "#f59e0b",
+  navy: "#133454",
+  blue: "#0b57d0",
+  bg: "#f3f6fa",
+  text: "#203246",
+  muted: "#6b7c8f",
+  card: "#ffffff",
+  border: "#d9e2ec",
+  soft: "#f8fafc",
+  rowAlt: "#fbfdff",
+  good: "#1f7a3d",
+  bad: "#c62828",
+  warn: "#b26a00",
+  goodBg: "#edf8f1",
+  goodBd: "#cfe8d7",
+  badBg: "#fdf0f0",
+  badBd: "#f3c7c7",
+  warnBg: "#fff6e5",
+  warnBd: "#f1ddb0",
+  infoBg: "#eaf3ff",
+  infoBd: "#cfe0ff",
 };
 
 const fmtCO = new Intl.NumberFormat("es-CO", {
@@ -44,26 +61,26 @@ function fmtDate(v) {
 }
 
 function Chip({ label, tone = "neutral" }) {
-  const stylesByTone = {
-    neutral: { bg: "#F1F5F9", bd: "#E2E8F0", tx: colors.text },
-    blue: { bg: "rgba(10,110,209,.10)", bd: "rgba(10,110,209,.25)", tx: colors.blue },
-    green: { bg: "rgba(22,163,74,.10)", bd: "rgba(22,163,74,.25)", tx: colors.good },
-    red: { bg: "rgba(220,38,38,.10)", bd: "rgba(220,38,38,.25)", tx: colors.bad },
-    amber: { bg: "rgba(245,158,11,.10)", bd: "rgba(245,158,11,.28)", tx: colors.warn },
+  const tones = {
+    neutral: { bg: "#eef2f6", bd: "#dbe4ec", tx: colors.text },
+    blue: { bg: colors.infoBg, bd: colors.infoBd, tx: colors.blue },
+    green: { bg: colors.goodBg, bd: colors.goodBd, tx: colors.good },
+    red: { bg: colors.badBg, bd: colors.badBd, tx: colors.bad },
+    amber: { bg: colors.warnBg, bd: colors.warnBd, tx: colors.warn },
   };
 
-  const st = stylesByTone[tone] || stylesByTone.neutral;
+  const t = tones[tone] || tones.neutral;
 
   return (
     <span
       style={{
         display: "inline-flex",
         alignItems: "center",
-        padding: "6px 10px",
+        padding: "5px 10px",
         borderRadius: 999,
-        background: st.bg,
-        border: `1px solid ${st.bd}`,
-        color: st.tx,
+        background: t.bg,
+        border: `1px solid ${t.bd}`,
+        color: t.tx,
         fontSize: 12,
         fontWeight: 800,
         whiteSpace: "nowrap",
@@ -71,6 +88,147 @@ function Chip({ label, tone = "neutral" }) {
     >
       {label}
     </span>
+  );
+}
+
+const shellCardStyle = {
+  background: colors.card,
+  border: `1px solid ${colors.border}`,
+  borderRadius: 12,
+  overflow: "hidden",
+  boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+};
+
+const sectionHeaderStyle = {
+  padding: "14px 16px",
+  borderBottom: `1px solid ${colors.border}`,
+  background: colors.soft,
+};
+
+const labelStyle = {
+  fontSize: 11,
+  color: colors.muted,
+  fontWeight: 800,
+  marginBottom: 6,
+  letterSpacing: ".04em",
+  textTransform: "uppercase",
+};
+
+const inputStyle = {
+  width: "100%",
+  height: 42,
+  padding: "0 12px",
+  borderRadius: 10,
+  border: `1px solid ${colors.border}`,
+  background: "#fff",
+  fontWeight: 700,
+  color: colors.text,
+  outline: "none",
+  boxSizing: "border-box",
+  fontSize: 14,
+};
+
+const buttonBase = {
+  height: 42,
+  padding: "0 16px",
+  borderRadius: 10,
+  fontWeight: 800,
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  fontSize: 14,
+};
+
+const secondaryButtonStyle = {
+  ...buttonBase,
+  border: `1px solid ${colors.border}`,
+  background: "#fff",
+  color: colors.text,
+};
+
+const primaryButtonStyle = {
+  ...buttonBase,
+  border: "1px solid #0b57d0",
+  background: "#0b57d0",
+  color: "#fff",
+};
+
+const greenButtonStyle = {
+  ...buttonBase,
+  border: `1px solid ${colors.goodBd}`,
+  background: colors.goodBg,
+  color: colors.good,
+};
+
+const tableWrapStyle = {
+  width: "100%",
+  overflowX: "auto",
+  overflowY: "hidden",
+};
+
+const thStyle = {
+  padding: "11px 12px",
+  color: "#607080",
+  fontSize: 12,
+  fontWeight: 800,
+  textAlign: "left",
+  borderBottom: `1px solid ${colors.border}`,
+  background: "#fbfcfd",
+  whiteSpace: "nowrap",
+};
+
+const tdStyle = {
+  padding: "12px",
+  borderBottom: `1px solid #edf2f7`,
+  color: colors.text,
+  fontWeight: 700,
+  whiteSpace: "nowrap",
+  fontSize: 13,
+  verticalAlign: "top",
+};
+
+function SummaryBox({ label, value, tone = "default" }) {
+  const toneStyles = {
+    default: { color: colors.navy },
+    green: { color: colors.good },
+    red: { color: colors.bad },
+    amber: { color: colors.warn },
+    blue: { color: colors.blue },
+  };
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: `1px solid ${colors.border}`,
+        borderRadius: 10,
+        padding: 14,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          color: colors.muted,
+          fontWeight: 800,
+          letterSpacing: ".04em",
+          textTransform: "uppercase",
+          marginBottom: 8,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 18,
+          fontWeight: 900,
+          color: toneStyles[tone]?.color || colors.navy,
+          lineHeight: 1.1,
+        }}
+      >
+        {value}
+      </div>
+    </div>
   );
 }
 
@@ -404,7 +562,7 @@ export default function OrdenPicking() {
             gap: 16px !important;
             margin-bottom: 8px !important;
             padding-bottom: 6px !important;
-            border-bottom: 1px solid #072B5A !important;
+            border-bottom: 1px solid #133454 !important;
           }
 
           .print-header-left {
@@ -422,7 +580,7 @@ export default function OrdenPicking() {
           .print-title {
             font-size: 14px !important;
             font-weight: 900 !important;
-            color: #072B5A !important;
+            color: #133454 !important;
             margin: 0 !important;
           }
 
@@ -442,182 +600,204 @@ export default function OrdenPicking() {
       `}</style>
 
       <div className="screen-only-root">
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "end",
-            gap: 12,
-            marginBottom: 14,
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900 }}>🧾 ORDEN PICKING</div>
-            <h1 style={{ margin: "6px 0 0", color: colors.navy }}>
-              Reserva {reserva || ""}
-            </h1>
-            <div style={{ marginTop: 6, color: colors.muted }}>
-              Lo confirmado queda aparte y abajo solo ves lo pendiente según la necesidad.
+        <div style={shellCardStyle}>
+          <div
+            style={{
+              ...sectionHeaderStyle,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-end",
+              gap: 16,
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: colors.muted,
+                  fontWeight: 900,
+                  letterSpacing: ".08em",
+                  textTransform: "uppercase",
+                  marginBottom: 6,
+                }}
+              >
+                Orden picking
+              </div>
+              <div
+                style={{
+                  fontSize: 22,
+                  fontWeight: 800,
+                  lineHeight: 1.1,
+                  color: colors.navy,
+                }}
+              >
+                Reserva {reserva || ""}
+              </div>
+              <div
+                style={{
+                  marginTop: 6,
+                  color: colors.muted,
+                  fontSize: 13,
+                }}
+              >
+                Lo confirmado queda aparte y abajo solo ves lo pendiente según la necesidad.
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <Chip label={`Pendientes: ${resumen.totalPendientes}`} tone="blue" />
+              <Chip label={`Req: ${formatQty(resumen.totalRequerido)}`} tone="amber" />
+              <Chip label={`Retirado: ${formatQty(resumen.totalRetirado)}`} tone="green" />
+              <Chip label={`Pendiente: ${formatQty(resumen.totalPendiente)}`} tone="red" />
+              <Chip label={`Comprometer: ${formatQty(resumen.totalComprometer)}`} tone="green" />
+              {loading && <Chip label="Cargando..." tone="amber" />}
+              {!loading && !err && <Chip label="OK" tone="green" />}
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <Chip label={`Pendientes: ${resumen.totalPendientes}`} tone="blue" />
-            <Chip label={`Req: ${formatQty(resumen.totalRequerido)}`} tone="amber" />
-            <Chip label={`Retirado: ${formatQty(resumen.totalRetirado)}`} tone="green" />
-            <Chip label={`Pendiente: ${formatQty(resumen.totalPendiente)}`} tone="red" />
-            <Chip label={`Comprometer: ${formatQty(resumen.totalComprometer)}`} tone="green" />
-          </div>
-        </div>
-
-        <div
-          style={{
-            background: colors.card,
-            border: `1px solid ${colors.border}`,
-            borderRadius: 18,
-            padding: 14,
-            boxShadow: "0 14px 34px rgba(2,6,23,.06)",
-            marginBottom: 14,
-          }}
-        >
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto auto auto", gap: 10, alignItems: "end" }}>
-            <div>
-              <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
-                USUARIO
+          <div style={{ padding: 16 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr auto auto auto",
+                gap: 10,
+                alignItems: "end",
+              }}
+            >
+              <div>
+                <div style={labelStyle}>Usuario</div>
+                <div style={{ position: "relative" }}>
+                  <User
+                    size={14}
+                    color={colors.muted}
+                    style={{
+                      position: "absolute",
+                      left: 12,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                    }}
+                  />
+                  <input
+                    value={usuario}
+                    onChange={(e) => setUsuario(e.target.value)}
+                    style={{ ...inputStyle, paddingLeft: 34 }}
+                  />
+                </div>
               </div>
-              <input
-                value={usuario}
-                onChange={(e) => setUsuario(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  border: `1px solid ${colors.border}`,
-                  background: "#fff",
-                  fontWeight: 800,
-                }}
-              />
-            </div>
 
-            <div>
-              <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
-                DOCUMENTO
+              <div>
+                <div style={labelStyle}>Documento</div>
+                <div style={{ position: "relative" }}>
+                  <FileText
+                    size={14}
+                    color={colors.muted}
+                    style={{
+                      position: "absolute",
+                      left: 12,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                    }}
+                  />
+                  <input
+                    value={documento}
+                    onChange={(e) => setDocumento(e.target.value)}
+                    placeholder="Opcional"
+                    style={{ ...inputStyle, paddingLeft: 34 }}
+                  />
+                </div>
               </div>
-              <input
-                value={documento}
-                onChange={(e) => setDocumento(e.target.value)}
-                placeholder="Opcional"
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  border: `1px solid ${colors.border}`,
-                  background: "#fff",
-                  fontWeight: 800,
-                }}
-              />
+
+              <button onClick={() => navigate("/movimientos/despacho")} style={secondaryButtonStyle}>
+                <ArrowLeft size={15} />
+                Regresar
+              </button>
+
+              <button onClick={imprimir} style={secondaryButtonStyle}>
+                <Printer size={15} />
+                Imprimir seleccionados
+              </button>
+
+              <button onClick={guardarDespacho} disabled={guardando} style={greenButtonStyle}>
+                <Save size={15} />
+                {guardando ? "Guardando..." : "Guardar despacho"}
+              </button>
             </div>
-
-            <button
-              onClick={() => navigate("/movimientos/despacho")}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 14,
-                border: `1px solid ${colors.border}`,
-                background: colors.card,
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
-              🔙 Regresar
-            </button>
-
-            <button
-              onClick={imprimir}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 14,
-                border: `1px solid ${colors.border}`,
-                background: colors.card,
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
-              🖨️ Imprimir seleccionados
-            </button>
-
-            <button
-              onClick={guardarDespacho}
-              disabled={guardando}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 14,
-                border: `1px solid rgba(22,163,74,.25)`,
-                background: "rgba(22,163,74,.10)",
-                color: colors.good,
-                fontWeight: 1000,
-                cursor: "pointer",
-              }}
-            >
-              {guardando ? "⏳ Guardando..." : "💾 Guardar despacho"}
-            </button>
           </div>
         </div>
 
         {err && (
-          <div style={{ padding: 14, color: colors.bad, fontWeight: 900 }}>
+          <div style={{ padding: 14, color: colors.bad, fontWeight: 800 }}>
             Error API: {err}
           </div>
         )}
 
         <div
           style={{
-            background: colors.card,
-            border: `1px solid ${colors.border}`,
-            borderRadius: 18,
-            overflow: "hidden",
-            boxShadow: "0 14px 34px rgba(2,6,23,.06)",
-            marginBottom: 16,
+            display: "grid",
+            gridTemplateColumns: "repeat(5, minmax(170px, 1fr))",
+            gap: 10,
+            marginTop: 14,
+            marginBottom: 14,
           }}
         >
-          <div
-            style={{
-              padding: 14,
-              borderBottom: `1px solid ${colors.border}`,
-              fontWeight: 1000,
-              color: colors.navy,
-            }}
-          >
-            Resumen de la reserva
+          <SummaryBox label="Pendientes" value={resumen.totalPendientes} tone="blue" />
+          <SummaryBox label="Total requerido" value={formatQty(resumen.totalRequerido)} tone="amber" />
+          <SummaryBox label="Total retirado" value={formatQty(resumen.totalRetirado)} tone="green" />
+          <SummaryBox label="Pendiente" value={formatQty(resumen.totalPendiente)} tone="red" />
+          <SummaryBox label="Comprometer" value={formatQty(resumen.totalComprometer)} tone="green" />
+        </div>
+
+        <div style={{ ...shellCardStyle, marginBottom: 14 }}>
+          <div style={sectionHeaderStyle}>
+            <div style={{ fontWeight: 800, color: colors.navy, fontSize: 15 }}>
+              Resumen de la reserva
+            </div>
           </div>
 
-          <div style={{ overflowX: "auto" }}>
+          <div style={tableWrapStyle}>
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1500 }}>
               <thead>
-                <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${colors.border}`, textAlign: "left" }}>
-                  <th style={{ padding: 12 }}>Fecha necesidad</th>
-                  <th style={{ padding: 12 }}>Reserva</th>
-                  <th style={{ padding: 12 }}>SKU</th>
-                  <th style={{ padding: 12 }}>Texto breve</th>
-                  <th style={{ padding: 12, textAlign: "right" }}>Cantidad requerida</th>
-                  <th style={{ padding: 12, textAlign: "right" }}>Cantidad retirada</th>
-                  <th style={{ padding: 12, textAlign: "right" }}>Diferencia</th>
-                  <th style={{ padding: 12, textAlign: "right" }}>% SKU</th>
-                  <th style={{ padding: 12 }}>Clasificación</th>
+                <tr>
+                  <th style={thStyle}>Fecha necesidad</th>
+                  <th style={thStyle}>Reserva</th>
+                  <th style={thStyle}>SKU</th>
+                  <th style={thStyle}>Texto breve</th>
+                  <th style={{ ...thStyle, textAlign: "right" }}>Cantidad requerida</th>
+                  <th style={{ ...thStyle, textAlign: "right" }}>Cantidad retirada</th>
+                  <th style={{ ...thStyle, textAlign: "right" }}>Diferencia</th>
+                  <th style={{ ...thStyle, textAlign: "right" }}>% SKU</th>
+                  <th style={thStyle}>Clasificación</th>
                 </tr>
               </thead>
               <tbody>
-                {detallesReserva.map((r) => (
-                  <tr key={r.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
-                    <td style={{ padding: 12, fontWeight: 800 }}>{fmtDate(r.fecha_necesidad)}</td>
-                    <td style={{ padding: 12, fontWeight: 900, color: colors.blue }}>{r.reserva}</td>
-                    <td style={{ padding: 12, fontWeight: 900 }}>{r.sku}</td>
-                    <td style={{ padding: 12, fontWeight: 700 }}>{r.texto_breve || ""}</td>
-                    <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>{formatQty(r.cantidad)}</td>
-                    <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>{formatQty(r.cantidad_retirada)}</td>
-                    <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>{formatQty(r.diferencia)}</td>
-                    <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>{formatQty(r.pct_cumplimiento_sku)}</td>
-                    <td style={{ padding: 12, fontWeight: 900 }}>{r.clasificacion_sku || ""}</td>
+                {detallesReserva.map((r, idx) => (
+                  <tr
+                    key={r.id}
+                    style={{
+                      borderBottom: `1px solid ${colors.border}`,
+                      background: idx % 2 === 0 ? "#fff" : colors.rowAlt,
+                    }}
+                  >
+                    <td style={{ ...tdStyle, fontWeight: 800 }}>{fmtDate(r.fecha_necesidad)}</td>
+                    <td style={{ ...tdStyle, fontWeight: 800, color: colors.blue }}>{r.reserva}</td>
+                    <td style={{ ...tdStyle, fontWeight: 800 }}>{r.sku}</td>
+                    <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: "normal" }}>
+                      {r.texto_breve || ""}
+                    </td>
+                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                      {formatQty(r.cantidad)}
+                    </td>
+                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                      {formatQty(r.cantidad_retirada)}
+                    </td>
+                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                      {formatQty(r.diferencia)}
+                    </td>
+                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                      {formatQty(r.pct_cumplimiento_sku)}
+                    </td>
+                    <td style={{ ...tdStyle, fontWeight: 800 }}>{r.clasificacion_sku || ""}</td>
                   </tr>
                 ))}
               </tbody>
@@ -625,63 +805,65 @@ export default function OrdenPicking() {
           </div>
         </div>
 
-        <div
-          style={{
-            background: colors.card,
-            border: `1px solid ${colors.border}`,
-            borderRadius: 18,
-            overflow: "hidden",
-            boxShadow: "0 14px 34px rgba(2,6,23,.06)",
-            marginBottom: 16,
-          }}
-        >
-          <div
-            style={{
-              padding: 14,
-              borderBottom: `1px solid ${colors.border}`,
-              fontWeight: 1000,
-              color: colors.navy,
-            }}
-          >
-            Materiales confirmados
+        <div style={{ ...shellCardStyle, marginBottom: 14 }}>
+          <div style={sectionHeaderStyle}>
+            <div style={{ fontWeight: 800, color: colors.navy, fontSize: 15 }}>
+              Materiales confirmados
+            </div>
           </div>
 
-          <div style={{ overflowX: "auto" }}>
+          <div style={tableWrapStyle}>
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1800 }}>
               <thead>
-                <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${colors.border}`, textAlign: "left" }}>
-                  <th style={{ padding: 12 }}>Reserva</th>
-                  <th style={{ padding: 12 }}>SKU</th>
-                  <th style={{ padding: 12 }}>Texto breve</th>
-                  <th style={{ padding: 12, textAlign: "right" }}>Cantidad requerida</th>
-                  <th style={{ padding: 12, textAlign: "right" }}>Cantidad confirmada</th>
-                  <th style={{ padding: 12 }}>Ubicación</th>
-                  <th style={{ padding: 12 }}>Lote almacén</th>
-                  <th style={{ padding: 12 }}>Lote proveedor</th>
-                  <th style={{ padding: 12 }}>Fecha vencimiento</th>
-                  <th style={{ padding: 12 }}>Estado</th>
+                <tr>
+                  <th style={thStyle}>Reserva</th>
+                  <th style={thStyle}>SKU</th>
+                  <th style={thStyle}>Texto breve</th>
+                  <th style={{ ...thStyle, textAlign: "right" }}>Cantidad requerida</th>
+                  <th style={{ ...thStyle, textAlign: "right" }}>Cantidad confirmada</th>
+                  <th style={thStyle}>Ubicación</th>
+                  <th style={thStyle}>Lote almacén</th>
+                  <th style={thStyle}>Lote proveedor</th>
+                  <th style={thStyle}>Fecha vencimiento</th>
+                  <th style={thStyle}>Estado</th>
                 </tr>
               </thead>
               <tbody>
                 {rowsConfirmados.length === 0 ? (
                   <tr>
-                    <td colSpan={10} style={{ padding: 18, color: colors.muted, fontWeight: 800 }}>
+                    <td colSpan={10} style={{ padding: 18, color: colors.muted, fontWeight: 700 }}>
                       Aún no hay materiales confirmados.
                     </td>
                   </tr>
                 ) : (
-                  rowsConfirmados.map((r) => (
-                    <tr key={r.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
-                      <td style={{ padding: 12, fontWeight: 900, color: colors.blue }}>{r.reserva || ""}</td>
-                      <td style={{ padding: 12, fontWeight: 900 }}>{r.sku || ""}</td>
-                      <td style={{ padding: 12, fontWeight: 700 }}>{r.texto_breve || ""}</td>
-                      <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>{formatQty(r.cantidad_requerida)}</td>
-                      <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>{formatQty(r.cantidad_confirmada || 0)}</td>
-                      <td style={{ padding: 12, fontWeight: 800 }}>{r.ubicacion || ""}</td>
-                      <td style={{ padding: 12, fontWeight: 700 }}>{r.lote_almacen || ""}</td>
-                      <td style={{ padding: 12, fontWeight: 700 }}>{r.lote_proveedor || ""}</td>
-                      <td style={{ padding: 12, fontWeight: 800 }}>{fmtDate(r.fecha_vencimiento)}</td>
-                      <td style={{ padding: 12, fontWeight: 900 }}>CONFIRMADO</td>
+                  rowsConfirmados.map((r, idx) => (
+                    <tr
+                      key={r.id}
+                      style={{
+                        borderBottom: `1px solid ${colors.border}`,
+                        background: idx % 2 === 0 ? "#fff" : colors.rowAlt,
+                      }}
+                    >
+                      <td style={{ ...tdStyle, fontWeight: 800, color: colors.blue }}>
+                        {r.reserva || ""}
+                      </td>
+                      <td style={{ ...tdStyle, fontWeight: 800 }}>{r.sku || ""}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: "normal" }}>
+                        {r.texto_breve || ""}
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                        {formatQty(r.cantidad_requerida)}
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                        {formatQty(r.cantidad_confirmada || 0)}
+                      </td>
+                      <td style={{ ...tdStyle, fontWeight: 700 }}>{r.ubicacion || ""}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>{r.lote_almacen || ""}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>{r.lote_proveedor || ""}</td>
+                      <td style={{ ...tdStyle, fontWeight: 700 }}>{fmtDate(r.fecha_vencimiento)}</td>
+                      <td style={tdStyle}>
+                        <Chip label="CONFIRMADO" tone="green" />
+                      </td>
                     </tr>
                   ))
                 )}
@@ -690,91 +872,110 @@ export default function OrdenPicking() {
           </div>
         </div>
 
-        <div
-          style={{
-            background: colors.card,
-            border: `1px solid ${colors.border}`,
-            borderRadius: 18,
-            overflow: "hidden",
-            boxShadow: "0 14px 34px rgba(2,6,23,.06)",
-          }}
-        >
+        <div style={shellCardStyle}>
           <div
             style={{
-              padding: 14,
-              borderBottom: `1px solid ${colors.border}`,
-              fontWeight: 1000,
-              color: colors.navy,
+              ...sectionHeaderStyle,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
             }}
           >
-            Orden de picking pendiente
+            <div style={{ fontWeight: 800, color: colors.navy, fontSize: 15 }}>
+              Orden de picking pendiente
+            </div>
+            <div style={{ fontSize: 12, color: colors.muted, fontWeight: 700 }}>
+              Selecciona líneas y define cantidad a comprometer
+            </div>
           </div>
 
-          <div style={{ overflowX: "auto" }}>
+          <div style={tableWrapStyle}>
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 2200 }}>
               <thead>
-                <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${colors.border}`, textAlign: "left" }}>
-                  <th style={{ padding: 12 }}>Comprometer</th>
-                  <th style={{ padding: 12 }}>Reserva</th>
-                  <th style={{ padding: 12 }}>SKU</th>
-                  <th style={{ padding: 12 }}>Texto breve</th>
-                  <th style={{ padding: 12, textAlign: "right" }}>Cantidad requerida</th>
-                  <th style={{ padding: 12, textAlign: "right" }}>Cantidad sugerida</th>
-                  <th style={{ padding: 12, textAlign: "right" }}>Cantidad a comprometer</th>
-                  <th style={{ padding: 12 }}>Ubicación</th>
-                  <th style={{ padding: 12 }}>Lote almacén</th>
-                  <th style={{ padding: 12 }}>Lote proveedor</th>
-                  <th style={{ padding: 12 }}>Fecha vencimiento</th>
-                  <th style={{ padding: 12 }}>Impreso</th>
+                <tr>
+                  <th style={thStyle}>Comprometer</th>
+                  <th style={thStyle}>Reserva</th>
+                  <th style={thStyle}>SKU</th>
+                  <th style={thStyle}>Texto breve</th>
+                  <th style={{ ...thStyle, textAlign: "right" }}>Cantidad requerida</th>
+                  <th style={{ ...thStyle, textAlign: "right" }}>Cantidad sugerida</th>
+                  <th style={{ ...thStyle, textAlign: "right" }}>Cantidad a comprometer</th>
+                  <th style={thStyle}>Ubicación</th>
+                  <th style={thStyle}>Lote almacén</th>
+                  <th style={thStyle}>Lote proveedor</th>
+                  <th style={thStyle}>Fecha vencimiento</th>
+                  <th style={thStyle}>Impreso</th>
                 </tr>
               </thead>
               <tbody>
                 {rowsPendientes.length === 0 ? (
                   <tr>
-                    <td colSpan={12} style={{ padding: 18, color: colors.good, fontWeight: 900 }}>
-                      ✅ No hay líneas pendientes.
+                    <td colSpan={12} style={{ padding: 18, color: colors.good, fontWeight: 800 }}>
+                      No hay líneas pendientes.
                     </td>
                   </tr>
                 ) : (
-                  rowsPendientes.map((r) => (
-                    <tr key={r.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
-                      <td style={{ padding: 12, textAlign: "center" }}>
+                  rowsPendientes.map((r, idx) => (
+                    <tr
+                      key={r.id}
+                      style={{
+                        borderBottom: `1px solid ${colors.border}`,
+                        background: idx % 2 === 0 ? "#fff" : colors.rowAlt,
+                      }}
+                    >
+                      <td style={{ ...tdStyle, textAlign: "center" }}>
                         <input
                           type="checkbox"
                           checked={!!seleccionados[r.id]}
                           onChange={() => onToggleSeleccion(r.id)}
                         />
                       </td>
-                      <td style={{ padding: 12, fontWeight: 900, color: colors.blue }}>{r.reserva || ""}</td>
-                      <td style={{ padding: 12, fontWeight: 900 }}>{r.sku || ""}</td>
-                      <td style={{ padding: 12, fontWeight: 700 }}>{r.texto_breve || ""}</td>
-                      <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>{formatQty(r.cantidad_requerida)}</td>
-                      <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>{formatQty(r.cantidad_sugerida ?? 0)}</td>
-                      <td style={{ padding: 12, textAlign: "right" }}>
+                      <td style={{ ...tdStyle, fontWeight: 800, color: colors.blue }}>
+                        {r.reserva || ""}
+                      </td>
+                      <td style={{ ...tdStyle, fontWeight: 800 }}>{r.sku || ""}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: "normal" }}>
+                        {r.texto_breve || ""}
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                        {formatQty(r.cantidad_requerida)}
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                        {formatQty(r.cantidad_sugerida ?? 0)}
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: "right" }}>
                         <input
                           type="number"
                           min="0"
                           step="0.01"
                           value={cantidades[r.id] ?? 0}
-                          onChange={(e) => onChangeCantidad(r.id, e.target.value, r.cantidad_sugerida ?? 0)}
+                          onChange={(e) =>
+                            onChangeCantidad(r.id, e.target.value, r.cantidad_sugerida ?? 0)
+                          }
                           disabled={!seleccionados[r.id]}
                           style={{
                             width: 120,
-                            padding: "8px 10px",
+                            height: 38,
+                            padding: "0 10px",
                             borderRadius: 10,
                             border: `1px solid ${colors.border}`,
                             textAlign: "right",
-                            fontWeight: 900,
-                            background: !seleccionados[r.id] ? "#F8FAFC" : "#fff",
+                            fontWeight: 800,
+                            background: !seleccionados[r.id] ? "#f8fafc" : "#fff",
                           }}
                         />
                       </td>
-                      <td style={{ padding: 12, fontWeight: 800 }}>{r.ubicacion || ""}</td>
-                      <td style={{ padding: 12, fontWeight: 700 }}>{r.lote_almacen || ""}</td>
-                      <td style={{ padding: 12, fontWeight: 700 }}>{r.lote_proveedor || ""}</td>
-                      <td style={{ padding: 12, fontWeight: 800 }}>{fmtDate(r.fecha_vencimiento)}</td>
-                      <td style={{ padding: 12 }}>
-                        <Chip label={impresos[r.id] ? "Sí" : "No"} tone={impresos[r.id] ? "green" : "amber"} />
+                      <td style={{ ...tdStyle, fontWeight: 700 }}>{r.ubicacion || ""}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>{r.lote_almacen || ""}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>{r.lote_proveedor || ""}</td>
+                      <td style={{ ...tdStyle, fontWeight: 700 }}>{fmtDate(r.fecha_vencimiento)}</td>
+                      <td style={tdStyle}>
+                        <Chip
+                          label={impresos[r.id] ? "Sí" : "No"}
+                          tone={impresos[r.id] ? "green" : "amber"}
+                        />
                       </td>
                     </tr>
                   ))
@@ -788,11 +989,7 @@ export default function OrdenPicking() {
       <div className="print-area">
         <div className="print-header">
           <div className="print-header-left">
-            <img
-              src="/inova-logo.png"
-              alt="INOVA"
-              className="print-logo"
-            />
+            <img src="/INOVA.png" alt="INOVA" className="print-logo" />
             <div>
               <h1 className="print-title">ORDEN DE PICKING</h1>
               <div className="print-subtitle">WMS INOVA · Control logístico</div>
@@ -807,32 +1004,13 @@ export default function OrdenPicking() {
           </div>
         </div>
 
-        <div
-          className="print-card"
-          style={{
-            background: colors.card,
-            border: `1px solid ${colors.border}`,
-            borderRadius: 18,
-            overflow: "hidden",
-            boxShadow: "0 14px 34px rgba(2,6,23,.06)",
-            marginBottom: 16,
-          }}
-        >
-          <div
-            style={{
-              padding: 14,
-              borderBottom: `1px solid ${colors.border}`,
-              fontWeight: 1000,
-              color: colors.navy,
-            }}
-          >
-            Resumen de la reserva
-          </div>
+        <div className="print-card" style={shellCardStyle}>
+          <div style={sectionHeaderStyle}>Resumen de la reserva</div>
 
           <div className="print-table-wrap">
             <table className="print-table">
               <thead>
-                <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${colors.border}`, textAlign: "left" }}>
+                <tr>
                   <th>Fecha necesidad</th>
                   <th>Reserva</th>
                   <th>SKU</th>
@@ -863,32 +1041,13 @@ export default function OrdenPicking() {
           </div>
         </div>
 
-        <div
-          className="print-card"
-          style={{
-            background: colors.card,
-            border: `1px solid ${colors.border}`,
-            borderRadius: 18,
-            overflow: "hidden",
-            boxShadow: "0 14px 34px rgba(2,6,23,.06)",
-            marginBottom: 16,
-          }}
-        >
-          <div
-            style={{
-              padding: 14,
-              borderBottom: `1px solid ${colors.border}`,
-              fontWeight: 1000,
-              color: colors.navy,
-            }}
-          >
-            Materiales confirmados
-          </div>
+        <div className="print-card" style={shellCardStyle}>
+          <div style={sectionHeaderStyle}>Materiales confirmados</div>
 
           <div className="print-table-wrap">
             <table className="print-table">
               <thead>
-                <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${colors.border}`, textAlign: "left" }}>
+                <tr>
                   <th>Reserva</th>
                   <th>SKU</th>
                   <th>Texto breve</th>
@@ -929,31 +1088,13 @@ export default function OrdenPicking() {
           </div>
         </div>
 
-        <div
-          className="print-card"
-          style={{
-            background: colors.card,
-            border: `1px solid ${colors.border}`,
-            borderRadius: 18,
-            overflow: "hidden",
-            boxShadow: "0 14px 34px rgba(2,6,23,.06)",
-          }}
-        >
-          <div
-            style={{
-              padding: 14,
-              borderBottom: `1px solid ${colors.border}`,
-              fontWeight: 1000,
-              color: colors.navy,
-            }}
-          >
-            Orden de picking pendiente
-          </div>
+        <div className="print-card" style={shellCardStyle}>
+          <div style={sectionHeaderStyle}>Orden de picking pendiente</div>
 
           <div className="print-table-wrap">
             <table className="print-table">
               <thead>
-                <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${colors.border}`, textAlign: "left" }}>
+                <tr>
                   <th>Reserva</th>
                   <th>SKU</th>
                   <th>Texto breve</th>
