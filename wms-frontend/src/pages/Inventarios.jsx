@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import {
   Plus,
   ClipboardList,
@@ -12,6 +12,9 @@ import {
 } from "lucide-react";
 
 export default function Inventarios() {
+  const location = useLocation();
+  const isRoot = location.pathname === "/inventarios";
+
   const summary = [
     {
       label: "Tareas activas",
@@ -151,6 +154,10 @@ export default function Inventarios() {
     };
   };
 
+  if (!isRoot) {
+    return <Outlet />;
+  }
+
   return (
     <div
       style={{
@@ -169,7 +176,6 @@ export default function Inventarios() {
           overflow: "hidden",
         }}
       >
-        {/* Top bar */}
         <div
           style={{
             padding: "14px 18px",
@@ -262,7 +268,6 @@ export default function Inventarios() {
         </div>
 
         <div style={{ padding: 18 }}>
-          {/* Summary strip */}
           <div
             style={{
               display: "grid",
@@ -335,7 +340,6 @@ export default function Inventarios() {
             })}
           </div>
 
-          {/* Main work area */}
           <div
             style={{
               display: "grid",
@@ -343,7 +347,6 @@ export default function Inventarios() {
               gap: 16,
             }}
           >
-            {/* Left panel */}
             <div
               style={{
                 background: "#fff",
@@ -445,7 +448,6 @@ export default function Inventarios() {
               </div>
             </div>
 
-            {/* Right panel */}
             <div
               style={{
                 background: "#fff",
