@@ -165,13 +165,34 @@ export default function InformeInventario() {
   return (
     <div style={pageStyle}>
       <style>{`
+        * {
+          box-sizing: border-box;
+        }
+
         @media print {
+          @page {
+            size: A4 landscape;
+            margin: 7mm 7mm 7mm 7mm;
+          }
+
+          html, body {
+            width: 100%;
+            height: auto;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            font-family: "Segoe UI", Arial, sans-serif;
+            color: #1e2f40;
+          }
+
           body * {
-            visibility: hidden;
+            visibility: hidden !important;
           }
 
           #print-area, #print-area * {
-            visibility: visible;
+            visibility: visible !important;
           }
 
           #print-area {
@@ -179,9 +200,9 @@ export default function InformeInventario() {
             left: 0;
             top: 0;
             width: 100%;
-            background: white;
-            padding: 0;
             margin: 0;
+            padding: 0;
+            background: #ffffff;
           }
 
           .no-print {
@@ -197,16 +218,68 @@ export default function InformeInventario() {
             page-break-before: always;
           }
 
-          table {
-            font-size: 11px !important;
-          }
-
           .print-title {
-            font-size: 22px !important;
+            font-size: 18px !important;
+            font-weight: 800 !important;
+            line-height: 1.1 !important;
           }
 
           .print-subtitle {
-            font-size: 12px !important;
+            font-size: 10px !important;
+          }
+
+          .print-grid-4 {
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+          }
+
+          .print-grid-3 {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+          }
+
+          .print-table {
+            width: 100% !important;
+            table-layout: fixed !important;
+            border-collapse: collapse !important;
+          }
+
+          .print-table th,
+          .print-table td {
+            word-break: break-word !important;
+            white-space: normal !important;
+            overflow-wrap: anywhere !important;
+          }
+
+          .print-table th {
+            font-size: 8px !important;
+            padding: 4px 5px !important;
+            line-height: 1.15 !important;
+          }
+
+          .print-table td {
+            font-size: 8px !important;
+            padding: 4px 5px !important;
+            line-height: 1.2 !important;
+          }
+
+          .print-compact-box {
+            padding: 8px !important;
+          }
+
+          .print-compact-box-label {
+            font-size: 9px !important;
+          }
+
+          .print-compact-box-value {
+            font-size: 11px !important;
+            line-height: 1.15 !important;
+          }
+
+          .print-signatures {
+            margin-top: 26px !important;
+          }
+
+          .print-section-tight {
+            padding: 12px !important;
           }
         }
       `}</style>
@@ -402,57 +475,47 @@ export default function InformeInventario() {
       <div id="print-area">
         {!report || !taskDetail ? null : (
           <div style={printWrapperStyle}>
-            {/* PORTADA / ENCABEZADO */}
-            <section style={printSectionStyle} className="print-section">
+            <section
+              style={printSectionStyle}
+              className="print-section print-section-tight"
+            >
               <div style={printHeaderStyle}>
-                <div>
-                  <div className="print-title" style={printMainTitleStyle}>
-                    WMS INOVA - INFORME DE INVENTARIO
+                <div style={printBrandWrapStyle}>
+                  <div style={printLogoBoxStyle}>
+                    <div style={printLogoCircleStyle}>W</div>
                   </div>
-                  <div className="print-subtitle" style={printSubtitleStyle}>
-                    Documento operativo de tarea de inventario
+
+                  <div style={{ minWidth: 0 }}>
+                    <div style={printBrandNameStyle}>WMS INOVA</div>
+                    <div style={printBrandSubStyle}>Control logístico</div>
+                    <div className="print-title" style={printMainTitleStyle}>
+                      INFORME DE INVENTARIO
+                    </div>
+                    <div className="print-subtitle" style={printSubtitleStyle}>
+                      Documento operativo de tarea de inventario
+                    </div>
                   </div>
                 </div>
 
-                <div style={printBadgeStyle}>
-                  TAREA #{taskDetail.id}
-                </div>
+                <div style={printBadgeStyle}>TAREA #{taskDetail.id}</div>
               </div>
 
-              <div style={printSummaryGridStyle}>
+              <div
+                style={printSummaryGridStyle}
+                className="print-grid-4"
+              >
                 <PrintBox label="Estado" value={taskDetail.estado} />
                 <PrintBox label="Tipo de conteo" value={taskDetail.tipo_conteo} />
                 <PrintBox label="Criterio" value={taskDetail.criterio} />
                 <PrintBox label="Asignado a" value={taskDetail.asignado_a} />
                 <PrintBox label="Creado por" value={taskDetail.creado_por} />
-                <PrintBox
-                  label="Reconteo"
-                  value={taskDetail.es_reconteo ? "Sí" : "No"}
-                />
-                <PrintBox
-                  label="Fecha creación"
-                  value={formatDateTime(taskDetail.fecha_creacion)}
-                />
-                <PrintBox
-                  label="Fecha inicio"
-                  value={formatDateTime(taskDetail.fecha_inicio)}
-                />
-                <PrintBox
-                  label="Fecha finalización"
-                  value={formatDateTime(taskDetail.fecha_finalizacion)}
-                />
-                <PrintBox
-                  label="Fecha conciliación"
-                  value={formatDateTime(taskDetail.fecha_conciliacion)}
-                />
-                <PrintBox
-                  label="Fecha cierre"
-                  value={formatDateTime(taskDetail.fecha_cierre)}
-                />
-                <PrintBox
-                  label="Tarea origen"
-                  value={taskDetail.tarea_origen_id || "-"}
-                />
+                <PrintBox label="Reconteo" value={taskDetail.es_reconteo ? "Sí" : "No"} />
+                <PrintBox label="Fecha creación" value={formatDateTime(taskDetail.fecha_creacion)} />
+                <PrintBox label="Fecha inicio" value={formatDateTime(taskDetail.fecha_inicio)} />
+                <PrintBox label="Fecha finalización" value={formatDateTime(taskDetail.fecha_finalizacion)} />
+                <PrintBox label="Fecha conciliación" value={formatDateTime(taskDetail.fecha_conciliacion)} />
+                <PrintBox label="Fecha cierre" value={formatDateTime(taskDetail.fecha_cierre)} />
+                <PrintBox label="Tarea origen" value={taskDetail.tarea_origen_id || "-"} />
               </div>
 
               <div style={printObservacionBoxStyle}>
@@ -462,7 +525,7 @@ export default function InformeInventario() {
                 </div>
               </div>
 
-              <div style={executiveGridStyle}>
+              <div style={executiveGridStyle} className="print-grid-4">
                 <PrintBox label="Total líneas" value={report.total_lineas} />
                 <PrintBox label="Líneas contadas" value={detalleResumen.contadas} />
                 <PrintBox label="Coinciden" value={report.total_coinciden} />
@@ -474,31 +537,46 @@ export default function InformeInventario() {
               </div>
             </section>
 
-            {/* HOJA DE CONTEO */}
             <section
-              style={{ ...printSectionStyle, marginTop: 18 }}
-              className="print-section print-page-break"
+              style={{ ...printSectionStyle, marginTop: 12 }}
+              className="print-section print-page-break print-section-tight"
             >
               <div style={printBlockHeaderStyle}>
-                <FileText size={16} />
+                <FileText size={14} />
                 <span>Hoja de conteo</span>
               </div>
 
-              <div style={{ overflow: "hidden" }}>
-                <table style={printTableStyle}>
+              <div>
+                <table style={printTableStyle} className="print-table">
+                  <colgroup>
+                    <col style={{ width: "5%" }} />
+                    <col style={{ width: "8%" }} />
+                    <col style={{ width: "7%" }} />
+                    <col style={{ width: "5%" }} />
+                    <col style={{ width: "7%" }} />
+                    <col style={{ width: "8%" }} />
+                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "8%" }} />
+                    <col style={{ width: "4%" }} />
+                    <col style={{ width: "8%" }} />
+                    <col style={{ width: "8%" }} />
+                    <col style={{ width: "6%" }} />
+                    <col style={{ width: "5%" }} />
+                    <col style={{ width: "9%" }} />
+                  </colgroup>
                   <thead>
                     <tr>
-                      <th style={printThStyle}>Detalle</th>
+                      <th style={printThStyle}>Det.</th>
                       <th style={printThStyle}>Ubicación</th>
-                      <th style={printThStyle}>Ubicación base</th>
-                      <th style={printThStyle}>Posición</th>
+                      <th style={printThStyle}>Base</th>
+                      <th style={printThStyle}>Pos.</th>
                       <th style={printThStyle}>Zona</th>
-                      <th style={printThStyle}>Código material</th>
+                      <th style={printThStyle}>Código</th>
                       <th style={printThStyle}>Descripción</th>
                       <th style={printThStyle}>Familia</th>
                       <th style={printThStyle}>UM</th>
-                      <th style={printThStyle}>Lote almacén</th>
-                      <th style={printThStyle}>Lote proveedor</th>
+                      <th style={printThStyle}>Lote alm.</th>
+                      <th style={printThStyle}>Lote prov.</th>
                       <th style={printThStyle}>FV</th>
                       <th style={printThStyle}>Contado</th>
                       <th style={printThStyle}>Observación</th>
@@ -528,18 +606,28 @@ export default function InformeInventario() {
               </div>
             </section>
 
-            {/* ANALISIS DE DIFERENCIAS */}
             <section
-              style={{ ...printSectionStyle, marginTop: 18 }}
-              className="print-section print-page-break"
+              style={{ ...printSectionStyle, marginTop: 12 }}
+              className="print-section print-page-break print-section-tight"
             >
               <div style={printBlockHeaderStyle}>
-                <GitCompare size={16} />
+                <GitCompare size={14} />
                 <span>Análisis de diferencias</span>
               </div>
 
-              <div style={{ overflow: "hidden" }}>
-                <table style={printTableStyle}>
+              <div>
+                <table style={printTableStyle} className="print-table">
+                  <colgroup>
+                    <col style={{ width: "7%" }} />
+                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "20%" }} />
+                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "8%" }} />
+                    <col style={{ width: "11%" }} />
+                  </colgroup>
                   <thead>
                     <tr>
                       <th style={printThStyle}>Detalle</th>
@@ -577,7 +665,7 @@ export default function InformeInventario() {
                 </table>
               </div>
 
-              <div style={{ marginTop: 18 }}>
+              <div style={{ marginTop: 12 }}>
                 <div style={printSectionTitleStyle}>Resumen de diferencias</div>
 
                 {diferencias.length === 0 ? (
@@ -595,33 +683,26 @@ export default function InformeInventario() {
               </div>
             </section>
 
-            {/* CIERRE */}
             <section
-              style={{ ...printSectionStyle, marginTop: 18 }}
-              className="print-section print-page-break"
+              style={{ ...printSectionStyle, marginTop: 12 }}
+              className="print-section print-page-break print-section-tight"
             >
               <div style={printBlockHeaderStyle}>
-                <CheckCircle2 size={16} />
+                <CheckCircle2 size={14} />
                 <span>Cierre del informe</span>
               </div>
 
-              <div style={closingGridStyle}>
+              <div style={closingGridStyle} className="print-grid-4">
                 <PrintBox label="Estado final" value={report.estado} />
                 <PrintBox label="Total líneas" value={report.total_lineas} />
                 <PrintBox label="Coinciden" value={report.total_coinciden} />
                 <PrintBox label="No coinciden" value={report.total_no_coinciden} />
                 <PrintBox label="Exactitud" value={`${report.porcentaje_exactitud}%`} />
-                <PrintBox
-                  label="Generó reconteo"
-                  value={report.genera_reconteo ? "Sí" : "No"}
-                />
-                <PrintBox
-                  label="ID reconteo generado"
-                  value={report.reconteo_tarea_id || "-"}
-                />
+                <PrintBox label="Generó reconteo" value={report.genera_reconteo ? "Sí" : "No"} />
+                <PrintBox label="ID reconteo generado" value={report.reconteo_tarea_id || "-"} />
               </div>
 
-              <div style={signatureGridStyle}>
+              <div style={signatureGridStyle} className="print-signatures">
                 <div style={signatureBoxStyle}>
                   <div style={signatureLineStyle} />
                   <div style={signatureLabelStyle}>Responsable conteo</div>
@@ -666,9 +747,13 @@ function MiniInfo({ label, value }) {
 
 function PrintBox({ label, value }) {
   return (
-    <div style={printBoxStyle}>
-      <div style={printBoxLabelStyle}>{label}</div>
-      <div style={printBoxValueStyle}>{value || "-"}</div>
+    <div style={printBoxStyle} className="print-compact-box">
+      <div style={printBoxLabelStyle} className="print-compact-box-label">
+        {label}
+      </div>
+      <div style={printBoxValueStyle} className="print-compact-box-value">
+        {value || "-"}
+      </div>
     </div>
   );
 }
@@ -765,8 +850,10 @@ function formatDateTime(value) {
 
 const pageStyle = {
   padding: 24,
-  background: "#f5f7fa",
+  background: "#f3f5f8",
   minHeight: "100%",
+  fontFamily: '"Segoe UI", Arial, sans-serif',
+  color: "#1f2d3d",
 };
 
 const pageTopStyle = {
@@ -1036,14 +1123,16 @@ const selectedTaskTextStyle = {
 };
 
 const printWrapperStyle = {
-  marginTop: 24,
+  marginTop: 0,
+  fontFamily: '"Segoe UI", Arial, sans-serif',
+  color: "#203246",
 };
 
 const printSectionStyle = {
   background: "#fff",
-  border: "1px solid #d9e1ea",
-  borderRadius: 12,
-  padding: 22,
+  border: "1px solid #cfd8e3",
+  borderRadius: 8,
+  padding: 14,
 };
 
 const printHeaderStyle = {
@@ -1051,155 +1140,223 @@ const printHeaderStyle = {
   justifyContent: "space-between",
   alignItems: "flex-start",
   gap: 16,
-  marginBottom: 18,
+  marginBottom: 14,
+  paddingBottom: 10,
+  borderBottom: "2px solid #d9e2ec",
+};
+
+const printBrandWrapStyle = {
+  display: "flex",
+  alignItems: "flex-start",
+  gap: 12,
+  minWidth: 0,
+};
+
+const printLogoBoxStyle = {
+  width: 42,
+  height: 42,
+  borderRadius: 8,
+  border: "1px solid #c9d4df",
+  background: "#f4f7fa",
+  display: "grid",
+  placeItems: "center",
+  flexShrink: 0,
+};
+
+const printLogoCircleStyle = {
+  width: 26,
+  height: 26,
+  borderRadius: "50%",
+  background: "#17324d",
+  color: "#fff",
+  display: "grid",
+  placeItems: "center",
+  fontSize: 13,
+  fontWeight: 800,
+  lineHeight: 1,
+};
+
+const printBrandNameStyle = {
+  fontSize: 20,
+  fontWeight: 900,
+  color: "#16324a",
+  letterSpacing: "0.3px",
+  lineHeight: 1.05,
+};
+
+const printBrandSubStyle = {
+  fontSize: 10,
+  color: "#6a7b8d",
+  marginTop: 2,
+  marginBottom: 6,
+  fontWeight: 500,
 };
 
 const printMainTitleStyle = {
-  fontSize: 28,
-  fontWeight: 900,
+  fontSize: 18,
+  fontWeight: 800,
   color: "#17324d",
-  lineHeight: 1.1,
+  lineHeight: 1.15,
+  letterSpacing: "0.2px",
+  marginTop: 2,
 };
 
 const printSubtitleStyle = {
-  fontSize: 13,
-  color: "#66788a",
-  marginTop: 6,
+  fontSize: 10,
+  color: "#617487",
+  marginTop: 4,
+  fontWeight: 500,
 };
 
 const printBadgeStyle = {
-  padding: "8px 14px",
+  padding: "7px 12px",
   borderRadius: 999,
-  border: "1px solid #cfe0ff",
-  background: "#e8f1ff",
-  color: "#0b5ed7",
+  border: "1px solid #c9d8ea",
+  background: "#f4f8fd",
+  color: "#184e9e",
   fontWeight: 800,
-  fontSize: 13,
+  fontSize: 11,
+  letterSpacing: "0.2px",
+  whiteSpace: "nowrap",
 };
 
 const printSummaryGridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(4, minmax(160px, 1fr))",
-  gap: 12,
+  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+  gap: 8,
 };
 
 const printBoxStyle = {
-  border: "1px solid #dce5ee",
-  borderRadius: 10,
-  background: "#fbfcfe",
-  padding: 12,
+  border: "1px solid #d7e0ea",
+  borderRadius: 8,
+  background: "#ffffff",
+  padding: 8,
 };
 
 const printBoxLabelStyle = {
-  fontSize: 11,
-  color: "#627385",
-  marginBottom: 6,
+  fontSize: 9.5,
+  color: "#6a7c8f",
+  marginBottom: 5,
+  fontWeight: 600,
 };
 
 const printBoxValueStyle = {
-  fontSize: 14,
-  fontWeight: 800,
+  fontSize: 11.5,
+  fontWeight: 700,
   color: "#17324d",
   wordBreak: "break-word",
+  lineHeight: 1.2,
 };
 
 const printObservacionBoxStyle = {
-  marginTop: 18,
-  border: "1px solid #dce5ee",
-  borderRadius: 10,
-  background: "#fff",
-  padding: 14,
+  marginTop: 10,
+  border: "1px solid #d7e0ea",
+  borderRadius: 8,
+  background: "#ffffff",
+  padding: 10,
 };
 
 const printSectionTitleStyle = {
-  fontSize: 14,
+  fontSize: 12,
   fontWeight: 800,
   color: "#17324d",
-  marginBottom: 8,
+  marginBottom: 6,
 };
 
 const printParagraphStyle = {
-  fontSize: 13,
-  color: "#46596b",
-  lineHeight: 1.6,
+  fontSize: 10.5,
+  color: "#4b6074",
+  lineHeight: 1.45,
 };
 
 const executiveGridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(4, minmax(150px, 1fr))",
-  gap: 12,
-  marginTop: 18,
+  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+  gap: 8,
+  marginTop: 10,
 };
 
 const printBlockHeaderStyle = {
   display: "flex",
   alignItems: "center",
   gap: 8,
-  fontSize: 16,
-  fontWeight: 900,
+  fontSize: 13,
+  fontWeight: 800,
   color: "#17324d",
-  marginBottom: 14,
+  marginBottom: 10,
+  paddingBottom: 6,
+  borderBottom: "1px solid #dce4ec",
 };
 
 const printTableStyle = {
   width: "100%",
   borderCollapse: "collapse",
+  tableLayout: "fixed",
 };
 
 const printThStyle = {
-  border: "1px solid #dbe4ec",
-  background: "#f4f7fb",
-  padding: "8px 10px",
-  fontSize: 11,
+  border: "1px solid #d5dee8",
+  background: "#eef3f8",
+  padding: "5px 6px",
+  fontSize: 8.5,
   textAlign: "left",
-  color: "#3f556b",
+  color: "#41576d",
   fontWeight: 800,
+  lineHeight: 1.15,
+  whiteSpace: "normal",
+  wordBreak: "break-word",
+  overflowWrap: "anywhere",
 };
 
 const printTdStyle = {
-  border: "1px solid #e3eaf1",
-  padding: "8px 10px",
-  fontSize: 11,
-  color: "#23384e",
+  border: "1px solid #e0e7ef",
+  padding: "5px 6px",
+  fontSize: 8.5,
+  color: "#22384d",
   verticalAlign: "top",
+  lineHeight: 1.2,
+  whiteSpace: "normal",
+  wordBreak: "break-word",
+  overflowWrap: "anywhere",
 };
 
 const printTdStyleStrong = {
   ...printTdStyle,
-  fontWeight: 800,
+  fontWeight: 700,
+  color: "#17324d",
 };
 
 const printOkBoxStyle = {
-  border: "1px solid #cfe7d5",
-  background: "#eef8f1",
-  color: "#1f7a3d",
-  borderRadius: 10,
-  padding: 14,
-  fontSize: 13,
-  fontWeight: 700,
+  border: "1px solid #cfe2d6",
+  background: "#f3faf5",
+  color: "#245b37",
+  borderRadius: 8,
+  padding: 10,
+  fontSize: 10.5,
+  fontWeight: 600,
 };
 
 const printWarnBoxStyle = {
-  border: "1px solid #ead9aa",
-  background: "#fff9e8",
-  color: "#7b651a",
-  borderRadius: 10,
-  padding: 14,
-  fontSize: 13,
-  lineHeight: 1.6,
+  border: "1px solid #e7d7ab",
+  background: "#fffaf0",
+  color: "#7a5b11",
+  borderRadius: 8,
+  padding: 10,
+  fontSize: 10.5,
+  lineHeight: 1.45,
 };
 
 const closingGridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(4, minmax(160px, 1fr))",
-  gap: 12,
+  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+  gap: 8,
 };
 
 const signatureGridStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(3, 1fr)",
-  gap: 24,
-  marginTop: 42,
+  gap: 22,
+  marginTop: 28,
 };
 
 const signatureBoxStyle = {
@@ -1213,7 +1370,7 @@ const signatureLineStyle = {
 };
 
 const signatureLabelStyle = {
-  fontSize: 12,
+  fontSize: 10.5,
   color: "#56697d",
   fontWeight: 700,
 };
