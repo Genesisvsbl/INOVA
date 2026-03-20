@@ -1350,7 +1350,7 @@ export default function DesdeRecibo() {
         </div>
 
         <div style={{ overflowX: "auto" }}>
-          <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 2600 }}>
+          <table style={{ borderCollapse: "collapse", width: "max-content", minWidth: 2600 }}>
             <thead>
               <tr>
                 <th style={thStyle}>Modo</th>
