@@ -1163,7 +1163,7 @@ export default function DesdeRecibo() {
   );
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
+    <div style={{ display: "grid", gap: 16, overflowX: "auto" }}>
       <div style={cardStyle}>
         <div
           style={{
