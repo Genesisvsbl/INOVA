@@ -807,7 +807,7 @@ export default function Recibo() {
           <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
           <style>
             @page {
-              size: A4 portrait;
+              size: A4 landscape;
               margin: 12mm;
             }
 
