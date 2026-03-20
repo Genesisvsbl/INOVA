@@ -1,107 +1,161 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { ArrowRightLeft, Inbox, Truck } from "lucide-react";
 
 const colors = {
-  navy: "#072B5A",
-  blue: "#0A6ED1",
-  bg: "#F5F7FB",
-  text: "#0F172A",
-  muted: "#64748B",
-  card: "#FFFFFF",
-  border: "#E2E8F0",
+  navy: "#0f2744",
+  blue: "#0a6ed1",
+  bg: "#f3f6f9",
+  text: "#1f2d3d",
+  muted: "#6b7a90",
+  card: "#ffffff",
+  border: "#d9e2ec",
+  soft: "#f8fafc",
+  activeBg: "#eaf3ff",
+  activeText: "#0a4fb3",
 };
 
 const tabStyle = ({ isActive }) => ({
-  padding: "10px 14px",
-  borderRadius: 999,
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  height: 38,
+  padding: "0 14px",
+  borderRadius: 8,
   textDecoration: "none",
-  border: `1px solid ${isActive ? colors.blue : colors.border}`,
-  background: isActive ? colors.blue : "white",
-  color: isActive ? "white" : colors.text,
-  fontWeight: 900,
-  boxShadow: isActive ? "0 10px 20px rgba(10,110,209,.18)" : "none",
-  transition: "all .15s ease",
+  border: `1px solid ${isActive ? "#cfe0ff" : colors.border}`,
+  background: isActive ? colors.activeBg : "#fff",
+  color: isActive ? colors.activeText : colors.text,
+  fontWeight: isActive ? 700 : 600,
+  fontSize: 13,
+  whiteSpace: "nowrap",
 });
 
 export default function Movimientos() {
   return (
-    <div>
-      {/* Header */}
+    <div style={{ display: "grid", gap: 16 }}>
+      {/* HEADER */}
       <div
         style={{
-          display: "flex",
-          alignItems: "end",
-          justifyContent: "space-between",
-          gap: 12,
-          marginBottom: 14,
+          background: colors.card,
+          border: `1px solid ${colors.border}`,
+          borderRadius: 10,
+          overflow: "hidden",
         }}
       >
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div
+          style={{
+            padding: "14px 18px",
+            borderBottom: `1px solid ${colors.border}`,
+            background: "linear-gradient(to bottom, #fbfcfd, #f5f8fb)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: 14,
-                background: `linear-gradient(135deg, ${colors.navy} 0%, ${colors.blue} 100%)`,
-                color: "white",
+                width: 38,
+                height: 38,
+                borderRadius: 10,
                 display: "grid",
                 placeItems: "center",
-                fontSize: 20,
-                boxShadow: "0 12px 30px rgba(2,6,23,.12)",
+                background: "#eaf1f8",
+                border: "1px solid #d6e1ec",
+                flexShrink: 0,
               }}
             >
-              🔄
+              <ArrowRightLeft size={18} color="#315a7d" />
             </div>
+
             <div>
-              <h1 style={{ margin: 0, color: colors.text, fontSize: 40, letterSpacing: -0.6 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 800,
+                  letterSpacing: ".08em",
+                  color: "#7a8797",
+                  textTransform: "uppercase",
+                  marginBottom: 4,
+                }}
+              >
                 Movimientos
-              </h1>
-              <div style={{ color: colors.muted, fontWeight: 700 }}>
-                Registro de entradas, recibos y despachos
+              </div>
+
+              <div
+                style={{
+                  fontSize: 22,
+                  fontWeight: 700,
+                  lineHeight: 1.1,
+                  color: "#17324d",
+                }}
+              >
+                Registro operativo
+              </div>
+
+              <div
+                style={{
+                  fontSize: 13,
+                  color: "#5b6b7c",
+                  marginTop: 4,
+                }}
+              >
+                Gestión de recibos y despachos con trazabilidad operativa del WMS.
               </div>
             </div>
           </div>
+
+          <div
+            style={{
+              height: 34,
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "0 12px",
+              borderRadius: 8,
+              border: `1px solid ${colors.border}`,
+              background: "#fff",
+              color: colors.muted,
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            Flujo transaccional
+          </div>
         </div>
 
+        {/* SUBNAV */}
         <div
           style={{
-            padding: "8px 12px",
-            borderRadius: 14,
-            border: `1px solid ${colors.border}`,
-            background: "#fff",
-            color: colors.muted,
-            fontWeight: 800,
-            fontSize: 12,
+            padding: "12px 14px",
+            background: "#fcfdff",
+            borderBottom: `1px solid ${colors.border}`,
+            display: "flex",
+            gap: 8,
+            flexWrap: "wrap",
           }}
         >
-          💡 Consejo: completa Recibo para generar movimientos de entrada
+          <NavLink to="/movimientos/recibo" style={tabStyle}>
+            <Inbox size={15} />
+            <span>Recibo</span>
+          </NavLink>
+
+          <NavLink to="/movimientos/despacho" style={tabStyle}>
+            <Truck size={15} />
+            <span>Despacho</span>
+          </NavLink>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-        <NavLink to="/movimientos/manual" style={tabStyle}>
-          ✍️ Manual
-        </NavLink>
-        <NavLink to="/movimientos/recibo" style={tabStyle}>
-          📥 Recibo
-        </NavLink>
-        <NavLink to="/movimientos/despacho" style={tabStyle}>
-          🚚 Despacho
-        </NavLink>
-      </div>
-
-      {/* Content card */}
-      <div
-        style={{
-          padding: 16,
-          background: colors.card,
-          border: `1px solid ${colors.border}`,
-          borderRadius: 18,
-          boxShadow: "0 16px 40px rgba(2,6,23,.06)",
-        }}
-      >
-        <Outlet />
+        {/* BODY */}
+        <div
+          style={{
+            background: colors.card,
+            padding: 18,
+          }}
+        >
+          <Outlet />
+        </div>
       </div>
     </div>
   );
