@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   PlusCircle,
@@ -29,9 +29,63 @@ export default function CrearTarea() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [loadingCatalogos, setLoadingCatalogos] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [createdTask, setCreatedTask] = useState(null);
+
+  const [zonas, setZonas] = useState([]);
+  const [familias, setFamilias] = useState([]);
+  const [materiales, setMateriales] = useState([]);
+
+  useEffect(() => {
+    cargarCatalogos();
+  }, []);
+
+  const cargarCatalogos = async () => {
+    setLoadingCatalogos(true);
+    try {
+      const [ubicacionesRes, materialesRes] = await Promise.all([
+        fetch(`${API_URL}/ubicaciones?limit=5000`),
+        fetch(`${API_URL}/materiales?limit=5000`),
+      ]);
+
+      const ubicacionesData = await ubicacionesRes.json();
+      const materialesData = await materialesRes.json();
+
+      if (!ubicacionesRes.ok) {
+        throw new Error(ubicacionesData.detail || "No se pudieron cargar las ubicaciones");
+      }
+
+      if (!materialesRes.ok) {
+        throw new Error(materialesData.detail || "No se pudieron cargar los materiales");
+      }
+
+      const zonasUnicas = [...new Set(
+        (Array.isArray(ubicacionesData) ? ubicacionesData : [])
+          .map((x) => (x.zona || "").trim())
+          .filter(Boolean)
+      )].sort((a, b) => a.localeCompare(b));
+
+      const familiasUnicas = [...new Set(
+        (Array.isArray(materialesData) ? materialesData : [])
+          .map((x) => (x.familia || "").trim())
+          .filter(Boolean)
+      )].sort((a, b) => a.localeCompare(b));
+
+      const materialesOrdenados = (Array.isArray(materialesData) ? materialesData : [])
+        .filter((x) => x.codigo)
+        .sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)));
+
+      setZonas(zonasUnicas);
+      setFamilias(familiasUnicas);
+      setMateriales(materialesOrdenados);
+    } catch (err) {
+      setError(err.message || "Error cargando catálogos");
+    } finally {
+      setLoadingCatalogos(false);
+    }
+  };
 
   const criterioLabel = useMemo(() => {
     if (form.tipo_conteo === "zona") return "Zona";
@@ -62,15 +116,15 @@ export default function CrearTarea() {
     if (!form.creado_por.trim()) return "Debe indicar el usuario creador";
 
     if (form.tipo_conteo === "zona" && !form.zona.trim()) {
-      return "Debe indicar la zona";
+      return "Debe seleccionar la zona";
     }
 
     if (form.tipo_conteo === "familia" && !form.familia.trim()) {
-      return "Debe indicar la familia";
+      return "Debe seleccionar la familia";
     }
 
     if (form.tipo_conteo === "material" && !form.codigo_material.trim()) {
-      return "Debe indicar el código del material";
+      return "Debe seleccionar el material";
     }
 
     return "";
@@ -163,34 +217,61 @@ export default function CrearTarea() {
 
               {form.tipo_conteo === "zona" && (
                 <Field label="Zona" required>
-                  <input
+                  <select
                     value={form.zona}
                     onChange={(e) => handleChange("zona", e.target.value)}
-                    placeholder="Ej: A-01 / PT / RACK-01"
                     style={inputStyle}
-                  />
+                    disabled={loadingCatalogos}
+                  >
+                    <option value="">
+                      {loadingCatalogos ? "Cargando zonas..." : "Seleccione una zona"}
+                    </option>
+                    {zonas.map((zona) => (
+                      <option key={zona} value={zona}>
+                        {zona}
+                      </option>
+                    ))}
+                  </select>
                 </Field>
               )}
 
               {form.tipo_conteo === "familia" && (
                 <Field label="Familia" required>
-                  <input
+                  <select
                     value={form.familia}
                     onChange={(e) => handleChange("familia", e.target.value)}
-                    placeholder="Ej: MATERIA PRIMA"
                     style={inputStyle}
-                  />
+                    disabled={loadingCatalogos}
+                  >
+                    <option value="">
+                      {loadingCatalogos ? "Cargando familias..." : "Seleccione una familia"}
+                    </option>
+                    {familias.map((familia) => (
+                      <option key={familia} value={familia}>
+                        {familia}
+                      </option>
+                    ))}
+                  </select>
                 </Field>
               )}
 
               {form.tipo_conteo === "material" && (
                 <Field label="Código material" required>
-                  <input
+                  <select
                     value={form.codigo_material}
                     onChange={(e) => handleChange("codigo_material", e.target.value)}
-                    placeholder="Ej: 1000001"
                     style={inputStyle}
-                  />
+                    disabled={loadingCatalogos}
+                  >
+                    <option value="">
+                      {loadingCatalogos ? "Cargando materiales..." : "Seleccione un material"}
+                    </option>
+                    {materiales.map((material) => (
+                      <option key={material.id} value={material.codigo}>
+                        {material.codigo} - {material.descripcion}
+                      </option>
+                    ))}
+                  </select>
                 </Field>
               )}
 
@@ -218,7 +299,7 @@ export default function CrearTarea() {
                     value={form.observacion}
                     onChange={(e) => handleChange("observacion", e.target.value)}
                     placeholder="Comentario operativo"
-                    style={{ ...inputStyle, minHeight: 88, resize: "vertical" }}
+                    style={{ ...inputStyle, minHeight: 88, resize: "vertical", paddingTop: 10 }}
                   />
                 </Field>
               </div>
@@ -487,7 +568,7 @@ const cardSubtitleStyle = {
 
 const formGrid = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
   gap: 14,
 };
 
