@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../api";
+import {
+  Upload,
+  Search,
+  Eraser,
+  Settings2,
+  Eye,
+  Lock,
+  Unlock,
+  Trash2,
+  FileSpreadsheet,
+  PackageSearch,
+} from "lucide-react";
 
 const colors = {
   navy: "#072B5A",
@@ -128,6 +140,58 @@ function resolveEstadoReserva(totalReq, totalRet) {
   if (ret >= req) return "CUMPLIDA";
   return "PARCIAL";
 }
+
+const cardStyle = {
+  background: colors.card,
+  border: `1px solid ${colors.border}`,
+  borderRadius: 18,
+  boxShadow: "0 14px 34px rgba(2,6,23,.06)",
+};
+
+const sectionTitleStyle = {
+  padding: 14,
+  borderBottom: `1px solid ${colors.border}`,
+  fontWeight: 1000,
+  color: colors.navy,
+};
+
+const inputStyle = {
+  width: "100%",
+  padding: "10px 12px",
+  borderRadius: 12,
+  border: `1px solid ${colors.border}`,
+  background: "#fff",
+  fontWeight: 800,
+  outline: "none",
+};
+
+const thStyle = {
+  padding: 12,
+  background: "#F8FAFC",
+  borderBottom: `1px solid ${colors.border}`,
+  textAlign: "left",
+  fontWeight: 1000,
+  color: colors.muted,
+  fontSize: 12,
+  whiteSpace: "nowrap",
+};
+
+const tdStyle = {
+  padding: 12,
+  borderBottom: `1px solid ${colors.border}`,
+  verticalAlign: "middle",
+};
+
+const actionBtnBase = {
+  padding: "8px 10px",
+  borderRadius: 12,
+  fontWeight: 900,
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  fontSize: 13,
+};
 
 export default function Despacho() {
   const navigate = useNavigate();
@@ -495,315 +559,303 @@ export default function Despacho() {
     await loadPicking(reservaId);
   };
 
+  const seleccionarReservaDesdeResumen = async (reservaId) => {
+    setReserva(reservaId);
+    setReservaActiva(reservaId);
+    await loadDespachos(reservaId);
+    await loadPicking(reservaId);
+  };
+
   return (
-    <div style={{ background: colors.bg, minHeight: "100vh", padding: 18 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "end",
-          gap: 12,
-          marginBottom: 14,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900 }}>
-            📦 MÓDULO DESPACHO
-          </div>
-          <h1 style={{ margin: "6px 0 0", color: colors.navy }}>
-            Planeación y control de reservas
-          </h1>
-          <div style={{ marginTop: 6, color: colors.muted }}>
-            Importa el Excel, filtra por fecha de necesidad, controla estados y cierra reservas desde la visual.
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <Chip label={`Reservas: ${resumen.totalReservas}`} tone="blue" />
-          <Chip label={`SKUs: ${resumen.totalSkus}`} tone="blue" />
-          <Chip label={`Req: ${formatQty(resumen.totalRequerido)}`} tone="amber" />
-          <Chip label={`Ret: ${formatQty(resumen.totalRetirado)}`} tone="green" />
-          <Chip label={`Pend: ${formatQty(resumen.totalDiferencia)}`} tone="red" />
-          <Chip label={`Cerradas: ${resumen.totalCerradas}`} tone="neutral" />
-          {loading && <Chip label="Cargando…" tone="amber" />}
-          {err && <Chip label="Error" tone="red" />}
-          {!loading && !err && <Chip label="OK" tone="green" />}
-        </div>
-      </div>
-
-      <div
-        style={{
-          background: colors.card,
-          border: `1px solid ${colors.border}`,
-          borderRadius: 18,
-          padding: 14,
-          boxShadow: "0 14px 34px rgba(2,6,23,.06)",
-          marginBottom: 14,
-        }}
-      >
+    <div
+      style={{
+        background: colors.bg,
+        minHeight: "100vh",
+        padding: 18,
+        display: "grid",
+        gap: 14,
+      }}
+    >
+      <div style={cardStyle}>
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "1.4fr auto auto",
-            gap: 10,
+            padding: 18,
+            display: "flex",
+            justifyContent: "space-between",
             alignItems: "end",
+            gap: 12,
+            flexWrap: "wrap",
+            borderBottom: `1px solid ${colors.border}`,
+            background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
           }}
         >
           <div>
-            <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
-              IMPORTAR EXCEL DESPACHO
+            <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, letterSpacing: 1 }}>
+              MÓDULO DESPACHO
             </div>
-            <input
-              id="input-despacho-excel"
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: 12,
-                border: `1px solid ${colors.border}`,
-                background: "#fff",
-                fontWeight: 700,
-              }}
-            />
+            <h1 style={{ margin: "6px 0 0", color: colors.navy, fontSize: 28 }}>
+              Planeación y control de reservas
+            </h1>
+            <div style={{ marginTop: 6, color: colors.muted, fontSize: 14 }}>
+              Importa el Excel, filtra por fecha de necesidad, controla estados y cierra reservas desde la visual.
+            </div>
           </div>
 
-          <button
-            onClick={onImportar}
-            disabled={subiendo}
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <Chip label={`Reservas: ${resumen.totalReservas}`} tone="blue" />
+            <Chip label={`SKUs: ${resumen.totalSkus}`} tone="blue" />
+            <Chip label={`Req: ${formatQty(resumen.totalRequerido)}`} tone="amber" />
+            <Chip label={`Ret: ${formatQty(resumen.totalRetirado)}`} tone="green" />
+            <Chip label={`Pend: ${formatQty(resumen.totalDiferencia)}`} tone="red" />
+            <Chip label={`Cerradas: ${resumen.totalCerradas}`} tone="neutral" />
+            {loading && <Chip label="Cargando…" tone="amber" />}
+            {err && <Chip label="Error" tone="red" />}
+            {!loading && !err && <Chip label="OK" tone="green" />}
+          </div>
+        </div>
+
+        <div style={{ padding: 16 }}>
+          <div
             style={{
-              height: 44,
-              padding: "0 16px",
-              borderRadius: 14,
-              border: `1px solid ${colors.border}`,
-              background: colors.card,
-              fontWeight: 900,
-              cursor: "pointer",
+              display: "grid",
+              gridTemplateColumns: "1.5fr auto auto",
+              gap: 12,
+              alignItems: "end",
             }}
           >
-            {subiendo ? "⏳ Importando..." : "📥 Importar"}
-          </button>
-
-          <div style={{ color: colors.muted, fontWeight: 800, fontSize: 13 }}>
-            {ultimaCargaId ? `Última carga ID: ${ultimaCargaId}` : "Sin carga reciente"}
-          </div>
-        </div>
-      </div>
-
-      <div
-        style={{
-          background: colors.card,
-          border: `1px solid ${colors.border}`,
-          borderRadius: 18,
-          padding: 14,
-          boxShadow: "0 14px 34px rgba(2,6,23,.06)",
-          marginBottom: 14,
-        }}
-      >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1.6fr 1fr 1fr 1fr auto auto auto",
-            gap: 10,
-            alignItems: "end",
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
-              RESERVA
+            <div>
+              <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
+                IMPORTAR EXCEL DESPACHO
+              </div>
+              <div
+                style={{
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 14,
+                  padding: 10,
+                  background: "#fff",
+                }}
+              >
+                <input
+                  id="input-despacho-excel"
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  style={{
+                    width: "100%",
+                    fontWeight: 700,
+                  }}
+                />
+              </div>
             </div>
-            <input
-              value={reserva}
-              onChange={(e) => setReserva(e.target.value)}
-              placeholder="Ej: 4500012345"
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: 12,
-                border: `1px solid ${colors.border}`,
-                background: "#fff",
-                fontWeight: 800,
-              }}
-            />
-          </div>
 
-          <div>
-            <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
-              FECHA DESDE
-            </div>
-            <input
-              type="date"
-              value={fechaDesde}
-              onChange={(e) => setFechaDesde(e.target.value)}
+            <button
+              onClick={onImportar}
+              disabled={subiendo}
               style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: 12,
+                height: 44,
+                padding: "0 16px",
+                borderRadius: 14,
                 border: `1px solid ${colors.border}`,
-                background: "#fff",
-                fontWeight: 800,
-              }}
-            />
-          </div>
-
-          <div>
-            <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
-              FECHA HASTA
-            </div>
-            <input
-              type="date"
-              value={fechaHasta}
-              onChange={(e) => setFechaHasta(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: 12,
-                border: `1px solid ${colors.border}`,
-                background: "#fff",
-                fontWeight: 800,
-              }}
-            />
-          </div>
-
-          <div>
-            <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
-              ESTADO
-            </div>
-            <select
-              value={estadoFiltro}
-              onChange={(e) => setEstadoFiltro(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: 12,
-                border: `1px solid ${colors.border}`,
-                background: "#fff",
-                fontWeight: 800,
+                background: colors.card,
+                fontWeight: 900,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
               }}
             >
-              <option value="TODAS">Todas</option>
-              <option value="ABIERTAS">Abiertas</option>
-              <option value="CERRADAS">Cerradas</option>
-              <option value="CUMPLIDA">Cumplida</option>
-              <option value="PARCIAL">Parcial</option>
-              <option value="NO CUMPLIDA">No cumplida</option>
-              <option value="CUMPLIDA CERRADA">Cumplida cerrada</option>
-              <option value="PARCIAL CERRADA">Parcial cerrada</option>
-            </select>
+              <Upload size={16} />
+              {subiendo ? "Importando..." : "Importar"}
+            </button>
+
+            <div style={{ color: colors.muted, fontWeight: 800, fontSize: 13 }}>
+              {ultimaCargaId ? `Última carga ID: ${ultimaCargaId}` : "Sin carga reciente"}
+            </div>
           </div>
-
-          <button
-            onClick={onBuscar}
-            style={{
-              height: 44,
-              padding: "0 16px",
-              borderRadius: 14,
-              border: `1px solid ${colors.border}`,
-              background: colors.card,
-              fontWeight: 900,
-              cursor: "pointer",
-            }}
-          >
-            🔎 Buscar
-          </button>
-
-          <button
-            onClick={onLimpiar}
-            style={{
-              height: 44,
-              padding: "0 16px",
-              borderRadius: 14,
-              border: `1px solid ${colors.border}`,
-              background: colors.card,
-              fontWeight: 900,
-              cursor: "pointer",
-            }}
-          >
-            🧼 Limpiar
-          </button>
-
-          <button
-            onClick={() => onGenerarPicking()}
-            style={{
-              height: 44,
-              padding: "0 16px",
-              borderRadius: 14,
-              border: `1px solid rgba(10,110,209,.25)`,
-              background: "rgba(10,110,209,.08)",
-              color: colors.blue,
-              fontWeight: 1000,
-              cursor: "pointer",
-            }}
-          >
-            ⚙️ Generar Orden Picking
-          </button>
-        </div>
-
-        <div style={{ display: "flex", gap: 18, marginTop: 12, flexWrap: "wrap" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 800, color: colors.text }}>
-            <input
-              type="checkbox"
-              checked={soloPendientes}
-              onChange={(e) => setSoloPendientes(e.target.checked)}
-            />
-            Solo pendientes
-          </label>
-
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 800, color: colors.text }}>
-            <input
-              type="checkbox"
-              checked={soloCerradas}
-              onChange={(e) => setSoloCerradas(e.target.checked)}
-            />
-            Solo cerradas
-          </label>
         </div>
       </div>
 
-      <div
-        style={{
-          background: colors.card,
-          border: `1px solid ${colors.border}`,
-          borderRadius: 18,
-          overflow: "hidden",
-          boxShadow: "0 14px 34px rgba(2,6,23,.06)",
-          marginBottom: 16,
-        }}
-      >
-        <div
-          style={{
-            padding: 14,
-            borderBottom: `1px solid ${colors.border}`,
-            fontWeight: 1000,
-            color: colors.navy,
-          }}
-        >
-          Resumen por reserva
+      <div style={cardStyle}>
+        <div style={{ padding: 16 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1.5fr 1fr 1fr 1fr auto auto auto",
+              gap: 10,
+              alignItems: "end",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
+                RESERVA
+              </div>
+              <input
+                value={reserva}
+                onChange={(e) => setReserva(e.target.value)}
+                placeholder="Ej: 4500012345"
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
+                FECHA DESDE
+              </div>
+              <input
+                type="date"
+                value={fechaDesde}
+                onChange={(e) => setFechaDesde(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
+                FECHA HASTA
+              </div>
+              <input
+                type="date"
+                value={fechaHasta}
+                onChange={(e) => setFechaHasta(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
+                ESTADO
+              </div>
+              <select
+                value={estadoFiltro}
+                onChange={(e) => setEstadoFiltro(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="TODAS">Todas</option>
+                <option value="ABIERTAS">Abiertas</option>
+                <option value="CERRADAS">Cerradas</option>
+                <option value="CUMPLIDA">Cumplida</option>
+                <option value="PARCIAL">Parcial</option>
+                <option value="NO CUMPLIDA">No cumplida</option>
+                <option value="CUMPLIDA CERRADA">Cumplida cerrada</option>
+                <option value="PARCIAL CERRADA">Parcial cerrada</option>
+              </select>
+            </div>
+
+            <button
+              onClick={onBuscar}
+              style={{
+                height: 44,
+                padding: "0 16px",
+                borderRadius: 14,
+                border: `1px solid ${colors.border}`,
+                background: colors.card,
+                fontWeight: 900,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <Search size={16} />
+              Buscar
+            </button>
+
+            <button
+              onClick={onLimpiar}
+              style={{
+                height: 44,
+                padding: "0 16px",
+                borderRadius: 14,
+                border: `1px solid ${colors.border}`,
+                background: colors.card,
+                fontWeight: 900,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <Eraser size={16} />
+              Limpiar
+            </button>
+
+            <button
+              onClick={() => onGenerarPicking()}
+              style={{
+                height: 44,
+                padding: "0 16px",
+                borderRadius: 14,
+                border: `1px solid rgba(10,110,209,.25)`,
+                background: "rgba(10,110,209,.08)",
+                color: colors.blue,
+                fontWeight: 1000,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <Settings2 size={16} />
+              Generar Orden Picking
+            </button>
+          </div>
+
+          <div style={{ display: "flex", gap: 18, marginTop: 12, flexWrap: "wrap" }}>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontWeight: 800,
+                color: colors.text,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={soloPendientes}
+                onChange={(e) => setSoloPendientes(e.target.checked)}
+              />
+              Solo pendientes
+            </label>
+
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontWeight: 800,
+                color: colors.text,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={soloCerradas}
+                onChange={(e) => setSoloCerradas(e.target.checked)}
+              />
+              Solo cerradas
+            </label>
+          </div>
         </div>
+      </div>
+
+      <div style={cardStyle}>
+        <div style={sectionTitleStyle}>Resumen por reserva</div>
 
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1700 }}>
             <thead>
-              <tr
-                style={{
-                  background: "#F8FAFC",
-                  borderBottom: `1px solid ${colors.border}`,
-                  textAlign: "left",
-                }}
-              >
-                <th style={{ padding: 12 }}>Fecha necesidad</th>
-                <th style={{ padding: 12 }}>Reserva</th>
-                <th style={{ padding: 12, textAlign: "right" }}>SKUs</th>
-                <th style={{ padding: 12, textAlign: "right" }}>Requerido</th>
-                <th style={{ padding: 12, textAlign: "right" }}>Retirado</th>
-                <th style={{ padding: 12, textAlign: "right" }}>Pendiente</th>
-                <th style={{ padding: 12, textAlign: "right" }}>% Cumplimiento</th>
-                <th style={{ padding: 12 }}>Estado</th>
-                <th style={{ padding: 12 }}>Cierre</th>
-                <th style={{ padding: 12 }}>Nota</th>
-                <th style={{ padding: 12 }}>Acción</th>
+              <tr>
+                <th style={thStyle}>Fecha necesidad</th>
+                <th style={thStyle}>Reserva</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>SKUs</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Requerido</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Retirado</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Pendiente</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>% Cumplimiento</th>
+                <th style={thStyle}>Estado</th>
+                <th style={thStyle}>Cierre</th>
+                <th style={thStyle}>Nota</th>
+                <th style={thStyle}>Acción</th>
               </tr>
             </thead>
 
@@ -823,112 +875,129 @@ export default function Despacho() {
                     : 0;
 
                 return (
-                  <tr key={r.reserva} style={{ borderBottom: `1px solid ${colors.border}` }}>
-                    <td style={{ padding: 12, fontWeight: 800 }}>
+                  <tr
+                    key={r.reserva}
+                    style={{
+                      borderBottom: `1px solid ${colors.border}`,
+                      background:
+                        reservaActiva === r.reserva ? "rgba(10,110,209,.04)" : "transparent",
+                    }}
+                  >
+                    <td style={{ ...tdStyle, fontWeight: 800 }}>
                       {r.fecha_necesidad_min === r.fecha_necesidad_max
                         ? r.fecha_necesidad_min
                         : `${r.fecha_necesidad_min || ""} → ${r.fecha_necesidad_max || ""}`}
                     </td>
-                    <td style={{ padding: 12, fontWeight: 900, color: colors.blue }}>{r.reserva}</td>
-                    <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>{r.total_skus}</td>
-                    <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>
+
+                    <td style={tdStyle}>
+                      <button
+                        onClick={() => seleccionarReservaDesdeResumen(r.reserva)}
+                        style={{
+                          border: "none",
+                          background: "transparent",
+                          padding: 0,
+                          margin: 0,
+                          color: colors.blue,
+                          fontWeight: 1000,
+                          cursor: "pointer",
+                          fontSize: 22 ? undefined : undefined,
+                        }}
+                        title={`Seleccionar reserva ${r.reserva}`}
+                      >
+                        {r.reserva}
+                      </button>
+                    </td>
+
+                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{r.total_skus}</td>
+                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
                       {formatQty(r.total_requerido)}
                     </td>
-                    <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>
+                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
                       {formatQty(r.total_retirado)}
                     </td>
-                    <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>
+                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
                       {formatQty(r.total_diferencia)}
                     </td>
-                    <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>
+                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
                       {formatQty(pct)}
                     </td>
-                    <td style={{ padding: 12 }}>
+                    <td style={tdStyle}>
                       <Chip
                         label={r.clasificacion_mostrar}
                         tone={toneByClasificacion(r.clasificacion_mostrar)}
                       />
                     </td>
-                    <td style={{ padding: 12, fontWeight: 800 }}>
+                    <td style={{ ...tdStyle, fontWeight: 800 }}>
                       {r.cerrada ? fmtDateTime(r.fecha_cierre) : "Abierta"}
                     </td>
-                    <td style={{ padding: 12, fontWeight: 700 }}>{r.nota_cierre || ""}</td>
-                    <td style={{ padding: 12 }}>
+                    <td style={{ ...tdStyle, fontWeight: 700 }}>{r.nota_cierre || ""}</td>
+                    <td style={tdStyle}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <button
                           onClick={() => verReserva(r.reserva)}
                           style={{
-                            padding: "8px 10px",
-                            borderRadius: 12,
+                            ...actionBtnBase,
                             border: `1px solid ${colors.border}`,
                             background: "#fff",
-                            fontWeight: 900,
-                            cursor: "pointer",
+                            color: colors.text,
                           }}
                         >
-                          👁️ Ver
+                          <Eye size={14} />
+                          Ver
                         </button>
 
                         <button
                           onClick={() => onGenerarPicking(r.reserva)}
                           style={{
-                            padding: "8px 10px",
-                            borderRadius: 12,
+                            ...actionBtnBase,
                             border: `1px solid rgba(10,110,209,.25)`,
                             background: "rgba(10,110,209,.08)",
                             color: colors.blue,
-                            fontWeight: 900,
-                            cursor: "pointer",
                           }}
                         >
-                          ⚙️ Picking
+                          <PackageSearch size={14} />
+                          Picking
                         </button>
 
                         {!r.cerrada ? (
                           <button
                             onClick={() => cerrarReserva(r.reserva, r.clasificacion_base)}
                             style={{
-                              padding: "8px 10px",
-                              borderRadius: 12,
+                              ...actionBtnBase,
                               border: "1px solid rgba(245,158,11,.28)",
                               background: "rgba(245,158,11,.10)",
                               color: colors.warn,
-                              fontWeight: 900,
-                              cursor: "pointer",
                             }}
                           >
-                            🔒 Cerrar
+                            <Lock size={14} />
+                            Cerrar
                           </button>
                         ) : (
                           <button
                             onClick={() => reabrirReserva(r.reserva)}
                             style={{
-                              padding: "8px 10px",
-                              borderRadius: 12,
+                              ...actionBtnBase,
                               border: "1px solid rgba(22,163,74,.25)",
                               background: "rgba(22,163,74,.10)",
                               color: colors.good,
-                              fontWeight: 900,
-                              cursor: "pointer",
                             }}
                           >
-                            🔓 Reabrir
+                            <Unlock size={14} />
+                            Reabrir
                           </button>
                         )}
 
                         <button
                           onClick={() => eliminarReserva(r.reserva)}
                           style={{
-                            padding: "8px 10px",
-                            borderRadius: 12,
+                            ...actionBtnBase,
                             border: "1px solid rgba(220,38,38,.25)",
                             background: "rgba(220,38,38,.10)",
                             color: colors.bad,
-                            fontWeight: 900,
-                            cursor: "pointer",
                           }}
                         >
-                          🗑️ Eliminar
+                          <Trash2 size={14} />
+                          Eliminar
                         </button>
                       </div>
                     </td>
@@ -940,49 +1009,25 @@ export default function Despacho() {
         </div>
       </div>
 
-      <div
-        style={{
-          background: colors.card,
-          border: `1px solid ${colors.border}`,
-          borderRadius: 18,
-          overflow: "hidden",
-          boxShadow: "0 14px 34px rgba(2,6,23,.06)",
-          marginBottom: 16,
-        }}
-      >
-        <div
-          style={{
-            padding: 14,
-            borderBottom: `1px solid ${colors.border}`,
-            fontWeight: 1000,
-            color: colors.navy,
-          }}
-        >
-          Cuadro despacho / validación
-        </div>
+      <div style={cardStyle}>
+        <div style={sectionTitleStyle}>Cuadro despacho / validación</div>
 
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 2200 }}>
             <thead>
-              <tr
-                style={{
-                  background: "#F8FAFC",
-                  borderBottom: `1px solid ${colors.border}`,
-                  textAlign: "left",
-                }}
-              >
-                <th style={{ padding: 12 }}>Fecha necesidad</th>
-                <th style={{ padding: 12 }}>Reserva</th>
-                <th style={{ padding: 12 }}>SKU</th>
-                <th style={{ padding: 12 }}>Texto breve</th>
-                <th style={{ padding: 12, textAlign: "right" }}>Cantidad requerida</th>
-                <th style={{ padding: 12, textAlign: "right" }}>Cantidad retirada</th>
-                <th style={{ padding: 12, textAlign: "right" }}>Diferencia</th>
-                <th style={{ padding: 12, textAlign: "right" }}>Líneas usadas</th>
-                <th style={{ padding: 12, textAlign: "right" }}>% SKU</th>
-                <th style={{ padding: 12 }}>Clasificación SKU</th>
-                <th style={{ padding: 12, textAlign: "right" }}>% Reserva</th>
-                <th style={{ padding: 12 }}>Clasificación final</th>
+              <tr>
+                <th style={thStyle}>Fecha necesidad</th>
+                <th style={thStyle}>Reserva</th>
+                <th style={thStyle}>SKU</th>
+                <th style={thStyle}>Texto breve</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Cantidad requerida</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Cantidad retirada</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Diferencia</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Líneas usadas</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>% SKU</th>
+                <th style={thStyle}>Clasificación SKU</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>% Reserva</th>
+                <th style={thStyle}>Clasificación final</th>
               </tr>
             </thead>
 
@@ -997,35 +1042,35 @@ export default function Despacho() {
 
               {rowsFiltradas.map((r) => (
                 <tr key={r.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
-                  <td style={{ padding: 12, fontWeight: 800 }}>{fmtDate(r.fecha_necesidad)}</td>
-                  <td style={{ padding: 12, fontWeight: 900, color: colors.blue }}>{r.reserva || ""}</td>
-                  <td style={{ padding: 12, fontWeight: 900 }}>{r.sku || ""}</td>
-                  <td style={{ padding: 12, fontWeight: 700 }}>{r.texto_breve || ""}</td>
-                  <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>
+                  <td style={{ ...tdStyle, fontWeight: 800 }}>{fmtDate(r.fecha_necesidad)}</td>
+                  <td style={{ ...tdStyle, fontWeight: 900, color: colors.blue }}>{r.reserva || ""}</td>
+                  <td style={{ ...tdStyle, fontWeight: 900 }}>{r.sku || ""}</td>
+                  <td style={{ ...tdStyle, fontWeight: 700 }}>{r.texto_breve || ""}</td>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
                     {formatQty(r.cantidad)}
                   </td>
-                  <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
                     {formatQty(r.cantidad_retirada)}
                   </td>
-                  <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
                     {formatQty(r.diferencia)}
                   </td>
-                  <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
                     {r.lineas_usadas ?? 0}
                   </td>
-                  <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
                     {formatQty(r.pct_cumplimiento_sku)}
                   </td>
-                  <td style={{ padding: 12 }}>
+                  <td style={tdStyle}>
                     <Chip
                       label={r.clasificacion_sku || "NO CUMPLIDA"}
                       tone={toneByClasificacion(r.clasificacion_sku)}
                     />
                   </td>
-                  <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
                     {formatQty(r.pct_cumplimiento_reserva)}
                   </td>
-                  <td style={{ padding: 12 }}>
+                  <td style={tdStyle}>
                     <Chip
                       label={r.clasificacion_final || "NO CUMPLIDA"}
                       tone={toneByClasificacion(r.clasificacion_final)}
@@ -1044,25 +1089,8 @@ export default function Despacho() {
         )}
       </div>
 
-      <div
-        style={{
-          background: colors.card,
-          border: `1px solid ${colors.border}`,
-          borderRadius: 18,
-          overflow: "hidden",
-          boxShadow: "0 14px 34px rgba(2,6,23,.06)",
-        }}
-      >
-        <div
-          style={{
-            padding: 14,
-            borderBottom: `1px solid ${colors.border}`,
-            fontWeight: 1000,
-            color: colors.navy,
-          }}
-        >
-          Orden de picking generada
-        </div>
+      <div style={cardStyle}>
+        <div style={sectionTitleStyle}>Orden de picking generada</div>
 
         <div style={{ padding: "10px 14px", color: colors.muted, fontWeight: 700 }}>
           {loadingPicking
@@ -1075,22 +1103,16 @@ export default function Despacho() {
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1600 }}>
             <thead>
-              <tr
-                style={{
-                  background: "#F8FAFC",
-                  borderBottom: `1px solid ${colors.border}`,
-                  textAlign: "left",
-                }}
-              >
-                <th style={{ padding: 12 }}>Reserva</th>
-                <th style={{ padding: 12 }}>SKU</th>
-                <th style={{ padding: 12 }}>Texto breve</th>
-                <th style={{ padding: 12, textAlign: "right" }}>Cantidad requerida</th>
-                <th style={{ padding: 12, textAlign: "right" }}>Cantidad a retirar</th>
-                <th style={{ padding: 12 }}>Ubicación</th>
-                <th style={{ padding: 12 }}>Lote almacén</th>
-                <th style={{ padding: 12 }}>Lote proveedor</th>
-                <th style={{ padding: 12 }}>Fecha vencimiento</th>
+              <tr>
+                <th style={thStyle}>Reserva</th>
+                <th style={thStyle}>SKU</th>
+                <th style={thStyle}>Texto breve</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Cantidad requerida</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Cantidad a retirar</th>
+                <th style={thStyle}>Ubicación</th>
+                <th style={thStyle}>Lote almacén</th>
+                <th style={thStyle}>Lote proveedor</th>
+                <th style={thStyle}>Fecha vencimiento</th>
               </tr>
             </thead>
 
@@ -1105,19 +1127,26 @@ export default function Despacho() {
 
               {pickingRows.map((r) => (
                 <tr key={r.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
-                  <td style={{ padding: 12, fontWeight: 900, color: colors.blue }}>{r.reserva || ""}</td>
-                  <td style={{ padding: 12, fontWeight: 900 }}>{r.sku || ""}</td>
-                  <td style={{ padding: 12, fontWeight: 700 }}>{r.texto_breve || ""}</td>
-                  <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>
+                  <td style={{ ...tdStyle, fontWeight: 900, color: colors.blue }}>{r.reserva || ""}</td>
+                  <td style={{ ...tdStyle, fontWeight: 900 }}>{r.sku || ""}</td>
+                  <td style={{ ...tdStyle, fontWeight: 700 }}>{r.texto_breve || ""}</td>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
                     {formatQty(r.cantidad_requerida)}
                   </td>
-                  <td style={{ padding: 12, textAlign: "right", fontWeight: 900, color: colors.good }}>
+                  <td
+                    style={{
+                      ...tdStyle,
+                      textAlign: "right",
+                      fontWeight: 900,
+                      color: colors.good,
+                    }}
+                  >
                     {formatQty(r.cantidad_a_retirar ?? r.cantidad_sugerida)}
                   </td>
-                  <td style={{ padding: 12, fontWeight: 800 }}>{r.ubicacion || ""}</td>
-                  <td style={{ padding: 12, fontWeight: 700 }}>{r.lote_almacen || ""}</td>
-                  <td style={{ padding: 12, fontWeight: 700 }}>{r.lote_proveedor || ""}</td>
-                  <td style={{ padding: 12, fontWeight: 800 }}>{fmtDate(r.fecha_vencimiento)}</td>
+                  <td style={{ ...tdStyle, fontWeight: 800 }}>{r.ubicacion || ""}</td>
+                  <td style={{ ...tdStyle, fontWeight: 700 }}>{r.lote_almacen || ""}</td>
+                  <td style={{ ...tdStyle, fontWeight: 700 }}>{r.lote_proveedor || ""}</td>
+                  <td style={{ ...tdStyle, fontWeight: 800 }}>{fmtDate(r.fecha_vencimiento)}</td>
                 </tr>
               ))}
             </tbody>
