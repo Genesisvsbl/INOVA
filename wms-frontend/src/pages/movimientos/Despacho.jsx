@@ -10,11 +10,6 @@ import {
   Lock,
   Unlock,
   Trash2,
-  PackageSearch,
-  FileSpreadsheet,
-  ClipboardList,
-  CheckCircle2,
-  AlertTriangle,
 } from "lucide-react";
 
 const colors = {
@@ -151,23 +146,6 @@ const cardStyle = {
   boxShadow: "0 14px 34px rgba(2,6,23,.06)",
 };
 
-const titleBarStyle = {
-  padding: 16,
-  borderBottom: `1px solid ${colors.border}`,
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: 12,
-  flexWrap: "wrap",
-};
-
-const sectionTitleStyle = {
-  padding: 14,
-  borderBottom: `1px solid ${colors.border}`,
-  fontWeight: 1000,
-  color: colors.navy,
-};
-
 const inputStyle = {
   width: "100%",
   height: 44,
@@ -176,49 +154,41 @@ const inputStyle = {
   border: `1px solid ${colors.border}`,
   background: "#fff",
   fontWeight: 800,
-  outline: "none",
   color: colors.text,
+  outline: "none",
 };
 
-const buttonBase = {
-  height: 44,
-  padding: "0 16px",
-  borderRadius: 14,
+const labelStyle = {
+  fontSize: 11,
+  color: colors.muted,
   fontWeight: 900,
-  cursor: "pointer",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 8,
+  marginBottom: 6,
+  letterSpacing: 0.4,
+};
+
+const tableWrapStyle = {
+  width: "100%",
+  overflowX: "auto",
+  overflowY: "hidden",
 };
 
 const thStyle = {
   padding: 12,
-  background: "#F8FAFC",
-  borderBottom: `1px solid ${colors.border}`,
-  textAlign: "left",
-  fontWeight: 1000,
   color: colors.muted,
   fontSize: 12,
+  fontWeight: 1000,
+  textAlign: "left",
+  borderBottom: `1px solid ${colors.border}`,
+  background: "#F8FAFC",
   whiteSpace: "nowrap",
 };
 
 const tdStyle = {
   padding: 12,
   borderBottom: `1px solid ${colors.border}`,
-  verticalAlign: "middle",
+  color: colors.text,
+  fontWeight: 700,
   whiteSpace: "nowrap",
-};
-
-const actionBtnBase = {
-  padding: "8px 10px",
-  borderRadius: 12,
-  fontWeight: 900,
-  cursor: "pointer",
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 6,
-  fontSize: 13,
 };
 
 export default function Despacho() {
@@ -599,27 +569,27 @@ export default function Despacho() {
       style={{
         background: colors.bg,
         minHeight: "100%",
-        padding: 18,
         display: "grid",
-        gap: 14,
-        width: "100%",
-        minWidth: 0,
-        overflowX: "auto",
+        gap: 12,
       }}
     >
       <div style={cardStyle}>
         <div
           style={{
-            ...titleBarStyle,
+            padding: 18,
+            borderBottom: `1px solid ${colors.border}`,
+            display: "flex",
+            justifyContent: "space-between",
             alignItems: "end",
-            background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
+            gap: 12,
+            flexWrap: "wrap",
           }}
         >
           <div>
             <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, letterSpacing: 1 }}>
               MÓDULO DESPACHO
             </div>
-            <h1 style={{ margin: "6px 0 0", color: colors.navy, fontSize: 30 }}>
+            <h1 style={{ margin: "6px 0 0", color: colors.navy, fontSize: 26 }}>
               Planeación y control de reservas
             </h1>
             <div style={{ marginTop: 6, color: colors.muted, fontSize: 14 }}>
@@ -627,7 +597,7 @@ export default function Despacho() {
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <Chip label={`Reservas: ${resumen.totalReservas}`} tone="blue" />
             <Chip label={`SKUs: ${resumen.totalSkus}`} tone="blue" />
             <Chip label={`Req: ${formatQty(resumen.totalRequerido)}`} tone="amber" />
@@ -644,47 +614,44 @@ export default function Despacho() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(320px,1.6fr) auto auto",
-              gap: 12,
+              gridTemplateColumns: "1.6fr auto auto",
+              gap: 10,
               alignItems: "end",
             }}
           >
             <div>
-              <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
-                IMPORTAR EXCEL DESPACHO
-              </div>
-
-              <div
+              <div style={labelStyle}>IMPORTAR EXCEL DESPACHO</div>
+              <input
+                id="input-despacho-excel"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
                 style={{
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: 14,
-                  padding: 10,
-                  background: "#fff",
-                  minHeight: 44,
+                  ...inputStyle,
                   display: "flex",
                   alignItems: "center",
+                  paddingTop: 10,
                 }}
-              >
-                <input
-                  id="input-despacho-excel"
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  style={{ width: "100%", fontWeight: 700 }}
-                />
-              </div>
+              />
             </div>
 
             <button
               onClick={onImportar}
               disabled={subiendo}
               style={{
-                ...buttonBase,
+                height: 44,
+                padding: "0 16px",
+                borderRadius: 14,
                 border: `1px solid ${colors.border}`,
-                background: colors.card,
+                background: "#fff",
+                fontWeight: 900,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
               }}
             >
-              <Upload size={16} />
+              <Upload size={15} />
               {subiendo ? "Importando..." : "Importar"}
             </button>
 
@@ -692,7 +659,7 @@ export default function Despacho() {
               style={{
                 color: colors.muted,
                 fontWeight: 800,
-                fontSize: 13,
+                fontSize: 12,
                 minHeight: 44,
                 display: "flex",
                 alignItems: "center",
@@ -709,17 +676,13 @@ export default function Despacho() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(240px,1.6fr) minmax(180px,1fr) minmax(180px,1fr) minmax(180px,1fr) auto auto auto",
+              gridTemplateColumns: "1.5fr 0.8fr 0.8fr 0.9fr auto auto auto",
               gap: 10,
               alignItems: "end",
-              minWidth: 0,
-              overflowX: "auto",
             }}
           >
             <div>
-              <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
-                RESERVA
-              </div>
+              <div style={labelStyle}>RESERVA</div>
               <input
                 value={reserva}
                 onChange={(e) => setReserva(e.target.value)}
@@ -729,9 +692,7 @@ export default function Despacho() {
             </div>
 
             <div>
-              <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
-                FECHA DESDE
-              </div>
+              <div style={labelStyle}>FECHA DESDE</div>
               <input
                 type="date"
                 value={fechaDesde}
@@ -741,9 +702,7 @@ export default function Despacho() {
             </div>
 
             <div>
-              <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
-                FECHA HASTA
-              </div>
+              <div style={labelStyle}>FECHA HASTA</div>
               <input
                 type="date"
                 value={fechaHasta}
@@ -753,9 +712,7 @@ export default function Despacho() {
             </div>
 
             <div>
-              <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
-                ESTADO
-              </div>
+              <div style={labelStyle}>ESTADO</div>
               <select
                 value={estadoFiltro}
                 onChange={(e) => setEstadoFiltro(e.target.value)}
@@ -775,51 +732,64 @@ export default function Despacho() {
             <button
               onClick={onBuscar}
               style={{
-                ...buttonBase,
+                height: 44,
+                padding: "0 16px",
+                borderRadius: 14,
                 border: `1px solid ${colors.border}`,
-                background: colors.card,
+                background: "#fff",
+                fontWeight: 900,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
               }}
             >
-              <Search size={16} />
+              <Search size={15} />
               Buscar
             </button>
 
             <button
               onClick={onLimpiar}
               style={{
-                ...buttonBase,
+                height: 44,
+                padding: "0 16px",
+                borderRadius: 14,
                 border: `1px solid ${colors.border}`,
-                background: colors.card,
+                background: "#fff",
+                fontWeight: 900,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
               }}
             >
-              <Eraser size={16} />
+              <Eraser size={15} />
               Limpiar
             </button>
 
             <button
               onClick={() => onGenerarPicking()}
               style={{
-                ...buttonBase,
+                height: 44,
+                padding: "0 16px",
+                borderRadius: 14,
                 border: `1px solid rgba(10,110,209,.25)`,
                 background: "rgba(10,110,209,.08)",
                 color: colors.blue,
+                fontWeight: 1000,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
               }}
             >
-              <Settings2 size={16} />
+              <Settings2 size={15} />
               Generar Orden Picking
             </button>
           </div>
 
           <div style={{ display: "flex", gap: 18, marginTop: 12, flexWrap: "wrap" }}>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                fontWeight: 800,
-                color: colors.text,
-              }}
-            >
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 800, color: colors.text }}>
               <input
                 type="checkbox"
                 checked={soloPendientes}
@@ -828,15 +798,7 @@ export default function Despacho() {
               Solo pendientes
             </label>
 
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                fontWeight: 800,
-                color: colors.text,
-              }}
-            >
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 800, color: colors.text }}>
               <input
                 type="checkbox"
                 checked={soloCerradas}
@@ -849,22 +811,19 @@ export default function Despacho() {
       </div>
 
       <div style={cardStyle}>
-        <div style={sectionTitleStyle}>Resumen por reserva</div>
-
         <div
           style={{
-            width: "100%",
-            overflowX: "auto",
-            overflowY: "hidden",
+            padding: 14,
+            borderBottom: `1px solid ${colors.border}`,
+            fontWeight: 1000,
+            color: colors.navy,
           }}
         >
-          <table
-            style={{
-              borderCollapse: "collapse",
-              width: "max-content",
-              minWidth: 1700,
-            }}
-          >
+          Resumen por reserva
+        </div>
+
+        <div style={tableWrapStyle}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1500 }}>
             <thead>
               <tr>
                 <th style={thStyle}>Fecha necesidad</th>
@@ -901,8 +860,7 @@ export default function Despacho() {
                     key={r.reserva}
                     style={{
                       borderBottom: `1px solid ${colors.border}`,
-                      background:
-                        reservaActiva === r.reserva ? "rgba(10,110,209,.04)" : "transparent",
+                      background: reservaActiva === r.reserva ? "rgba(10,110,209,.04)" : "#fff",
                     }}
                   >
                     <td style={{ ...tdStyle, fontWeight: 800 }}>
@@ -930,39 +888,40 @@ export default function Despacho() {
                     </td>
 
                     <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{r.total_skus}</td>
-                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
-                      {formatQty(r.total_requerido)}
-                    </td>
-                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
-                      {formatQty(r.total_retirado)}
-                    </td>
-                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
-                      {formatQty(r.total_diferencia)}
-                    </td>
-                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
-                      {formatQty(pct)}
-                    </td>
+                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{formatQty(r.total_requerido)}</td>
+                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{formatQty(r.total_retirado)}</td>
+                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{formatQty(r.total_diferencia)}</td>
+                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{formatQty(pct)}</td>
+
                     <td style={tdStyle}>
                       <Chip
                         label={r.clasificacion_mostrar}
                         tone={toneByClasificacion(r.clasificacion_mostrar)}
                       />
                     </td>
+
                     <td style={{ ...tdStyle, fontWeight: 800 }}>
                       {r.cerrada ? fmtDateTime(r.fecha_cierre) : "Abierta"}
                     </td>
+
                     <td style={{ ...tdStyle, fontWeight: 700, whiteSpace: "normal", minWidth: 180 }}>
                       {r.nota_cierre || ""}
                     </td>
+
                     <td style={tdStyle}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <button
                           onClick={() => verReserva(r.reserva)}
                           style={{
-                            ...actionBtnBase,
+                            padding: "8px 10px",
+                            borderRadius: 12,
                             border: `1px solid ${colors.border}`,
                             background: "#fff",
-                            color: colors.text,
+                            fontWeight: 900,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
                           }}
                         >
                           <Eye size={14} />
@@ -972,13 +931,19 @@ export default function Despacho() {
                         <button
                           onClick={() => onGenerarPicking(r.reserva)}
                           style={{
-                            ...actionBtnBase,
+                            padding: "8px 10px",
+                            borderRadius: 12,
                             border: `1px solid rgba(10,110,209,.25)`,
                             background: "rgba(10,110,209,.08)",
                             color: colors.blue,
+                            fontWeight: 900,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
                           }}
                         >
-                          <PackageSearch size={14} />
+                          <Settings2 size={14} />
                           Picking
                         </button>
 
@@ -986,10 +951,16 @@ export default function Despacho() {
                           <button
                             onClick={() => cerrarReserva(r.reserva, r.clasificacion_base)}
                             style={{
-                              ...actionBtnBase,
+                              padding: "8px 10px",
+                              borderRadius: 12,
                               border: "1px solid rgba(245,158,11,.28)",
                               background: "rgba(245,158,11,.10)",
                               color: colors.warn,
+                              fontWeight: 900,
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
                             }}
                           >
                             <Lock size={14} />
@@ -999,10 +970,16 @@ export default function Despacho() {
                           <button
                             onClick={() => reabrirReserva(r.reserva)}
                             style={{
-                              ...actionBtnBase,
+                              padding: "8px 10px",
+                              borderRadius: 12,
                               border: "1px solid rgba(22,163,74,.25)",
                               background: "rgba(22,163,74,.10)",
                               color: colors.good,
+                              fontWeight: 900,
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
                             }}
                           >
                             <Unlock size={14} />
@@ -1013,10 +990,16 @@ export default function Despacho() {
                         <button
                           onClick={() => eliminarReserva(r.reserva)}
                           style={{
-                            ...actionBtnBase,
+                            padding: "8px 10px",
+                            borderRadius: 12,
                             border: "1px solid rgba(220,38,38,.25)",
                             background: "rgba(220,38,38,.10)",
                             color: colors.bad,
+                            fontWeight: 900,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
                           }}
                         >
                           <Trash2 size={14} />
@@ -1033,22 +1016,19 @@ export default function Despacho() {
       </div>
 
       <div style={cardStyle}>
-        <div style={sectionTitleStyle}>Cuadro despacho / validación</div>
-
         <div
           style={{
-            width: "100%",
-            overflowX: "auto",
-            overflowY: "hidden",
+            padding: 14,
+            borderBottom: `1px solid ${colors.border}`,
+            fontWeight: 1000,
+            color: colors.navy,
           }}
         >
-          <table
-            style={{
-              borderCollapse: "collapse",
-              width: "max-content",
-              minWidth: 2200,
-            }}
-          >
+          Cuadro despacho / validación
+        </div>
+
+        <div style={tableWrapStyle}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1650 }}>
             <thead>
               <tr>
                 <th style={thStyle}>Fecha necesidad</th>
@@ -1080,22 +1060,14 @@ export default function Despacho() {
                   <td style={{ ...tdStyle, fontWeight: 800 }}>{fmtDate(r.fecha_necesidad)}</td>
                   <td style={{ ...tdStyle, fontWeight: 900, color: colors.blue }}>{r.reserva || ""}</td>
                   <td style={{ ...tdStyle, fontWeight: 900 }}>{r.sku || ""}</td>
-                  <td style={{ ...tdStyle, fontWeight: 700 }}>{r.texto_breve || ""}</td>
-                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
-                    {formatQty(r.cantidad)}
+                  <td style={{ ...tdStyle, fontWeight: 700, whiteSpace: "normal", minWidth: 260 }}>
+                    {r.texto_breve || ""}
                   </td>
-                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
-                    {formatQty(r.cantidad_retirada)}
-                  </td>
-                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
-                    {formatQty(r.diferencia)}
-                  </td>
-                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
-                    {r.lineas_usadas ?? 0}
-                  </td>
-                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
-                    {formatQty(r.pct_cumplimiento_sku)}
-                  </td>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{formatQty(r.cantidad)}</td>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{formatQty(r.cantidad_retirada)}</td>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{formatQty(r.diferencia)}</td>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{r.lineas_usadas ?? 0}</td>
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>{formatQty(r.pct_cumplimiento_sku)}</td>
                   <td style={tdStyle}>
                     <Chip
                       label={r.clasificacion_sku || "NO CUMPLIDA"}
@@ -1118,36 +1090,25 @@ export default function Despacho() {
         </div>
 
         {err && (
-          <div
-            style={{
-              padding: 14,
-              color: colors.bad,
-              fontWeight: 900,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <AlertTriangle size={16} />
+          <div style={{ padding: 14, color: colors.bad, fontWeight: 900 }}>
             Error API: {err}
           </div>
         )}
       </div>
 
       <div style={cardStyle}>
-        <div style={sectionTitleStyle}>Orden de picking generada</div>
-
         <div
           style={{
-            padding: "10px 14px",
-            color: colors.muted,
-            fontWeight: 700,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
+            padding: 14,
+            borderBottom: `1px solid ${colors.border}`,
+            fontWeight: 1000,
+            color: colors.navy,
           }}
         >
-          <ClipboardList size={15} />
+          Orden de picking generada
+        </div>
+
+        <div style={{ padding: "10px 14px", color: colors.muted, fontWeight: 700 }}>
           {loadingPicking
             ? "Cargando picking..."
             : reservaActiva
@@ -1155,20 +1116,8 @@ export default function Despacho() {
             : "Selecciona o escribe una reserva y genera el picking."}
         </div>
 
-        <div
-          style={{
-            width: "100%",
-            overflowX: "auto",
-            overflowY: "hidden",
-          }}
-        >
-          <table
-            style={{
-              borderCollapse: "collapse",
-              width: "max-content",
-              minWidth: 1600,
-            }}
-          >
+        <div style={tableWrapStyle}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1400 }}>
             <thead>
               <tr>
                 <th style={thStyle}>Reserva</th>
@@ -1196,18 +1145,13 @@ export default function Despacho() {
                 <tr key={r.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
                   <td style={{ ...tdStyle, fontWeight: 900, color: colors.blue }}>{r.reserva || ""}</td>
                   <td style={{ ...tdStyle, fontWeight: 900 }}>{r.sku || ""}</td>
-                  <td style={{ ...tdStyle, fontWeight: 700 }}>{r.texto_breve || ""}</td>
+                  <td style={{ ...tdStyle, fontWeight: 700, whiteSpace: "normal", minWidth: 260 }}>
+                    {r.texto_breve || ""}
+                  </td>
                   <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900 }}>
                     {formatQty(r.cantidad_requerida)}
                   </td>
-                  <td
-                    style={{
-                      ...tdStyle,
-                      textAlign: "right",
-                      fontWeight: 900,
-                      color: colors.good,
-                    }}
-                  >
+                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900, color: colors.good }}>
                     {formatQty(r.cantidad_a_retirar ?? r.cantidad_sugerida)}
                   </td>
                   <td style={{ ...tdStyle, fontWeight: 800 }}>{r.ubicacion || ""}</td>
@@ -1219,25 +1163,6 @@ export default function Despacho() {
             </tbody>
           </table>
         </div>
-
-        {!loadingPicking && !err && pickingRows.length > 0 && (
-          <div
-            style={{
-              padding: 12,
-              borderTop: `1px solid ${colors.border}`,
-              background: "#FCFDFE",
-              color: colors.muted,
-              fontSize: 12,
-              fontWeight: 800,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <CheckCircle2 size={14} />
-            Picking listo para consulta operativa.
-          </div>
-        )}
       </div>
     </div>
   );
