@@ -10,8 +10,11 @@ import {
   Lock,
   Unlock,
   Trash2,
-  FileSpreadsheet,
   PackageSearch,
+  FileSpreadsheet,
+  ClipboardList,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 
 const colors = {
@@ -148,6 +151,16 @@ const cardStyle = {
   boxShadow: "0 14px 34px rgba(2,6,23,.06)",
 };
 
+const titleBarStyle = {
+  padding: 16,
+  borderBottom: `1px solid ${colors.border}`,
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 12,
+  flexWrap: "wrap",
+};
+
 const sectionTitleStyle = {
   padding: 14,
   borderBottom: `1px solid ${colors.border}`,
@@ -157,12 +170,26 @@ const sectionTitleStyle = {
 
 const inputStyle = {
   width: "100%",
-  padding: "10px 12px",
+  height: 44,
+  padding: "0 12px",
   borderRadius: 12,
   border: `1px solid ${colors.border}`,
   background: "#fff",
   fontWeight: 800,
   outline: "none",
+  color: colors.text,
+};
+
+const buttonBase = {
+  height: 44,
+  padding: "0 16px",
+  borderRadius: 14,
+  fontWeight: 900,
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
 };
 
 const thStyle = {
@@ -180,6 +207,7 @@ const tdStyle = {
   padding: 12,
   borderBottom: `1px solid ${colors.border}`,
   verticalAlign: "middle",
+  whiteSpace: "nowrap",
 };
 
 const actionBtnBase = {
@@ -570,22 +598,20 @@ export default function Despacho() {
     <div
       style={{
         background: colors.bg,
-        minHeight: "100vh",
+        minHeight: "100%",
         padding: 18,
         display: "grid",
         gap: 14,
+        width: "100%",
+        minWidth: 0,
+        overflowX: "auto",
       }}
     >
       <div style={cardStyle}>
         <div
           style={{
-            padding: 18,
-            display: "flex",
-            justifyContent: "space-between",
+            ...titleBarStyle,
             alignItems: "end",
-            gap: 12,
-            flexWrap: "wrap",
-            borderBottom: `1px solid ${colors.border}`,
             background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
           }}
         >
@@ -593,7 +619,7 @@ export default function Despacho() {
             <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, letterSpacing: 1 }}>
               MÓDULO DESPACHO
             </div>
-            <h1 style={{ margin: "6px 0 0", color: colors.navy, fontSize: 28 }}>
+            <h1 style={{ margin: "6px 0 0", color: colors.navy, fontSize: 30 }}>
               Planeación y control de reservas
             </h1>
             <div style={{ marginTop: 6, color: colors.muted, fontSize: 14 }}>
@@ -618,7 +644,7 @@ export default function Despacho() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1.5fr auto auto",
+              gridTemplateColumns: "minmax(320px,1.6fr) auto auto",
               gap: 12,
               alignItems: "end",
             }}
@@ -627,12 +653,16 @@ export default function Despacho() {
               <div style={{ fontSize: 12, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
                 IMPORTAR EXCEL DESPACHO
               </div>
+
               <div
                 style={{
                   border: `1px solid ${colors.border}`,
                   borderRadius: 14,
                   padding: 10,
                   background: "#fff",
+                  minHeight: 44,
+                  display: "flex",
+                  alignItems: "center",
                 }}
               >
                 <input
@@ -640,10 +670,7 @@ export default function Despacho() {
                   type="file"
                   accept=".xlsx,.xls"
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  style={{
-                    width: "100%",
-                    fontWeight: 700,
-                  }}
+                  style={{ width: "100%", fontWeight: 700 }}
                 />
               </div>
             </div>
@@ -652,23 +679,25 @@ export default function Despacho() {
               onClick={onImportar}
               disabled={subiendo}
               style={{
-                height: 44,
-                padding: "0 16px",
-                borderRadius: 14,
+                ...buttonBase,
                 border: `1px solid ${colors.border}`,
                 background: colors.card,
-                fontWeight: 900,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
               }}
             >
               <Upload size={16} />
               {subiendo ? "Importando..." : "Importar"}
             </button>
 
-            <div style={{ color: colors.muted, fontWeight: 800, fontSize: 13 }}>
+            <div
+              style={{
+                color: colors.muted,
+                fontWeight: 800,
+                fontSize: 13,
+                minHeight: 44,
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
               {ultimaCargaId ? `Última carga ID: ${ultimaCargaId}` : "Sin carga reciente"}
             </div>
           </div>
@@ -680,9 +709,11 @@ export default function Despacho() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1.5fr 1fr 1fr 1fr auto auto auto",
+              gridTemplateColumns: "minmax(240px,1.6fr) minmax(180px,1fr) minmax(180px,1fr) minmax(180px,1fr) auto auto auto",
               gap: 10,
               alignItems: "end",
+              minWidth: 0,
+              overflowX: "auto",
             }}
           >
             <div>
@@ -744,16 +775,9 @@ export default function Despacho() {
             <button
               onClick={onBuscar}
               style={{
-                height: 44,
-                padding: "0 16px",
-                borderRadius: 14,
+                ...buttonBase,
                 border: `1px solid ${colors.border}`,
                 background: colors.card,
-                fontWeight: 900,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
               }}
             >
               <Search size={16} />
@@ -763,16 +787,9 @@ export default function Despacho() {
             <button
               onClick={onLimpiar}
               style={{
-                height: 44,
-                padding: "0 16px",
-                borderRadius: 14,
+                ...buttonBase,
                 border: `1px solid ${colors.border}`,
                 background: colors.card,
-                fontWeight: 900,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
               }}
             >
               <Eraser size={16} />
@@ -782,17 +799,10 @@ export default function Despacho() {
             <button
               onClick={() => onGenerarPicking()}
               style={{
-                height: 44,
-                padding: "0 16px",
-                borderRadius: 14,
+                ...buttonBase,
                 border: `1px solid rgba(10,110,209,.25)`,
                 background: "rgba(10,110,209,.08)",
                 color: colors.blue,
-                fontWeight: 1000,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
               }}
             >
               <Settings2 size={16} />
@@ -841,8 +851,20 @@ export default function Despacho() {
       <div style={cardStyle}>
         <div style={sectionTitleStyle}>Resumen por reserva</div>
 
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1700 }}>
+        <div
+          style={{
+            width: "100%",
+            overflowX: "auto",
+            overflowY: "hidden",
+          }}
+        >
+          <table
+            style={{
+              borderCollapse: "collapse",
+              width: "max-content",
+              minWidth: 1700,
+            }}
+          >
             <thead>
               <tr>
                 <th style={thStyle}>Fecha necesidad</th>
@@ -900,7 +922,6 @@ export default function Despacho() {
                           color: colors.blue,
                           fontWeight: 1000,
                           cursor: "pointer",
-                          fontSize: 22 ? undefined : undefined,
                         }}
                         title={`Seleccionar reserva ${r.reserva}`}
                       >
@@ -930,7 +951,9 @@ export default function Despacho() {
                     <td style={{ ...tdStyle, fontWeight: 800 }}>
                       {r.cerrada ? fmtDateTime(r.fecha_cierre) : "Abierta"}
                     </td>
-                    <td style={{ ...tdStyle, fontWeight: 700 }}>{r.nota_cierre || ""}</td>
+                    <td style={{ ...tdStyle, fontWeight: 700, whiteSpace: "normal", minWidth: 180 }}>
+                      {r.nota_cierre || ""}
+                    </td>
                     <td style={tdStyle}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <button
@@ -1012,8 +1035,20 @@ export default function Despacho() {
       <div style={cardStyle}>
         <div style={sectionTitleStyle}>Cuadro despacho / validación</div>
 
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 2200 }}>
+        <div
+          style={{
+            width: "100%",
+            overflowX: "auto",
+            overflowY: "hidden",
+          }}
+        >
+          <table
+            style={{
+              borderCollapse: "collapse",
+              width: "max-content",
+              minWidth: 2200,
+            }}
+          >
             <thead>
               <tr>
                 <th style={thStyle}>Fecha necesidad</th>
@@ -1083,7 +1118,17 @@ export default function Despacho() {
         </div>
 
         {err && (
-          <div style={{ padding: 14, color: colors.bad, fontWeight: 900 }}>
+          <div
+            style={{
+              padding: 14,
+              color: colors.bad,
+              fontWeight: 900,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <AlertTriangle size={16} />
             Error API: {err}
           </div>
         )}
@@ -1092,7 +1137,17 @@ export default function Despacho() {
       <div style={cardStyle}>
         <div style={sectionTitleStyle}>Orden de picking generada</div>
 
-        <div style={{ padding: "10px 14px", color: colors.muted, fontWeight: 700 }}>
+        <div
+          style={{
+            padding: "10px 14px",
+            color: colors.muted,
+            fontWeight: 700,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <ClipboardList size={15} />
           {loadingPicking
             ? "Cargando picking..."
             : reservaActiva
@@ -1100,8 +1155,20 @@ export default function Despacho() {
             : "Selecciona o escribe una reserva y genera el picking."}
         </div>
 
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1600 }}>
+        <div
+          style={{
+            width: "100%",
+            overflowX: "auto",
+            overflowY: "hidden",
+          }}
+        >
+          <table
+            style={{
+              borderCollapse: "collapse",
+              width: "max-content",
+              minWidth: 1600,
+            }}
+          >
             <thead>
               <tr>
                 <th style={thStyle}>Reserva</th>
@@ -1152,6 +1219,25 @@ export default function Despacho() {
             </tbody>
           </table>
         </div>
+
+        {!loadingPicking && !err && pickingRows.length > 0 && (
+          <div
+            style={{
+              padding: 12,
+              borderTop: `1px solid ${colors.border}`,
+              background: "#FCFDFE",
+              color: colors.muted,
+              fontSize: 12,
+              fontWeight: 800,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <CheckCircle2 size={14} />
+            Picking listo para consulta operativa.
+          </div>
+        )}
       </div>
     </div>
   );
