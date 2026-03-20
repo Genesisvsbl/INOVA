@@ -1,6 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL, getProveedores } from "../../api";
+import {
+  Inbox,
+  RotateCcw,
+  Printer,
+  Save,
+  Plus,
+  Trash2,
+  User,
+  FileText,
+  Truck,
+  CalendarDays,
+  Package,
+} from "lucide-react";
 
 // ===== Helpers =====
 function todayISODate() {
@@ -124,6 +137,187 @@ function createInitialHeader() {
   };
 }
 
+const colors = {
+  navy: "#0f2744",
+  blue: "#0a6ed1",
+  text: "#1f2d3d",
+  muted: "#6b7a90",
+  card: "#ffffff",
+  border: "#d9e2ec",
+  soft: "#f8fafc",
+  good: "#2f6f44",
+  goodBg: "#edf8f1",
+  goodBd: "#cfe8d7",
+  bad: "#b42318",
+  badBg: "#fdf0f0",
+  badBd: "#f3c7c7",
+  warn: "#9a6700",
+  warnBg: "#fff6e5",
+  warnBd: "#f1ddb0",
+  infoBg: "#eaf3ff",
+  infoBd: "#cfe0ff",
+};
+
+const panelStyle = {
+  background: colors.card,
+  border: `1px solid ${colors.border}`,
+  borderRadius: 10,
+  overflow: "hidden",
+};
+
+const panelHeaderStyle = {
+  padding: "12px 14px",
+  borderBottom: `1px solid ${colors.border}`,
+  background: colors.soft,
+  fontWeight: 700,
+  color: "#1f3448",
+  fontSize: 14,
+};
+
+const panelBodyStyle = {
+  padding: 16,
+};
+
+const fieldLabelStyle = {
+  fontSize: 11,
+  fontWeight: 800,
+  color: "#7a8797",
+  letterSpacing: ".04em",
+  marginBottom: 6,
+  textTransform: "uppercase",
+};
+
+const inputStyle = {
+  width: "100%",
+  height: 38,
+  padding: "0 12px",
+  borderRadius: 8,
+  border: `1px solid ${colors.border}`,
+  outline: "none",
+  background: "#fff",
+  color: colors.text,
+  fontSize: 13,
+  fontWeight: 500,
+  boxSizing: "border-box",
+};
+
+const readOnlyInputStyle = {
+  ...inputStyle,
+  background: "#f8fafc",
+};
+
+const selectStyle = {
+  ...inputStyle,
+};
+
+const primaryButtonStyle = {
+  height: 38,
+  padding: "0 14px",
+  borderRadius: 8,
+  border: "1px solid #0b57d0",
+  background: "#0b57d0",
+  color: "#fff",
+  fontWeight: 700,
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  cursor: "pointer",
+};
+
+const secondaryButtonStyle = {
+  height: 38,
+  padding: "0 14px",
+  borderRadius: 8,
+  border: `1px solid ${colors.border}`,
+  background: "#fff",
+  color: colors.text,
+  fontWeight: 700,
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  cursor: "pointer",
+};
+
+const warnButtonStyle = {
+  height: 38,
+  padding: "0 14px",
+  borderRadius: 8,
+  border: "1px solid #e6a700",
+  background: "#f59e0b",
+  color: "#fff",
+  fontWeight: 700,
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  cursor: "pointer",
+};
+
+const dangerButtonStyle = {
+  height: 32,
+  padding: "0 10px",
+  borderRadius: 7,
+  border: `1px solid ${colors.badBd}`,
+  background: colors.badBg,
+  color: colors.bad,
+  fontWeight: 700,
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  cursor: "pointer",
+  fontSize: 12,
+};
+
+function StatusChip({ label, tone = "neutral" }) {
+  const tones = {
+    neutral: { bg: "#f1f5f9", bd: "#e2e8f0", tx: colors.text },
+    blue: { bg: colors.infoBg, bd: colors.infoBd, tx: colors.blue },
+    green: { bg: colors.goodBg, bd: colors.goodBd, tx: colors.good },
+    amber: { bg: colors.warnBg, bd: colors.warnBd, tx: colors.warn },
+    red: { bg: colors.badBg, bd: colors.badBd, tx: colors.bad },
+  };
+
+  const t = tones[tone] || tones.neutral;
+
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "5px 10px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 700,
+        border: `1px solid ${t.bd}`,
+        whiteSpace: "nowrap",
+        background: t.bg,
+        color: t.tx,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+const thStyle = {
+  textAlign: "left",
+  padding: "12px 14px",
+  fontSize: 12,
+  color: "#607080",
+  borderBottom: `1px solid ${colors.border}`,
+  fontWeight: 700,
+  whiteSpace: "nowrap",
+  background: "#fbfcfd",
+};
+
+const tdStyle = {
+  padding: "12px 14px",
+  borderBottom: "1px solid #edf2f7",
+  color: "#24384d",
+  whiteSpace: "nowrap",
+  fontSize: 13,
+  verticalAlign: "top",
+};
+
 export default function Recibo() {
   const navigate = useNavigate();
   const printRef = useRef(null);
@@ -175,8 +369,6 @@ export default function Recibo() {
       .catch(() => setMateriales([]));
   }, []);
 
-  // IMPORTANTE:
-  // No cargar tipoRecibo desde localStorage, para obligar a seleccionar siempre.
   useEffect(() => {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
@@ -206,7 +398,6 @@ export default function Recibo() {
       // nada
     }
 
-    // Fuerza que al entrar no haya selección previa
     setTipoRecibo("");
   }, []);
 
@@ -606,10 +797,229 @@ export default function Recibo() {
           <title>${escapeHtml(tipoRecibo === "devolucion" ? "Devolución" : "Recibo ciego")} - ${escapeHtml(header.serial)}</title>
           <meta charset="utf-8" />
           <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+          <style>
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              font-family: Arial, Helvetica, sans-serif;
+              color: #0f172a;
+              padding: 24px;
+            }
+            h1, h2, h3, p { margin: 0; }
+            .print-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              gap: 16px;
+              margin-bottom: 20px;
+              border-bottom: 2px solid #0f2744;
+              padding-bottom: 12px;
+            }
+            .print-title {
+              font-size: 24px;
+              font-weight: 900;
+              color: #0f2744;
+            }
+            .print-sub {
+              margin-top: 6px;
+              font-size: 12px;
+              color: #64748b;
+            }
+            .meta {
+              font-size: 12px;
+              text-align: right;
+              line-height: 1.6;
+            }
+            .summary {
+              display: grid;
+              grid-template-columns: repeat(4, minmax(180px, 1fr));
+              gap: 12px;
+              margin-bottom: 18px;
+            }
+            .box {
+              border: 1px solid #d9e2ec;
+              border-radius: 10px;
+              padding: 10px 12px;
+            }
+            .box-label {
+              font-size: 11px;
+              font-weight: 800;
+              color: #64748b;
+            }
+            .box-value {
+              margin-top: 4px;
+              font-size: 16px;
+              font-weight: 800;
+              color: #0f2744;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 22px;
+              font-size: 11px;
+            }
+            th, td {
+              border: 1px solid #d9e2ec;
+              padding: 6px 8px;
+              vertical-align: top;
+            }
+            th {
+              background: #f8fafc;
+              text-align: left;
+              font-weight: 800;
+            }
+            .cards-grid {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 14px;
+            }
+            .card {
+              border: 1px solid #d9e2ec;
+              border-radius: 12px;
+              padding: 14px;
+              page-break-inside: avoid;
+            }
+            .card-head {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              gap: 12px;
+              margin-bottom: 12px;
+            }
+            .card-logo-wrap {
+              display: flex;
+              gap: 10px;
+              align-items: center;
+            }
+            .card-logo {
+              width: 56px;
+              height: 56px;
+              border: 1px solid #d9e2ec;
+              border-radius: 10px;
+              display: grid;
+              place-items: center;
+              overflow: hidden;
+            }
+            .card-logo img {
+              width: 100%;
+              height: 100%;
+              object-fit: contain;
+            }
+            .card-brand-title {
+              font-size: 14px;
+              font-weight: 900;
+              color: #0f2744;
+            }
+            .card-brand-sub {
+              font-size: 11px;
+              color: #64748b;
+              margin-top: 2px;
+            }
+            .card-serial-box {
+              min-width: 150px;
+              text-align: right;
+            }
+            .mini-label {
+              font-size: 10px;
+              color: #64748b;
+              font-weight: 800;
+              letter-spacing: .04em;
+            }
+            .serial-big {
+              font-size: 18px;
+              font-weight: 900;
+              color: #0f2744;
+              margin-top: 4px;
+            }
+            .row.top-inline {
+              display: flex;
+              justify-content: space-between;
+              gap: 12px;
+              margin-bottom: 12px;
+            }
+            .half {
+              flex: 1;
+            }
+            .right-align {
+              text-align: right;
+            }
+            .value-big {
+              font-size: 18px;
+              font-weight: 900;
+              color: #0f2744;
+              margin-top: 4px;
+            }
+            .value-big.left {
+              text-align: left;
+            }
+            .barcode-block {
+              border-top: 1px solid #e5e7eb;
+              padding-top: 10px;
+              margin-top: 10px;
+            }
+            .barcode-text {
+              margin-top: 6px;
+              font-size: 12px;
+              font-weight: 700;
+              color: #0f172a;
+            }
+          </style>
         </head>
         <body>
-          <div>${reciboRowsHtml}</div>
-          <div>${tarjetasHtml}</div>
+          <div class="print-header">
+            <div>
+              <div class="print-title">${escapeHtml(tipoRecibo === "devolucion" ? "DEVOLUCIÓN" : "RECIBO CIEGO")}</div>
+              <div class="print-sub">Proveedor: ${escapeHtml(proveedorNombre)} | Serial: ${escapeHtml(header.serial)}</div>
+            </div>
+            <div class="meta">
+              <div><b>Usuario:</b> ${escapeHtml(usuario)}</div>
+              <div><b>Documento:</b> ${escapeHtml(header.documento)}</div>
+              <div><b>Fecha:</b> ${escapeHtml(header.fecha_recepcion)}</div>
+            </div>
+          </div>
+
+          <div class="summary">
+            <div class="box">
+              <div class="box-label">PROVEEDOR</div>
+              <div class="box-value">${escapeHtml(proveedorNombre || "-")}</div>
+            </div>
+            <div class="box">
+              <div class="box-label">SERIAL</div>
+              <div class="box-value">${escapeHtml(header.serial || "-")}</div>
+            </div>
+            <div class="box">
+              <div class="box-label">LÍNEAS</div>
+              <div class="box-value">${lineas.length}</div>
+            </div>
+            <div class="box">
+              <div class="box-label">TOTAL</div>
+              <div class="box-value">${escapeHtml(formatMoney(totalRecibo))}</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th># Serial</th>
+                <th>Item</th>
+                <th>Fecha Recepción</th>
+                <th>Código</th>
+                <th>Texto breve material</th>
+                <th>Empaque</th>
+                <th>UMB</th>
+                <th>UM</th>
+                <th>Cantidad</th>
+                <th>Total</th>
+                <th>Lote Proveedor</th>
+                <th>F. Fabricación</th>
+                <th>F. Vencimiento</th>
+              </tr>
+            </thead>
+            <tbody>${reciboRowsHtml}</tbody>
+          </table>
+
+          <div class="cards-grid">${tarjetasHtml}</div>
+
           <script>
             ${barcodeScript}
             window.onload = () => {
@@ -628,152 +1038,296 @@ export default function Recibo() {
     w.document.close();
   };
 
+  const selectedTipoLabel =
+    !tipoRecibo ? "Selecciona tipo de movimiento" : tipoRecibo === "devolucion" ? "Devolución" : "Recibo ciego";
+
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <h2 style={{ margin: 0 }}>
-          📥 {!tipoRecibo
-            ? "Selecciona tipo de movimiento"
-            : tipoRecibo === "devolucion"
-            ? "Devolución"
-            : "Recibo ciego"}
-        </h2>
-
-        {tipoRecibo && (
-          <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={onImprimir}>🖨️ Imprimir</button>
-            <button onClick={onGuardarRecibo} style={{ fontWeight: 800 }}>
-              Guardar (Asignar Ubicación)
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div style={{ marginBottom: 12, display: "flex", gap: 10 }}>
-        <button
-          type="button"
-          onClick={() => setTipoRecibo("recibo")}
-          style={{
-            padding: "10px 16px",
-            borderRadius: 10,
-            border: "1px solid #d0d7de",
-            background: tipoRecibo === "recibo" ? "#1976d2" : "#fff",
-            color: tipoRecibo === "recibo" ? "#fff" : "#111",
-            fontWeight: 800,
-            cursor: "pointer",
-          }}
-        >
-          Recibo
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setTipoRecibo("devolucion")}
-          style={{
-            padding: "10px 16px",
-            borderRadius: 10,
-            border: "1px solid #d0d7de",
-            background: tipoRecibo === "devolucion" ? "#1976d2" : "#fff",
-            color: tipoRecibo === "devolucion" ? "#fff" : "#111",
-            fontWeight: 800,
-            cursor: "pointer",
-          }}
-        >
-          Devolución
-        </button>
-      </div>
-
-      {!tipoRecibo && (
+    <div style={{ display: "grid", gap: 16 }}>
+      <div style={panelStyle}>
         <div
           style={{
-            border: "1px dashed #cbd5e1",
-            borderRadius: 12,
-            padding: 24,
-            marginTop: 12,
-            background: "#f8fafc",
-            textAlign: "center",
-            color: "#334155",
-            fontWeight: 600,
+            padding: "14px 18px",
+            borderBottom: `1px solid ${colors.border}`,
+            background: "linear-gradient(to bottom, #fbfcfd, #f5f8fb)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 16,
+            flexWrap: "wrap",
           }}
         >
-          Selecciona primero <b>Recibo</b> o <b>Devolución</b> para continuar.
-        </div>
-      )}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                display: "grid",
+                placeItems: "center",
+                background: "#eaf1f8",
+                border: "1px solid #d6e1ec",
+                flexShrink: 0,
+              }}
+            >
+              {tipoRecibo === "devolucion" ? (
+                <RotateCcw size={18} color="#315a7d" />
+              ) : (
+                <Inbox size={18} color="#315a7d" />
+              )}
+            </div>
 
-      {tipoRecibo && (
-        <>
-          <div style={{ marginBottom: 10, color: "#444" }}>
-            <b>Usuario:</b> {usuario || "(sin usuario)"}
+            <div>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 800,
+                  letterSpacing: ".08em",
+                  color: "#7a8797",
+                  textTransform: "uppercase",
+                  marginBottom: 4,
+                }}
+              >
+                Recibo
+              </div>
+
+              <div
+                style={{
+                  fontSize: 22,
+                  fontWeight: 700,
+                  lineHeight: 1.1,
+                  color: "#17324d",
+                }}
+              >
+                {selectedTipoLabel}
+              </div>
+
+              <div
+                style={{
+                  fontSize: 13,
+                  color: "#5b6b7c",
+                  marginTop: 4,
+                }}
+              >
+                Registro de entrada con impresión, trazabilidad y preparación para asignación de ubicación.
+              </div>
+            </div>
           </div>
 
-          {proveedoresError && (
-            <div style={{ color: "crimson", marginBottom: 10 }}>
-              Error cargando proveedores: {proveedoresError}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {tipoRecibo && (
+              <>
+                <button onClick={onImprimir} style={secondaryButtonStyle}>
+                  <Printer size={15} />
+                  Imprimir
+                </button>
+                <button onClick={onGuardarRecibo} style={primaryButtonStyle}>
+                  <Save size={15} />
+                  Guardar y asignar ubicación
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div style={panelBodyStyle}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+            <button
+              type="button"
+              onClick={() => setTipoRecibo("recibo")}
+              style={{
+                ...secondaryButtonStyle,
+                borderColor: tipoRecibo === "recibo" ? "#cfe0ff" : colors.border,
+                background: tipoRecibo === "recibo" ? "#eaf3ff" : "#fff",
+                color: tipoRecibo === "recibo" ? colors.blue : colors.text,
+              }}
+            >
+              <Inbox size={15} />
+              Recibo
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTipoRecibo("devolucion")}
+              style={{
+                ...secondaryButtonStyle,
+                borderColor: tipoRecibo === "devolucion" ? "#cfe0ff" : colors.border,
+                background: tipoRecibo === "devolucion" ? "#eaf3ff" : "#fff",
+                color: tipoRecibo === "devolucion" ? colors.blue : colors.text,
+              }}
+            >
+              <RotateCcw size={15} />
+              Devolución
+            </button>
+
+            {!tipoRecibo && <StatusChip label="Debes seleccionar tipo" tone="amber" />}
+            {tipoRecibo === "recibo" && <StatusChip label="Modo recibo" tone="blue" />}
+            {tipoRecibo === "devolucion" && <StatusChip label="Modo devolución" tone="green" />}
+          </div>
+
+          {!!errores.tipoRecibo && (
+            <div
+              style={{
+                marginBottom: 12,
+                color: colors.bad,
+                background: colors.badBg,
+                border: `1px solid ${colors.badBd}`,
+                borderRadius: 8,
+                padding: "10px 12px",
+                fontWeight: 700,
+                fontSize: 13,
+              }}
+            >
+              {errores.tipoRecibo}
             </div>
           )}
 
-          <div ref={printRef}>
+          {!tipoRecibo && (
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, minmax(260px, 1fr))",
-                gap: 12,
-                alignItems: "start",
-                marginBottom: 12,
+                border: `1px dashed ${colors.border}`,
+                borderRadius: 10,
+                padding: 24,
+                background: "#f8fafc",
+                textAlign: "center",
+                color: "#334155",
+                fontWeight: 600,
               }}
             >
-              <div style={{ border: "1px solid #e5e5e5", borderRadius: 12, padding: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <b># Serial</b>
-                  <input
-                    value={header.serial}
-                    onChange={(e) => setHeaderField("serial", clampMaxLen(e.target.value, 10))}
-                    style={{ width: 140 }}
-                  />
-                </div>
+              Selecciona primero <b>Recibo</b> o <b>Devolución</b> para continuar.
+            </div>
+          )}
+        </div>
+      </div>
 
-                <div style={{ marginTop: 10 }}>
-                  <b>Nombre Proveedor</b>
-                  <select
-                    value={header.proveedor_id}
-                    onChange={(e) => onProveedorSelect(e.target.value)}
-                    style={{ width: "100%", marginTop: 6 }}
-                  >
-                    <option value="">Seleccione proveedor...</option>
-                    {proveedores.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={{ marginTop: 10 }}>
-                  <b>Acreedor</b>
-                  <input
-                    value={header.acreedor}
-                    readOnly
-                    placeholder="Auto por proveedor"
-                    style={{ width: "100%", marginTop: 6, background: "#f3f3f3" }}
-                  />
-                </div>
-
-                <div style={{ marginTop: 10 }}>
-                  <b>Fecha recepción</b>
-                  <input
-                    type="date"
-                    value={header.fecha_recepcion}
-                    readOnly
-                    style={{ width: "100%", marginTop: 6, background: "#f3f3f3" }}
-                  />
-                  <div style={{ color: "#666", marginTop: 4 }}>(Automática del día)</div>
-                </div>
-              </div>
-
-              <div style={{ border: "1px solid #e5e5e5", borderRadius: 12, padding: 12 }}>
-                <div style={{ display: "grid", gap: 10 }}>
+      {tipoRecibo && (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 16 }}>
+            <div style={panelStyle}>
+              <div style={panelHeaderStyle}>Cabecera del documento</div>
+              <div style={panelBodyStyle}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, minmax(220px, 1fr))",
+                    gap: 12,
+                  }}
+                >
                   <div>
-                    <b># Remesa Transp (10)</b>
+                    <div style={fieldLabelStyle}>Usuario</div>
+                    <div
+                      style={{
+                        ...readOnlyInputStyle,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <User size={14} color={colors.muted} />
+                      <span>{usuario || "(sin usuario)"}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={fieldLabelStyle}>Serial</div>
+                    <input
+                      value={header.serial}
+                      onChange={(e) => setHeaderField("serial", clampMaxLen(e.target.value, 10))}
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  <div>
+                    <div style={fieldLabelStyle}>Proveedor</div>
+                    <select
+                      value={header.proveedor_id}
+                      onChange={(e) => onProveedorSelect(e.target.value)}
+                      style={selectStyle}
+                    >
+                      <option value="">Seleccione proveedor...</option>
+                      {proveedores.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.nombre}
+                        </option>
+                      ))}
+                    </select>
+                    {!!errores.proveedor && (
+                      <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                        {errores.proveedor}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <div style={fieldLabelStyle}>Acreedor</div>
+                    <input
+                      value={header.acreedor}
+                      readOnly
+                      placeholder="Auto por proveedor"
+                      style={readOnlyInputStyle}
+                    />
+                    {!!errores.acreedor && (
+                      <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                        {errores.acreedor}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <div style={fieldLabelStyle}>Fecha recepción</div>
+                    <div
+                      style={{
+                        ...readOnlyInputStyle,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <CalendarDays size={14} color={colors.muted} />
+                      <span>{header.fecha_recepcion}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={fieldLabelStyle}>Total recibo</div>
+                    <div
+                      style={{
+                        ...readOnlyInputStyle,
+                        fontWeight: 800,
+                        color: colors.navy,
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      {formatMoney(totalRecibo)}
+                    </div>
+                  </div>
+                </div>
+
+                {proveedoresError && (
+                  <div
+                    style={{
+                      marginTop: 12,
+                      color: colors.bad,
+                      background: colors.badBg,
+                      border: `1px solid ${colors.badBd}`,
+                      borderRadius: 8,
+                      padding: "10px 12px",
+                      fontWeight: 700,
+                      fontSize: 13,
+                    }}
+                  >
+                    Error cargando proveedores: {proveedoresError}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={panelStyle}>
+              <div style={panelHeaderStyle}>Campos de referencia</div>
+              <div style={panelBodyStyle}>
+                <div style={{ display: "grid", gap: 12 }}>
+                  <div>
+                    <div style={fieldLabelStyle}>Remesa transporte (10)</div>
                     <input
                       value={header.remesa_transp}
                       onChange={(e) => onField10Change("remesa_transp", e.target.value)}
@@ -781,26 +1335,35 @@ export default function Recibo() {
                       maxLength={10}
                       disabled={tipoRecibo === "devolucion"}
                       style={{
-                        width: "100%",
-                        marginTop: 6,
-                        background: tipoRecibo === "devolucion" ? "#f3f3f3" : "#fff",
+                        ...inputStyle,
+                        background: tipoRecibo === "devolucion" ? "#f8fafc" : "#fff",
                       }}
                     />
+                    {!!errores.remesa_transp && (
+                      <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                        {errores.remesa_transp}
+                      </div>
+                    )}
                   </div>
 
                   <div>
-                    <b># Documento (10)</b>
+                    <div style={fieldLabelStyle}>Documento (10)</div>
                     <input
                       value={header.documento}
                       onChange={(e) => onField10Change("documento", e.target.value)}
                       onBlur={() => onField10Blur("documento")}
                       maxLength={10}
-                      style={{ width: "100%", marginTop: 6 }}
+                      style={inputStyle}
                     />
+                    {!!errores.documento && (
+                      <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                        {errores.documento}
+                      </div>
+                    )}
                   </div>
 
                   <div>
-                    <b># Orden de Compra (10)</b>
+                    <div style={fieldLabelStyle}>Orden de compra (10)</div>
                     <input
                       value={header.orden_compra}
                       onChange={(e) => onField10Change("orden_compra", e.target.value)}
@@ -808,66 +1371,115 @@ export default function Recibo() {
                       maxLength={10}
                       disabled={tipoRecibo === "devolucion"}
                       style={{
-                        width: "100%",
-                        marginTop: 6,
-                        background: tipoRecibo === "devolucion" ? "#f3f3f3" : "#fff",
+                        ...inputStyle,
+                        background: tipoRecibo === "devolucion" ? "#f8fafc" : "#fff",
                       }}
                     />
+                    {!!errores.orden_compra && (
+                      <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                        {errores.orden_compra}
+                      </div>
+                    )}
                   </div>
 
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <b>Total Recibo</b>
-                    <div style={{ fontSize: 18, fontWeight: 800 }}>{formatMoney(totalRecibo)}</div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <StatusChip label={`Líneas: ${lineas.length}`} tone="blue" />
+                    <StatusChip label={`Usuario: ${usuario || "-"}`} tone="green" />
+                    {tipoRecibo === "devolucion" && <StatusChip label="Remesa y OC bloqueadas" tone="amber" />}
                   </div>
                 </div>
               </div>
             </div>
+          </div>
+
+          <div ref={printRef} style={panelStyle}>
+            <div
+              style={{
+                ...panelHeaderStyle,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <div>Detalle de líneas</div>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={addLinea} style={secondaryButtonStyle}>
+                  <Plus size={15} />
+                  Agregar línea
+                </button>
+                <button onClick={onImprimir} style={secondaryButtonStyle}>
+                  <Printer size={15} />
+                  Imprimir
+                </button>
+              </div>
+            </div>
 
             <div style={{ overflowX: "auto" }}>
-              <table border="1" cellPadding="6" style={{ borderCollapse: "collapse", width: "100%" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1850 }}>
                 <thead>
                   <tr>
-                    <th># Serial</th>
-                    <th>Item</th>
-                    <th>Fecha Recepción</th>
-                    <th>Código</th>
-                    <th>Texto breve material</th>
-                    <th>Empaque</th>
-                    <th>UMB</th>
-                    <th>UM</th>
-                    <th>Cantidad</th>
-                    <th>Total</th>
-                    <th>Lote Proveedor (10)</th>
-                    <th>Fecha Fabricación</th>
-                    <th>Fecha Vencimiento</th>
-                    <th>Acción</th>
+                    <th style={thStyle}># Serial</th>
+                    <th style={thStyle}>Item</th>
+                    <th style={thStyle}>Fecha recepción</th>
+                    <th style={thStyle}>Código</th>
+                    <th style={thStyle}>Texto breve material</th>
+                    <th style={thStyle}>Empaque</th>
+                    <th style={thStyle}>UMB</th>
+                    <th style={thStyle}>UM</th>
+                    <th style={thStyle}>Cantidad</th>
+                    <th style={thStyle}>Total</th>
+                    <th style={thStyle}>Lote proveedor (10)</th>
+                    <th style={thStyle}>Fecha fabricación</th>
+                    <th style={thStyle}>Fecha vencimiento</th>
+                    <th style={thStyle}>Acción</th>
                   </tr>
                 </thead>
                 <tbody>
                   {lineas.map((ln, idx) => (
                     <tr key={idx}>
-                      <td>{serialItem(header.serial, idx)}</td>
-                      <td>{idx + 1}</td>
-                      <td>
-                        <input type="date" value={ln.fecha_recepcion} readOnly style={{ background: "#f3f3f3" }} />
+                      <td style={tdStyle}>
+                        <div style={{ fontWeight: 700, color: colors.navy }}>
+                          {serialItem(header.serial, idx)}
+                        </div>
                       </td>
-                      <td>
+                      <td style={tdStyle}>{idx + 1}</td>
+                      <td style={tdStyle}>
+                        <input
+                          type="date"
+                          value={ln.fecha_recepcion}
+                          readOnly
+                          style={{ ...readOnlyInputStyle, width: 145 }}
+                        />
+                      </td>
+                      <td style={tdStyle}>
                         <input
                           list="materialesList"
                           value={ln.codigo}
                           onChange={(e) => onCodigoChange(idx, e.target.value)}
                           placeholder="Código"
-                          style={{ width: 120 }}
+                          style={{ ...inputStyle, width: 130 }}
+                        />
+                        {!!errores[`codigo_${idx}`] && (
+                          <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                            {errores[`codigo_${idx}`]}
+                          </div>
+                        )}
+                      </td>
+                      <td style={tdStyle}>
+                        <input
+                          value={ln.descripcion}
+                          readOnly
+                          style={{ ...readOnlyInputStyle, width: 280 }}
                         />
                       </td>
-                      <td>
-                        <input value={ln.descripcion} readOnly style={{ width: 260, background: "#f3f3f3" }} />
-                      </td>
-                      <td>
+                      <td style={tdStyle}>
                         <select
                           value={ln.empaque}
                           onChange={(e) => setLinea(idx, { empaque: e.target.value })}
-                          style={{ width: 150 }}
+                          style={{ ...selectStyle, width: 150 }}
                         >
                           <option value="">Seleccione...</option>
                           {EMPAQUES.map((op) => (
@@ -876,60 +1488,105 @@ export default function Recibo() {
                             </option>
                           ))}
                         </select>
+                        {!!errores[`empaque_${idx}`] && (
+                          <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                            {errores[`empaque_${idx}`]}
+                          </div>
+                        )}
                       </td>
-                      <td>
+                      <td style={tdStyle}>
                         <input
                           type="number"
                           value={ln.umb}
                           onChange={(e) => onUmbChange(idx, e.target.value)}
                           readOnly={ln.umb_bloqueado}
-                          style={{ width: 90 }}
+                          style={{
+                            ...(ln.umb_bloqueado ? readOnlyInputStyle : inputStyle),
+                            width: 95,
+                          }}
+                        />
+                        {!!errores[`umb_${idx}`] && (
+                          <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                            {errores[`umb_${idx}`]}
+                          </div>
+                        )}
+                      </td>
+                      <td style={tdStyle}>
+                        <input
+                          value={ln.um}
+                          readOnly
+                          style={{ ...readOnlyInputStyle, width: 95 }}
                         />
                       </td>
-                      <td>
-                        <input value={ln.um} readOnly style={{ width: 90, background: "#f3f3f3" }} />
-                      </td>
-                      <td>
+                      <td style={tdStyle}>
                         <input
                           type="number"
                           value={ln.cantidad}
                           onChange={(e) => onCantidadChange(idx, e.target.value)}
-                          style={{ width: 110 }}
+                          style={{ ...inputStyle, width: 115 }}
                         />
+                        {!!errores[`cantidad_${idx}`] && (
+                          <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                            {errores[`cantidad_${idx}`]}
+                          </div>
+                        )}
                       </td>
-                      <td>
+                      <td style={tdStyle}>
                         <input
                           value={formatMoney(ln.total || 0)}
                           readOnly
-                          style={{ width: 120, background: "#f3f3f3" }}
+                          style={{ ...readOnlyInputStyle, width: 125 }}
                         />
                       </td>
-                      <td>
+                      <td style={tdStyle}>
                         <input
                           value={ln.lote_proveedor}
                           onChange={(e) => onLoteProveedorChange(idx, e.target.value)}
-                          onBlur={() => setLinea(idx, { lote_proveedor: pad10WithStarsAny(ln.lote_proveedor) })}
+                          onBlur={() =>
+                            setLinea(idx, { lote_proveedor: pad10WithStarsAny(ln.lote_proveedor) })
+                          }
                           maxLength={10}
                           placeholder="10 caracteres"
-                          style={{ width: 160 }}
+                          style={{ ...inputStyle, width: 165 }}
                         />
+                        {!!errores[`loteprov_${idx}`] && (
+                          <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                            {errores[`loteprov_${idx}`]}
+                          </div>
+                        )}
                       </td>
-                      <td>
+                      <td style={tdStyle}>
                         <input
                           type="date"
                           value={ln.fecha_fabricacion}
                           onChange={(e) => setLinea(idx, { fecha_fabricacion: e.target.value })}
+                          style={{ ...inputStyle, width: 145 }}
                         />
                       </td>
-                      <td>
+                      <td style={tdStyle}>
                         <input
                           type="date"
                           value={ln.fecha_vencimiento}
                           onChange={(e) => setLinea(idx, { fecha_vencimiento: e.target.value })}
+                          style={{ ...inputStyle, width: 145 }}
                         />
+                        {!!errores[`fv_${idx}`] && (
+                          <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                            {errores[`fv_${idx}`]}
+                          </div>
+                        )}
                       </td>
-                      <td>
-                        <button onClick={() => removeLinea(idx)} disabled={lineas.length === 1}>
+                      <td style={tdStyle}>
+                        <button
+                          onClick={() => removeLinea(idx)}
+                          disabled={lineas.length === 1}
+                          style={{
+                            ...dangerButtonStyle,
+                            opacity: lineas.length === 1 ? 0.55 : 1,
+                            cursor: lineas.length === 1 ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          <Trash2 size={14} />
                           Eliminar
                         </button>
                       </td>
@@ -948,9 +1605,25 @@ export default function Recibo() {
             </div>
           </div>
 
-          <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
-            <button onClick={addLinea}>+ Agregar línea</button>
-            <button onClick={onImprimir}>🖨️ Imprimir</button>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ color: colors.muted, fontSize: 12, fontWeight: 600 }}>
+              El flujo, la impresión y el guardado hacia asignación de ubicación se conservan igual.
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={addLinea} style={secondaryButtonStyle}>
+                <Plus size={15} />
+                Agregar línea
+              </button>
+              <button onClick={onImprimir} style={secondaryButtonStyle}>
+                <Printer size={15} />
+                Imprimir
+              </button>
+              <button onClick={onGuardarRecibo} style={primaryButtonStyle}>
+                <Save size={15} />
+                Guardar y continuar
+              </button>
+            </div>
           </div>
         </>
       )}
