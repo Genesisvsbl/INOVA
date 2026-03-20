@@ -53,6 +53,11 @@ def ensure_materiales_columns():
             pass
 
         try:
+            conn.execute(text("ALTER TABLE materiales ADD COLUMN familia VARCHAR"))
+        except Exception:
+            pass
+
+        try:
             conn.commit()
         except Exception:
             pass
@@ -217,6 +222,132 @@ def recalcular_reserva(reserva: str, db: Session):
         "total_retirado": total_retirado_reserva,
         "pct_cumplimiento_reserva": pct_reserva,
         "clasificacion_final": clasif_reserva,
+    }
+
+
+# ==============================
+# HELPERS INVENTARIOS
+# ==============================
+def construir_criterio_inventario(
+    tipo_conteo: str,
+    zona: Optional[str],
+    familia: Optional[str],
+    codigo_material: Optional[str],
+) -> str:
+    tipo = (tipo_conteo or "").strip().lower()
+
+    if tipo == "zona":
+        if not zona or not zona.strip():
+            raise HTTPException(status_code=400, detail="Para inventario por zona debe enviar zona")
+        return f"ZONA:{zona.strip()}"
+
+    if tipo == "familia":
+        if not familia or not familia.strip():
+            raise HTTPException(status_code=400, detail="Para inventario por familia debe enviar familia")
+        return f"FAMILIA:{familia.strip()}"
+
+    if tipo == "material":
+        if not codigo_material or not codigo_material.strip():
+            raise HTTPException(status_code=400, detail="Para inventario por material debe enviar codigo_material")
+        return f"MATERIAL:{codigo_material.strip()}"
+
+    raise HTTPException(status_code=400, detail="tipo_conteo inválido. Use zona, familia o material")
+
+
+def obtener_stock_para_tarea_inventario(
+    db: Session,
+    tipo_conteo: str,
+    zona: Optional[str] = None,
+    familia: Optional[str] = None,
+    codigo_material: Optional[str] = None,
+):
+    query = (
+        db.query(
+            models.Movimiento.ubicacion_id.label("ubicacion_id"),
+            models.Movimiento.material_id.label("material_id"),
+            models.Movimiento.lote_almacen.label("lote_almacen"),
+            models.Movimiento.lote_proveedor.label("lote_proveedor"),
+            models.Movimiento.fecha_vencimiento.label("fecha_vencimiento"),
+            func.sum(models.Movimiento.cantidad_r).label("cantidad_sistema"),
+            models.Ubicacion.ubicacion.label("ubicacion"),
+            models.Ubicacion.ubicacion_base.label("ubicacion_base"),
+            models.Ubicacion.posicion.label("posicion"),
+            models.Ubicacion.zona.label("zona"),
+            models.Ubicacion.bodega.label("bodega"),
+            models.Material.codigo.label("codigo_material"),
+            models.Material.descripcion.label("descripcion_material"),
+            models.Material.familia.label("familia"),
+            models.Material.unidad_medida.label("unidad_medida"),
+        )
+        .join(models.Material, models.Material.id == models.Movimiento.material_id)
+        .join(models.Ubicacion, models.Ubicacion.id == models.Movimiento.ubicacion_id)
+        .filter(
+            models.Movimiento.estado == "ALMACENADO",
+            models.Movimiento.ubicacion_id.isnot(None),
+        )
+    )
+
+    tipo = (tipo_conteo or "").strip().lower()
+
+    if tipo == "zona":
+        query = query.filter(models.Ubicacion.zona == (zona or "").strip())
+    elif tipo == "familia":
+        query = query.filter(models.Material.familia == (familia or "").strip())
+    elif tipo == "material":
+        query = query.filter(models.Material.codigo == (codigo_material or "").strip())
+
+    query = query.group_by(
+        models.Movimiento.ubicacion_id,
+        models.Movimiento.material_id,
+        models.Movimiento.lote_almacen,
+        models.Movimiento.lote_proveedor,
+        models.Movimiento.fecha_vencimiento,
+        models.Ubicacion.ubicacion,
+        models.Ubicacion.ubicacion_base,
+        models.Ubicacion.posicion,
+        models.Ubicacion.zona,
+        models.Ubicacion.bodega,
+        models.Material.codigo,
+        models.Material.descripcion,
+        models.Material.familia,
+        models.Material.unidad_medida,
+    ).having(func.sum(models.Movimiento.cantidad_r) > 0)
+
+    return query.order_by(
+        asc(models.Ubicacion.zona),
+        asc(models.Ubicacion.ubicacion),
+        asc(models.Material.codigo),
+        asc(models.Movimiento.fecha_vencimiento),
+    ).all()
+
+
+def recalcular_resumen_tarea_inventario(tarea: models.InventarioTarea, db: Session):
+    detalles = db.query(models.InventarioTareaDetalle).filter(
+        models.InventarioTareaDetalle.tarea_id == tarea.id
+    ).all()
+
+    total_lineas = len(detalles)
+    total_coinciden = 0
+    total_no_coinciden = 0
+
+    for det in detalles:
+        if det.coincide is True:
+            total_coinciden += 1
+        elif det.coincide is False:
+            total_no_coinciden += 1
+
+    porcentaje_exactitud = round((total_coinciden / total_lineas) * 100, 2) if total_lineas > 0 else 0
+
+    tarea.total_lineas = total_lineas
+    tarea.total_coinciden = total_coinciden
+    tarea.total_no_coinciden = total_no_coinciden
+    tarea.porcentaje_exactitud = porcentaje_exactitud
+
+    return {
+        "total_lineas": total_lineas,
+        "total_coinciden": total_coinciden,
+        "total_no_coinciden": total_no_coinciden,
+        "porcentaje_exactitud": porcentaje_exactitud,
     }
 
 
@@ -573,7 +704,6 @@ def informe_tarea_inventario(tarea_id: int, db: Session = Depends(get_db)):
     )
 
 
-
 # ==============================
 # HELPERS AUTO UBICACION
 # ==============================
@@ -672,9 +802,6 @@ def sugerir_posiciones_disponibles(ubicacion_base: str, cantidad_pallets: int, d
             detail=f"No hay posiciones disponibles para la ubicación base {base}"
         )
 
-    # Orden logístico real:
-    # 1127, 1227, 1327, 1126, 1226, 1326 ...
-    # modulo asc, estiba desc, nivel asc
     disponibles.sort(key=lambda x: (x["modulo"], -x["estiba"], x["nivel"]))
 
     sugeridas = disponibles[:cantidad_pallets]
@@ -723,26 +850,29 @@ def listar_materiales(
     limit: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
-    query = db.query(models.Material)
+    try:
+        query = db.query(models.Material)
 
-    if search and search.strip():
-        needle = search.strip()
-        query = query.filter(
-            or_(
-                models.Material.codigo.contains(needle),
-                models.Material.descripcion.contains(needle),
-                models.Material.familia.contains(needle),
+        if search and search.strip():
+            needle = search.strip()
+            query = query.filter(
+                or_(
+                    models.Material.codigo.contains(needle),
+                    models.Material.descripcion.contains(needle),
+                    models.Material.familia.contains(needle),
+                )
             )
-        )
 
-    if hasattr(models.Material, sort_by):
-        columna = getattr(models.Material, sort_by)
-        query = query.order_by(desc(columna) if order == "desc" else asc(columna))
-    else:
-        query = query.order_by(asc(models.Material.codigo))
+        if hasattr(models.Material, sort_by):
+            columna = getattr(models.Material, sort_by)
+            query = query.order_by(desc(columna) if order == "desc" else asc(columna))
+        else:
+            query = query.order_by(asc(models.Material.codigo))
 
-    query = apply_offset_limit(query, skip, limit)
-    return query.all()
+        query = apply_offset_limit(query, skip, limit)
+        return query.all()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error listando materiales: {str(e)}")
 
 
 @app.put("/materiales/{material_id}", response_model=schemas.MaterialResponse)
@@ -775,68 +905,80 @@ def eliminar_material(material_id: int, db: Session = Depends(get_db)):
 
 @app.post("/materiales/importar")
 async def importar_materiales(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    if not file.filename.endswith((".xlsx", ".xls")):
-        raise HTTPException(status_code=400, detail="El archivo debe ser Excel (.xlsx o .xls)")
+    try:
+        if not file.filename.lower().endswith((".xlsx", ".xls")):
+            raise HTTPException(status_code=400, detail="El archivo debe ser Excel (.xlsx o .xls)")
 
-    contenido = await file.read()
-    df = pd.read_excel(io.BytesIO(contenido))
+        contenido = await file.read()
+        if not contenido:
+            raise HTTPException(status_code=400, detail="El archivo está vacío")
 
-    df.columns = [
-        unicodedata.normalize("NFKD", str(col))
-        .encode("ascii", "ignore")
-        .decode("utf-8")
-        .strip()
-        .lower()
-        for col in df.columns
-    ]
+        df = pd.read_excel(io.BytesIO(contenido))
+        df = normalize_excel_columns(df)
 
-    columnas_requeridas = ["codigo", "descripcion", "unidad", "unidad_medida", "familia"]
-    for col in columnas_requeridas:
-        if col not in df.columns:
-            raise HTTPException(status_code=400, detail=f"Falta la columna requerida: {col}")
+        if df.empty:
+            raise HTTPException(status_code=400, detail="El archivo está vacío o no tiene filas válidas")
 
-    df = df.drop_duplicates(subset=["codigo"], keep="last")
+        columnas_requeridas = ["codigo", "descripcion", "unidad", "unidad_medida", "familia"]
+        for col in columnas_requeridas:
+            if col not in df.columns:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Falta la columna requerida: {col}. Columnas encontradas: {list(df.columns)}"
+                )
 
-    materiales_creados = 0
-    materiales_actualizados = 0
+        df["codigo"] = df["codigo"].apply(clean_excel_text)
+        df["descripcion"] = df["descripcion"].apply(clean_excel_text)
+        df["unidad_medida"] = df["unidad_medida"].apply(clean_excel_text)
+        df["familia"] = df["familia"].apply(clean_excel_text)
+        df["unidad"] = df["unidad"].apply(clean_float)
 
-    for _, row in df.iterrows():
-        codigo = str(row["codigo"]).strip()
-        if not codigo:
-            continue
+        df = df[df["codigo"] != ""]
+        df = df.drop_duplicates(subset=["codigo"], keep="last")
 
-        descripcion = str(row["descripcion"]).strip()
-        unidad_valor = clean_float(row["unidad"])
-        unidad_medida = str(row["unidad_medida"]).strip()
-        familia = str(row["familia"]).strip()
+        materiales_creados = 0
+        materiales_actualizados = 0
 
-        existente = db.query(models.Material).filter(
-            models.Material.codigo == codigo
-        ).first()
+        for _, row in df.iterrows():
+            codigo = row["codigo"]
+            descripcion = row["descripcion"]
+            unidad_valor = row["unidad"]
+            unidad_medida = row["unidad_medida"]
+            familia = row["familia"]
 
-        if existente:
-            existente.descripcion = descripcion
-            existente.unidad = unidad_valor
-            existente.unidad_medida = unidad_medida
-            existente.familia = familia
-            materiales_actualizados += 1
-        else:
-            material = models.Material(
-                codigo=codigo,
-                descripcion=descripcion,
-                unidad=unidad_valor,
-                unidad_medida=unidad_medida,
-                familia=familia,
-            )
-            db.add(material)
-            materiales_creados += 1
+            existente = db.query(models.Material).filter(
+                models.Material.codigo == codigo
+            ).first()
 
-    db.commit()
-    return {
-        "mensaje": "Importación completada",
-        "materiales_nuevos": materiales_creados,
-        "materiales_actualizados": materiales_actualizados,
-    }
+            if existente:
+                existente.descripcion = descripcion
+                existente.unidad = unidad_valor
+                existente.unidad_medida = unidad_medida
+                existente.familia = familia
+                materiales_actualizados += 1
+            else:
+                material = models.Material(
+                    codigo=codigo,
+                    descripcion=descripcion,
+                    unidad=unidad_valor,
+                    unidad_medida=unidad_medida,
+                    familia=familia,
+                )
+                db.add(material)
+                materiales_creados += 1
+
+        db.commit()
+
+        return {
+            "mensaje": "Importación completada",
+            "materiales_nuevos": materiales_creados,
+            "materiales_actualizados": materiales_actualizados,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error importando materiales: {str(e)}")
 
 
 # ==============================

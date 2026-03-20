@@ -32,7 +32,7 @@ class Ubicacion(Base):
     bodega = Column(String)
 
     movimientos = relationship("Movimiento", back_populates="ubicacion", cascade="all, delete")
-    inventario_detalles = relationship("InventarioTareaDetalle", back_populates="ubicacion")
+    inventario_detalles = relationship("InventarioTareaDetalle", back_populates="ubicacion_rel")
 
 
 class Movimiento(Base):
