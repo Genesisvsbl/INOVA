@@ -106,7 +106,10 @@ export default function InformeInventario() {
       conciliadas: taskList.filter((x) => x.estado === "CONCILIADA").length,
       reconteo: taskList.filter((x) => x.es_reconteo).length,
       abiertas: taskList.filter(
-        (x) => x.estado === "PENDIENTE" || x.estado === "EN_PROCESO" || x.estado === "RECONTEO_PENDIENTE"
+        (x) =>
+          x.estado === "PENDIENTE" ||
+          x.estado === "EN_PROCESO" ||
+          x.estado === "RECONTEO_PENDIENTE"
       ).length,
     };
   }, [taskList]);
@@ -439,7 +442,14 @@ export default function InformeInventario() {
                   />
                 </div>
 
-                <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    alignItems: "flex-end",
+                    flexWrap: "wrap",
+                  }}
+                >
                   <button style={primaryButtonStyle} onClick={handleSearchReport}>
                     <Search size={16} />
                     Consultar
@@ -478,9 +488,18 @@ export default function InformeInventario() {
                     <MiniInfo label="Total líneas" value={report.total_lineas} />
                     <MiniInfo label="Coinciden" value={report.total_coinciden} />
                     <MiniInfo label="No coinciden" value={report.total_no_coinciden} />
-                    <MiniInfo label="Exactitud" value={`${report.porcentaje_exactitud}%`} />
-                    <MiniInfo label="Genera reconteo" value={report.genera_reconteo ? "Sí" : "No"} />
-                    <MiniInfo label="ID reconteo" value={report.reconteo_tarea_id || "-"} />
+                    <MiniInfo
+                      label="Exactitud"
+                      value={`${report.porcentaje_exactitud}%`}
+                    />
+                    <MiniInfo
+                      label="Genera reconteo"
+                      value={report.genera_reconteo ? "Sí" : "No"}
+                    />
+                    <MiniInfo
+                      label="ID reconteo"
+                      value={report.reconteo_tarea_id || "-"}
+                    />
                   </div>
 
                   {selectedTask && (
@@ -513,7 +532,7 @@ export default function InformeInventario() {
               <div style={printHeaderStyle}>
                 <div style={printBrandWrapStyle}>
                   <div style={printLogoBoxStyle}>
-                    <div style={printLogoCircleStyle}>W</div>
+                    <img src="/INOVA.png" alt="INOVA" style={printLogoImageStyle} />
                   </div>
 
                   <div style={{ minWidth: 0 }}>
@@ -537,31 +556,75 @@ export default function InformeInventario() {
                 <PrintBox label="Criterio" value={taskDetail.criterio} />
                 <PrintBox label="Asignado a" value={taskDetail.asignado_a} />
                 <PrintBox label="Creado por" value={taskDetail.creado_por} />
-                <PrintBox label="Reconteo" value={taskDetail.es_reconteo ? "Sí" : "No"} />
-                <PrintBox label="Fecha creación" value={formatDateTime(taskDetail.fecha_creacion)} />
-                <PrintBox label="Fecha inicio" value={formatDateTime(taskDetail.fecha_inicio)} />
-                <PrintBox label="Fecha finalización" value={formatDateTime(taskDetail.fecha_finalizacion)} />
-                <PrintBox label="Fecha conciliación" value={formatDateTime(taskDetail.fecha_conciliacion)} />
-                <PrintBox label="Fecha cierre" value={formatDateTime(taskDetail.fecha_cierre)} />
-                <PrintBox label="Tarea origen" value={taskDetail.tarea_origen_id || "-"} />
+                <PrintBox
+                  label="Reconteo"
+                  value={taskDetail.es_reconteo ? "Sí" : "No"}
+                />
+                <PrintBox
+                  label="Fecha creación"
+                  value={formatDateTime(taskDetail.fecha_creacion)}
+                />
+                <PrintBox
+                  label="Fecha inicio"
+                  value={formatDateTime(taskDetail.fecha_inicio)}
+                />
+                <PrintBox
+                  label="Fecha finalización"
+                  value={formatDateTime(taskDetail.fecha_finalizacion)}
+                />
+                <PrintBox
+                  label="Fecha conciliación"
+                  value={formatDateTime(taskDetail.fecha_conciliacion)}
+                />
+                <PrintBox
+                  label="Fecha cierre"
+                  value={formatDateTime(taskDetail.fecha_cierre)}
+                />
+                <PrintBox
+                  label="Tarea origen"
+                  value={taskDetail.tarea_origen_id || "-"}
+                />
               </div>
 
-              <div style={printObservacionBoxStyle} className="print-block-tight">
+              <div
+                style={printObservacionBoxStyle}
+                className="print-block-tight"
+              >
                 <div style={printSectionTitleStyle}>Observación general</div>
                 <div style={printParagraphStyle}>
                   {taskDetail.observacion || "Sin observaciones registradas."}
                 </div>
               </div>
 
-              <div style={executiveGridStyle} className="print-grid-4 print-block-tight">
+              <div
+                style={executiveGridStyle}
+                className="print-grid-4 print-block-tight"
+              >
                 <PrintBox label="Total líneas" value={report.total_lineas} />
                 <PrintBox label="Líneas contadas" value={detalleResumen.contadas} />
                 <PrintBox label="Coinciden" value={report.total_coinciden} />
-                <PrintBox label="No coinciden" value={report.total_no_coinciden} />
-                <PrintBox label="Exactitud" value={`${report.porcentajeExactitud ?? report.porcentaje_exactitud}%`} />
-                <PrintBox label="Total sistema" value={detalleResumen.totalSistema} />
-                <PrintBox label="Total contado" value={detalleResumen.totalContado} />
-                <PrintBox label="Desviación total" value={detalleResumen.totalDiferencia} />
+                <PrintBox
+                  label="No coinciden"
+                  value={report.total_no_coinciden}
+                />
+                <PrintBox
+                  label="Exactitud"
+                  value={`${
+                    report.porcentajeExactitud ?? report.porcentaje_exactitud
+                  }%`}
+                />
+                <PrintBox
+                  label="Total sistema"
+                  value={detalleResumen.totalSistema}
+                />
+                <PrintBox
+                  label="Total contado"
+                  value={detalleResumen.totalContado}
+                />
+                <PrintBox
+                  label="Desviación total"
+                  value={detalleResumen.totalDiferencia}
+                />
               </div>
             </section>
 
@@ -575,7 +638,10 @@ export default function InformeInventario() {
                 <span>Hoja de conteo</span>
               </div>
 
-              <table style={printTableConteoStyle} className="print-table print-table-conteo">
+              <table
+                style={printTableConteoStyle}
+                className="print-table print-table-conteo"
+              >
                 <colgroup>
                   <col style={{ width: "4.5%" }} />
                   <col style={{ width: "7.5%" }} />
@@ -615,18 +681,34 @@ export default function InformeInventario() {
                     <tr key={`conteo-${item.id}`}>
                       <td style={printTdConteoStrongStyle}>{item.id}</td>
                       <td style={printTdConteoStyle}>{item.ubicacion || "-"}</td>
-                      <td style={printTdConteoStyle}>{item.ubicacion_base || "-"}</td>
+                      <td style={printTdConteoStyle}>
+                        {item.ubicacion_base || "-"}
+                      </td>
                       <td style={printTdConteoStyle}>{item.posicion || "-"}</td>
                       <td style={printTdConteoStyle}>{item.zona || "-"}</td>
                       <td style={printTdConteoStyle}>{item.codigo_material}</td>
-                      <td style={printTdConteoStyle}>{item.descripcion_material || "-"}</td>
+                      <td style={printTdConteoStyle}>
+                        {item.descripcion_material || "-"}
+                      </td>
                       <td style={printTdConteoStyle}>{item.familia || "-"}</td>
-                      <td style={printTdConteoStyle}>{item.unidad_medida || "-"}</td>
-                      <td style={printTdConteoStyle}>{item.lote_almacen || "-"}</td>
-                      <td style={printTdConteoStyle}>{item.lote_proveedor || "-"}</td>
-                      <td style={printTdConteoStyle}>{formatDate(item.fecha_vencimiento)}</td>
-                      <td style={printTdConteoStyle}>{item.cantidad_contada ?? "-"}</td>
-                      <td style={printTdConteoStyle}>{item.observacion || "-"}</td>
+                      <td style={printTdConteoStyle}>
+                        {item.unidad_medida || "-"}
+                      </td>
+                      <td style={printTdConteoStyle}>
+                        {item.lote_almacen || "-"}
+                      </td>
+                      <td style={printTdConteoStyle}>
+                        {item.lote_proveedor || "-"}
+                      </td>
+                      <td style={printTdConteoStyle}>
+                        {formatDate(item.fecha_vencimiento)}
+                      </td>
+                      <td style={printTdConteoStyle}>
+                        {item.cantidad_contada ?? "-"}
+                      </td>
+                      <td style={printTdConteoStyle}>
+                        {item.observacion || "-"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -674,7 +756,9 @@ export default function InformeInventario() {
                       <td style={printTdStyleStrong}>{item.id}</td>
                       <td style={printTdStyle}>{item.ubicacion || "-"}</td>
                       <td style={printTdStyle}>{item.codigo_material}</td>
-                      <td style={printTdStyle}>{item.descripcion_material || "-"}</td>
+                      <td style={printTdStyle}>
+                        {item.descripcion_material || "-"}
+                      </td>
                       <td style={printTdStyle}>{item.cantidad_sistema ?? 0}</td>
                       <td style={printTdStyle}>{item.cantidad_contada ?? 0}</td>
                       <td style={printTdStyle}>{item.diferencia ?? 0}</td>
@@ -696,11 +780,14 @@ export default function InformeInventario() {
 
                 {diferencias.length === 0 ? (
                   <div style={printOkBoxStyle}>
-                    No se detectaron diferencias en la tarea. El conteo coincide con el stock del sistema.
+                    No se detectaron diferencias en la tarea. El conteo coincide
+                    con el stock del sistema.
                   </div>
                 ) : (
                   <div style={printWarnBoxStyle}>
-                    Se detectaron <strong>{diferencias.length}</strong> líneas con diferencia. Revisar el detalle anterior para validar desviaciones, causas y necesidad de reconteo.
+                    Se detectaron <strong>{diferencias.length}</strong> líneas con
+                    diferencia. Revisar el detalle anterior para validar
+                    desviaciones, causas y necesidad de reconteo.
                   </div>
                 )}
               </div>
@@ -720,10 +807,22 @@ export default function InformeInventario() {
                 <PrintBox label="Estado final" value={report.estado} />
                 <PrintBox label="Total líneas" value={report.total_lineas} />
                 <PrintBox label="Coinciden" value={report.total_coinciden} />
-                <PrintBox label="No coinciden" value={report.total_no_coinciden} />
-                <PrintBox label="Exactitud" value={`${report.porcentaje_exactitud}%`} />
-                <PrintBox label="Generó reconteo" value={report.genera_reconteo ? "Sí" : "No"} />
-                <PrintBox label="ID reconteo generado" value={report.reconteo_tarea_id || "-"} />
+                <PrintBox
+                  label="No coinciden"
+                  value={report.total_no_coinciden}
+                />
+                <PrintBox
+                  label="Exactitud"
+                  value={`${report.porcentaje_exactitud}%`}
+                />
+                <PrintBox
+                  label="Generó reconteo"
+                  value={report.genera_reconteo ? "Sí" : "No"}
+                />
+                <PrintBox
+                  label="ID reconteo generado"
+                  value={report.reconteo_tarea_id || "-"}
+                />
               </div>
 
               <div style={signatureGridStyle} className="print-signatures">
@@ -1184,27 +1283,22 @@ const printBrandWrapStyle = {
 };
 
 const printLogoBoxStyle = {
-  width: 36,
-  height: 36,
-  borderRadius: 6,
+  width: 52,
+  height: 52,
+  borderRadius: 8,
   border: "1px solid #cfd8e3",
-  background: "#f4f7fa",
+  background: "#ffffff",
   display: "grid",
   placeItems: "center",
   flexShrink: 0,
+  overflow: "hidden",
 };
 
-const printLogoCircleStyle = {
-  width: 22,
-  height: 22,
-  borderRadius: "50%",
-  background: "#17324d",
-  color: "#fff",
-  display: "grid",
-  placeItems: "center",
-  fontSize: 11,
-  fontWeight: 800,
-  lineHeight: 1,
+const printLogoImageStyle = {
+  width: "100%",
+  height: "100%",
+  objectFit: "contain",
+  display: "block",
 };
 
 const printBrandNameStyle = {
