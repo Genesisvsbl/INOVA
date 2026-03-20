@@ -1,142 +1,178 @@
 import { NavLink, Outlet } from "react-router-dom";
+import {
+  Boxes,
+  Building2,
+  MapPin,
+  Settings,
+  Truck,
+  Tags,
+  Database,
+} from "lucide-react";
 
 const colors = {
-  navy: "#072B5A",
-  blue: "#0A6ED1",
-  bg: "#F5F7FB",
-  text: "#0F172A",
-  muted: "#64748B",
-  card: "#FFFFFF",
-  border: "#E2E8F0",
+  navy: "#0f2744",
+  blue: "#0a6ed1",
+  bg: "#f3f6f9",
+  panel: "#ffffff",
+  line: "#d9e2ec",
+  soft: "#f8fafc",
+  text: "#1f2d3d",
+  muted: "#6b7a90",
+  activeBg: "#eaf3ff",
+  activeText: "#0a4fb3",
 };
 
 const tabStyle = ({ isActive }) => ({
-  display: "flex",
+  display: "inline-flex",
   alignItems: "center",
-  gap: 10,
-  padding: "10px 14px",
-  borderRadius: 14,
+  gap: 8,
+  height: 38,
+  padding: "0 14px",
+  borderRadius: 8,
   textDecoration: "none",
-  border: `1px solid ${isActive ? colors.blue : colors.border}`,
-  background: isActive ? colors.blue : colors.card,
-  color: isActive ? "white" : colors.text,
-  fontWeight: 800,
-  boxShadow: isActive ? "0 10px 22px rgba(10,110,209,.18)" : "none",
-  transition: "all .15s ease",
+  border: `1px solid ${isActive ? "#cfe0ff" : colors.line}`,
+  background: isActive ? colors.activeBg : "#fff",
+  color: isActive ? colors.activeText : colors.text,
+  fontWeight: isActive ? 700 : 600,
+  fontSize: 13,
+  whiteSpace: "nowrap",
 });
 
 export default function DatosMaestros() {
+  const sections = [
+    { to: "materiales", label: "Materiales", icon: Boxes },
+    { to: "proveedores", label: "Proveedores", icon: Building2 },
+    { to: "ubicaciones", label: "Ubicaciones", icon: MapPin },
+    { to: "motor", label: "Motor principal", icon: Settings },
+    { to: "en-transito", label: "En tránsito", icon: Truck },
+    { to: "rotulos", label: "Historial de rótulos", icon: Tags },
+  ];
+
   return (
-    <div>
+    <div style={{ display: "grid", gap: 16 }}>
       {/* HEADER */}
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "end",
-          gap: 12,
-          marginBottom: 18,
+          background: colors.panel,
+          border: `1px solid ${colors.line}`,
+          borderRadius: 10,
+          overflow: "hidden",
         }}
       >
-        <div>
-          <div
-            style={{
-              fontSize: 12,
-              color: colors.muted,
-              fontWeight: 900,
-              letterSpacing: 1,
-            }}
-          >
-            DATOS MAESTROS
-          </div>
-
-          <h1
-            style={{
-              margin: "6px 0 0",
-              color: colors.navy,
-              fontWeight: 900,
-            }}
-          >
-            Administración del sistema
-          </h1>
-
-          <div
-            style={{
-              marginTop: 6,
-              color: colors.muted,
-              fontSize: 14,
-            }}
-          >
-            Materiales • Proveedores • Ubicaciones • Motor principal • En tránsito • Historial de rótulos
-          </div>
-        </div>
-
         <div
           style={{
-            padding: "10px 14px",
-            borderRadius: 14,
-            border: `1px solid ${colors.border}`,
-            background: colors.card,
-            color: colors.muted,
-            fontSize: 12,
-            fontWeight: 800,
+            padding: "14px 18px",
+            borderBottom: `1px solid ${colors.line}`,
+            background: "linear-gradient(to bottom, #fbfcfd, #f5f8fb)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 16,
+            flexWrap: "wrap",
           }}
         >
-          🧠 Tablas base del WMS
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                display: "grid",
+                placeItems: "center",
+                background: "#eaf1f8",
+                border: "1px solid #d6e1ec",
+                flexShrink: 0,
+              }}
+            >
+              <Database size={18} color="#315a7d" />
+            </div>
+
+            <div>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 800,
+                  letterSpacing: ".08em",
+                  color: "#7a8797",
+                  textTransform: "uppercase",
+                  marginBottom: 4,
+                }}
+              >
+                Datos maestros
+              </div>
+
+              <div
+                style={{
+                  fontSize: 22,
+                  fontWeight: 700,
+                  lineHeight: 1.1,
+                  color: "#17324d",
+                }}
+              >
+                Administración del sistema
+              </div>
+
+              <div
+                style={{
+                  fontSize: 13,
+                  color: "#5b6b7c",
+                  marginTop: 4,
+                }}
+              >
+                Gestión central de catálogos, parámetros operativos y estructuras base del WMS.
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              height: 34,
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "0 12px",
+              borderRadius: 8,
+              border: `1px solid ${colors.line}`,
+              background: "#fff",
+              color: colors.muted,
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            Tablas base del WMS
+          </div>
         </div>
-      </div>
 
-      {/* TABS */}
-      <div
-        style={{
-          display: "flex",
-          gap: 10,
-          flexWrap: "wrap",
-          marginBottom: 16,
-        }}
-      >
-        <NavLink to="materiales" style={tabStyle}>
-          <span style={{ width: 22, textAlign: "center" }}>📦</span>
-          Materiales
-        </NavLink>
+        {/* SUBNAV */}
+        <div
+          style={{
+            padding: "12px 14px",
+            background: "#fcfdff",
+            borderBottom: `1px solid ${colors.line}`,
+            display: "flex",
+            gap: 8,
+            flexWrap: "wrap",
+          }}
+        >
+          {sections.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink key={item.to} to={item.to} style={tabStyle}>
+                <Icon size={15} />
+                <span>{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </div>
 
-        <NavLink to="proveedores" style={tabStyle}>
-          <span style={{ width: 22, textAlign: "center" }}>🏭</span>
-          Proveedores
-        </NavLink>
-
-        <NavLink to="ubicaciones" style={tabStyle}>
-          <span style={{ width: 22, textAlign: "center" }}>📍</span>
-          Ubicaciones
-        </NavLink>
-
-        <NavLink to="motor" style={tabStyle}>
-          <span style={{ width: 22, textAlign: "center" }}>⚙️</span>
-          Motor principal
-        </NavLink>
-
-        <NavLink to="en-transito" style={tabStyle}>
-          <span style={{ width: 22, textAlign: "center" }}>🚚</span>
-          En tránsito
-        </NavLink>
-
-        <NavLink to="rotulos" style={tabStyle}>
-          <span style={{ width: 22, textAlign: "center" }}>🏷️</span>
-          Historial de rótulos
-        </NavLink>
-      </div>
-
-      {/* CONTENIDO */}
-      <div
-        style={{
-          background: colors.card,
-          border: `1px solid ${colors.border}`,
-          borderRadius: 18,
-          padding: 20,
-          boxShadow: "0 14px 34px rgba(2,6,23,.06)",
-        }}
-      >
-        <Outlet />
+        {/* BODY */}
+        <div
+          style={{
+            background: colors.panel,
+            padding: 18,
+          }}
+        >
+          <Outlet />
+        </div>
       </div>
     </div>
   );
