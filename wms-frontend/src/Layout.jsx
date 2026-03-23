@@ -48,7 +48,7 @@ export default function Layout() {
   const [sidebarHover, setSidebarHover] = useState(false);
 
   const [openMenus, setOpenMenus] = useState({
-    datosMaestros: true,
+    datosMaestros: false,
     movimientos: false,
     inventarios: false,
   });
