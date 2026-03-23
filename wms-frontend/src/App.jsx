@@ -29,9 +29,9 @@ import InformeInventario from "./pages/inventarios/InformeInventario";
 /* ✅ LOGIN */
 import LoginPage from "./pages/LoginPage";
 
-/* ✅ PROTECTOR SIMPLE */
+/* ✅ PROTECTOR SIMPLE CON sessionStorage */
 function PrivateRoute({ children }) {
-  const isAuth = localStorage.getItem("auth") === "true";
+  const isAuth = sessionStorage.getItem("auth") === "true";
   return isAuth ? children : <Navigate to="/login" replace />;
 }
 
