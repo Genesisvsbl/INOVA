@@ -30,7 +30,7 @@ const colors = {
 
 const HEADER_HEIGHT = 56;
 const SIDEBAR_COLLAPSED = 76;
-const SIDEBAR_EXPANDED = 250;
+const SIDEBAR_EXPANDED = 244;
 
 const sectionTitleStyle = {
   fontSize: 11,
@@ -62,10 +62,12 @@ export default function Layout() {
     () => location.pathname.startsWith("/datos-maestros"),
     [location.pathname]
   );
+
   const isMovimientosActive = useMemo(
     () => location.pathname.startsWith("/movimientos"),
     [location.pathname]
   );
+
   const isInventariosActive = useMemo(
     () => location.pathname.startsWith("/inventarios"),
     [location.pathname]
@@ -96,6 +98,37 @@ export default function Layout() {
           'Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji"',
       }}
     >
+      <style>{`
+        html, body, #root {
+          width: 100%;
+          min-height: 100%;
+          margin: 0;
+          padding: 0;
+        }
+
+        body {
+          overflow: hidden;
+        }
+
+        * {
+          box-sizing: border-box;
+        }
+
+        ::-webkit-scrollbar {
+          width: 10px;
+          height: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+          background: rgba(31,45,61,.25);
+          border-radius: 999px;
+        }
+
+        ::-webkit-scrollbar-track {
+          background: transparent;
+        }
+      `}</style>
+
       {/* TOP BAR */}
       <header
         style={{
@@ -103,16 +136,16 @@ export default function Layout() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 18px",
-          background: "rgba(255,255,255,0.88)",
+          padding: "0 16px",
+          background: "rgba(255,255,255,0.92)",
           borderBottom: `1px solid ${colors.line}`,
           position: "sticky",
           top: 0,
-          zIndex: 50,
+          zIndex: 60,
           backdropFilter: "blur(10px)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div
             style={{
               width: 34,
@@ -155,7 +188,7 @@ export default function Layout() {
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
             onClick={() => setSidebarPinned((v) => !v)}
             style={{
@@ -181,7 +214,7 @@ export default function Layout() {
           <div
             style={{
               height: 36,
-              minWidth: 240,
+              width: 240,
               display: "flex",
               alignItems: "center",
               gap: 8,
@@ -237,7 +270,7 @@ export default function Layout() {
           overflow: "hidden",
         }}
       >
-        {/* MAIN FULL WIDTH */}
+        {/* MAIN FULL SCREEN */}
         <main
           style={{
             position: "absolute",
@@ -249,7 +282,6 @@ export default function Layout() {
               "radial-gradient(circle at 18% 16%, rgba(10,110,209,.08), transparent 24%), linear-gradient(135deg, #eef3f9 0%, #e7edf5 50%, #dde7f2 100%)",
           }}
         >
-          {/* Fondo premium */}
           <div style={mainBackgroundGridStyle} />
           <div style={mainBackgroundGlowTopStyle} />
           <div style={mainBackgroundGlowBottomStyle} />
@@ -270,7 +302,7 @@ export default function Layout() {
           </div>
         </main>
 
-        {/* ZONA HOVER INVISIBLE PARA DESPLEGAR */}
+        {/* HOT ZONE PARA HOVER */}
         {!sidebarExpanded && (
           <div
             onMouseEnter={() => setSidebarHover(true)}
@@ -279,14 +311,14 @@ export default function Layout() {
               left: 0,
               top: 0,
               bottom: 0,
-              width: 18,
-              zIndex: 55,
+              width: 16,
+              zIndex: 69,
               background: "transparent",
             }}
           />
         )}
 
-        {/* SIDEBAR FLOTANTE */}
+        {/* SIDEBAR OVERLAY */}
         <aside
           onMouseEnter={() => setSidebarHover(true)}
           onMouseLeave={() => {
@@ -298,16 +330,16 @@ export default function Layout() {
             top: 0,
             bottom: 0,
             width: sidebarExpanded ? SIDEBAR_EXPANDED : SIDEBAR_COLLAPSED,
-            background: "rgba(255,255,255,0.96)",
+            background: "rgba(255,255,255,0.97)",
             borderRight: `1px solid ${colors.line}`,
             padding: 12,
             overflowY: "auto",
             overflowX: "hidden",
             transition: "width .22s ease",
-            backdropFilter: "blur(10px)",
-            zIndex: 60,
+            backdropFilter: "blur(12px)",
+            zIndex: 70,
             boxShadow: sidebarExpanded
-              ? "12px 0 30px rgba(15,39,68,.10)"
+              ? "16px 0 34px rgba(15,39,68,.10)"
               : "6px 0 16px rgba(15,39,68,.05)",
           }}
         >
@@ -369,7 +401,6 @@ export default function Layout() {
               {sidebarExpanded && <span>Inicio</span>}
             </NavLink>
 
-            {/* DATOS MAESTROS */}
             <button
               onClick={() => toggleMenu("datosMaestros")}
               style={menuButtonStyle(isDatosActive, sidebarExpanded)}
@@ -411,7 +442,6 @@ export default function Layout() {
               </div>
             )}
 
-            {/* MOVIMIENTOS */}
             <button
               onClick={() => toggleMenu("movimientos")}
               style={menuButtonStyle(isMovimientosActive, sidebarExpanded)}
@@ -453,7 +483,6 @@ export default function Layout() {
               {sidebarExpanded && <span>Stock</span>}
             </NavLink>
 
-            {/* INVENTARIOS */}
             <button
               onClick={() => toggleMenu("inventarios")}
               style={menuButtonStyle(isInventariosActive, sidebarExpanded)}
@@ -525,12 +554,8 @@ export default function Layout() {
                   Sesión activa
                 </div>
 
-                <div>
-                  <b>Usuario:</b> {usuario}
-                </div>
-                <div>
-                  <b>Rol:</b> {rol}
-                </div>
+                <div><b>Usuario:</b> {usuario}</div>
+                <div><b>Rol:</b> {rol}</div>
                 <div style={{ marginTop: 10 }}>
                   El acceso permanece activo mientras el navegador siga abierto.
                 </div>
@@ -655,10 +680,10 @@ const mainBackgroundGlowBottomStyle = {
 
 const mainBackgroundCircleOneStyle = {
   position: "absolute",
-  top: 100,
-  right: 140,
-  width: 260,
-  height: 260,
+  top: 90,
+  right: 160,
+  width: 280,
+  height: 280,
   borderRadius: "50%",
   border: "1px solid rgba(15,39,68,.08)",
   boxShadow: "0 0 0 28px rgba(15,39,68,.03), 0 0 0 56px rgba(15,39,68,.02)",
@@ -668,7 +693,7 @@ const mainBackgroundCircleOneStyle = {
 const mainBackgroundCircleTwoStyle = {
   position: "absolute",
   bottom: 70,
-  left: 60,
+  left: 70,
   width: 170,
   height: 170,
   borderRadius: "50%",
