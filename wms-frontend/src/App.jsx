@@ -19,7 +19,7 @@ import MotorPrincipal from "./pages/maestros/MotorPrincipal";
 import Rotulos from "./pages/maestros/Rotulos";
 import EnTransito from "./pages/maestros/EnTransito";
 
-/* ✅ INVENTARIOS (IMPORTS NUEVOS) */
+/* ✅ INVENTARIOS */
 import CrearTarea from "./pages/inventarios/CrearTarea";
 import MisConteos from "./pages/inventarios/MisConteos";
 import ConteoFisico from "./pages/inventarios/ConteoFisico";
@@ -40,10 +40,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* ✅ LOGIN */}
+        {/* LOGIN */}
         <Route path="/login" element={<LoginPage />} />
 
-        {/* ✅ APP PROTEGIDA */}
+        {/* APP PROTEGIDA */}
         <Route
           path="/"
           element={
@@ -52,15 +52,12 @@ export default function App() {
             </PrivateRoute>
           }
         >
-          {/* ✅ ahora entra a una portada interna, no a materiales */}
+          {/* ✅ INICIO REAL */}
           <Route index element={<Inicio />} />
 
           {/* ================= DATOS MAESTROS ================= */}
           <Route path="datos-maestros" element={<DatosMaestros />}>
-            <Route
-              index
-              element={<div style={{ padding: 24 }}>Seleccione una opción del menú.</div>}
-            />
+            <Route index element={<Navigate to="materiales" replace />} />
             <Route path="materiales" element={<Materiales />} />
             <Route path="proveedores" element={<Proveedores />} />
             <Route path="ubicaciones" element={<Ubicaciones />} />
@@ -71,10 +68,7 @@ export default function App() {
 
           {/* ================= MOVIMIENTOS ================= */}
           <Route path="movimientos" element={<Movimientos />}>
-            <Route
-              index
-              element={<div style={{ padding: 24 }}>Seleccione una opción del menú.</div>}
-            />
+            <Route index element={<Navigate to="recibo" replace />} />
             <Route path="recibo" element={<Recibo />} />
             <Route path="despacho" element={<Despacho />} />
             <Route path="desde-recibo" element={<DesdeRecibo />} />
@@ -83,10 +77,6 @@ export default function App() {
 
           {/* ================= INVENTARIOS ================= */}
           <Route path="inventarios" element={<Inventarios />}>
-            <Route
-              index
-              element={<div style={{ padding: 24 }}>Seleccione una opción del menú.</div>}
-            />
             <Route path="crear-tarea" element={<CrearTarea />} />
             <Route path="mis-conteos" element={<MisConteos />} />
             <Route path="conteo-fisico" element={<ConteoFisico />} />
