@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./Layout";
 
+import Inicio from "./pages/Inicio";
 import DatosMaestros from "./pages/DatosMaestros";
 import Materiales from "./pages/Materiales";
 import Stock from "./pages/Stock";
@@ -51,11 +52,15 @@ export default function App() {
             </PrivateRoute>
           }
         >
-          <Route index element={<Navigate to="datos-maestros" replace />} />
+          {/* ✅ ahora entra a una portada interna, no a materiales */}
+          <Route index element={<Inicio />} />
 
           {/* ================= DATOS MAESTROS ================= */}
           <Route path="datos-maestros" element={<DatosMaestros />}>
-            <Route index element={<Navigate to="materiales" replace />} />
+            <Route
+              index
+              element={<div style={{ padding: 24 }}>Seleccione una opción del menú.</div>}
+            />
             <Route path="materiales" element={<Materiales />} />
             <Route path="proveedores" element={<Proveedores />} />
             <Route path="ubicaciones" element={<Ubicaciones />} />
@@ -66,15 +71,22 @@ export default function App() {
 
           {/* ================= MOVIMIENTOS ================= */}
           <Route path="movimientos" element={<Movimientos />}>
-            <Route index element={<Navigate to="recibo" replace />} />
+            <Route
+              index
+              element={<div style={{ padding: 24 }}>Seleccione una opción del menú.</div>}
+            />
             <Route path="recibo" element={<Recibo />} />
             <Route path="despacho" element={<Despacho />} />
             <Route path="desde-recibo" element={<DesdeRecibo />} />
             <Route path="orden-picking/:reserva" element={<OrdenPicking />} />
           </Route>
 
-          {/* ================= INVENTARIOS (NUEVO) ================= */}
+          {/* ================= INVENTARIOS ================= */}
           <Route path="inventarios" element={<Inventarios />}>
+            <Route
+              index
+              element={<div style={{ padding: 24 }}>Seleccione una opción del menú.</div>}
+            />
             <Route path="crear-tarea" element={<CrearTarea />} />
             <Route path="mis-conteos" element={<MisConteos />} />
             <Route path="conteo-fisico" element={<ConteoFisico />} />

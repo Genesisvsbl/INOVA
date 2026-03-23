@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Database,
   ArrowRightLeft,
@@ -6,6 +7,10 @@ import {
   ClipboardCheck,
   Bell,
   Search,
+  ChevronDown,
+  ChevronRight,
+  LogOut,
+  Home,
 } from "lucide-react";
 
 const colors = {
@@ -35,6 +40,20 @@ const navItemStyle = ({ isActive }) => ({
   fontSize: 14,
 });
 
+const childNavItemStyle = ({ isActive }) => ({
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  padding: "9px 12px 9px 38px",
+  borderRadius: 8,
+  textDecoration: "none",
+  color: isActive ? colors.activeText : colors.text,
+  background: isActive ? colors.activeBg : "transparent",
+  border: `1px solid ${isActive ? "#cfe0ff" : "transparent"}`,
+  fontWeight: isActive ? 700 : 600,
+  fontSize: 13,
+});
+
 const sectionTitleStyle = {
   fontSize: 11,
   fontWeight: 800,
@@ -44,6 +63,43 @@ const sectionTitleStyle = {
 };
 
 export default function Layout() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const [openMenus, setOpenMenus] = useState({
+    datosMaestros: true,
+    movimientos: false,
+    inventarios: false,
+  });
+
+  const usuario = sessionStorage.getItem("usuario") || "Usuario";
+  const rol = sessionStorage.getItem("rol") || "OPERATIVO";
+
+  const isDatosActive = useMemo(
+    () => location.pathname.startsWith("/datos-maestros"),
+    [location.pathname]
+  );
+  const isMovimientosActive = useMemo(
+    () => location.pathname.startsWith("/movimientos"),
+    [location.pathname]
+  );
+  const isInventariosActive = useMemo(
+    () => location.pathname.startsWith("/inventarios"),
+    [location.pathname]
+  );
+
+  const toggleMenu = (key) => {
+    setOpenMenus((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const handleLogout = () => {
+    sessionStorage.clear();
+    navigate("/login", { replace: true });
+  };
+
   return (
     <div
       style={{
@@ -116,7 +172,7 @@ export default function Layout() {
           <div
             style={{
               height: 34,
-              minWidth: 260,
+              minWidth: 240,
               display: "flex",
               alignItems: "center",
               gap: 8,
@@ -175,6 +231,7 @@ export default function Layout() {
             background: "#ffffff",
             borderRight: `1px solid ${colors.line}`,
             padding: 14,
+            overflowY: "auto",
           }}
         >
           <div
@@ -220,25 +277,114 @@ export default function Layout() {
           <div style={sectionTitleStyle}>OPERACIONES</div>
 
           <nav style={{ display: "grid", gap: 4 }}>
-            <NavLink to="/datos-maestros" style={navItemStyle}>
-              <Database size={16} />
-              <span>Datos maestros</span>
+            <NavLink to="/" style={navItemStyle}>
+              <Home size={16} />
+              <span>Inicio</span>
             </NavLink>
 
-            <NavLink to="/movimientos" style={navItemStyle}>
-              <ArrowRightLeft size={16} />
-              <span>Movimientos</span>
-            </NavLink>
+            {/* DATOS MAESTROS */}
+            <button
+              onClick={() => toggleMenu("datosMaestros")}
+              style={menuButtonStyle(isDatosActive)}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Database size={16} />
+                <span>Datos maestros</span>
+              </div>
+              {openMenus.datosMaestros ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </button>
+
+            {openMenus.datosMaestros && (
+              <div style={{ display: "grid", gap: 4 }}>
+                <NavLink to="/datos-maestros/materiales" style={childNavItemStyle}>
+                  <span>Materiales</span>
+                </NavLink>
+                <NavLink to="/datos-maestros/proveedores" style={childNavItemStyle}>
+                  <span>Proveedores</span>
+                </NavLink>
+                <NavLink to="/datos-maestros/ubicaciones" style={childNavItemStyle}>
+                  <span>Ubicaciones</span>
+                </NavLink>
+                <NavLink to="/datos-maestros/motor" style={childNavItemStyle}>
+                  <span>Motor principal</span>
+                </NavLink>
+                <NavLink to="/datos-maestros/rotulos" style={childNavItemStyle}>
+                  <span>Historial de rótulos</span>
+                </NavLink>
+                <NavLink to="/datos-maestros/en-transito" style={childNavItemStyle}>
+                  <span>En tránsito</span>
+                </NavLink>
+              </div>
+            )}
+
+            {/* MOVIMIENTOS */}
+            <button
+              onClick={() => toggleMenu("movimientos")}
+              style={menuButtonStyle(isMovimientosActive)}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <ArrowRightLeft size={16} />
+                <span>Movimientos</span>
+              </div>
+              {openMenus.movimientos ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </button>
+
+            {openMenus.movimientos && (
+              <div style={{ display: "grid", gap: 4 }}>
+                <NavLink to="/movimientos/recibo" style={childNavItemStyle}>
+                  <span>Recibo</span>
+                </NavLink>
+                <NavLink to="/movimientos/despacho" style={childNavItemStyle}>
+                  <span>Despacho</span>
+                </NavLink>
+                <NavLink to="/movimientos/desde-recibo" style={childNavItemStyle}>
+                  <span>Desde recibo</span>
+                </NavLink>
+              </div>
+            )}
 
             <NavLink to="/stock" style={navItemStyle}>
               <Boxes size={16} />
               <span>Stock</span>
             </NavLink>
 
-            <NavLink to="/inventarios" style={navItemStyle}>
-              <ClipboardCheck size={16} />
-              <span>Inventarios</span>
-            </NavLink>
+            {/* INVENTARIOS */}
+            <button
+              onClick={() => toggleMenu("inventarios")}
+              style={menuButtonStyle(isInventariosActive)}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <ClipboardCheck size={16} />
+                <span>Inventarios</span>
+              </div>
+              {openMenus.inventarios ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </button>
+
+            {openMenus.inventarios && (
+              <div style={{ display: "grid", gap: 4 }}>
+                <NavLink to="/inventarios" style={childNavItemStyle}>
+                  <span>Panel inventarios</span>
+                </NavLink>
+                <NavLink to="/inventarios/crear-tarea" style={childNavItemStyle}>
+                  <span>Crear tarea</span>
+                </NavLink>
+                <NavLink to="/inventarios/mis-conteos" style={childNavItemStyle}>
+                  <span>Mis conteos</span>
+                </NavLink>
+                <NavLink to="/inventarios/conteo-fisico" style={childNavItemStyle}>
+                  <span>Conteo físico</span>
+                </NavLink>
+                <NavLink to="/inventarios/conciliacion" style={childNavItemStyle}>
+                  <span>Conciliación</span>
+                </NavLink>
+                <NavLink to="/inventarios/reconteos" style={childNavItemStyle}>
+                  <span>Reconteos</span>
+                </NavLink>
+                <NavLink to="/inventarios/informe" style={childNavItemStyle}>
+                  <span>Informe inventario</span>
+                </NavLink>
+              </div>
+            )}
           </nav>
 
           <div style={sectionTitleStyle}>INFORMACIÓN</div>
@@ -262,14 +408,20 @@ export default function Layout() {
                 fontSize: 12,
               }}
             >
-              Guía rápida
+              Sesión activa
             </div>
 
-            <div>Recibo para entradas masivas.</div>
-            <div>Manual para ajustes puntuales.</div>
-            <div>Datos maestros para catálogos base.</div>
-            <div>Inventarios para conteos y conciliación.</div>
+            <div><b>Usuario:</b> {usuario}</div>
+            <div><b>Rol:</b> {rol}</div>
+            <div style={{ marginTop: 10 }}>
+              El acceso permanece activo mientras el navegador siga abierto.
+            </div>
           </div>
+
+          <button onClick={handleLogout} style={logoutButtonStyle}>
+            <LogOut size={16} />
+            Cerrar sesión
+          </button>
         </aside>
 
         {/* MAIN */}
@@ -293,3 +445,38 @@ export default function Layout() {
     </div>
   );
 }
+
+function menuButtonStyle(active) {
+  return {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 8,
+    textDecoration: "none",
+    color: active ? colors.activeText : colors.text,
+    background: active ? colors.activeBg : "transparent",
+    border: `1px solid ${active ? "#cfe0ff" : "transparent"}`,
+    fontWeight: active ? 700 : 600,
+    fontSize: 14,
+    cursor: "pointer",
+  };
+}
+
+const logoutButtonStyle = {
+  marginTop: 14,
+  width: "100%",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+  height: 40,
+  borderRadius: 8,
+  border: "1px solid #f0c7c7",
+  background: "#fff5f5",
+  color: "#b42318",
+  fontWeight: 800,
+  cursor: "pointer",
+};
