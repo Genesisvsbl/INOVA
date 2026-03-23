@@ -79,20 +79,44 @@ export default function Layout() {
   const usuario = sessionStorage.getItem("usuario") || "Usuario";
   const rol = sessionStorage.getItem("rol") || "OPERATIVO";
 
+  const isInicioActive = useMemo(
+    () => location.pathname === "/",
+    [location.pathname]
+  );
+
   const isDatosActive = useMemo(
     () => location.pathname.startsWith("/datos-maestros"),
     [location.pathname]
   );
+
   const isMovimientosActive = useMemo(
     () => location.pathname.startsWith("/movimientos"),
     [location.pathname]
   );
+
   const isInventariosActive = useMemo(
     () => location.pathname.startsWith("/inventarios"),
     [location.pathname]
   );
 
+  const isStockActive = useMemo(
+    () => location.pathname.startsWith("/stock"),
+    [location.pathname]
+  );
+
+  const showHomeBackgroundOnly =
+    location.pathname === "/" || location.pathname === "";
+
   const toggleMenu = (key) => {
+    if (sidebarCollapsed) {
+      setSidebarCollapsed(false);
+      setOpenMenus((prev) => ({
+        ...prev,
+        [key]: true,
+      }));
+      return;
+    }
+
     setOpenMenus((prev) => ({
       ...prev,
       [key]: !prev[key],
@@ -247,7 +271,9 @@ export default function Layout() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: sidebarCollapsed ? "78px minmax(0, 1fr)" : "250px minmax(0, 1fr)",
+          gridTemplateColumns: sidebarCollapsed
+            ? "78px minmax(0, 1fr)"
+            : "250px minmax(0, 1fr)",
           minHeight: "calc(100vh - 56px)",
           transition: "grid-template-columns .22s ease",
         }}
@@ -485,7 +511,8 @@ export default function Layout() {
         <main
           style={{
             minWidth: 0,
-            padding: 20,
+            minHeight: "calc(100vh - 56px)",
+            padding: showHomeBackgroundOnly ? 0 : 20,
             position: "relative",
             overflow: "hidden",
             background:
@@ -506,6 +533,7 @@ export default function Layout() {
               position: "relative",
               zIndex: 1,
               width: "100%",
+              minHeight: "calc(100vh - 56px)",
               maxWidth: "none",
               margin: 0,
             }}
