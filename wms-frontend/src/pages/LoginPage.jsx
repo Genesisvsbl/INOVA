@@ -56,6 +56,12 @@ export default function LoginPage() {
   return (
     <div style={pageStyle}>
       <div style={backgroundGridStyle} />
+      <div style={backgroundGlowTopStyle} />
+      <div style={backgroundGlowBottomStyle} />
+      <div style={backgroundCircleOneStyle} />
+      <div style={backgroundCircleTwoStyle} />
+      <div style={backgroundLineOneStyle} />
+      <div style={backgroundLineTwoStyle} />
 
       <div style={topBarStyle}>
         <div style={topBarBrandStyle}>
@@ -78,22 +84,36 @@ export default function LoginPage() {
 
       <div style={mainWrapStyle}>
         <div style={leftPanelStyle}>
-          <div style={heroBadgeStyle}>PLATAFORMA WMS</div>
+          <div style={heroBadgeStyle}>PLATAFORMA INTELIGENTE</div>
 
           <div style={heroTitleStyle}>
-            Gestión logística sobria, segura y profesional.
+            Bienvenidos a INOVA: el sistema inteligente logístico que
+            transforma la forma en que operamos.
           </div>
 
-          <div style={heroTextStyle}>
-            Accede al sistema para administrar datos maestros, inventarios,
-            movimientos, stock y operación logística en una sola plataforma.
-          </div>
+          <div style={heroTextBlockStyle}>
+            <p style={heroParagraphStyle}>
+              <strong>INOVA</strong> significa{" "}
+              <strong>Inventario, Ocupación, Validación y Asignación</strong>.
+              Cuatro pilares que redefinen la eficiencia operativa en cada
+              movimiento.
+            </p>
 
-          <div style={featureGridStyle}>
-            <FeatureItem title="Datos maestros" text="Materiales, proveedores, ubicaciones y parámetros base." />
-            <FeatureItem title="Movimientos" text="Recibo, despacho, picking y trazabilidad operativa." />
-            <FeatureItem title="Inventarios" text="Conteos, conciliación, reconteos e informes." />
-            <FeatureItem title="Control de acceso" text="Sesión activa solo mientras el navegador permanezca abierto." />
+            <p style={heroParagraphStyle}>
+              Con INOVA, cada entrada, salida y reasignación se gestiona con
+              precisión. El índice de ocupación se actualiza en tiempo real, y
+              la frescura de los productos se monitorea de forma continua.
+            </p>
+
+            <p style={heroParagraphStyle}>
+              Este sistema está diseñado para equipos logísticos que exigen
+              agilidad, trazabilidad y control total. INOVA no solo organiza:
+              optimiza recursos, anticipa necesidades y potencia tu operación.
+            </p>
+
+            <p style={heroClosingStyle}>
+              Es momento de evolucionar. Es momento de <strong>INOVA</strong>.
+            </p>
           </div>
         </div>
 
@@ -104,9 +124,9 @@ export default function LoginPage() {
                 src="/INOVA.png"
                 alt="INOVA"
                 style={{
-                  height: 54,
+                  height: 58,
                   objectFit: "contain",
-                  marginBottom: 10,
+                  marginBottom: 12,
                 }}
               />
 
@@ -117,9 +137,7 @@ export default function LoginPage() {
             </div>
 
             <div style={loginBodyStyle}>
-              {error ? (
-                <div style={errorBoxStyle}>{error}</div>
-              ) : null}
+              {error ? <div style={errorBoxStyle}>{error}</div> : null}
 
               <div style={{ marginBottom: 14 }}>
                 <div style={fieldLabelStyle}>Usuario</div>
@@ -191,20 +209,12 @@ export default function LoginPage() {
   );
 }
 
-function FeatureItem({ title, text }) {
-  return (
-    <div style={featureItemStyle}>
-      <div style={featureTitleStyle}>{title}</div>
-      <div style={featureTextStyle}>{text}</div>
-    </div>
-  );
-}
-
 /* ================== ESTILOS ================== */
 
 const pageStyle = {
   minHeight: "100vh",
-  background: "linear-gradient(135deg, #f4f7fb 0%, #eef3f8 55%, #e7edf5 100%)",
+  background:
+    "radial-gradient(circle at 20% 20%, rgba(10,110,209,.08), transparent 28%), linear-gradient(135deg, #eef3f9 0%, #e8eef6 45%, #dde7f2 100%)",
   position: "relative",
   overflow: "hidden",
   fontFamily: '"Segoe UI", Arial, sans-serif',
@@ -214,11 +224,82 @@ const backgroundGridStyle = {
   position: "absolute",
   inset: 0,
   backgroundImage: `
-    linear-gradient(rgba(15,39,68,0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15,39,68,0.05) 1px, transparent 1px)
+    linear-gradient(rgba(15,39,68,0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15,39,68,0.045) 1px, transparent 1px)
   `,
-  backgroundSize: "80px 80px",
-  maskImage: "linear-gradient(to bottom, rgba(0,0,0,.45), rgba(0,0,0,.08))",
+  backgroundSize: "76px 76px",
+  pointerEvents: "none",
+};
+
+const backgroundGlowTopStyle = {
+  position: "absolute",
+  width: 680,
+  height: 680,
+  top: -250,
+  left: -120,
+  borderRadius: "50%",
+  background:
+    "radial-gradient(circle, rgba(10,110,209,.18) 0%, rgba(10,110,209,.06) 35%, rgba(10,110,209,0) 72%)",
+  filter: "blur(18px)",
+  pointerEvents: "none",
+};
+
+const backgroundGlowBottomStyle = {
+  position: "absolute",
+  width: 760,
+  height: 760,
+  bottom: -330,
+  right: -180,
+  borderRadius: "50%",
+  background:
+    "radial-gradient(circle, rgba(15,39,68,.16) 0%, rgba(15,39,68,.05) 34%, rgba(15,39,68,0) 70%)",
+  filter: "blur(24px)",
+  pointerEvents: "none",
+};
+
+const backgroundCircleOneStyle = {
+  position: "absolute",
+  top: 100,
+  right: 210,
+  width: 260,
+  height: 260,
+  borderRadius: "50%",
+  border: "1px solid rgba(15,39,68,.08)",
+  boxShadow: "0 0 0 28px rgba(15,39,68,.03), 0 0 0 56px rgba(15,39,68,.02)",
+  pointerEvents: "none",
+};
+
+const backgroundCircleTwoStyle = {
+  position: "absolute",
+  bottom: 60,
+  left: 80,
+  width: 170,
+  height: 170,
+  borderRadius: "50%",
+  border: "1px solid rgba(15,39,68,.08)",
+  boxShadow: "0 0 0 20px rgba(15,39,68,.03), 0 0 0 40px rgba(15,39,68,.02)",
+  pointerEvents: "none",
+};
+
+const backgroundLineOneStyle = {
+  position: "absolute",
+  left: 0,
+  top: 170,
+  width: "44%",
+  height: 2,
+  background:
+    "linear-gradient(90deg, rgba(15,39,68,0) 0%, rgba(15,39,68,.08) 20%, rgba(15,39,68,0) 100%)",
+  pointerEvents: "none",
+};
+
+const backgroundLineTwoStyle = {
+  position: "absolute",
+  right: 0,
+  bottom: 150,
+  width: "38%",
+  height: 2,
+  background:
+    "linear-gradient(90deg, rgba(15,39,68,0) 0%, rgba(15,39,68,.08) 25%, rgba(15,39,68,0) 100%)",
   pointerEvents: "none",
 };
 
@@ -228,8 +309,8 @@ const topBarStyle = {
   height: 68,
   padding: "0 28px",
   borderBottom: "1px solid #dbe5ee",
-  background: "rgba(255,255,255,0.74)",
-  backdropFilter: "blur(10px)",
+  background: "rgba(255,255,255,0.68)",
+  backdropFilter: "blur(12px)",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
@@ -274,74 +355,65 @@ const mainWrapStyle = {
   zIndex: 2,
   minHeight: "calc(100vh - 68px)",
   display: "grid",
-  gridTemplateColumns: "1.1fr 0.9fr",
+  gridTemplateColumns: "1.15fr 0.85fr",
   alignItems: "center",
-  gap: 28,
-  padding: "30px 40px 40px",
+  gap: 32,
+  padding: "34px 42px 42px",
 };
 
 const leftPanelStyle = {
   paddingRight: 10,
+  maxWidth: 760,
 };
 
 const heroBadgeStyle = {
   display: "inline-flex",
   alignItems: "center",
-  padding: "8px 12px",
+  padding: "8px 14px",
   borderRadius: 999,
-  background: "#eaf3ff",
+  background: "rgba(10,110,209,.10)",
   color: "#0a6ed1",
-  border: "1px solid #cfe0ff",
+  border: "1px solid rgba(10,110,209,.22)",
   fontSize: 12,
   fontWeight: 900,
-  letterSpacing: ".04em",
-  marginBottom: 18,
+  letterSpacing: ".05em",
+  marginBottom: 22,
+  boxShadow: "0 8px 18px rgba(10,110,209,.08)",
 };
 
 const heroTitleStyle = {
-  fontSize: 40,
+  fontSize: 42,
   lineHeight: 1.08,
   fontWeight: 900,
   color: "#0f2744",
-  maxWidth: 650,
-  marginBottom: 16,
-};
-
-const heroTextStyle = {
-  fontSize: 15,
-  color: "#5d6e82",
-  lineHeight: 1.7,
-  maxWidth: 640,
-  marginBottom: 24,
-};
-
-const featureGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(220px, 1fr))",
-  gap: 12,
   maxWidth: 760,
+  marginBottom: 20,
+  textShadow: "0 1px 0 rgba(255,255,255,.65)",
 };
 
-const featureItemStyle = {
-  background: "rgba(255,255,255,0.75)",
-  border: "1px solid #dbe5ee",
-  borderRadius: 14,
-  padding: 16,
-  backdropFilter: "blur(6px)",
-  boxShadow: "0 8px 22px rgba(15,39,68,0.04)",
+const heroTextBlockStyle = {
+  maxWidth: 720,
+  background: "rgba(255,255,255,0.42)",
+  border: "1px solid rgba(217,226,236,.75)",
+  borderRadius: 18,
+  padding: "22px 24px",
+  backdropFilter: "blur(10px)",
+  boxShadow: "0 16px 35px rgba(15,39,68,.05)",
 };
 
-const featureTitleStyle = {
-  fontSize: 14,
-  fontWeight: 800,
+const heroParagraphStyle = {
+  margin: "0 0 14px",
+  fontSize: 15,
+  color: "#55687b",
+  lineHeight: 1.8,
+};
+
+const heroClosingStyle = {
+  margin: "8px 0 0",
+  fontSize: 16,
   color: "#17324d",
-  marginBottom: 8,
-};
-
-const featureTextStyle = {
-  fontSize: 13,
-  color: "#6b7a90",
-  lineHeight: 1.6,
+  lineHeight: 1.7,
+  fontWeight: 800,
 };
 
 const loginPanelWrapStyle = {
@@ -352,23 +424,23 @@ const loginPanelWrapStyle = {
 const loginCardStyle = {
   width: "100%",
   maxWidth: 430,
-  background: "rgba(255,255,255,0.92)",
+  background: "rgba(255,255,255,0.93)",
   border: "1px solid #d9e2ec",
-  borderRadius: 22,
+  borderRadius: 24,
   overflow: "hidden",
-  boxShadow: "0 26px 60px rgba(2,6,23,.14)",
-  backdropFilter: "blur(14px)",
+  boxShadow: "0 28px 65px rgba(2,6,23,.16)",
+  backdropFilter: "blur(16px)",
 };
 
 const loginCardHeaderStyle = {
-  padding: "28px 28px 18px",
+  padding: "30px 28px 18px",
   textAlign: "center",
   borderBottom: "1px solid #e6edf4",
   background: "linear-gradient(to bottom, #ffffff, #fbfdff)",
 };
 
 const loginTitleStyle = {
-  fontSize: 26,
+  fontSize: 28,
   fontWeight: 900,
   color: "#17324d",
   lineHeight: 1.05,
@@ -415,6 +487,7 @@ const inputWrapStyle = {
   gap: 10,
   padding: "0 12px",
   boxSizing: "border-box",
+  boxShadow: "inset 0 1px 0 rgba(15,39,68,.02)",
 };
 
 const inputStyle = {
@@ -447,7 +520,7 @@ const submitBtnStyle = {
   fontWeight: 900,
   fontSize: 14,
   cursor: "pointer",
-  boxShadow: "0 12px 26px rgba(10,110,209,.24)",
+  boxShadow: "0 14px 28px rgba(10,110,209,.24)",
   letterSpacing: ".02em",
 };
 
