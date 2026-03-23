@@ -354,16 +354,20 @@ const mainWrapStyle = {
   position: "relative",
   zIndex: 2,
   minHeight: "calc(100vh - 68px)",
+  width: "100%",
   display: "grid",
-  gridTemplateColumns: "1.15fr 0.85fr",
+  gridTemplateColumns: "minmax(0, 1.15fr) minmax(420px, 0.85fr)",
   alignItems: "center",
   gap: 32,
   padding: "34px 42px 42px",
+  boxSizing: "border-box",
 };
 
 const leftPanelStyle = {
   paddingRight: 10,
-  maxWidth: 760,
+  width: "100%",
+  maxWidth: "none",
+  minWidth: 0,
 };
 
 const heroBadgeStyle = {
@@ -392,13 +396,15 @@ const heroTitleStyle = {
 };
 
 const heroTextBlockStyle = {
-  maxWidth: 720,
+  width: "100%",
+  maxWidth: "none",
   background: "rgba(255,255,255,0.42)",
   border: "1px solid rgba(217,226,236,.75)",
   borderRadius: 18,
   padding: "22px 24px",
   backdropFilter: "blur(10px)",
   boxShadow: "0 16px 35px rgba(15,39,68,.05)",
+  boxSizing: "border-box",
 };
 
 const heroParagraphStyle = {
@@ -419,6 +425,9 @@ const heroClosingStyle = {
 const loginPanelWrapStyle = {
   display: "flex",
   justifyContent: "center",
+  alignItems: "center",
+  width: "100%",
+  minWidth: 0,
 };
 
 const loginCardStyle = {
