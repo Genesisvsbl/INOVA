@@ -28,11 +28,16 @@ const colors = {
   activeText: "#0a4fb3",
 };
 
-const navItemStyle = ({ isActive }) => ({
+const COLLAPSED_WIDTH = 72;
+const EXPANDED_WIDTH = 250;
+const HEADER_HEIGHT = 56;
+
+const navItemStyle = ({ isActive }, expanded) => ({
   display: "flex",
   alignItems: "center",
+  justifyContent: expanded ? "flex-start" : "center",
   gap: 10,
-  padding: "10px 12px",
+  padding: expanded ? "10px 12px" : "10px 0",
   borderRadius: 8,
   textDecoration: "none",
   color: isActive ? colors.activeText : colors.text,
@@ -40,6 +45,7 @@ const navItemStyle = ({ isActive }) => ({
   border: `1px solid ${isActive ? "#cfe0ff" : "transparent"}`,
   fontWeight: isActive ? 700 : 600,
   fontSize: 14,
+  minHeight: 42,
 });
 
 const childNavItemStyle = ({ isActive }) => ({
@@ -54,6 +60,7 @@ const childNavItemStyle = ({ isActive }) => ({
   border: `1px solid ${isActive ? "#cfe0ff" : "transparent"}`,
   fontWeight: isActive ? 700 : 600,
   fontSize: 13,
+  minHeight: 38,
 });
 
 const sectionTitleStyle = {
@@ -68,7 +75,8 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarPinned, setSidebarPinned] = useState(false);
+  const [sidebarHover, setSidebarHover] = useState(false);
 
   const [openMenus, setOpenMenus] = useState({
     datosMaestros: true,
@@ -79,10 +87,7 @@ export default function Layout() {
   const usuario = sessionStorage.getItem("usuario") || "Usuario";
   const rol = sessionStorage.getItem("rol") || "OPERATIVO";
 
-  const isInicioActive = useMemo(
-    () => location.pathname === "/",
-    [location.pathname]
-  );
+  const sidebarExpanded = sidebarPinned || sidebarHover;
 
   const isDatosActive = useMemo(
     () => location.pathname.startsWith("/datos-maestros"),
@@ -104,18 +109,13 @@ export default function Layout() {
     [location.pathname]
   );
 
-  const showHomeBackgroundOnly =
-    location.pathname === "/" || location.pathname === "";
+  const isInicioActive = useMemo(
+    () => location.pathname === "/",
+    [location.pathname]
+  );
 
   const toggleMenu = (key) => {
-    if (sidebarCollapsed) {
-      setSidebarCollapsed(false);
-      setOpenMenus((prev) => ({
-        ...prev,
-        [key]: true,
-      }));
-      return;
-    }
+    if (!sidebarExpanded) return;
 
     setOpenMenus((prev) => ({
       ...prev,
@@ -132,8 +132,10 @@ export default function Layout() {
     <div
       style={{
         minHeight: "100vh",
+        width: "100%",
         background: colors.bg,
         color: colors.text,
+        overflowX: "hidden",
         fontFamily:
           'Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji"',
       }}
@@ -141,7 +143,7 @@ export default function Layout() {
       {/* TOP BAR */}
       <header
         style={{
-          height: 56,
+          height: HEADER_HEIGHT,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -150,7 +152,7 @@ export default function Layout() {
           borderBottom: `1px solid ${colors.line}`,
           position: "sticky",
           top: 0,
-          zIndex: 30,
+          zIndex: 40,
           backdropFilter: "blur(10px)",
         }}
       >
@@ -199,7 +201,7 @@ export default function Layout() {
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button
-            onClick={() => setSidebarCollapsed((v) => !v)}
+            onClick={() => setSidebarPinned((v) => !v)}
             style={{
               width: 34,
               height: 34,
@@ -209,13 +211,14 @@ export default function Layout() {
               display: "grid",
               placeItems: "center",
               cursor: "pointer",
+              flexShrink: 0,
             }}
-            title={sidebarCollapsed ? "Expandir panel" : "Recoger panel"}
+            title={sidebarPinned ? "Desanclar panel" : "Anclar panel"}
           >
-            {sidebarCollapsed ? (
-              <PanelLeftOpen size={16} color={colors.muted} />
-            ) : (
+            {sidebarPinned ? (
               <PanelLeftClose size={16} color={colors.muted} />
+            ) : (
+              <PanelLeftOpen size={16} color={colors.muted} />
             )}
           </button>
 
@@ -246,6 +249,7 @@ export default function Layout() {
               display: "grid",
               placeItems: "center",
               cursor: "pointer",
+              flexShrink: 0,
             }}
           >
             <Bell size={16} color={colors.muted} />
@@ -260,6 +264,7 @@ export default function Layout() {
               border: "1px solid #cfe8d7",
               borderRadius: 999,
               padding: "6px 10px",
+              whiteSpace: "nowrap",
             }}
           >
             Online
@@ -267,40 +272,48 @@ export default function Layout() {
         </div>
       </header>
 
-      {/* BODY */}
+      {/* CONTENT */}
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: sidebarCollapsed
-            ? "78px minmax(0, 1fr)"
-            : "250px minmax(0, 1fr)",
-          minHeight: "calc(100vh - 56px)",
-          transition: "grid-template-columns .22s ease",
+          position: "relative",
+          minHeight: `calc(100vh - ${HEADER_HEIGHT}px)`,
         }}
       >
-        {/* SIDEBAR */}
+        {/* SIDEBAR OVERLAY */}
         <aside
+          onMouseEnter={() => setSidebarHover(true)}
+          onMouseLeave={() => setSidebarHover(false)}
           style={{
-            background: "rgba(255,255,255,0.95)",
+            position: "absolute",
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: sidebarExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
+            background: "rgba(255,255,255,0.97)",
             borderRight: `1px solid ${colors.line}`,
-            padding: 14,
+            padding: 12,
             overflowY: "auto",
-            transition: ".22s ease",
+            overflowX: "hidden",
+            transition: "width .22s ease",
             backdropFilter: "blur(10px)",
+            zIndex: 20,
+            boxShadow: sidebarExpanded
+              ? "10px 0 28px rgba(15,39,68,.08)"
+              : "none",
           }}
         >
           <div
             style={{
-              padding: sidebarCollapsed ? 10 : 14,
-              borderRadius: 10,
+              padding: sidebarExpanded ? 14 : 8,
+              borderRadius: 12,
               background: "linear-gradient(180deg, #16385f 0%, #0f2744 100%)",
               color: "#fff",
               marginBottom: 16,
               border: "1px solid rgba(255,255,255,0.08)",
-              minHeight: 64,
+              minHeight: 70,
               display: "flex",
               alignItems: "center",
-              justifyContent: sidebarCollapsed ? "center" : "flex-start",
+              justifyContent: sidebarExpanded ? "flex-start" : "center",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -324,7 +337,7 @@ export default function Layout() {
                 />
               </div>
 
-              {!sidebarCollapsed && (
+              {sidebarExpanded && (
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 800 }}>INOVA</div>
                   <div style={{ fontSize: 12, opacity: 0.82, marginTop: 2 }}>
@@ -335,25 +348,26 @@ export default function Layout() {
             </div>
           </div>
 
-          {!sidebarCollapsed && <div style={sectionTitleStyle}>OPERACIONES</div>}
+          {sidebarExpanded && <div style={sectionTitleStyle}>OPERACIONES</div>}
 
           <nav style={{ display: "grid", gap: 4 }}>
-            <NavLink to="/" style={navItemStyle} title="Inicio">
+            <NavLink to="/" style={(s) => navItemStyle(s, sidebarExpanded)} title="Inicio">
               <Home size={16} />
-              {!sidebarCollapsed && <span>Inicio</span>}
+              {sidebarExpanded && <span>Inicio</span>}
             </NavLink>
 
             {/* DATOS MAESTROS */}
             <button
               onClick={() => toggleMenu("datosMaestros")}
-              style={menuButtonStyle(isDatosActive, sidebarCollapsed)}
+              style={menuButtonStyle(isDatosActive, sidebarExpanded)}
               title="Datos maestros"
             >
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <Database size={16} />
-                {!sidebarCollapsed && <span>Datos maestros</span>}
+                {sidebarExpanded && <span>Datos maestros</span>}
               </div>
-              {!sidebarCollapsed &&
+
+              {sidebarExpanded &&
                 (openMenus.datosMaestros ? (
                   <ChevronDown size={16} />
                 ) : (
@@ -361,7 +375,7 @@ export default function Layout() {
                 ))}
             </button>
 
-            {!sidebarCollapsed && openMenus.datosMaestros && (
+            {sidebarExpanded && openMenus.datosMaestros && (
               <div style={{ display: "grid", gap: 4 }}>
                 <NavLink to="/datos-maestros/materiales" style={childNavItemStyle}>
                   <span>Materiales</span>
@@ -387,14 +401,15 @@ export default function Layout() {
             {/* MOVIMIENTOS */}
             <button
               onClick={() => toggleMenu("movimientos")}
-              style={menuButtonStyle(isMovimientosActive, sidebarCollapsed)}
+              style={menuButtonStyle(isMovimientosActive, sidebarExpanded)}
               title="Movimientos"
             >
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <ArrowRightLeft size={16} />
-                {!sidebarCollapsed && <span>Movimientos</span>}
+                {sidebarExpanded && <span>Movimientos</span>}
               </div>
-              {!sidebarCollapsed &&
+
+              {sidebarExpanded &&
                 (openMenus.movimientos ? (
                   <ChevronDown size={16} />
                 ) : (
@@ -402,7 +417,7 @@ export default function Layout() {
                 ))}
             </button>
 
-            {!sidebarCollapsed && openMenus.movimientos && (
+            {sidebarExpanded && openMenus.movimientos && (
               <div style={{ display: "grid", gap: 4 }}>
                 <NavLink to="/movimientos/recibo" style={childNavItemStyle}>
                   <span>Recibo</span>
@@ -416,22 +431,27 @@ export default function Layout() {
               </div>
             )}
 
-            <NavLink to="/stock" style={navItemStyle} title="Stock">
+            <NavLink
+              to="/stock"
+              style={(s) => navItemStyle(s, sidebarExpanded)}
+              title="Stock"
+            >
               <Boxes size={16} />
-              {!sidebarCollapsed && <span>Stock</span>}
+              {sidebarExpanded && <span>Stock</span>}
             </NavLink>
 
             {/* INVENTARIOS */}
             <button
               onClick={() => toggleMenu("inventarios")}
-              style={menuButtonStyle(isInventariosActive, sidebarCollapsed)}
+              style={menuButtonStyle(isInventariosActive, sidebarExpanded)}
               title="Inventarios"
             >
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <ClipboardCheck size={16} />
-                {!sidebarCollapsed && <span>Inventarios</span>}
+                {sidebarExpanded && <span>Inventarios</span>}
               </div>
-              {!sidebarCollapsed &&
+
+              {sidebarExpanded &&
                 (openMenus.inventarios ? (
                   <ChevronDown size={16} />
                 ) : (
@@ -439,7 +459,7 @@ export default function Layout() {
                 ))}
             </button>
 
-            {!sidebarCollapsed && openMenus.inventarios && (
+            {sidebarExpanded && openMenus.inventarios && (
               <div style={{ display: "grid", gap: 4 }}>
                 <NavLink to="/inventarios" style={childNavItemStyle}>
                   <span>Panel inventarios</span>
@@ -466,14 +486,14 @@ export default function Layout() {
             )}
           </nav>
 
-          {!sidebarCollapsed && (
+          {sidebarExpanded && (
             <>
               <div style={sectionTitleStyle}>INFORMACIÓN</div>
 
               <div
                 style={{
                   border: `1px solid ${colors.line}`,
-                  borderRadius: 8,
+                  borderRadius: 10,
                   background: colors.soft,
                   padding: 12,
                   fontSize: 12,
@@ -492,8 +512,12 @@ export default function Layout() {
                   Sesión activa
                 </div>
 
-                <div><b>Usuario:</b> {usuario}</div>
-                <div><b>Rol:</b> {rol}</div>
+                <div>
+                  <b>Usuario:</b> {usuario}
+                </div>
+                <div>
+                  <b>Rol:</b> {rol}
+                </div>
                 <div style={{ marginTop: 10 }}>
                   El acceso permanece activo mientras el navegador siga abierto.
                 </div>
@@ -510,16 +534,15 @@ export default function Layout() {
         {/* MAIN */}
         <main
           style={{
-            minWidth: 0,
-            minHeight: "calc(100vh - 56px)",
-            padding: showHomeBackgroundOnly ? 0 : 20,
+            marginLeft: COLLAPSED_WIDTH,
+            minHeight: `calc(100vh - ${HEADER_HEIGHT}px)`,
+            width: `calc(100% - ${COLLAPSED_WIDTH}px)`,
             position: "relative",
             overflow: "hidden",
             background:
               "radial-gradient(circle at 18% 16%, rgba(10,110,209,.08), transparent 24%), linear-gradient(135deg, #eef3f9 0%, #e7edf5 50%, #dde7f2 100%)",
           }}
         >
-          {/* Fondo sobrio premium */}
           <div style={mainBackgroundGridStyle} />
           <div style={mainBackgroundGlowTopStyle} />
           <div style={mainBackgroundGlowBottomStyle} />
@@ -533,9 +556,7 @@ export default function Layout() {
               position: "relative",
               zIndex: 1,
               width: "100%",
-              minHeight: "calc(100vh - 56px)",
-              maxWidth: "none",
-              margin: 0,
+              minHeight: `calc(100vh - ${HEADER_HEIGHT}px)`,
             }}
           >
             <Outlet />
@@ -546,22 +567,22 @@ export default function Layout() {
   );
 }
 
-function menuButtonStyle(active, collapsed) {
+function menuButtonStyle(active, expanded) {
   return {
     display: "flex",
     alignItems: "center",
-    justifyContent: collapsed ? "center" : "space-between",
+    justifyContent: expanded ? "space-between" : "center",
     gap: 10,
     width: "100%",
-    padding: "10px 12px",
+    padding: expanded ? "10px 12px" : "10px 0",
     borderRadius: 8,
-    textDecoration: "none",
     color: active ? colors.activeText : colors.text,
     background: active ? colors.activeBg : "transparent",
     border: `1px solid ${active ? "#cfe0ff" : "transparent"}`,
     fontWeight: active ? 700 : 600,
     fontSize: 14,
     cursor: "pointer",
+    minHeight: 42,
   };
 }
 
@@ -620,8 +641,8 @@ const mainBackgroundGlowBottomStyle = {
 
 const mainBackgroundCircleOneStyle = {
   position: "absolute",
-  top: 110,
-  right: 180,
+  top: 100,
+  right: 140,
   width: 260,
   height: 260,
   borderRadius: "50%",
@@ -633,7 +654,7 @@ const mainBackgroundCircleOneStyle = {
 const mainBackgroundCircleTwoStyle = {
   position: "absolute",
   bottom: 70,
-  left: 70,
+  left: 60,
   width: 170,
   height: 170,
   borderRadius: "50%",
