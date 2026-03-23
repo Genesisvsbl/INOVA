@@ -28,40 +28,9 @@ const colors = {
   activeText: "#0a4fb3",
 };
 
-const COLLAPSED_WIDTH = 72;
-const EXPANDED_WIDTH = 250;
 const HEADER_HEIGHT = 56;
-
-const navItemStyle = ({ isActive }, expanded) => ({
-  display: "flex",
-  alignItems: "center",
-  justifyContent: expanded ? "flex-start" : "center",
-  gap: 10,
-  padding: expanded ? "10px 12px" : "10px 0",
-  borderRadius: 8,
-  textDecoration: "none",
-  color: isActive ? colors.activeText : colors.text,
-  background: isActive ? colors.activeBg : "transparent",
-  border: `1px solid ${isActive ? "#cfe0ff" : "transparent"}`,
-  fontWeight: isActive ? 700 : 600,
-  fontSize: 14,
-  minHeight: 42,
-});
-
-const childNavItemStyle = ({ isActive }) => ({
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  padding: "9px 12px 9px 38px",
-  borderRadius: 8,
-  textDecoration: "none",
-  color: isActive ? colors.activeText : colors.text,
-  background: isActive ? colors.activeBg : "transparent",
-  border: `1px solid ${isActive ? "#cfe0ff" : "transparent"}`,
-  fontWeight: isActive ? 700 : 600,
-  fontSize: 13,
-  minHeight: 38,
-});
+const SIDEBAR_COLLAPSED = 76;
+const SIDEBAR_EXPANDED = 250;
 
 const sectionTitleStyle = {
   fontSize: 11,
@@ -93,30 +62,17 @@ export default function Layout() {
     () => location.pathname.startsWith("/datos-maestros"),
     [location.pathname]
   );
-
   const isMovimientosActive = useMemo(
     () => location.pathname.startsWith("/movimientos"),
     [location.pathname]
   );
-
   const isInventariosActive = useMemo(
     () => location.pathname.startsWith("/inventarios"),
     [location.pathname]
   );
 
-  const isStockActive = useMemo(
-    () => location.pathname.startsWith("/stock"),
-    [location.pathname]
-  );
-
-  const isInicioActive = useMemo(
-    () => location.pathname === "/",
-    [location.pathname]
-  );
-
   const toggleMenu = (key) => {
     if (!sidebarExpanded) return;
-
     setOpenMenus((prev) => ({
       ...prev,
       [key]: !prev[key],
@@ -135,7 +91,7 @@ export default function Layout() {
         width: "100%",
         background: colors.bg,
         color: colors.text,
-        overflowX: "hidden",
+        overflow: "hidden",
         fontFamily:
           'Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji"',
       }}
@@ -152,7 +108,7 @@ export default function Layout() {
           borderBottom: `1px solid ${colors.line}`,
           position: "sticky",
           top: 0,
-          zIndex: 40,
+          zIndex: 50,
           backdropFilter: "blur(10px)",
         }}
       >
@@ -203,9 +159,9 @@ export default function Layout() {
           <button
             onClick={() => setSidebarPinned((v) => !v)}
             style={{
-              width: 34,
-              height: 34,
-              borderRadius: 8,
+              width: 36,
+              height: 36,
+              borderRadius: 10,
               border: `1px solid ${colors.line}`,
               background: "#fff",
               display: "grid",
@@ -213,7 +169,7 @@ export default function Layout() {
               cursor: "pointer",
               flexShrink: 0,
             }}
-            title={sidebarPinned ? "Desanclar panel" : "Anclar panel"}
+            title={sidebarPinned ? "Fijar cerrado" : "Fijar abierto"}
           >
             {sidebarPinned ? (
               <PanelLeftClose size={16} color={colors.muted} />
@@ -224,14 +180,14 @@ export default function Layout() {
 
           <div
             style={{
-              height: 34,
+              height: 36,
               minWidth: 240,
               display: "flex",
               alignItems: "center",
               gap: 8,
               padding: "0 12px",
               border: `1px solid ${colors.line}`,
-              borderRadius: 8,
+              borderRadius: 10,
               background: "#fff",
             }}
           >
@@ -241,9 +197,9 @@ export default function Layout() {
 
           <button
             style={{
-              width: 34,
-              height: 34,
-              borderRadius: 8,
+              width: 36,
+              height: 36,
+              borderRadius: 10,
               border: `1px solid ${colors.line}`,
               background: "#fff",
               display: "grid",
@@ -263,7 +219,7 @@ export default function Layout() {
               background: "#edf8f1",
               border: "1px solid #cfe8d7",
               borderRadius: 999,
-              padding: "6px 10px",
+              padding: "6px 12px",
               whiteSpace: "nowrap",
             }}
           >
@@ -272,45 +228,98 @@ export default function Layout() {
         </div>
       </header>
 
-      {/* CONTENT */}
+      {/* BODY */}
       <div
         style={{
           position: "relative",
-          minHeight: `calc(100vh - ${HEADER_HEIGHT}px)`,
+          width: "100%",
+          height: `calc(100vh - ${HEADER_HEIGHT}px)`,
+          overflow: "hidden",
         }}
       >
-        {/* SIDEBAR OVERLAY */}
+        {/* MAIN FULL WIDTH */}
+        <main
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            overflow: "auto",
+            background:
+              "radial-gradient(circle at 18% 16%, rgba(10,110,209,.08), transparent 24%), linear-gradient(135deg, #eef3f9 0%, #e7edf5 50%, #dde7f2 100%)",
+          }}
+        >
+          {/* Fondo premium */}
+          <div style={mainBackgroundGridStyle} />
+          <div style={mainBackgroundGlowTopStyle} />
+          <div style={mainBackgroundGlowBottomStyle} />
+          <div style={mainBackgroundCircleOneStyle} />
+          <div style={mainBackgroundCircleTwoStyle} />
+          <div style={mainBackgroundLineOneStyle} />
+          <div style={mainBackgroundLineTwoStyle} />
+
+          <div
+            style={{
+              position: "relative",
+              zIndex: 1,
+              width: "100%",
+              minHeight: "100%",
+            }}
+          >
+            <Outlet />
+          </div>
+        </main>
+
+        {/* ZONA HOVER INVISIBLE PARA DESPLEGAR */}
+        {!sidebarExpanded && (
+          <div
+            onMouseEnter={() => setSidebarHover(true)}
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 18,
+              zIndex: 55,
+              background: "transparent",
+            }}
+          />
+        )}
+
+        {/* SIDEBAR FLOTANTE */}
         <aside
           onMouseEnter={() => setSidebarHover(true)}
-          onMouseLeave={() => setSidebarHover(false)}
+          onMouseLeave={() => {
+            if (!sidebarPinned) setSidebarHover(false);
+          }}
           style={{
             position: "absolute",
             left: 0,
             top: 0,
             bottom: 0,
-            width: sidebarExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
-            background: "rgba(255,255,255,0.97)",
+            width: sidebarExpanded ? SIDEBAR_EXPANDED : SIDEBAR_COLLAPSED,
+            background: "rgba(255,255,255,0.96)",
             borderRight: `1px solid ${colors.line}`,
             padding: 12,
             overflowY: "auto",
             overflowX: "hidden",
             transition: "width .22s ease",
             backdropFilter: "blur(10px)",
-            zIndex: 20,
+            zIndex: 60,
             boxShadow: sidebarExpanded
-              ? "10px 0 28px rgba(15,39,68,.08)"
-              : "none",
+              ? "12px 0 30px rgba(15,39,68,.10)"
+              : "6px 0 16px rgba(15,39,68,.05)",
           }}
         >
           <div
             style={{
-              padding: sidebarExpanded ? 14 : 8,
+              padding: sidebarExpanded ? 14 : 10,
               borderRadius: 12,
               background: "linear-gradient(180deg, #16385f 0%, #0f2744 100%)",
               color: "#fff",
               marginBottom: 16,
               border: "1px solid rgba(255,255,255,0.08)",
-              minHeight: 70,
+              minHeight: 72,
               display: "flex",
               alignItems: "center",
               justifyContent: sidebarExpanded ? "flex-start" : "center",
@@ -351,7 +360,11 @@ export default function Layout() {
           {sidebarExpanded && <div style={sectionTitleStyle}>OPERACIONES</div>}
 
           <nav style={{ display: "grid", gap: 4 }}>
-            <NavLink to="/" style={(s) => navItemStyle(s, sidebarExpanded)} title="Inicio">
+            <NavLink
+              to="/"
+              style={(state) => navItemStyle(state, sidebarExpanded)}
+              title="Inicio"
+            >
               <Home size={16} />
               {sidebarExpanded && <span>Inicio</span>}
             </NavLink>
@@ -433,7 +446,7 @@ export default function Layout() {
 
             <NavLink
               to="/stock"
-              style={(s) => navItemStyle(s, sidebarExpanded)}
+              style={(state) => navItemStyle(state, sidebarExpanded)}
               title="Stock"
             >
               <Boxes size={16} />
@@ -530,41 +543,27 @@ export default function Layout() {
             </>
           )}
         </aside>
-
-        {/* MAIN */}
-        <main
-          style={{
-            marginLeft: COLLAPSED_WIDTH,
-            minHeight: `calc(100vh - ${HEADER_HEIGHT}px)`,
-            width: `calc(100% - ${COLLAPSED_WIDTH}px)`,
-            position: "relative",
-            overflow: "hidden",
-            background:
-              "radial-gradient(circle at 18% 16%, rgba(10,110,209,.08), transparent 24%), linear-gradient(135deg, #eef3f9 0%, #e7edf5 50%, #dde7f2 100%)",
-          }}
-        >
-          <div style={mainBackgroundGridStyle} />
-          <div style={mainBackgroundGlowTopStyle} />
-          <div style={mainBackgroundGlowBottomStyle} />
-          <div style={mainBackgroundCircleOneStyle} />
-          <div style={mainBackgroundCircleTwoStyle} />
-          <div style={mainBackgroundLineOneStyle} />
-          <div style={mainBackgroundLineTwoStyle} />
-
-          <div
-            style={{
-              position: "relative",
-              zIndex: 1,
-              width: "100%",
-              minHeight: `calc(100vh - ${HEADER_HEIGHT}px)`,
-            }}
-          >
-            <Outlet />
-          </div>
-        </main>
       </div>
     </div>
   );
+}
+
+function navItemStyle({ isActive }, expanded) {
+  return {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: expanded ? "flex-start" : "center",
+    gap: 10,
+    padding: expanded ? "10px 12px" : "10px 0",
+    borderRadius: 8,
+    textDecoration: "none",
+    color: isActive ? colors.activeText : colors.text,
+    background: isActive ? colors.activeBg : "transparent",
+    border: `1px solid ${isActive ? "#cfe0ff" : "transparent"}`,
+    fontWeight: isActive ? 700 : 600,
+    fontSize: 14,
+    minHeight: 42,
+  };
 }
 
 function menuButtonStyle(active, expanded) {
@@ -585,6 +584,21 @@ function menuButtonStyle(active, expanded) {
     minHeight: 42,
   };
 }
+
+const childNavItemStyle = ({ isActive }) => ({
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  padding: "9px 12px 9px 38px",
+  borderRadius: 8,
+  textDecoration: "none",
+  color: isActive ? colors.activeText : colors.text,
+  background: isActive ? colors.activeBg : "transparent",
+  border: `1px solid ${isActive ? "#cfe0ff" : "transparent"}`,
+  fontWeight: isActive ? 700 : 600,
+  fontSize: 13,
+  minHeight: 38,
+});
 
 const logoutButtonStyle = {
   marginTop: 14,
