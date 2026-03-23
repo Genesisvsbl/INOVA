@@ -11,12 +11,14 @@ import {
   ChevronRight,
   LogOut,
   Home,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 
 const colors = {
   navy: "#0f2744",
   blue: "#0a6ed1",
-  bg: "#f3f6f9",
+  bg: "#eef3f9",
   panel: "#ffffff",
   line: "#d9e2ec",
   soft: "#f8fafc",
@@ -65,6 +67,8 @@ const sectionTitleStyle = {
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
+
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const [openMenus, setOpenMenus] = useState({
     datosMaestros: true,
@@ -118,11 +122,12 @@ export default function Layout() {
           alignItems: "center",
           justifyContent: "space-between",
           padding: "0 18px",
-          background: "#ffffff",
+          background: "rgba(255,255,255,0.88)",
           borderBottom: `1px solid ${colors.line}`,
           position: "sticky",
           top: 0,
-          zIndex: 20,
+          zIndex: 30,
+          backdropFilter: "blur(10px)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -169,6 +174,27 @@ export default function Layout() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            onClick={() => setSidebarCollapsed((v) => !v)}
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 8,
+              border: `1px solid ${colors.line}`,
+              background: "#fff",
+              display: "grid",
+              placeItems: "center",
+              cursor: "pointer",
+            }}
+            title={sidebarCollapsed ? "Expandir panel" : "Recoger panel"}
+          >
+            {sidebarCollapsed ? (
+              <PanelLeftOpen size={16} color={colors.muted} />
+            ) : (
+              <PanelLeftClose size={16} color={colors.muted} />
+            )}
+          </button>
+
           <div
             style={{
               height: 34,
@@ -221,27 +247,34 @@ export default function Layout() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "250px minmax(0, 1fr)",
+          gridTemplateColumns: sidebarCollapsed ? "78px minmax(0, 1fr)" : "250px minmax(0, 1fr)",
           minHeight: "calc(100vh - 56px)",
+          transition: "grid-template-columns .22s ease",
         }}
       >
         {/* SIDEBAR */}
         <aside
           style={{
-            background: "#ffffff",
+            background: "rgba(255,255,255,0.95)",
             borderRight: `1px solid ${colors.line}`,
             padding: 14,
             overflowY: "auto",
+            transition: ".22s ease",
+            backdropFilter: "blur(10px)",
           }}
         >
           <div
             style={{
-              padding: 14,
+              padding: sidebarCollapsed ? 10 : 14,
               borderRadius: 10,
               background: "linear-gradient(180deg, #16385f 0%, #0f2744 100%)",
               color: "#fff",
               marginBottom: 16,
               border: "1px solid rgba(255,255,255,0.08)",
+              minHeight: 64,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: sidebarCollapsed ? "center" : "flex-start",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -265,36 +298,44 @@ export default function Layout() {
                 />
               </div>
 
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 800 }}>INOVA</div>
-                <div style={{ fontSize: 12, opacity: 0.82, marginTop: 2 }}>
-                  Warehouse Management
+              {!sidebarCollapsed && (
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800 }}>INOVA</div>
+                  <div style={{ fontSize: 12, opacity: 0.82, marginTop: 2 }}>
+                    Warehouse Management
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
-          <div style={sectionTitleStyle}>OPERACIONES</div>
+          {!sidebarCollapsed && <div style={sectionTitleStyle}>OPERACIONES</div>}
 
           <nav style={{ display: "grid", gap: 4 }}>
-            <NavLink to="/" style={navItemStyle}>
+            <NavLink to="/" style={navItemStyle} title="Inicio">
               <Home size={16} />
-              <span>Inicio</span>
+              {!sidebarCollapsed && <span>Inicio</span>}
             </NavLink>
 
             {/* DATOS MAESTROS */}
             <button
               onClick={() => toggleMenu("datosMaestros")}
-              style={menuButtonStyle(isDatosActive)}
+              style={menuButtonStyle(isDatosActive, sidebarCollapsed)}
+              title="Datos maestros"
             >
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <Database size={16} />
-                <span>Datos maestros</span>
+                {!sidebarCollapsed && <span>Datos maestros</span>}
               </div>
-              {openMenus.datosMaestros ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              {!sidebarCollapsed &&
+                (openMenus.datosMaestros ? (
+                  <ChevronDown size={16} />
+                ) : (
+                  <ChevronRight size={16} />
+                ))}
             </button>
 
-            {openMenus.datosMaestros && (
+            {!sidebarCollapsed && openMenus.datosMaestros && (
               <div style={{ display: "grid", gap: 4 }}>
                 <NavLink to="/datos-maestros/materiales" style={childNavItemStyle}>
                   <span>Materiales</span>
@@ -320,16 +361,22 @@ export default function Layout() {
             {/* MOVIMIENTOS */}
             <button
               onClick={() => toggleMenu("movimientos")}
-              style={menuButtonStyle(isMovimientosActive)}
+              style={menuButtonStyle(isMovimientosActive, sidebarCollapsed)}
+              title="Movimientos"
             >
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <ArrowRightLeft size={16} />
-                <span>Movimientos</span>
+                {!sidebarCollapsed && <span>Movimientos</span>}
               </div>
-              {openMenus.movimientos ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              {!sidebarCollapsed &&
+                (openMenus.movimientos ? (
+                  <ChevronDown size={16} />
+                ) : (
+                  <ChevronRight size={16} />
+                ))}
             </button>
 
-            {openMenus.movimientos && (
+            {!sidebarCollapsed && openMenus.movimientos && (
               <div style={{ display: "grid", gap: 4 }}>
                 <NavLink to="/movimientos/recibo" style={childNavItemStyle}>
                   <span>Recibo</span>
@@ -343,24 +390,30 @@ export default function Layout() {
               </div>
             )}
 
-            <NavLink to="/stock" style={navItemStyle}>
+            <NavLink to="/stock" style={navItemStyle} title="Stock">
               <Boxes size={16} />
-              <span>Stock</span>
+              {!sidebarCollapsed && <span>Stock</span>}
             </NavLink>
 
             {/* INVENTARIOS */}
             <button
               onClick={() => toggleMenu("inventarios")}
-              style={menuButtonStyle(isInventariosActive)}
+              style={menuButtonStyle(isInventariosActive, sidebarCollapsed)}
+              title="Inventarios"
             >
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <ClipboardCheck size={16} />
-                <span>Inventarios</span>
+                {!sidebarCollapsed && <span>Inventarios</span>}
               </div>
-              {openMenus.inventarios ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              {!sidebarCollapsed &&
+                (openMenus.inventarios ? (
+                  <ChevronDown size={16} />
+                ) : (
+                  <ChevronRight size={16} />
+                ))}
             </button>
 
-            {openMenus.inventarios && (
+            {!sidebarCollapsed && openMenus.inventarios && (
               <div style={{ display: "grid", gap: 4 }}>
                 <NavLink to="/inventarios" style={childNavItemStyle}>
                   <span>Panel inventarios</span>
@@ -387,41 +440,45 @@ export default function Layout() {
             )}
           </nav>
 
-          <div style={sectionTitleStyle}>INFORMACIÓN</div>
+          {!sidebarCollapsed && (
+            <>
+              <div style={sectionTitleStyle}>INFORMACIÓN</div>
 
-          <div
-            style={{
-              border: `1px solid ${colors.line}`,
-              borderRadius: 8,
-              background: colors.soft,
-              padding: 12,
-              fontSize: 12,
-              color: colors.muted,
-              lineHeight: 1.55,
-            }}
-          >
-            <div
-              style={{
-                fontWeight: 800,
-                color: colors.text,
-                marginBottom: 6,
-                fontSize: 12,
-              }}
-            >
-              Sesión activa
-            </div>
+              <div
+                style={{
+                  border: `1px solid ${colors.line}`,
+                  borderRadius: 8,
+                  background: colors.soft,
+                  padding: 12,
+                  fontSize: 12,
+                  color: colors.muted,
+                  lineHeight: 1.55,
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 800,
+                    color: colors.text,
+                    marginBottom: 6,
+                    fontSize: 12,
+                  }}
+                >
+                  Sesión activa
+                </div>
 
-            <div><b>Usuario:</b> {usuario}</div>
-            <div><b>Rol:</b> {rol}</div>
-            <div style={{ marginTop: 10 }}>
-              El acceso permanece activo mientras el navegador siga abierto.
-            </div>
-          </div>
+                <div><b>Usuario:</b> {usuario}</div>
+                <div><b>Rol:</b> {rol}</div>
+                <div style={{ marginTop: 10 }}>
+                  El acceso permanece activo mientras el navegador siga abierto.
+                </div>
+              </div>
 
-          <button onClick={handleLogout} style={logoutButtonStyle}>
-            <LogOut size={16} />
-            Cerrar sesión
-          </button>
+              <button onClick={handleLogout} style={logoutButtonStyle}>
+                <LogOut size={16} />
+                Cerrar sesión
+              </button>
+            </>
+          )}
         </aside>
 
         {/* MAIN */}
@@ -429,10 +486,25 @@ export default function Layout() {
           style={{
             minWidth: 0,
             padding: 20,
+            position: "relative",
+            overflow: "hidden",
+            background:
+              "radial-gradient(circle at 18% 16%, rgba(10,110,209,.08), transparent 24%), linear-gradient(135deg, #eef3f9 0%, #e7edf5 50%, #dde7f2 100%)",
           }}
         >
+          {/* Fondo sobrio premium */}
+          <div style={mainBackgroundGridStyle} />
+          <div style={mainBackgroundGlowTopStyle} />
+          <div style={mainBackgroundGlowBottomStyle} />
+          <div style={mainBackgroundCircleOneStyle} />
+          <div style={mainBackgroundCircleTwoStyle} />
+          <div style={mainBackgroundLineOneStyle} />
+          <div style={mainBackgroundLineTwoStyle} />
+
           <div
             style={{
+              position: "relative",
+              zIndex: 1,
               width: "100%",
               maxWidth: "none",
               margin: 0,
@@ -446,11 +518,11 @@ export default function Layout() {
   );
 }
 
-function menuButtonStyle(active) {
+function menuButtonStyle(active, collapsed) {
   return {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: collapsed ? "center" : "space-between",
     gap: 10,
     width: "100%",
     padding: "10px 12px",
@@ -479,4 +551,87 @@ const logoutButtonStyle = {
   color: "#b42318",
   fontWeight: 800,
   cursor: "pointer",
+};
+
+const mainBackgroundGridStyle = {
+  position: "absolute",
+  inset: 0,
+  backgroundImage: `
+    linear-gradient(rgba(15,39,68,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15,39,68,0.04) 1px, transparent 1px)
+  `,
+  backgroundSize: "74px 74px",
+  pointerEvents: "none",
+};
+
+const mainBackgroundGlowTopStyle = {
+  position: "absolute",
+  width: 680,
+  height: 680,
+  top: -250,
+  left: -120,
+  borderRadius: "50%",
+  background:
+    "radial-gradient(circle, rgba(10,110,209,.18) 0%, rgba(10,110,209,.06) 35%, rgba(10,110,209,0) 72%)",
+  filter: "blur(18px)",
+  pointerEvents: "none",
+};
+
+const mainBackgroundGlowBottomStyle = {
+  position: "absolute",
+  width: 760,
+  height: 760,
+  bottom: -330,
+  right: -180,
+  borderRadius: "50%",
+  background:
+    "radial-gradient(circle, rgba(15,39,68,.16) 0%, rgba(15,39,68,.05) 34%, rgba(15,39,68,0) 70%)",
+  filter: "blur(24px)",
+  pointerEvents: "none",
+};
+
+const mainBackgroundCircleOneStyle = {
+  position: "absolute",
+  top: 110,
+  right: 180,
+  width: 260,
+  height: 260,
+  borderRadius: "50%",
+  border: "1px solid rgba(15,39,68,.08)",
+  boxShadow: "0 0 0 28px rgba(15,39,68,.03), 0 0 0 56px rgba(15,39,68,.02)",
+  pointerEvents: "none",
+};
+
+const mainBackgroundCircleTwoStyle = {
+  position: "absolute",
+  bottom: 70,
+  left: 70,
+  width: 170,
+  height: 170,
+  borderRadius: "50%",
+  border: "1px solid rgba(15,39,68,.08)",
+  boxShadow: "0 0 0 20px rgba(15,39,68,.03), 0 0 0 40px rgba(15,39,68,.02)",
+  pointerEvents: "none",
+};
+
+const mainBackgroundLineOneStyle = {
+  position: "absolute",
+  left: 0,
+  top: 180,
+  width: "44%",
+  height: 2,
+  background:
+    "linear-gradient(90deg, rgba(15,39,68,0) 0%, rgba(15,39,68,.08) 20%, rgba(15,39,68,0) 100%)",
+  pointerEvents: "none",
+};
+
+const mainBackgroundLineTwoStyle = {
+  position: "absolute",
+  right: 0,
+  bottom: 160,
+  width: "38%",
+  height: 2,
+  background:
+    "linear-gradient(90deg, rgba(15,39,68,0) 0%, rgba(15,39,68,.08) 25%, rgba(15,39,68,0) 100%)",
+  pointerEvents: "none",
 };
