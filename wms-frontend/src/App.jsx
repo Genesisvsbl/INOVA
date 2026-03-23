@@ -26,11 +26,31 @@ import Conciliacion from "./pages/inventarios/Conciliacion";
 import Reconteos from "./pages/inventarios/Reconteos";
 import InformeInventario from "./pages/inventarios/InformeInventario";
 
+/* ✅ LOGIN */
+import LoginPage from "./pages/LoginPage";
+
+/* ✅ PROTECTOR SIMPLE */
+function PrivateRoute({ children }) {
+  const isAuth = localStorage.getItem("auth") === "true";
+  return isAuth ? children : <Navigate to="/login" replace />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Layout />}>
+        {/* ✅ LOGIN */}
+        <Route path="/login" element={<LoginPage />} />
+
+        {/* ✅ APP PROTEGIDA */}
+        <Route
+          path="/"
+          element={
+            <PrivateRoute>
+              <Layout />
+            </PrivateRoute>
+          }
+        >
           <Route index element={<Navigate to="datos-maestros" replace />} />
 
           {/* ================= DATOS MAESTROS ================= */}
