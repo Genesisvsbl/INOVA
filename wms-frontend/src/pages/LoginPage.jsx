@@ -216,6 +216,28 @@ export default function LoginPage() {
             "inventarios.conciliar",
           ],
         },
+        {
+          auth: "true",
+          userId: "5",
+          nombre: "Usuario Consulta",
+          usuario: "CONSULTA",
+          password: "123",
+          rol: "CONSULTA",
+          estado: "ACTIVO",
+          permisos: [
+            "usuarios.ver",
+            "roles.ver",
+            "auditoria.ver",
+            "materiales.ver",
+            "proveedores.ver",
+            "ubicaciones.ver",
+            "movimientos.ver",
+            "recibo.ver",
+            "despacho.ver",
+            "stock.ver",
+            "inventarios.ver",
+          ],
+        },
       ];
 
       const usuarioEncontrado = usuariosMock.find(
