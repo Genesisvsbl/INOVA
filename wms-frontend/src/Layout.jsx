@@ -29,7 +29,7 @@ const colors = {
 };
 
 const HEADER_HEIGHT = 56;
-const SIDEBAR_COLLAPSED = 76;
+const SIDEBAR_COLLAPSED = 50;
 const SIDEBAR_EXPANDED = 244;
 
 const sectionTitleStyle = {
@@ -579,7 +579,7 @@ function navItemStyle({ isActive }, expanded) {
     alignItems: "center",
     justifyContent: expanded ? "flex-start" : "center",
     gap: 10,
-    padding: expanded ? "10px 12px" : "10px 0",
+    padding: expanded ? "10px 12px" : "8px 0",
     borderRadius: 8,
     textDecoration: "none",
     color: isActive ? colors.activeText : colors.text,
