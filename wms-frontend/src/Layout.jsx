@@ -29,15 +29,16 @@ const colors = {
 };
 
 const HEADER_HEIGHT = 56;
-const SIDEBAR_COLLAPSED = 50;
-const SIDEBAR_EXPANDED = 244;
+const SIDEBAR_COLLAPSED = 32;
+const SIDEBAR_EXPANDED = 220;
+const HOTZONE_WIDTH = 10;
 
 const sectionTitleStyle = {
-  fontSize: 11,
+  fontSize: 10,
   fontWeight: 800,
   color: "#7a8797",
   letterSpacing: ".08em",
-  margin: "18px 10px 8px",
+  margin: "16px 8px 8px",
 };
 
 export default function Layout() {
@@ -296,6 +297,8 @@ export default function Layout() {
               zIndex: 1,
               width: "100%",
               minHeight: "100%",
+              paddingLeft: sidebarExpanded ? SIDEBAR_EXPANDED : SIDEBAR_COLLAPSED,
+              transition: "padding-left .22s ease",
             }}
           >
             <Outlet />
@@ -311,14 +314,14 @@ export default function Layout() {
               left: 0,
               top: 0,
               bottom: 0,
-              width: 16,
+              width: HOTZONE_WIDTH,
               zIndex: 69,
               background: "transparent",
             }}
           />
         )}
 
-        {/* SIDEBAR OVERLAY */}
+        {/* SIDEBAR */}
         <aside
           onMouseEnter={() => setSidebarHover(true)}
           onMouseLeave={() => {
@@ -332,43 +335,80 @@ export default function Layout() {
             width: sidebarExpanded ? SIDEBAR_EXPANDED : SIDEBAR_COLLAPSED,
             background: "rgba(255,255,255,0.97)",
             borderRight: `1px solid ${colors.line}`,
-            padding: 12,
+            padding: sidebarExpanded ? 10 : "8px 4px",
             overflowY: "auto",
             overflowX: "hidden",
-            transition: "width .22s ease",
+            transition: "width .22s ease, padding .22s ease",
             backdropFilter: "blur(12px)",
             zIndex: 70,
             boxShadow: sidebarExpanded
-              ? "16px 0 34px rgba(15,39,68,.10)"
-              : "6px 0 16px rgba(15,39,68,.05)",
+              ? "14px 0 28px rgba(15,39,68,.10)"
+              : "4px 0 10px rgba(15,39,68,.04)",
           }}
         >
           <div
             style={{
-              padding: sidebarExpanded ? 14 : 10,
-              borderRadius: 12,
-              background: "linear-gradient(180deg, #16385f 0%, #0f2744 100%)",
+              padding: sidebarExpanded ? 12 : 0,
+              borderRadius: sidebarExpanded ? 12 : 0,
+              background: sidebarExpanded
+                ? "linear-gradient(180deg, #16385f 0%, #0f2744 100%)"
+                : "transparent",
               color: "#fff",
-              marginBottom: 16,
-              border: "1px solid rgba(255,255,255,0.08)",
-              minHeight: 72,
+              marginBottom: sidebarExpanded ? 14 : 8,
+              border: sidebarExpanded
+                ? "1px solid rgba(255,255,255,0.08)"
+                : "none",
+              minHeight: sidebarExpanded ? 64 : 44,
               display: "flex",
               alignItems: "center",
-              justifyContent: sidebarExpanded ? "flex-start" : "center",
+              justifyContent: "center",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {sidebarExpanded ? (
               <div
                 style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 10,
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 10,
+                    overflow: "hidden",
+                    background: "rgba(255,255,255,0.12)",
+                    border: "1px solid rgba(255,255,255,0.16)",
+                    display: "grid",
+                    placeItems: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <img
+                    src="/INOVA.png"
+                    alt="INOVA"
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 800 }}>INOVA</div>
+                  <div style={{ fontSize: 11, opacity: 0.82, marginTop: 2 }}>
+                    Warehouse Management
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 7,
                   overflow: "hidden",
-                  background: "rgba(255,255,255,0.12)",
-                  border: "1px solid rgba(255,255,255,0.16)",
                   display: "grid",
                   placeItems: "center",
-                  flexShrink: 0,
                 }}
               >
                 <img
@@ -377,16 +417,7 @@ export default function Layout() {
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
               </div>
-
-              {sidebarExpanded && (
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 800 }}>INOVA</div>
-                  <div style={{ fontSize: 12, opacity: 0.82, marginTop: 2 }}>
-                    Warehouse Management
-                  </div>
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
           {sidebarExpanded && <div style={sectionTitleStyle}>OPERACIONES</div>}
@@ -413,9 +444,9 @@ export default function Layout() {
 
               {sidebarExpanded &&
                 (openMenus.datosMaestros ? (
-                  <ChevronDown size={16} />
+                  <ChevronDown size={15} />
                 ) : (
-                  <ChevronRight size={16} />
+                  <ChevronRight size={15} />
                 ))}
             </button>
 
@@ -454,9 +485,9 @@ export default function Layout() {
 
               {sidebarExpanded &&
                 (openMenus.movimientos ? (
-                  <ChevronDown size={16} />
+                  <ChevronDown size={15} />
                 ) : (
-                  <ChevronRight size={16} />
+                  <ChevronRight size={15} />
                 ))}
             </button>
 
@@ -495,9 +526,9 @@ export default function Layout() {
 
               {sidebarExpanded &&
                 (openMenus.inventarios ? (
-                  <ChevronDown size={16} />
+                  <ChevronDown size={15} />
                 ) : (
-                  <ChevronRight size={16} />
+                  <ChevronRight size={15} />
                 ))}
             </button>
 
@@ -579,15 +610,17 @@ function navItemStyle({ isActive }, expanded) {
     alignItems: "center",
     justifyContent: expanded ? "flex-start" : "center",
     gap: 10,
-    padding: expanded ? "10px 12px" : "8px 0",
+    width: "100%",
+    padding: expanded ? "9px 10px" : "8px 0",
     borderRadius: 8,
     textDecoration: "none",
     color: isActive ? colors.activeText : colors.text,
     background: isActive ? colors.activeBg : "transparent",
     border: `1px solid ${isActive ? "#cfe0ff" : "transparent"}`,
     fontWeight: isActive ? 700 : 600,
-    fontSize: 14,
-    minHeight: 42,
+    fontSize: 13,
+    minHeight: expanded ? 40 : 36,
+    transition: "all .18s ease",
   };
 }
 
@@ -598,15 +631,16 @@ function menuButtonStyle(active, expanded) {
     justifyContent: expanded ? "space-between" : "center",
     gap: 10,
     width: "100%",
-    padding: expanded ? "10px 12px" : "10px 0",
+    padding: expanded ? "9px 10px" : "8px 0",
     borderRadius: 8,
     color: active ? colors.activeText : colors.text,
     background: active ? colors.activeBg : "transparent",
     border: `1px solid ${active ? "#cfe0ff" : "transparent"}`,
     fontWeight: active ? 700 : 600,
-    fontSize: 14,
+    fontSize: 13,
     cursor: "pointer",
-    minHeight: 42,
+    minHeight: expanded ? 40 : 36,
+    transition: "all .18s ease",
   };
 }
 
@@ -614,15 +648,16 @@ const childNavItemStyle = ({ isActive }) => ({
   display: "flex",
   alignItems: "center",
   gap: 10,
-  padding: "9px 12px 9px 38px",
+  padding: "8px 10px 8px 34px",
   borderRadius: 8,
   textDecoration: "none",
   color: isActive ? colors.activeText : colors.text,
   background: isActive ? colors.activeBg : "transparent",
   border: `1px solid ${isActive ? "#cfe0ff" : "transparent"}`,
   fontWeight: isActive ? 700 : 600,
-  fontSize: 13,
-  minHeight: 38,
+  fontSize: 12.5,
+  minHeight: 34,
+  transition: "all .18s ease",
 });
 
 const logoutButtonStyle = {
