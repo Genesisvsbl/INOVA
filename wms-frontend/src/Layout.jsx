@@ -13,6 +13,9 @@ import {
   Home,
   PanelLeftClose,
   PanelLeftOpen,
+  Users,
+  ShieldCheck,
+  FileText,
 } from "lucide-react";
 
 const colors = {
@@ -56,6 +59,13 @@ export default function Layout() {
 
   const usuario = sessionStorage.getItem("usuario") || "Usuario";
   const rol = sessionStorage.getItem("rol") || "OPERATIVO";
+  const permisos = JSON.parse(sessionStorage.getItem("permisos") || "[]");
+
+  const puedeVerAdmin =
+    rol === "SUPER_ADMIN" ||
+    permisos.includes("usuarios.ver") ||
+    permisos.includes("roles.ver") ||
+    permisos.includes("auditoria.ver");
 
   const sidebarExpanded = sidebarPinned || sidebarHover;
 
@@ -71,6 +81,21 @@ export default function Layout() {
 
   const isInventariosActive = useMemo(
     () => location.pathname.startsWith("/inventarios"),
+    [location.pathname]
+  );
+
+  const isAdminUsuariosActive = useMemo(
+    () => location.pathname.startsWith("/admin/usuarios"),
+    [location.pathname]
+  );
+
+  const isAdminRolesActive = useMemo(
+    () => location.pathname.startsWith("/admin/roles"),
+    [location.pathname]
+  );
+
+  const isAdminAuditoriaActive = useMemo(
+    () => location.pathname.startsWith("/admin/auditoria"),
     [location.pathname]
   );
 
@@ -556,6 +581,56 @@ export default function Layout() {
                   <span>Informe inventario</span>
                 </NavLink>
               </div>
+            )}
+
+            {puedeVerAdmin && sidebarExpanded && (
+              <div style={sectionTitleStyle}>ADMINISTRACIÓN</div>
+            )}
+
+            {puedeVerAdmin && (
+              <>
+                <NavLink
+                  to="/admin/usuarios"
+                  style={() =>
+                    navItemStyle(
+                      { isActive: isAdminUsuariosActive },
+                      sidebarExpanded
+                    )
+                  }
+                  title="Usuarios"
+                >
+                  <Users size={16} />
+                  {sidebarExpanded && <span>Usuarios</span>}
+                </NavLink>
+
+                <NavLink
+                  to="/admin/roles"
+                  style={() =>
+                    navItemStyle(
+                      { isActive: isAdminRolesActive },
+                      sidebarExpanded
+                    )
+                  }
+                  title="Roles"
+                >
+                  <ShieldCheck size={16} />
+                  {sidebarExpanded && <span>Roles</span>}
+                </NavLink>
+
+                <NavLink
+                  to="/admin/auditoria"
+                  style={() =>
+                    navItemStyle(
+                      { isActive: isAdminAuditoriaActive },
+                      sidebarExpanded
+                    )
+                  }
+                  title="Auditoría"
+                >
+                  <FileText size={16} />
+                  {sidebarExpanded && <span>Auditoría</span>}
+                </NavLink>
+              </>
             )}
           </nav>
 

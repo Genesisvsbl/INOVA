@@ -25,7 +25,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     const yaAutenticado = sessionStorage.getItem("auth") === "true";
-    if (yaAutenticado) {
+    const estado = sessionStorage.getItem("estado");
+
+    if (yaAutenticado && estado === "ACTIVO") {
       window.location.href = "/";
     }
   }, []);
@@ -41,10 +43,68 @@ export default function LoginPage() {
     setLoading(true);
 
     setTimeout(() => {
+      // Usuario actual de prueba / super administradora
       if (usuario === "Gvisbal" && password === "768") {
-        sessionStorage.setItem("auth", "true");
-        sessionStorage.setItem("rol", "SUPER_ADMIN");
-        sessionStorage.setItem("usuario", "Gvisbal");
+        const usuarioLogueado = {
+          auth: "true",
+          userId: "1",
+          nombre: "Gineth Visbal",
+          usuario: "Gvisbal",
+          rol: "SUPER_ADMIN",
+          estado: "ACTIVO",
+          permisos: [
+            "usuarios.ver",
+            "usuarios.crear",
+            "usuarios.editar",
+            "usuarios.bloquear",
+            "usuarios.activar",
+            "usuarios.resetear_clave",
+            "roles.ver",
+            "roles.crear",
+            "roles.editar",
+            "auditoria.ver",
+            "materiales.ver",
+            "materiales.crear",
+            "materiales.editar",
+            "materiales.eliminar",
+            "proveedores.ver",
+            "proveedores.crear",
+            "proveedores.editar",
+            "ubicaciones.ver",
+            "ubicaciones.crear",
+            "ubicaciones.editar",
+            "movimientos.ver",
+            "recibo.ver",
+            "recibo.crear",
+            "recibo.confirmar",
+            "despacho.ver",
+            "despacho.crear",
+            "despacho.confirmar",
+            "stock.ver",
+            "inventarios.ver",
+            "inventarios.crear",
+            "inventarios.contar",
+            "inventarios.conciliar",
+          ],
+        };
+
+        if (usuarioLogueado.estado !== "ACTIVO") {
+          setError("Tu usuario no tiene acceso al sistema.");
+          setLoading(false);
+          return;
+        }
+
+        sessionStorage.setItem("auth", usuarioLogueado.auth);
+        sessionStorage.setItem("userId", usuarioLogueado.userId);
+        sessionStorage.setItem("nombre", usuarioLogueado.nombre);
+        sessionStorage.setItem("usuario", usuarioLogueado.usuario);
+        sessionStorage.setItem("rol", usuarioLogueado.rol);
+        sessionStorage.setItem("estado", usuarioLogueado.estado);
+        sessionStorage.setItem(
+          "permisos",
+          JSON.stringify(usuarioLogueado.permisos)
+        );
+
         window.location.href = "/";
       } else {
         setError("Credenciales incorrectas.");
