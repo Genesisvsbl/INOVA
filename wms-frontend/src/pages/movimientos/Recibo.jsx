@@ -93,11 +93,6 @@ function formatMoney(n) {
   return fmtCO.format(x);
 }
 
-const USUARIOS = {
-  "*768*": "Darwin Herrera",
-  "*999*": "Admin",
-};
-
 const EMPAQUES = ["CAJA", "CANECA", "ROLLO", "BULTO", "PALLETS", "ISOTANQUES", "BIG BAG"];
 
 const DRAFT_KEY = "wms_recibo_draft";
@@ -315,20 +310,23 @@ export default function Recibo() {
   const [errores, setErrores] = useState({});
 
   useEffect(() => {
-    const saved = localStorage.getItem("wms_user");
-    if (saved) {
-      setUsuario(saved);
+    const auth = sessionStorage.getItem("auth");
+    const estado = sessionStorage.getItem("estado");
+    const nombreSesion = sessionStorage.getItem("nombre");
+    const usuarioSesion = sessionStorage.getItem("usuario");
+
+    if (auth !== "true" || estado !== "ACTIVO") {
+      navigate("/login", { replace: true });
       return;
     }
-    const clave = prompt('Ingrese su clave (ej: "*768*")');
-    const nombre = USUARIOS[clave?.trim()] || "";
-    if (!nombre) {
-      alert("Clave inválida.");
-      return;
+
+    const usuarioActivo = nombreSesion || usuarioSesion || "";
+    setUsuario(usuarioActivo);
+
+    if (!usuarioActivo) {
+      navigate("/login", { replace: true });
     }
-    localStorage.setItem("wms_user", nombre);
-    setUsuario(nombre);
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     getProveedores()
@@ -558,7 +556,7 @@ export default function Recibo() {
 
     if (!header.proveedor_id) errs.proveedor = "Proveedor obligatorio.";
     if (!header.acreedor) errs.acreedor = "Acreedor obligatorio.";
-    if (!usuario) errs.usuario = "Usuario no identificado (clave).";
+    if (!usuario) errs.usuario = "Usuario no identificado en sesión.";
 
     lineas.forEach((ln, idx) => {
       if (!ln.codigo) errs[`codigo_${idx}`] = "Código obligatorio.";
@@ -1388,6 +1386,11 @@ export default function Recibo() {
                       <User size={14} color={colors.muted} />
                       <span>{usuario || "(sin usuario)"}</span>
                     </div>
+                    {!!errores.usuario && (
+                      <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                        {errores.usuario}
+                      </div>
+                    )}
                   </div>
 
                   <div>
