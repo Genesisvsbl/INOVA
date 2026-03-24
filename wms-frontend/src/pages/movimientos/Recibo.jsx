@@ -93,7 +93,15 @@ function formatMoney(n) {
   return fmtCO.format(x);
 }
 
-const EMPAQUES = ["CAJA", "CANECA", "ROLLO", "BULTO", "PALLETS", "ISOTANQUES", "BIG BAG"];
+const EMPAQUES = [
+  "CAJA",
+  "CANECA",
+  "ROLLO",
+  "BULTO",
+  "PALLETS",
+  "ISOTANQUES",
+  "BIG BAG",
+];
 
 const DRAFT_KEY = "wms_recibo_draft";
 
@@ -312,20 +320,14 @@ export default function Recibo() {
   useEffect(() => {
     const auth = sessionStorage.getItem("auth");
     const estado = sessionStorage.getItem("estado");
-    const nombreSesion = sessionStorage.getItem("nombre");
     const usuarioSesion = sessionStorage.getItem("usuario");
 
-    if (auth !== "true" || estado !== "ACTIVO") {
+    if (auth !== "true" || estado !== "ACTIVO" || !usuarioSesion) {
       navigate("/login", { replace: true });
       return;
     }
 
-    const usuarioActivo = nombreSesion || usuarioSesion || "";
-    setUsuario(usuarioActivo);
-
-    if (!usuarioActivo) {
-      navigate("/login", { replace: true });
-    }
+    setUsuario(usuarioSesion);
   }, [navigate]);
 
   useEffect(() => {
@@ -379,7 +381,6 @@ export default function Recibo() {
       // nada
     }
 
-    // obliga seleccionar siempre
     setTipoRecibo("");
   }, []);
 
@@ -402,8 +403,10 @@ export default function Recibo() {
     if (tipoRecibo === "recibo") {
       setHeader((prev) => ({
         ...prev,
-        remesa_transp: prev.remesa_transp === "**********" ? "" : prev.remesa_transp,
-        orden_compra: prev.orden_compra === "**********" ? "" : prev.orden_compra,
+        remesa_transp:
+          prev.remesa_transp === "**********" ? "" : prev.remesa_transp,
+        orden_compra:
+          prev.orden_compra === "**********" ? "" : prev.orden_compra,
       }));
     }
   }, [tipoRecibo]);
@@ -441,7 +444,10 @@ export default function Recibo() {
   };
 
   const onField10Blur = (key) => {
-    if (tipoRecibo === "devolucion" && (key === "remesa_transp" || key === "orden_compra")) {
+    if (
+      tipoRecibo === "devolucion" &&
+      (key === "remesa_transp" || key === "orden_compra")
+    ) {
       setHeaderField(key, "**********");
       return;
     }
@@ -449,14 +455,17 @@ export default function Recibo() {
   };
 
   const setLinea = (idx, patch) => {
-    setLineas((prev) => prev.map((ln, i) => (i === idx ? { ...ln, ...patch } : ln)));
+    setLineas((prev) =>
+      prev.map((ln, i) => (i === idx ? { ...ln, ...patch } : ln))
+    );
   };
 
   const addLinea = () => {
     setLineas((prev) => [...prev, createEmptyLinea()]);
   };
 
-  const removeLinea = (idx) => setLineas((prev) => prev.filter((_, i) => i !== idx));
+  const removeLinea = (idx) =>
+    setLineas((prev) => prev.filter((_, i) => i !== idx));
 
   const recomputeTotal = (umb, cantidad) => {
     const u = Number(umb);
@@ -503,7 +512,13 @@ export default function Recibo() {
   const onCantidadChange = (idx, value) => {
     setLineas((prev) =>
       prev.map((ln, i) =>
-        i === idx ? { ...ln, cantidad: value, total: recomputeTotal(ln.umb, value) } : ln
+        i === idx
+          ? {
+              ...ln,
+              cantidad: value,
+              total: recomputeTotal(ln.umb, value),
+            }
+          : ln
       )
     );
   };
@@ -516,7 +531,10 @@ export default function Recibo() {
     });
 
     if ((value ?? "").toString().length > 10) {
-      setErrores((e) => ({ ...e, [`loteprov_${idx}`]: "Lote proveedor máximo 10 caracteres." }));
+      setErrores((e) => ({
+        ...e,
+        [`loteprov_${idx}`]: "Lote proveedor máximo 10 caracteres.",
+      }));
     } else {
       setErrores((e) => {
         const copy = { ...e };
@@ -529,18 +547,21 @@ export default function Recibo() {
   const validarAntesDeContinuar = () => {
     const errs = {};
 
-    if (!tipoRecibo) errs.tipoRecibo = "Debes seleccionar Recibo o Devolución.";
+    if (!tipoRecibo)
+      errs.tipoRecibo = "Debes seleccionar Recibo o Devolución.";
 
     ["documento"].forEach((k) => {
       if (!header[k] || header[k].length !== 10) {
-        errs[k] = "Debe quedar exactamente de 10 caracteres (se rellena con *).";
+        errs[k] =
+          "Debe quedar exactamente de 10 caracteres (se rellena con *).";
       }
     });
 
     if (tipoRecibo === "recibo") {
       ["remesa_transp", "orden_compra"].forEach((k) => {
         if (!header[k] || header[k].length !== 10) {
-          errs[k] = "Debe quedar exactamente de 10 caracteres (se rellena con *).";
+          errs[k] =
+            "Debe quedar exactamente de 10 caracteres (se rellena con *).";
         }
       });
     }
@@ -561,13 +582,16 @@ export default function Recibo() {
     lineas.forEach((ln, idx) => {
       if (!ln.codigo) errs[`codigo_${idx}`] = "Código obligatorio.";
       if (!ln.empaque) errs[`empaque_${idx}`] = "Empaque obligatorio.";
-      if (!ln.cantidad || Number(ln.cantidad) <= 0) errs[`cantidad_${idx}`] = "Cantidad > 0 obligatoria.";
-      if (!ln.umb || Number(ln.umb) <= 0) errs[`umb_${idx}`] = "UMB (valor) > 0 obligatoria.";
+      if (!ln.cantidad || Number(ln.cantidad) <= 0)
+        errs[`cantidad_${idx}`] = "Cantidad > 0 obligatoria.";
+      if (!ln.umb || Number(ln.umb) <= 0)
+        errs[`umb_${idx}`] = "UMB (valor) > 0 obligatoria.";
 
       if ((ln.lote_proveedor ?? "").toString().trim().length !== 10) {
         errs[`loteprov_${idx}`] = "Lote proveedor debe ser exactamente 10.";
       }
-      if (!ln.fecha_vencimiento) errs[`fv_${idx}`] = "Fecha vencimiento obligatoria.";
+      if (!ln.fecha_vencimiento)
+        errs[`fv_${idx}`] = "Fecha vencimiento obligatoria.";
     });
 
     setErrores(errs);
@@ -652,7 +676,9 @@ export default function Recibo() {
             <td style="text-align:right;">${escapeHtml(ln.umb)}</td>
             <td>${escapeHtml(ln.um)}</td>
             <td style="text-align:right;">${escapeHtml(ln.cantidad)}</td>
-            <td style="text-align:right;">${escapeHtml(formatMoney(ln.total || 0))}</td>
+            <td style="text-align:right;">${escapeHtml(
+              formatMoney(ln.total || 0)
+            )}</td>
             <td>${escapeHtml(ln.lote_proveedor)}</td>
             <td>${escapeHtml(formatDateDisplay(ln.fecha_fabricacion))}</td>
             <td>${escapeHtml(formatDateDisplay(ln.fecha_vencimiento))}</td>
@@ -701,13 +727,17 @@ export default function Recibo() {
 
                 <div class="id-main-cell right">
                   <div class="id-label-mini">CANTIDAD</div>
-                  <div class="id-main-value">${escapeHtml(cantidad || "0,00")}</div>
+                  <div class="id-main-value">${escapeHtml(
+                    cantidad || "0,00"
+                  )}</div>
                 </div>
               </div>
 
               <div class="id-description-block">
                 <div class="id-label-mini">DESCRIPCIÓN</div>
-                <div class="id-description-text">${escapeHtml(descripcion || "-")}</div>
+                <div class="id-description-text">${escapeHtml(
+                  descripcion || "-"
+                )}</div>
               </div>
 
               <div class="barcode-section">
@@ -715,7 +745,9 @@ export default function Recibo() {
                 <div class="barcode-box">
                   <svg id="barcode-fv-${idx}"></svg>
                 </div>
-                <div class="barcode-caption">${escapeHtml(fechaVenc || "-")}</div>
+                <div class="barcode-caption">${escapeHtml(
+                  fechaVenc || "-"
+                )}</div>
               </div>
 
               <div class="barcode-section">
@@ -723,12 +755,18 @@ export default function Recibo() {
                 <div class="barcode-box">
                   <svg id="barcode-lp-${idx}"></svg>
                 </div>
-                <div class="barcode-caption">${escapeHtml(loteProveedorClean || "-")}</div>
+                <div class="barcode-caption">${escapeHtml(
+                  loteProveedorClean || "-"
+                )}</div>
               </div>
 
               <div class="id-footer">
-                <div><b>Proveedor:</b> ${escapeHtml(header.proveedor || "-")}</div>
-                <div><b>Documento:</b> ${escapeHtml(header.documento || "-")}</div>
+                <div><b>Proveedor:</b> ${escapeHtml(
+                  header.proveedor || "-"
+                )}</div>
+                <div><b>Documento:</b> ${escapeHtml(
+                  header.documento || "-"
+                )}</div>
               </div>
             </div>
           </section>
@@ -740,7 +778,9 @@ export default function Recibo() {
   const buildBarcodeScript = () => {
     return lineas
       .map((ln, idx) => {
-        const fechaVenc = JSON.stringify(formatDateDots(ln.fecha_vencimiento) || "SIN.FECHA");
+        const fechaVenc = JSON.stringify(
+          formatDateDots(ln.fecha_vencimiento) || "SIN.FECHA"
+        );
         const loteProveedorClean = JSON.stringify(
           cleanBarcodeValue(ln.lote_proveedor || "") || "VACIO"
         );
@@ -787,7 +827,8 @@ export default function Recibo() {
     }
 
     const proveedorNombre =
-      proveedores.find((x) => String(x.id) === String(header.proveedor_id))?.nombre ||
+      proveedores.find((x) => String(x.id) === String(header.proveedor_id))
+        ?.nombre ||
       header.proveedor ||
       "";
 
@@ -1109,7 +1150,11 @@ export default function Recibo() {
 
                 <div>
                   <div class="receipt-title">
-                    ${escapeHtml(tipoRecibo === "devolucion" ? "DEVOLUCIÓN" : "RECIBO CIEGO")}
+                    ${escapeHtml(
+                      tipoRecibo === "devolucion"
+                        ? "DEVOLUCIÓN"
+                        : "RECIBO CIEGO"
+                    )}
                   </div>
                   <div class="receipt-subtitle">
                     Formato de recepción y trazabilidad de ingreso
@@ -1128,12 +1173,16 @@ export default function Recibo() {
             <div class="receipt-summary">
               <div class="summary-card">
                 <div class="summary-label">Proveedor</div>
-                <div class="summary-value">${escapeHtml(proveedorNombre || "-")}</div>
+                <div class="summary-value">${escapeHtml(
+                  proveedorNombre || "-"
+                )}</div>
               </div>
 
               <div class="summary-card">
                 <div class="summary-label">Serial</div>
-                <div class="summary-value">${escapeHtml(header.serial || "-")}</div>
+                <div class="summary-value">${escapeHtml(
+                  header.serial || "-"
+                )}</div>
               </div>
 
               <div class="summary-card">
@@ -1143,7 +1192,9 @@ export default function Recibo() {
 
               <div class="summary-card">
                 <div class="summary-label">Total</div>
-                <div class="summary-value">${escapeHtml(formatMoney(totalRecibo))}</div>
+                <div class="summary-value">${escapeHtml(
+                  formatMoney(totalRecibo)
+                )}</div>
               </div>
             </div>
 
@@ -1269,7 +1320,8 @@ export default function Recibo() {
                   marginTop: 4,
                 }}
               >
-                Registro de entrada con impresión, trazabilidad y preparación para asignación de ubicación.
+                Registro de entrada con impresión, trazabilidad y preparación
+                para asignación de ubicación.
               </div>
             </div>
           </div>
@@ -1291,13 +1343,21 @@ export default function Recibo() {
         </div>
 
         <div style={panelBodyStyle}>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              flexWrap: "wrap",
+              marginBottom: 14,
+            }}
+          >
             <button
               type="button"
               onClick={() => setTipoRecibo("recibo")}
               style={{
                 ...secondaryButtonStyle,
-                borderColor: tipoRecibo === "recibo" ? "#cfe0ff" : colors.border,
+                borderColor:
+                  tipoRecibo === "recibo" ? "#cfe0ff" : colors.border,
                 background: tipoRecibo === "recibo" ? "#eaf3ff" : "#fff",
                 color: tipoRecibo === "recibo" ? colors.blue : colors.text,
               }}
@@ -1311,18 +1371,27 @@ export default function Recibo() {
               onClick={() => setTipoRecibo("devolucion")}
               style={{
                 ...secondaryButtonStyle,
-                borderColor: tipoRecibo === "devolucion" ? "#cfe0ff" : colors.border,
-                background: tipoRecibo === "devolucion" ? "#eaf3ff" : "#fff",
-                color: tipoRecibo === "devolucion" ? colors.blue : colors.text,
+                borderColor:
+                  tipoRecibo === "devolucion" ? "#cfe0ff" : colors.border,
+                background:
+                  tipoRecibo === "devolucion" ? "#eaf3ff" : "#fff",
+                color:
+                  tipoRecibo === "devolucion" ? colors.blue : colors.text,
               }}
             >
               <RotateCcw size={15} />
               Devolución
             </button>
 
-            {!tipoRecibo && <StatusChip label="Debes seleccionar tipo" tone="amber" />}
-            {tipoRecibo === "recibo" && <StatusChip label="Modo recibo" tone="blue" />}
-            {tipoRecibo === "devolucion" && <StatusChip label="Modo devolución" tone="green" />}
+            {!tipoRecibo && (
+              <StatusChip label="Debes seleccionar tipo" tone="amber" />
+            )}
+            {tipoRecibo === "recibo" && (
+              <StatusChip label="Modo recibo" tone="blue" />
+            )}
+            {tipoRecibo === "devolucion" && (
+              <StatusChip label="Modo devolución" tone="green" />
+            )}
           </div>
 
           {!!errores.tipoRecibo && (
@@ -1354,7 +1423,8 @@ export default function Recibo() {
                 fontWeight: 600,
               }}
             >
-              Selecciona primero <b>Recibo</b> o <b>Devolución</b> para continuar.
+              Selecciona primero <b>Recibo</b> o <b>Devolución</b> para
+              continuar.
             </div>
           )}
         </div>
@@ -1362,7 +1432,13 @@ export default function Recibo() {
 
       {tipoRecibo && (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 16 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1.2fr 1fr",
+              gap: 16,
+            }}
+          >
             <div style={panelStyle}>
               <div style={panelHeaderStyle}>Cabecera del documento</div>
               <div style={panelBodyStyle}>
@@ -1387,7 +1463,14 @@ export default function Recibo() {
                       <span>{usuario || "(sin usuario)"}</span>
                     </div>
                     {!!errores.usuario && (
-                      <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                      <div
+                        style={{
+                          marginTop: 6,
+                          color: colors.bad,
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                      >
                         {errores.usuario}
                       </div>
                     )}
@@ -1397,7 +1480,12 @@ export default function Recibo() {
                     <div style={fieldLabelStyle}>Serial</div>
                     <input
                       value={header.serial}
-                      onChange={(e) => setHeaderField("serial", clampMaxLen(e.target.value, 10))}
+                      onChange={(e) =>
+                        setHeaderField(
+                          "serial",
+                          clampMaxLen(e.target.value, 10)
+                        )
+                      }
                       style={inputStyle}
                     />
                   </div>
@@ -1417,7 +1505,14 @@ export default function Recibo() {
                       ))}
                     </select>
                     {!!errores.proveedor && (
-                      <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                      <div
+                        style={{
+                          marginTop: 6,
+                          color: colors.bad,
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                      >
                         {errores.proveedor}
                       </div>
                     )}
@@ -1432,7 +1527,14 @@ export default function Recibo() {
                       style={readOnlyInputStyle}
                     />
                     {!!errores.acreedor && (
-                      <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                      <div
+                        style={{
+                          marginTop: 6,
+                          color: colors.bad,
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                      >
                         {errores.acreedor}
                       </div>
                     )}
@@ -1496,17 +1598,27 @@ export default function Recibo() {
                     <div style={fieldLabelStyle}>Remesa transporte (10)</div>
                     <input
                       value={header.remesa_transp}
-                      onChange={(e) => onField10Change("remesa_transp", e.target.value)}
+                      onChange={(e) =>
+                        onField10Change("remesa_transp", e.target.value)
+                      }
                       onBlur={() => onField10Blur("remesa_transp")}
                       maxLength={10}
                       disabled={tipoRecibo === "devolucion"}
                       style={{
                         ...inputStyle,
-                        background: tipoRecibo === "devolucion" ? "#f8fafc" : "#fff",
+                        background:
+                          tipoRecibo === "devolucion" ? "#f8fafc" : "#fff",
                       }}
                     />
                     {!!errores.remesa_transp && (
-                      <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                      <div
+                        style={{
+                          marginTop: 6,
+                          color: colors.bad,
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                      >
                         {errores.remesa_transp}
                       </div>
                     )}
@@ -1516,13 +1628,22 @@ export default function Recibo() {
                     <div style={fieldLabelStyle}>Documento (10)</div>
                     <input
                       value={header.documento}
-                      onChange={(e) => onField10Change("documento", e.target.value)}
+                      onChange={(e) =>
+                        onField10Change("documento", e.target.value)
+                      }
                       onBlur={() => onField10Blur("documento")}
                       maxLength={10}
                       style={inputStyle}
                     />
                     {!!errores.documento && (
-                      <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                      <div
+                        style={{
+                          marginTop: 6,
+                          color: colors.bad,
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                      >
                         {errores.documento}
                       </div>
                     )}
@@ -1532,17 +1653,27 @@ export default function Recibo() {
                     <div style={fieldLabelStyle}>Orden de compra (10)</div>
                     <input
                       value={header.orden_compra}
-                      onChange={(e) => onField10Change("orden_compra", e.target.value)}
+                      onChange={(e) =>
+                        onField10Change("orden_compra", e.target.value)
+                      }
                       onBlur={() => onField10Blur("orden_compra")}
                       maxLength={10}
                       disabled={tipoRecibo === "devolucion"}
                       style={{
                         ...inputStyle,
-                        background: tipoRecibo === "devolucion" ? "#f8fafc" : "#fff",
+                        background:
+                          tipoRecibo === "devolucion" ? "#f8fafc" : "#fff",
                       }}
                     />
                     {!!errores.orden_compra && (
-                      <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                      <div
+                        style={{
+                          marginTop: 6,
+                          color: colors.bad,
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                      >
                         {errores.orden_compra}
                       </div>
                     )}
@@ -1550,8 +1681,16 @@ export default function Recibo() {
 
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <StatusChip label={`Líneas: ${lineas.length}`} tone="blue" />
-                    <StatusChip label={`Usuario: ${usuario || "-"}`} tone="green" />
-                    {tipoRecibo === "devolucion" && <StatusChip label="Remesa y OC bloqueadas" tone="amber" />}
+                    <StatusChip
+                      label={`Usuario: ${usuario || "-"}`}
+                      tone="green"
+                    />
+                    {tipoRecibo === "devolucion" && (
+                      <StatusChip
+                        label="Remesa y OC bloqueadas"
+                        tone="amber"
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -1584,7 +1723,13 @@ export default function Recibo() {
             </div>
 
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1850 }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  minWidth: 1850,
+                }}
+              >
                 <thead>
                   <tr>
                     <th style={thStyle}># Serial</th>
@@ -1629,7 +1774,14 @@ export default function Recibo() {
                           style={{ ...inputStyle, width: 130 }}
                         />
                         {!!errores[`codigo_${idx}`] && (
-                          <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                          <div
+                            style={{
+                              marginTop: 6,
+                              color: colors.bad,
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}
+                          >
                             {errores[`codigo_${idx}`]}
                           </div>
                         )}
@@ -1644,7 +1796,9 @@ export default function Recibo() {
                       <td style={tdStyle}>
                         <select
                           value={ln.empaque}
-                          onChange={(e) => setLinea(idx, { empaque: e.target.value })}
+                          onChange={(e) =>
+                            setLinea(idx, { empaque: e.target.value })
+                          }
                           style={{ ...selectStyle, width: 150 }}
                         >
                           <option value="">Seleccione...</option>
@@ -1655,7 +1809,14 @@ export default function Recibo() {
                           ))}
                         </select>
                         {!!errores[`empaque_${idx}`] && (
-                          <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                          <div
+                            style={{
+                              marginTop: 6,
+                              color: colors.bad,
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}
+                          >
                             {errores[`empaque_${idx}`]}
                           </div>
                         )}
@@ -1667,12 +1828,21 @@ export default function Recibo() {
                           onChange={(e) => onUmbChange(idx, e.target.value)}
                           readOnly={ln.umb_bloqueado}
                           style={{
-                            ...(ln.umb_bloqueado ? readOnlyInputStyle : inputStyle),
+                            ...(ln.umb_bloqueado
+                              ? readOnlyInputStyle
+                              : inputStyle),
                             width: 95,
                           }}
                         />
                         {!!errores[`umb_${idx}`] && (
-                          <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                          <div
+                            style={{
+                              marginTop: 6,
+                              color: colors.bad,
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}
+                          >
                             {errores[`umb_${idx}`]}
                           </div>
                         )}
@@ -1688,11 +1858,20 @@ export default function Recibo() {
                         <input
                           type="number"
                           value={ln.cantidad}
-                          onChange={(e) => onCantidadChange(idx, e.target.value)}
+                          onChange={(e) =>
+                            onCantidadChange(idx, e.target.value)
+                          }
                           style={{ ...inputStyle, width: 115 }}
                         />
                         {!!errores[`cantidad_${idx}`] && (
-                          <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                          <div
+                            style={{
+                              marginTop: 6,
+                              color: colors.bad,
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}
+                          >
                             {errores[`cantidad_${idx}`]}
                           </div>
                         )}
@@ -1707,16 +1886,29 @@ export default function Recibo() {
                       <td style={tdStyle}>
                         <input
                           value={ln.lote_proveedor}
-                          onChange={(e) => onLoteProveedorChange(idx, e.target.value)}
+                          onChange={(e) =>
+                            onLoteProveedorChange(idx, e.target.value)
+                          }
                           onBlur={() =>
-                            setLinea(idx, { lote_proveedor: pad10WithStarsAny(ln.lote_proveedor) })
+                            setLinea(idx, {
+                              lote_proveedor: pad10WithStarsAny(
+                                ln.lote_proveedor
+                              ),
+                            })
                           }
                           maxLength={10}
                           placeholder="10 caracteres"
                           style={{ ...inputStyle, width: 165 }}
                         />
                         {!!errores[`loteprov_${idx}`] && (
-                          <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                          <div
+                            style={{
+                              marginTop: 6,
+                              color: colors.bad,
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}
+                          >
                             {errores[`loteprov_${idx}`]}
                           </div>
                         )}
@@ -1725,7 +1917,11 @@ export default function Recibo() {
                         <input
                           type="date"
                           value={ln.fecha_fabricacion}
-                          onChange={(e) => setLinea(idx, { fecha_fabricacion: e.target.value })}
+                          onChange={(e) =>
+                            setLinea(idx, {
+                              fecha_fabricacion: e.target.value,
+                            })
+                          }
                           style={{ ...inputStyle, width: 145 }}
                         />
                       </td>
@@ -1733,11 +1929,22 @@ export default function Recibo() {
                         <input
                           type="date"
                           value={ln.fecha_vencimiento}
-                          onChange={(e) => setLinea(idx, { fecha_vencimiento: e.target.value })}
+                          onChange={(e) =>
+                            setLinea(idx, {
+                              fecha_vencimiento: e.target.value,
+                            })
+                          }
                           style={{ ...inputStyle, width: 145 }}
                         />
                         {!!errores[`fv_${idx}`] && (
-                          <div style={{ marginTop: 6, color: colors.bad, fontSize: 12, fontWeight: 700 }}>
+                          <div
+                            style={{
+                              marginTop: 6,
+                              color: colors.bad,
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}
+                          >
                             {errores[`fv_${idx}`]}
                           </div>
                         )}
@@ -1749,7 +1956,10 @@ export default function Recibo() {
                           style={{
                             ...dangerButtonStyle,
                             opacity: lineas.length === 1 ? 0.55 : 1,
-                            cursor: lineas.length === 1 ? "not-allowed" : "pointer",
+                            cursor:
+                              lineas.length === 1
+                                ? "not-allowed"
+                                : "pointer",
                           }}
                         >
                           <Trash2 size={14} />
@@ -1771,9 +1981,23 @@ export default function Recibo() {
             </div>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            <div style={{ color: colors.muted, fontSize: 12, fontWeight: 600 }}>
-              El flujo, la impresión y el guardado hacia asignación de ubicación se conservan igual.
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div
+              style={{
+                color: colors.muted,
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              El flujo, la impresión y el guardado hacia asignación de ubicación
+              se conservan igual.
             </div>
 
             <div style={{ display: "flex", gap: 8 }}>
