@@ -43,13 +43,13 @@ export default function LoginPage() {
     setLoading(true);
 
     setTimeout(() => {
-      // Usuario actual de prueba / super administradora
-      if (usuario === "Gvisbal" && password === "768") {
-        const usuarioLogueado = {
+      const usuariosMock = [
+        {
           auth: "true",
           userId: "1",
           nombre: "Gineth Visbal",
           usuario: "Gvisbal",
+          password: "768",
           rol: "SUPER_ADMIN",
           estado: "ACTIVO",
           permisos: [
@@ -86,30 +86,168 @@ export default function LoginPage() {
             "inventarios.contar",
             "inventarios.conciliar",
           ],
-        };
+        },
+        {
+          auth: "true",
+          userId: "2",
+          nombre: "Luis Florez",
+          usuario: "Lflorez",
+          password: "429",
+          rol: "ADMIN_WMS",
+          estado: "ACTIVO",
+          permisos: [
+            "usuarios.ver",
+            "usuarios.crear",
+            "usuarios.editar",
+            "usuarios.bloquear",
+            "usuarios.activar",
+            "usuarios.resetear_clave",
+            "roles.ver",
+            "roles.crear",
+            "roles.editar",
+            "auditoria.ver",
+            "materiales.ver",
+            "materiales.crear",
+            "materiales.editar",
+            "materiales.eliminar",
+            "proveedores.ver",
+            "proveedores.crear",
+            "proveedores.editar",
+            "ubicaciones.ver",
+            "ubicaciones.crear",
+            "ubicaciones.editar",
+            "movimientos.ver",
+            "recibo.ver",
+            "recibo.crear",
+            "recibo.confirmar",
+            "despacho.ver",
+            "despacho.crear",
+            "despacho.confirmar",
+            "stock.ver",
+            "inventarios.ver",
+            "inventarios.crear",
+            "inventarios.contar",
+            "inventarios.conciliar",
+          ],
+        },
+        {
+          auth: "true",
+          userId: "3",
+          nombre: "Juan Griego",
+          usuario: "Jgriego",
+          password: "958",
+          rol: "ADMIN_WMS",
+          estado: "ACTIVO",
+          permisos: [
+            "usuarios.ver",
+            "usuarios.crear",
+            "usuarios.editar",
+            "usuarios.bloquear",
+            "usuarios.activar",
+            "usuarios.resetear_clave",
+            "roles.ver",
+            "roles.crear",
+            "roles.editar",
+            "auditoria.ver",
+            "materiales.ver",
+            "materiales.crear",
+            "materiales.editar",
+            "materiales.eliminar",
+            "proveedores.ver",
+            "proveedores.crear",
+            "proveedores.editar",
+            "ubicaciones.ver",
+            "ubicaciones.crear",
+            "ubicaciones.editar",
+            "movimientos.ver",
+            "recibo.ver",
+            "recibo.crear",
+            "recibo.confirmar",
+            "despacho.ver",
+            "despacho.crear",
+            "despacho.confirmar",
+            "stock.ver",
+            "inventarios.ver",
+            "inventarios.crear",
+            "inventarios.contar",
+            "inventarios.conciliar",
+          ],
+        },
+        {
+          auth: "true",
+          userId: "4",
+          nombre: "Darwin Herrera",
+          usuario: "Dherrera",
+          password: "149",
+          rol: "ADMIN_WMS",
+          estado: "ACTIVO",
+          permisos: [
+            "usuarios.ver",
+            "usuarios.crear",
+            "usuarios.editar",
+            "usuarios.bloquear",
+            "usuarios.activar",
+            "usuarios.resetear_clave",
+            "roles.ver",
+            "roles.crear",
+            "roles.editar",
+            "auditoria.ver",
+            "materiales.ver",
+            "materiales.crear",
+            "materiales.editar",
+            "materiales.eliminar",
+            "proveedores.ver",
+            "proveedores.crear",
+            "proveedores.editar",
+            "ubicaciones.ver",
+            "ubicaciones.crear",
+            "ubicaciones.editar",
+            "movimientos.ver",
+            "recibo.ver",
+            "recibo.crear",
+            "recibo.confirmar",
+            "despacho.ver",
+            "despacho.crear",
+            "despacho.confirmar",
+            "stock.ver",
+            "inventarios.ver",
+            "inventarios.crear",
+            "inventarios.contar",
+            "inventarios.conciliar",
+          ],
+        },
+      ];
 
-        if (usuarioLogueado.estado !== "ACTIVO") {
-          setError("Tu usuario no tiene acceso al sistema.");
-          setLoading(false);
-          return;
-        }
+      const usuarioEncontrado = usuariosMock.find(
+        (u) =>
+          u.usuario.toLowerCase() === usuario.trim().toLowerCase() &&
+          u.password === password.trim()
+      );
 
-        sessionStorage.setItem("auth", usuarioLogueado.auth);
-        sessionStorage.setItem("userId", usuarioLogueado.userId);
-        sessionStorage.setItem("nombre", usuarioLogueado.nombre);
-        sessionStorage.setItem("usuario", usuarioLogueado.usuario);
-        sessionStorage.setItem("rol", usuarioLogueado.rol);
-        sessionStorage.setItem("estado", usuarioLogueado.estado);
-        sessionStorage.setItem(
-          "permisos",
-          JSON.stringify(usuarioLogueado.permisos)
-        );
-
-        window.location.href = "/";
-      } else {
+      if (!usuarioEncontrado) {
         setError("Credenciales incorrectas.");
         setLoading(false);
+        return;
       }
+
+      if (usuarioEncontrado.estado !== "ACTIVO") {
+        setError("Tu usuario no tiene acceso al sistema.");
+        setLoading(false);
+        return;
+      }
+
+      sessionStorage.setItem("auth", usuarioEncontrado.auth);
+      sessionStorage.setItem("userId", usuarioEncontrado.userId);
+      sessionStorage.setItem("nombre", usuarioEncontrado.nombre);
+      sessionStorage.setItem("usuario", usuarioEncontrado.usuario);
+      sessionStorage.setItem("rol", usuarioEncontrado.rol);
+      sessionStorage.setItem("estado", usuarioEncontrado.estado);
+      sessionStorage.setItem(
+        "permisos",
+        JSON.stringify(usuarioEncontrado.permisos)
+      );
+
+      window.location.href = "/";
     }, 500);
   };
 
