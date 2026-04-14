@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_URL } from "../../api";
 import {
@@ -248,6 +248,9 @@ export default function OrdenPicking() {
   const [cantidades, setCantidades] = useState({});
   const [seleccionados, setSeleccionados] = useState({});
   const [impresos, setImpresos] = useState({});
+  const [modoImpresion, setModoImpresion] = useState("seleccionados");
+
+  const printTimeoutRef = useRef(null);
 
   const loadData = async () => {
     if (!reserva) return;
@@ -302,6 +305,14 @@ export default function OrdenPicking() {
   useEffect(() => {
     loadData();
   }, [reserva]);
+
+  useEffect(() => {
+    return () => {
+      if (printTimeoutRef.current) {
+        clearTimeout(printTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const rowsConfirmados = useMemo(() => {
     return rows.filter((r) => {
@@ -399,7 +410,7 @@ export default function OrdenPicking() {
     };
   }, [rowsPendientes, detallesReserva, lineasSeleccionadas, cantidades]);
 
-  const imprimir = async () => {
+  const imprimirSeleccionados = async () => {
     if (!lineasSeleccionadas.length) {
       alert("Selecciona al menos una línea pendiente con cantidad mayor que 0 para imprimir.");
       return;
@@ -411,7 +422,25 @@ export default function OrdenPicking() {
     });
     setImpresos((prev) => ({ ...prev, ...ids }));
 
-    setTimeout(() => {
+    setModoImpresion("seleccionados");
+
+    if (printTimeoutRef.current) {
+      clearTimeout(printTimeoutRef.current);
+    }
+
+    printTimeoutRef.current = setTimeout(() => {
+      window.print();
+    }, 200);
+  };
+
+  const imprimirResultadoFinal = () => {
+    setModoImpresion("final");
+
+    if (printTimeoutRef.current) {
+      clearTimeout(printTimeoutRef.current);
+    }
+
+    printTimeoutRef.current = setTimeout(() => {
       window.print();
     }, 200);
   };
@@ -481,7 +510,16 @@ export default function OrdenPicking() {
     }
   };
 
-  const lineasParaImprimir = lineasSeleccionadas;
+  const lineasParaImprimir =
+    modoImpresion === "final"
+      ? rowsPendientes.map((r) => ({
+          ...r,
+          cantidad_impresion: Number(cantidades[r.id] ?? 0),
+        }))
+      : lineasSeleccionadas.map((r) => ({
+          ...r,
+          cantidad_impresion: Number(cantidades[r.id] ?? 0),
+        }));
 
   return (
     <div style={{ background: colors.bg, minHeight: "100vh", padding: 18 }}>
@@ -660,7 +698,7 @@ export default function OrdenPicking() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr auto auto auto",
+                gridTemplateColumns: "1fr 1fr auto auto auto auto",
                 gap: 10,
                 alignItems: "end",
               }}
@@ -713,10 +751,19 @@ export default function OrdenPicking() {
                 Regresar
               </button>
 
-              <button onClick={imprimir} style={secondaryButtonStyle}>
-                <Printer size={15} />
-                Imprimir seleccionados
-              </button>
+              {rowsPendientes.length > 0 && (
+                <button onClick={imprimirSeleccionados} style={secondaryButtonStyle}>
+                  <Printer size={15} />
+                  Imprimir seleccionados
+                </button>
+              )}
+
+              {rowsPendientes.length === 0 && (
+                <button onClick={imprimirResultadoFinal} style={secondaryButtonStyle}>
+                  <Printer size={15} />
+                  Imprimir resultado final
+                </button>
+              )}
 
               <button onClick={guardarDespacho} disabled={guardando} style={greenButtonStyle}>
                 <Save size={15} />
@@ -991,8 +1038,14 @@ export default function OrdenPicking() {
           <div className="print-header-left">
             <img src="/INOVA.png" alt="INOVA" className="print-logo" />
             <div>
-              <h1 className="print-title">ORDEN DE PICKING</h1>
-              <div className="print-subtitle">WMS INOVA · Control logístico</div>
+              <h1 className="print-title">
+                {modoImpresion === "final" ? "RESULTADO FINAL DE DESPACHO" : "ORDEN DE PICKING"}
+              </h1>
+              <div className="print-subtitle">
+                {modoImpresion === "final"
+                  ? "WMS INOVA · Resumen final del despacho"
+                  : "WMS INOVA · Control logístico"}
+              </div>
             </div>
           </div>
 
@@ -1089,7 +1142,9 @@ export default function OrdenPicking() {
         </div>
 
         <div className="print-card" style={shellCardStyle}>
-          <div style={sectionHeaderStyle}>Orden de picking pendiente</div>
+          <div style={sectionHeaderStyle}>
+            {modoImpresion === "final" ? "Pendiente restante" : "Orden de picking pendiente"}
+          </div>
 
           <div className="print-table-wrap">
             <table className="print-table">
@@ -1111,7 +1166,9 @@ export default function OrdenPicking() {
                 {lineasParaImprimir.length === 0 ? (
                   <tr>
                     <td colSpan={10} style={{ padding: 18 }}>
-                      No hay líneas pendientes para imprimir.
+                      {modoImpresion === "final"
+                        ? "No hay líneas pendientes. El despacho quedó completamente atendido."
+                        : "No hay líneas pendientes para imprimir."}
                     </td>
                   </tr>
                 ) : (
@@ -1122,7 +1179,9 @@ export default function OrdenPicking() {
                       <td>{r.texto_breve || ""}</td>
                       <td style={{ textAlign: "right" }}>{formatQty(r.cantidad_requerida)}</td>
                       <td style={{ textAlign: "right" }}>{formatQty(r.cantidad_sugerida ?? 0)}</td>
-                      <td style={{ textAlign: "right" }}>{formatQty(cantidades[r.id] ?? 0)}</td>
+                      <td style={{ textAlign: "right" }}>
+                        {formatQty(r.cantidad_impresion ?? 0)}
+                      </td>
                       <td>{r.ubicacion || ""}</td>
                       <td>{r.lote_almacen || ""}</td>
                       <td>{r.lote_proveedor || ""}</td>
