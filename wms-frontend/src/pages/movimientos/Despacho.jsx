@@ -526,16 +526,41 @@ export default function Despacho() {
     alert(`✅ Reserva ${reservaId} reabierta.`);
   };
 
-  const eliminarReserva = (reservaId) => {
+  const eliminarReserva = async (reservaId) => {
     const ok = window.confirm(`⚠️ ¿Eliminar completamente la reserva ${reservaId}?`);
     if (!ok) return;
 
-    const actual = getReservaStore();
-    delete actual[reservaId];
-    saveReservaStore(actual);
-    forceRefreshStore();
+    try {
+      const res = await fetch(
+        `${API_URL}/despachos/reserva/${encodeURIComponent(reservaId)}`,
+        {
+          method: "DELETE",
+        }
+      );
 
-    alert(`🗑️ Reserva ${reservaId} eliminada.`);
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+
+      const actual = getReservaStore();
+      delete actual[reservaId];
+      saveReservaStore(actual);
+      forceRefreshStore();
+
+      if (reservaActiva === reservaId || reserva.trim() === reservaId) {
+        setReserva("");
+        setReservaActiva("");
+        setPickingRows([]);
+        await loadDespachos("");
+      } else {
+        await loadDespachos(reserva.trim());
+      }
+
+      alert(`🗑️ Reserva ${reservaId} eliminada correctamente.`);
+    } catch (e) {
+      console.error(e);
+      alert("❌ No se pudo eliminar la reserva.\n" + (e?.message || e));
+    }
   };
 
   const reservasResumen = useMemo(() => {
