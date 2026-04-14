@@ -2535,3 +2535,50 @@ def marcar_picking_impreso(reserva: str, db: Session = Depends(get_db)):
     db.commit()
 
     return {"mensaje": "Picking marcado como impreso", "reserva": reserva}
+
+@app.delete("/despachos/reserva/{reserva}")
+def eliminar_reserva_despacho(reserva: str, db: Session = Depends(get_db)):
+    reserva = (reserva or "").strip()
+    if not reserva:
+        raise HTTPException(status_code=400, detail="Reserva obligatoria")
+
+    detalles = db.query(models.DespachoDetalle).filter(
+        models.DespachoDetalle.reserva == reserva
+    ).all()
+
+    if not detalles:
+        raise HTTPException(status_code=404, detail="No existe esa reserva")
+
+    carga_ids = list({d.carga_id for d in detalles if d.carga_id is not None})
+
+    db.query(models.PickingDetalle).filter(
+        models.PickingDetalle.reserva == reserva
+    ).delete(synchronize_session=False)
+
+    db.query(models.DespachoDetalle).filter(
+        models.DespachoDetalle.reserva == reserva
+    ).delete(synchronize_session=False)
+
+    db.commit()
+
+    cargas_eliminadas = 0
+    for carga_id in carga_ids:
+        quedan = db.query(models.DespachoDetalle).filter(
+            models.DespachoDetalle.carga_id == carga_id
+        ).count()
+
+        if quedan == 0:
+            carga = db.query(models.DespachoCarga).filter(
+                models.DespachoCarga.id == carga_id
+            ).first()
+            if carga:
+                db.delete(carga)
+                cargas_eliminadas += 1
+
+    db.commit()
+
+    return {
+        "mensaje": "Reserva eliminada correctamente",
+        "reserva": reserva,
+        "cargas_eliminadas": cargas_eliminadas,
+    }
