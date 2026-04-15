@@ -166,6 +166,15 @@ class PickingDetalle(Base):
     impreso = Column(Boolean, nullable=False, default=False)
     confirmado = Column(Boolean, nullable=False, default=False)
 
+    # =========================
+    # INCUMPLIMIENTO DE ROTACION
+    # =========================
+    motivo_rotacion = Column(String, nullable=True)
+    ubicacion_alternativa = Column(String, nullable=True)
+    lote_almacen_alternativo = Column(String, nullable=True)
+    lote_proveedor_alternativo = Column(String, nullable=True)
+    fecha_vencimiento_alternativa = Column(Date, nullable=True)
+
     despacho_detalle_id = Column(Integer, ForeignKey("despacho_detalles.id"), nullable=True)
     despacho_detalle = relationship("DespachoDetalle", back_populates="picks")
 

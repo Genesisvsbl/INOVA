@@ -335,6 +335,12 @@ class PickingDetalleOut(BaseModel):
     impreso: bool
     confirmado: bool
 
+    motivo_rotacion: Optional[str] = None
+    ubicacion_alternativa: Optional[str] = None
+    lote_almacen_alternativo: Optional[str] = None
+    lote_proveedor_alternativo: Optional[str] = None
+    fecha_vencimiento_alternativa: Optional[date] = None
+
     class Config:
         from_attributes = True
 
@@ -348,9 +354,35 @@ class DespachoCargaOut(BaseModel):
         from_attributes = True
 
 
+class PickingAlternativaOut(BaseModel):
+    ubicacion: Optional[str] = None
+    lote_almacen: Optional[str] = None
+    lote_proveedor: Optional[str] = None
+    fecha_vencimiento: Optional[date] = None
+    cantidad_disponible: float
+
+
+class PickingAlternativasResponse(BaseModel):
+    pick_id: int
+    reserva: str
+    sku: str
+    ubicacion_actual: Optional[str] = None
+    lote_almacen_actual: Optional[str] = None
+    lote_proveedor_actual: Optional[str] = None
+    fecha_vencimiento_actual: Optional[date] = None
+    alternativas: List[PickingAlternativaOut] = []
+
+
 class PickingConfirmItem(BaseModel):
     id: int
     cantidad_confirmada: float
+
+    usar_alternativa: Optional[bool] = False
+    motivo_rotacion: Optional[str] = None
+    ubicacion_alternativa: Optional[str] = None
+    lote_almacen_alternativo: Optional[str] = None
+    lote_proveedor_alternativo: Optional[str] = None
+    fecha_vencimiento_alternativa: Optional[date] = None
 
 
 class PickingConfirmPayload(BaseModel):

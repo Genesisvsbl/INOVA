@@ -63,8 +63,42 @@ def ensure_materiales_columns():
             pass
 
 
+def ensure_picking_rotacion_columns():
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE picking_detalle ADD COLUMN motivo_rotacion VARCHAR"))
+        except Exception:
+            pass
+
+        try:
+            conn.execute(text("ALTER TABLE picking_detalle ADD COLUMN ubicacion_alternativa VARCHAR"))
+        except Exception:
+            pass
+
+        try:
+            conn.execute(text("ALTER TABLE picking_detalle ADD COLUMN lote_almacen_alternativo VARCHAR"))
+        except Exception:
+            pass
+
+        try:
+            conn.execute(text("ALTER TABLE picking_detalle ADD COLUMN lote_proveedor_alternativo VARCHAR"))
+        except Exception:
+            pass
+
+        try:
+            conn.execute(text("ALTER TABLE picking_detalle ADD COLUMN fecha_vencimiento_alternativa DATE"))
+        except Exception:
+            pass
+
+        try:
+            conn.commit()
+        except Exception:
+            pass
+
+
 ensure_ubicaciones_columns()
 ensure_materiales_columns()
+ensure_picking_rotacion_columns()
 
 app = FastAPI(title="WMS API")
 
@@ -348,6 +382,111 @@ def recalcular_resumen_tarea_inventario(tarea: models.InventarioTarea, db: Sessi
         "total_coinciden": total_coinciden,
         "total_no_coinciden": total_no_coinciden,
         "porcentaje_exactitud": porcentaje_exactitud,
+    }
+
+
+# ==============================
+# HELPERS ROTACION PICKING
+# ==============================
+def obtener_alternativas_rotacion_para_pick(pick_id: int, db: Session):
+    pick = db.query(models.PickingDetalle).filter(
+        models.PickingDetalle.id == pick_id
+    ).first()
+
+    if not pick:
+        raise HTTPException(status_code=404, detail="Línea picking no encontrada")
+
+    material = db.query(models.Material).filter(
+        models.Material.codigo == pick.sku
+    ).first()
+
+    if not material:
+        raise HTTPException(status_code=404, detail=f"No existe material {pick.sku}")
+
+    hoy = date.today()
+
+    stock_rows = (
+        db.query(models.Movimiento)
+        .filter(
+            models.Movimiento.material_id == material.id,
+            models.Movimiento.estado == "ALMACENADO",
+            models.Movimiento.ubicacion_id.isnot(None),
+            models.Movimiento.fecha_vencimiento.isnot(None),
+            models.Movimiento.fecha_vencimiento >= hoy,
+        )
+        .order_by(
+            asc(models.Movimiento.fecha_vencimiento),
+            asc(models.Movimiento.id),
+        )
+        .all()
+    )
+
+    usados = set()
+    alternativas = []
+
+    for mov in stock_rows:
+        key = (
+            mov.material_id,
+            mov.ubicacion_id,
+            mov.lote_almacen,
+            mov.lote_proveedor,
+            mov.fecha_vencimiento,
+        )
+
+        if key in usados:
+            continue
+        usados.add(key)
+
+        disponible = (
+            db.query(func.sum(models.Movimiento.cantidad_r))
+            .filter(
+                models.Movimiento.material_id == mov.material_id,
+                models.Movimiento.ubicacion_id == mov.ubicacion_id,
+                models.Movimiento.estado == "ALMACENADO",
+                models.Movimiento.lote_almacen == mov.lote_almacen,
+                models.Movimiento.lote_proveedor == mov.lote_proveedor,
+                models.Movimiento.fecha_vencimiento == mov.fecha_vencimiento,
+            )
+            .scalar()
+            or 0
+        )
+        disponible = float(disponible)
+
+        if disponible <= 0:
+            continue
+
+        ubicacion_actual = (pick.ubicacion or "").strip()
+        lote_alm_actual = (pick.lote_almacen or "").strip()
+        lote_prov_actual = (pick.lote_proveedor or "").strip()
+        fv_actual = pick.fecha_vencimiento
+
+        misma_opcion = (
+            (mov.ubicacion.ubicacion if mov.ubicacion else None) == ubicacion_actual
+            and (mov.lote_almacen or "").strip() == lote_alm_actual
+            and (mov.lote_proveedor or "").strip() == lote_prov_actual
+            and mov.fecha_vencimiento == fv_actual
+        )
+
+        if misma_opcion:
+            continue
+
+        alternativas.append({
+            "ubicacion": mov.ubicacion.ubicacion if mov.ubicacion else None,
+            "lote_almacen": mov.lote_almacen,
+            "lote_proveedor": mov.lote_proveedor,
+            "fecha_vencimiento": mov.fecha_vencimiento,
+            "cantidad_disponible": disponible,
+        })
+
+    return {
+        "pick_id": pick.id,
+        "reserva": pick.reserva,
+        "sku": pick.sku,
+        "ubicacion_actual": pick.ubicacion,
+        "lote_almacen_actual": pick.lote_almacen,
+        "lote_proveedor_actual": pick.lote_proveedor,
+        "fecha_vencimiento_actual": pick.fecha_vencimiento,
+        "alternativas": alternativas,
     }
 
 
@@ -2358,6 +2497,11 @@ def generar_picking(reserva: str, db: Session = Depends(get_db)):
                 impreso=False,
                 confirmado=False,
                 despacho_detalle_id=det.id,
+                motivo_rotacion=None,
+                ubicacion_alternativa=None,
+                lote_almacen_alternativo=None,
+                lote_proveedor_alternativo=None,
+                fecha_vencimiento_alternativa=None,
             )
             db.add(pick)
 
@@ -2397,6 +2541,11 @@ def ver_picking(reserva: str, db: Session = Depends(get_db)):
     ).all()
 
     return rows
+
+
+@app.get("/despachos/picking-alternativas/{pick_id}")
+def ver_alternativas_rotacion(pick_id: int, db: Session = Depends(get_db)):
+    return obtener_alternativas_rotacion_para_pick(pick_id, db)
 
 
 @app.post("/despachos/confirmar-picking/{reserva}")
@@ -2441,6 +2590,49 @@ def confirmar_picking(reserva: str, payload: schemas.PickingConfirmPayload, db: 
                 detail=f"La cantidad confirmada no puede ser mayor a la sugerida en línea {item.id}"
             )
 
+        usar_alternativa = bool(getattr(item, "usar_alternativa", False))
+        motivo_rotacion = (getattr(item, "motivo_rotacion", None) or "").strip()
+
+        ubicacion_final = pick.ubicacion
+        lote_almacen_final = pick.lote_almacen
+        lote_proveedor_final = pick.lote_proveedor
+        fecha_vencimiento_final = pick.fecha_vencimiento
+
+        if usar_alternativa:
+            if not motivo_rotacion:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Debe registrar el motivo del incumplimiento de rotación en la línea {item.id}"
+                )
+
+            ubic_alt = (getattr(item, "ubicacion_alternativa", None) or "").strip()
+            lote_alm_alt = (getattr(item, "lote_almacen_alternativo", None) or "").strip() or None
+            lote_prov_alt = (getattr(item, "lote_proveedor_alternativo", None) or "").strip() or None
+            fv_alt = getattr(item, "fecha_vencimiento_alternativa", None)
+
+            if not ubic_alt:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Debe seleccionar una ubicación alternativa en la línea {item.id}"
+                )
+
+            ubicacion_final = ubic_alt
+            lote_almacen_final = lote_alm_alt
+            lote_proveedor_final = lote_prov_alt
+            fecha_vencimiento_final = fv_alt
+
+            pick.motivo_rotacion = f"Incumplimiento de rotación debido a {motivo_rotacion}"
+            pick.ubicacion_alternativa = ubic_alt
+            pick.lote_almacen_alternativo = lote_alm_alt
+            pick.lote_proveedor_alternativo = lote_prov_alt
+            pick.fecha_vencimiento_alternativa = fv_alt
+        else:
+            pick.motivo_rotacion = None
+            pick.ubicacion_alternativa = None
+            pick.lote_almacen_alternativo = None
+            pick.lote_proveedor_alternativo = None
+            pick.fecha_vencimiento_alternativa = None
+
         material = db.query(models.Material).filter(
             models.Material.codigo == pick.sku
         ).first()
@@ -2448,10 +2640,10 @@ def confirmar_picking(reserva: str, payload: schemas.PickingConfirmPayload, db: 
             raise HTTPException(status_code=404, detail=f"No existe material {pick.sku}")
 
         ubicacion = db.query(models.Ubicacion).filter(
-            models.Ubicacion.ubicacion == pick.ubicacion
+            models.Ubicacion.ubicacion == (ubicacion_final or "").strip()
         ).first()
         if not ubicacion:
-            raise HTTPException(status_code=404, detail=f"No existe ubicación {pick.ubicacion}")
+            raise HTTPException(status_code=404, detail=f"No existe ubicación {ubicacion_final}")
 
         if cantidad > 0:
             disponible = (
@@ -2460,9 +2652,9 @@ def confirmar_picking(reserva: str, payload: schemas.PickingConfirmPayload, db: 
                     models.Movimiento.material_id == material.id,
                     models.Movimiento.ubicacion_id == ubicacion.id,
                     models.Movimiento.estado == "ALMACENADO",
-                    models.Movimiento.lote_almacen == pick.lote_almacen,
-                    models.Movimiento.lote_proveedor == pick.lote_proveedor,
-                    models.Movimiento.fecha_vencimiento == pick.fecha_vencimiento,
+                    models.Movimiento.lote_almacen == lote_almacen_final,
+                    models.Movimiento.lote_proveedor == lote_proveedor_final,
+                    models.Movimiento.fecha_vencimiento == fecha_vencimiento_final,
                 )
                 .scalar()
                 or 0
@@ -2488,10 +2680,10 @@ def confirmar_picking(reserva: str, payload: schemas.PickingConfirmPayload, db: 
                 material_id=material.id,
                 ubicacion_id=ubicacion.id,
                 estado="ALMACENADO",
-                lote_almacen=pick.lote_almacen,
-                lote_proveedor=pick.lote_proveedor,
+                lote_almacen=lote_almacen_final,
+                lote_proveedor=lote_proveedor_final,
                 fecha_fabricacion=None,
-                fecha_vencimiento=pick.fecha_vencimiento,
+                fecha_vencimiento=fecha_vencimiento_final,
                 cantidad_r=(-1 * cantidad),
             )
             db.add(mov)
@@ -2535,6 +2727,7 @@ def marcar_picking_impreso(reserva: str, db: Session = Depends(get_db)):
     db.commit()
 
     return {"mensaje": "Picking marcado como impreso", "reserva": reserva}
+
 
 @app.delete("/despachos/reserva/{reserva}")
 def eliminar_reserva_despacho(reserva: str, db: Session = Depends(get_db)):
@@ -2582,6 +2775,7 @@ def eliminar_reserva_despacho(reserva: str, db: Session = Depends(get_db)):
         "reserva": reserva,
         "cargas_eliminadas": cargas_eliminadas,
     }
+
 
 # ==============================
 # ADMIN / RESET SELECTIVO
