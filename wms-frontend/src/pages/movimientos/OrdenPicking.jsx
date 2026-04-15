@@ -267,6 +267,44 @@ function SummaryBox({ label, value, tone = "default" }) {
   );
 }
 
+function PrintCompareValue({ sugerido, tomado, format = (v) => v || "" }) {
+  const sugRaw = sugerido ?? "";
+  const tomRaw = tomado ?? "";
+
+  const sug = format(sugRaw);
+  const tom = format(tomRaw);
+
+  const hayAlternativaReal =
+    String(tomRaw || "").trim() !== "" &&
+    String(sug || "").trim() !== String(tom || "").trim();
+
+  if (!hayAlternativaReal) {
+    return <span>{sug || tom || ""}</span>;
+  }
+
+  return (
+    <div style={{ display: "grid", gap: 2, lineHeight: 1.25 }}>
+      <div
+        style={{
+          color: "#8a94a6",
+          textDecoration: "line-through",
+          fontWeight: 700,
+        }}
+      >
+        {sug || ""}
+      </div>
+      <div
+        style={{
+          color: "#0f172a",
+          fontWeight: 800,
+        }}
+      >
+        {tom || ""}
+      </div>
+    </div>
+  );
+}
+
 export default function OrdenPicking() {
   const navigate = useNavigate();
   const { reserva } = useParams();
@@ -1848,10 +1886,31 @@ export default function OrdenPicking() {
                       <td>{r.texto_breve || ""}</td>
                       <td style={{ textAlign: "right" }}>{formatQty(r.cantidad_requerida)}</td>
                       <td style={{ textAlign: "right" }}>{formatQty(r.cantidad_confirmada || 0)}</td>
-                      <td>{r.ubicacion_alternativa || r.ubicacion || ""}</td>
-                      <td>{r.lote_almacen_alternativo || r.lote_almacen || ""}</td>
-                      <td>{r.lote_proveedor_alternativo || r.lote_proveedor || ""}</td>
-                      <td>{fmtDate(r.fecha_vencimiento_alternativa || r.fecha_vencimiento)}</td>
+                      <td>
+                        <PrintCompareValue
+                          sugerido={r.ubicacion}
+                          tomado={r.ubicacion_alternativa || r.ubicacion}
+                        />
+                      </td>
+                      <td>
+                        <PrintCompareValue
+                          sugerido={r.lote_almacen}
+                          tomado={r.lote_almacen_alternativo || r.lote_almacen}
+                        />
+                      </td>
+                      <td>
+                        <PrintCompareValue
+                          sugerido={r.lote_proveedor}
+                          tomado={r.lote_proveedor_alternativo || r.lote_proveedor}
+                        />
+                      </td>
+                      <td>
+                        <PrintCompareValue
+                          sugerido={r.fecha_vencimiento}
+                          tomado={r.fecha_vencimiento_alternativa || r.fecha_vencimiento}
+                          format={(v) => fmtDate(v)}
+                        />
+                      </td>
                       <td>CONFIRMADO</td>
                     </tr>
                   ))
@@ -1913,17 +1972,39 @@ export default function OrdenPicking() {
                         <td>{r.texto_breve || ""}</td>
                         <td style={{ textAlign: "right" }}>{formatQty(r.cantidad_requerida)}</td>
                         <td style={{ textAlign: "right" }}>{formatQty(r.cantidad_sugerida ?? 0)}</td>
-                        <td>{r.ubicacion || ""}</td>
+                        <td>
+                          <PrintCompareValue
+                            sugerido={r.ubicacion}
+                            tomado={usaAlternativa ? alt?.ubicacion : r.ubicacion}
+                          />
+                        </td>
                         <td style={{ textAlign: "right" }}>
                           {formatQty(r.cantidad_impresion ?? 0)}
                         </td>
-                        <td>{usaAlternativa ? alt?.ubicacion || "" : r.ubicacion || ""}</td>
-                        <td>{usaAlternativa ? alt?.lote_almacen || "" : r.lote_almacen || ""}</td>
-                        <td>{usaAlternativa ? alt?.lote_proveedor || "" : r.lote_proveedor || ""}</td>
                         <td>
-                          {usaAlternativa
-                            ? fmtDate(alt?.fecha_vencimiento)
-                            : fmtDate(r.fecha_vencimiento)}
+                          <PrintCompareValue
+                            sugerido={r.ubicacion}
+                            tomado={usaAlternativa ? alt?.ubicacion : r.ubicacion}
+                          />
+                        </td>
+                        <td>
+                          <PrintCompareValue
+                            sugerido={r.lote_almacen}
+                            tomado={usaAlternativa ? alt?.lote_almacen : r.lote_almacen}
+                          />
+                        </td>
+                        <td>
+                          <PrintCompareValue
+                            sugerido={r.lote_proveedor}
+                            tomado={usaAlternativa ? alt?.lote_proveedor : r.lote_proveedor}
+                          />
+                        </td>
+                        <td>
+                          <PrintCompareValue
+                            sugerido={r.fecha_vencimiento}
+                            tomado={usaAlternativa ? alt?.fecha_vencimiento : r.fecha_vencimiento}
+                            format={(v) => fmtDate(v)}
+                          />
                         </td>
                         <td style={{ color: r.motivo_rotacion_impresion ? colors.bad : "#0f172a", fontWeight: 800 }}>
                           {r.motivo_rotacion_impresion || ""}
