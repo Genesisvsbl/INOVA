@@ -630,6 +630,38 @@ export default function OrdenPicking() {
     return [...rowsPendientes, ...itemsManualExtra];
   }, [rowsPendientes, itemsManualExtra]);
 
+  const calcularNecesidadPendientePorSku = (sku, excludeId = null) => {
+    const skuNorm = String(sku || "").trim().toUpperCase();
+    if (!skuNorm) return 0;
+
+    const detallesMismoSku = detallesReserva.filter(
+      (d) => String(d.sku || "").trim().toUpperCase() === skuNorm
+    );
+
+    const totalRequerido = detallesMismoSku.reduce(
+      (acc, d) => acc + Number(d.cantidad || 0),
+      0
+    );
+
+    const totalRetirado = detallesMismoSku.reduce(
+      (acc, d) => acc + Number(d.cantidad_retirada || 0),
+      0
+    );
+
+    const comprometidoSeleccionado = rowsPendientesFull.reduce((acc, r) => {
+      if (excludeId != null && String(r.id) === String(excludeId)) return acc;
+
+      const mismoSku = String(r.sku || "").trim().toUpperCase() === skuNorm;
+      if (!mismoSku) return acc;
+      if (!seleccionados[r.id]) return acc;
+
+      return acc + Number(cantidades[r.id] ?? 0);
+    }, 0);
+
+    const pendiente = totalRequerido - totalRetirado - comprometidoSeleccionado;
+    return pendiente > 0 ? pendiente : 0;
+  };
+
   const onChangeCantidad = (id, value, maximo) => {
     let n = Number(value);
     if (!Number.isFinite(n)) n = 0;
@@ -662,13 +694,22 @@ export default function OrdenPicking() {
         const row = rowsPendientesFull.find((x) => x.id === id);
         const alt = alternativaElegida[id];
         const maximoAlt = Number(alt?.cantidad_disponible ?? 0);
-        const sugerida = Number(row?.cantidad_sugerida ?? 0);
-        const maximoManual = Number(maximosManuales[id] ?? sugerida);
-        const base = alt ? maximoAlt : sugerida;
+        const maximoManual = Number(maximosManuales[id] ?? row?.cantidad_sugerida ?? 0);
+
+        let sugeridaBase = Number(row?.cantidad_sugerida ?? 0);
+
+        if (row?.manual) {
+          sugeridaBase = Math.min(
+            calcularNecesidadPendientePorSku(row.sku, row.id),
+            maximoManual
+          );
+        }
+
+        const base = alt ? maximoAlt : sugeridaBase;
 
         setCantidades((old) => ({
           ...old,
-          [id]: old[id] > 0 ? old[id] : Math.min(base, maximoManual || base),
+          [id]: old[id] > 0 ? old[id] : base,
         }));
       }
 
@@ -770,10 +811,10 @@ export default function OrdenPicking() {
       const motivo = buildMotivoRotacion(motivosRotacion[r.id]);
 
       const esManual = !!r.manual;
-      const ubicBase = esManual ? r.ubicacion : r.ubicacion;
-      const loteAlmBase = esManual ? r.lote_almacen : r.lote_almacen;
-      const loteProvBase = esManual ? r.lote_proveedor : r.lote_proveedor;
-      const fvBase = esManual ? r.fecha_vencimiento : r.fecha_vencimiento;
+      const ubicBase = r.ubicacion;
+      const loteAlmBase = r.lote_almacen;
+      const loteProvBase = r.lote_proveedor;
+      const fvBase = r.fecha_vencimiento;
 
       return {
         ...r,
@@ -788,6 +829,7 @@ export default function OrdenPicking() {
         lote_almacen_base_guardado: loteAlmBase || null,
         lote_proveedor_base_guardado: loteProvBase || null,
         fecha_vencimiento_base_guardado: fvBase || null,
+        manual: esManual,
       };
     });
 
@@ -912,14 +954,19 @@ export default function OrdenPicking() {
   const agregarSkuManualDesdeSugerencia = (item) => {
     const id = `manual-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+    const sku = item?.sku || "";
+    const disponible = Number(item?.cantidad_disponible ?? 0);
+    const necesidadPendiente = calcularNecesidadPendientePorSku(sku);
+    const sugerida = Math.min(necesidadPendiente, disponible);
+
     const nuevo = {
       id,
       manual: true,
       reserva: reserva || "",
-      sku: item?.sku || "",
+      sku,
       texto_breve: item?.texto_breve || "",
-      cantidad_requerida: 0,
-      cantidad_sugerida: 0,
+      cantidad_requerida: necesidadPendiente,
+      cantidad_sugerida: sugerida,
       cantidad_confirmada: 0,
       ubicacion: item?.ubicacion || "",
       lote_almacen: item?.lote_almacen || "",
@@ -929,19 +976,19 @@ export default function OrdenPicking() {
       confirmado: false,
       familia: item?.familia || "",
       unidad_medida: item?.unidad_medida || "",
-      cantidad_disponible: Number(item?.cantidad_disponible ?? 0),
+      cantidad_disponible: disponible,
     };
 
     setItemsManualExtra((prev) => [...prev, nuevo]);
-    setCantidades((prev) => ({ ...prev, [id]: 0 }));
-    setSeleccionados((prev) => ({ ...prev, [id]: false }));
+    setCantidades((prev) => ({ ...prev, [id]: sugerida }));
+    setSeleccionados((prev) => ({ ...prev, [id]: sugerida > 0 }));
     setImpresos((prev) => ({ ...prev, [id]: false }));
     setIncumplimientoRows((prev) => ({ ...prev, [id]: false }));
     setAlternativaElegida((prev) => ({ ...prev, [id]: null }));
     setMotivosRotacion((prev) => ({ ...prev, [id]: "" }));
     setMaximosManuales((prev) => ({
       ...prev,
-      [id]: Number(item?.cantidad_disponible ?? 0),
+      [id]: disponible,
     }));
 
     cerrarBuscadorManual();
@@ -1563,8 +1610,16 @@ export default function OrdenPicking() {
                       : Number(maximosManuales[r.id] ?? r.cantidad_sugerida ?? 0);
 
                     const cantidadActual = Number(cantidades[r.id] ?? 0);
-                    const cantidadSugerida = Number(r.cantidad_sugerida ?? 0);
-                    const excesoSobreSugerido = Math.max(0, cantidadActual - cantidadSugerida);
+
+                    const cantidadSugeridaVisual = esManual
+                      ? Math.min(calcularNecesidadPendientePorSku(r.sku, r.id), maximoCantidad)
+                      : Number(r.cantidad_sugerida ?? 0);
+
+                    const cantidadRequeridaVisual = esManual
+                      ? calcularNecesidadPendientePorSku(r.sku, r.id) + cantidadActual
+                      : Number(r.cantidad_requerida ?? 0);
+
+                    const excesoSobreSugerido = Math.max(0, cantidadActual - cantidadSugeridaVisual);
 
                     return (
                       <tr
@@ -1597,11 +1652,11 @@ export default function OrdenPicking() {
                         </td>
 
                         <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
-                          {formatQty(r.cantidad_requerida)}
+                          {formatQty(cantidadRequeridaVisual)}
                         </td>
 
                         <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
-                          {formatQty(r.cantidad_sugerida ?? 0)}
+                          {formatQty(cantidadSugeridaVisual)}
                         </td>
 
                         <td style={{ ...tdStyle, textAlign: "right" }}>
@@ -1618,12 +1673,12 @@ export default function OrdenPicking() {
                               padding: "0 10px",
                               borderRadius: 10,
                               border:
-                                cantidadActual > cantidadSugerida
+                                cantidadActual > cantidadSugeridaVisual
                                   ? `1px solid ${colors.bad}`
                                   : `1px solid ${colors.border}`,
                               textAlign: "right",
                               fontWeight: 800,
-                              color: cantidadActual > cantidadSugerida ? colors.bad : colors.text,
+                              color: cantidadActual > cantidadSugeridaVisual ? colors.bad : colors.text,
                               background: !seleccionados[r.id] ? "#f8fafc" : "#fff",
                             }}
                           />
@@ -1649,7 +1704,7 @@ export default function OrdenPicking() {
                               color: colors.muted,
                             }}
                           >
-                            Sugerido: {formatQty(cantidadSugerida)} · Máx: {formatQty(maximoCantidad)}
+                            Sugerido: {formatQty(cantidadSugeridaVisual)} · Máx: {formatQty(maximoCantidad)}
                           </div>
                         </td>
 
@@ -1706,7 +1761,7 @@ export default function OrdenPicking() {
                             {usandoAlternativa && (
                               <button
                                 type="button"
-                                onClick={() => limpiarIncumplimiento(r.id, r.cantidad_sugerida)}
+                                onClick={() => limpiarIncumplimiento(r.id, cantidadSugeridaVisual)}
                                 style={dangerOutlineButtonStyle}
                               >
                                 <X size={15} />
@@ -1861,8 +1916,28 @@ export default function OrdenPicking() {
                   gap: 12,
                 }}
               >
-                <SummaryBox label="Cantidad requerida" value={formatQty(modalRow.cantidad_requerida)} tone="amber" />
-                <SummaryBox label="Cantidad sugerida" value={formatQty(modalRow.cantidad_sugerida)} tone="blue" />
+                <SummaryBox
+                  label="Cantidad requerida"
+                  value={formatQty(
+                    modalRow?.manual
+                      ? calcularNecesidadPendientePorSku(modalRow.sku, modalRow.id) +
+                          Number(cantidades[modalRow.id] ?? 0)
+                      : modalRow.cantidad_requerida
+                  )}
+                  tone="amber"
+                />
+                <SummaryBox
+                  label="Cantidad sugerida"
+                  value={formatQty(
+                    modalRow?.manual
+                      ? Math.min(
+                          calcularNecesidadPendientePorSku(modalRow.sku, modalRow.id),
+                          Number(maximosManuales[modalRow.id] ?? modalRow.cantidad_sugerida ?? 0)
+                        )
+                      : modalRow.cantidad_sugerida
+                  )}
+                  tone="blue"
+                />
                 <SummaryBox
                   label="Cantidad a tomar"
                   value={formatQty(cantidades[modalRow.id] ?? 0)}
@@ -2074,7 +2149,17 @@ export default function OrdenPicking() {
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <button
                     type="button"
-                    onClick={() => limpiarIncumplimiento(modalRow.id, modalRow.cantidad_sugerida)}
+                    onClick={() =>
+                      limpiarIncumplimiento(
+                        modalRow.id,
+                        modalRow?.manual
+                          ? Math.min(
+                              calcularNecesidadPendientePorSku(modalRow.sku, modalRow.id),
+                              Number(maximosManuales[modalRow.id] ?? modalRow.cantidad_sugerida ?? 0)
+                            )
+                          : modalRow.cantidad_sugerida
+                      )
+                    }
                     style={dangerOutlineButtonStyle}
                   >
                     <X size={15} />
@@ -2255,67 +2340,101 @@ export default function OrdenPicking() {
 
               {!!skuSearchResults.length && (
                 <div style={{ display: "grid", gap: 10 }}>
-                  {skuSearchResults.map((item, i) => (
-                    <button
-                      key={`${item.sku}-${item.ubicacion}-${item.lote_almacen}-${i}`}
-                      type="button"
-                      onClick={() => agregarSkuManualDesdeSugerencia(item)}
-                      style={{
-                        textAlign: "left",
-                        padding: 14,
-                        borderRadius: 12,
-                        cursor: "pointer",
-                        border: `1px solid ${colors.border}`,
-                        background: "#fff",
-                        color: colors.text,
-                      }}
-                    >
-                      <div
+                  {skuSearchResults.map((item, i) => {
+                    const necesidadPendiente = calcularNecesidadPendientePorSku(item?.sku);
+                    const disponible = Number(item?.cantidad_disponible ?? 0);
+                    const sugerida = Math.min(necesidadPendiente, disponible);
+
+                    return (
+                      <button
+                        key={`${item.sku}-${item.ubicacion}-${item.lote_almacen}-${i}`}
+                        type="button"
+                        onClick={() => agregarSkuManualDesdeSugerencia(item)}
                         style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          gap: 12,
-                          flexWrap: "wrap",
-                          marginBottom: 8,
+                          textAlign: "left",
+                          padding: 14,
+                          borderRadius: 12,
+                          cursor: "pointer",
+                          border: `1px solid ${colors.border}`,
+                          background: "#fff",
+                          color: colors.text,
                         }}
                       >
-                        <div>
-                          <div style={{ fontWeight: 900, color: colors.navy }}>
-                            {item.sku || ""}
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: 12,
+                            flexWrap: "wrap",
+                            marginBottom: 8,
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 900, color: colors.navy }}>
+                              {item.sku || ""}
+                            </div>
+                            <div style={{ marginTop: 4, color: colors.text, fontWeight: 700 }}>
+                              {item.texto_breve || ""}
+                            </div>
                           </div>
-                          <div style={{ marginTop: 4, color: colors.text, fontWeight: 700 }}>
-                            {item.texto_breve || ""}
+
+                          <div
+                            style={{
+                              display: "grid",
+                              gap: 4,
+                              textAlign: "right",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontWeight: 900,
+                                color: colors.good,
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              Disp: {formatQty(disponible)}
+                            </div>
+                            <div
+                              style={{
+                                fontWeight: 900,
+                                color: colors.blue,
+                                whiteSpace: "nowrap",
+                                fontSize: 12,
+                              }}
+                            >
+                              Nec.: {formatQty(necesidadPendiente)}
+                            </div>
+                            <div
+                              style={{
+                                fontWeight: 900,
+                                color: colors.warn,
+                                whiteSpace: "nowrap",
+                                fontSize: 12,
+                              }}
+                            >
+                              Sug.: {formatQty(sugerida)}
+                            </div>
                           </div>
                         </div>
 
                         <div
                           style={{
-                            fontWeight: 900,
-                            color: colors.good,
-                            whiteSpace: "nowrap",
+                            display: "grid",
+                            gridTemplateColumns: "repeat(4, minmax(140px, 1fr))",
+                            gap: 8,
+                            fontSize: 12,
+                            color: colors.muted,
+                            lineHeight: 1.45,
                           }}
                         >
-                          Disp: {formatQty(item.cantidad_disponible)}
+                          <div><b>Ubicación:</b> {item.ubicacion || ""}</div>
+                          <div><b>Lote almacén:</b> {item.lote_almacen || ""}</div>
+                          <div><b>Lote proveedor:</b> {item.lote_proveedor || ""}</div>
+                          <div><b>Fecha vencimiento:</b> {fmtDate(item.fecha_vencimiento)}</div>
                         </div>
-                      </div>
-
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(4, minmax(140px, 1fr))",
-                          gap: 8,
-                          fontSize: 12,
-                          color: colors.muted,
-                          lineHeight: 1.45,
-                        }}
-                      >
-                        <div><b>Ubicación:</b> {item.ubicacion || ""}</div>
-                        <div><b>Lote almacén:</b> {item.lote_almacen || ""}</div>
-                        <div><b>Lote proveedor:</b> {item.lote_proveedor || ""}</div>
-                        <div><b>Fecha vencimiento:</b> {fmtDate(item.fecha_vencimiento)}</div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 
@@ -2507,16 +2626,27 @@ export default function OrdenPicking() {
                     const alt = r.alternativa_impresion;
                     const usaAlternativa = !!alt;
 
+                    const cantidadSugeridaPrint = r.manual
+                      ? Math.min(
+                          calcularNecesidadPendientePorSku(r.sku, r.id) + Number(r.cantidad_impresion ?? 0),
+                          Number(maximosManuales[r.id] ?? r.cantidad_sugerida ?? 0)
+                        )
+                      : Number(r.cantidad_sugerida ?? 0);
+
+                    const cantidadRequeridaPrint = r.manual
+                      ? calcularNecesidadPendientePorSku(r.sku, r.id) + Number(r.cantidad_impresion ?? 0)
+                      : Number(r.cantidad_requerida ?? 0);
+
                     return (
                       <tr key={r.id}>
                         <td className="print-col-reserva print-nowrap">{r.reserva || ""}</td>
                         <td className="print-col-sku print-nowrap">{r.sku || ""}</td>
                         <td className="print-col-texto print-wrap">{r.texto_breve || ""}</td>
                         <td className="print-col-cant-req print-nowrap" style={{ textAlign: "right" }}>
-                          {formatQty(r.cantidad_requerida)}
+                          {formatQty(cantidadRequeridaPrint)}
                         </td>
                         <td className="print-col-cant-sug print-nowrap" style={{ textAlign: "right" }}>
-                          {formatQty(r.cantidad_sugerida ?? 0)}
+                          {formatQty(cantidadSugeridaPrint)}
                         </td>
                         <td className="print-col-ubi-sug print-nowrap">
                           <PrintCompareValue
