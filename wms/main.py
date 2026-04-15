@@ -2596,45 +2596,35 @@ def reset_data(payload: dict = Body(...), db: Session = Depends(get_db)):
             detail="Confirmación inválida. Debe enviar confirmacion=RESET_INOVA"
         )
 
-    borrar = payload.get("borrar", {})
+    borrar = payload.get("borrar") or {}
+    if not isinstance(borrar, dict):
+        raise HTTPException(
+            status_code=400,
+            detail="El campo 'borrar' debe ser un objeto JSON"
+        )
 
     try:
         resultado = {}
 
-        # =========================
-        # OPERACIONES DESPACHO
-        # =========================
         if borrar.get("despachos"):
             db.query(models.PickingDetalle).delete(synchronize_session=False)
             db.query(models.DespachoDetalle).delete(synchronize_session=False)
             db.query(models.DespachoCarga).delete(synchronize_session=False)
             resultado["despachos"] = "ok"
 
-        # =========================
-        # INVENTARIOS
-        # =========================
         if borrar.get("inventarios"):
             db.query(models.InventarioTareaDetalle).delete(synchronize_session=False)
             db.query(models.InventarioTarea).delete(synchronize_session=False)
             resultado["inventarios"] = "ok"
 
-        # =========================
-        # MOVIMIENTOS / TRANSITO
-        # =========================
         if borrar.get("movimientos"):
             db.query(models.Movimiento).delete(synchronize_session=False)
             resultado["movimientos"] = "ok"
 
-        # =========================
-        # ROTULOS
-        # =========================
         if borrar.get("rotulos"):
             db.query(models.Rotulo).delete(synchronize_session=False)
             resultado["rotulos"] = "ok"
 
-        # =========================
-        # MAESTROS (PELIGRO)
-        # =========================
         if borrar.get("maestros"):
             db.query(models.Ubicacion).delete(synchronize_session=False)
             db.query(models.Proveedor).delete(synchronize_session=False)
