@@ -490,6 +490,104 @@ def obtener_alternativas_rotacion_para_pick(pick_id: int, db: Session):
     }
 
 
+def buscar_sugerencias_sku_manual_para_picking(q: str, db: Session, limit: int = 20):
+    q = (q or "").strip()
+    if not q:
+        return []
+
+    hoy = date.today()
+
+    materiales = (
+        db.query(models.Material)
+        .filter(
+            or_(
+                models.Material.codigo.contains(q),
+                models.Material.descripcion.contains(q),
+            )
+        )
+        .order_by(asc(models.Material.codigo))
+        .limit(50)
+        .all()
+    )
+
+    if not materiales:
+        return []
+
+    material_ids = [m.id for m in materiales]
+    material_map = {m.id: m for m in materiales}
+
+    rows = (
+        db.query(
+            models.Movimiento.material_id.label("material_id"),
+            models.Movimiento.ubicacion_id.label("ubicacion_id"),
+            models.Movimiento.lote_almacen.label("lote_almacen"),
+            models.Movimiento.lote_proveedor.label("lote_proveedor"),
+            models.Movimiento.fecha_vencimiento.label("fecha_vencimiento"),
+            func.sum(models.Movimiento.cantidad_r).label("cantidad_disponible"),
+            models.Ubicacion.ubicacion.label("ubicacion"),
+            models.Ubicacion.zona.label("zona"),
+            models.Ubicacion.bodega.label("bodega"),
+        )
+        .join(models.Ubicacion, models.Ubicacion.id == models.Movimiento.ubicacion_id)
+        .filter(
+            models.Movimiento.material_id.in_(material_ids),
+            models.Movimiento.estado == "ALMACENADO",
+            models.Movimiento.ubicacion_id.isnot(None),
+            or_(
+                models.Movimiento.fecha_vencimiento.is_(None),
+                models.Movimiento.fecha_vencimiento >= hoy,
+            ),
+        )
+        .group_by(
+            models.Movimiento.material_id,
+            models.Movimiento.ubicacion_id,
+            models.Movimiento.lote_almacen,
+            models.Movimiento.lote_proveedor,
+            models.Movimiento.fecha_vencimiento,
+            models.Ubicacion.ubicacion,
+            models.Ubicacion.zona,
+            models.Ubicacion.bodega,
+        )
+        .having(func.sum(models.Movimiento.cantidad_r) > 0)
+        .order_by(
+            asc(models.Ubicacion.ubicacion),
+            asc(models.Movimiento.fecha_vencimiento),
+        )
+        .all()
+    )
+
+    sugerencias = []
+
+    for row in rows:
+        mat = material_map.get(row.material_id)
+        if not mat:
+            continue
+
+        sugerencias.append({
+            "sku": mat.codigo,
+            "texto_breve": mat.descripcion,
+            "unidad_medida": mat.unidad_medida,
+            "familia": mat.familia,
+            "ubicacion": row.ubicacion,
+            "zona": row.zona,
+            "bodega": row.bodega,
+            "lote_almacen": row.lote_almacen,
+            "lote_proveedor": row.lote_proveedor,
+            "fecha_vencimiento": row.fecha_vencimiento,
+            "cantidad_disponible": float(row.cantidad_disponible or 0),
+        })
+
+    sugerencias.sort(
+        key=lambda x: (
+            str(x["sku"] or ""),
+            str(x["ubicacion"] or ""),
+            str(x["fecha_vencimiento"] or ""),
+        )
+    )
+
+    return sugerencias[: max(1, min(limit, 100))]
+
+
 # ==============================
 # INVENTARIOS
 # ==============================
@@ -2546,6 +2644,26 @@ def ver_picking(reserva: str, db: Session = Depends(get_db)):
 @app.get("/despachos/picking-alternativas/{pick_id}")
 def ver_alternativas_rotacion(pick_id: int, db: Session = Depends(get_db)):
     return obtener_alternativas_rotacion_para_pick(pick_id, db)
+
+
+@app.get("/despachos/buscar-sku-manual")
+def buscar_sku_manual_para_picking(
+    q: str,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+):
+    q = (q or "").strip()
+
+    if not q:
+        raise HTTPException(status_code=400, detail="Debe enviar q")
+
+    items = buscar_sugerencias_sku_manual_para_picking(q=q, db=db, limit=limit)
+
+    return {
+        "q": q,
+        "total": len(items),
+        "items": items,
+    }
 
 
 @app.post("/despachos/confirmar-picking/{reserva}")

@@ -391,6 +391,33 @@ class PickingConfirmPayload(BaseModel):
     items: List[PickingConfirmItem]
 
 
+# ==============================
+# BUSQUEDA SKU MANUAL PICKING
+# ==============================
+
+class PickingSkuManualSuggestionOut(BaseModel):
+    sku: str
+    texto_breve: Optional[str] = None
+    unidad_medida: Optional[str] = None
+    familia: Optional[str] = None
+
+    ubicacion: Optional[str] = None
+    zona: Optional[str] = None
+    bodega: Optional[str] = None
+
+    lote_almacen: Optional[str] = None
+    lote_proveedor: Optional[str] = None
+    fecha_vencimiento: Optional[date] = None
+
+    cantidad_disponible: float
+
+
+class PickingSkuManualSearchResponse(BaseModel):
+    q: str
+    total: int
+    items: List[PickingSkuManualSuggestionOut] = []
+
+
 # =========================================================
 # INVENTARIOS
 # =========================================================
