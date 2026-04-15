@@ -816,8 +816,8 @@ export default function OrdenPicking() {
         }
 
         @page {
-          size: landscape;
-          margin: 10mm;
+          size: A4 landscape;
+          margin: 6mm;
         }
 
         @media print {
@@ -827,6 +827,8 @@ export default function OrdenPicking() {
             background: #ffffff !important;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+            margin: 0 !important;
+            padding: 0 !important;
           }
 
           body * {
@@ -856,91 +858,137 @@ export default function OrdenPicking() {
           .print-card {
             box-shadow: none !important;
             border: 1px solid #dbe2ea !important;
-            border-radius: 8px !important;
+            border-radius: 6px !important;
             page-break-inside: avoid;
-            margin-bottom: 12px !important;
+            break-inside: avoid;
+            margin-bottom: 8px !important;
           }
 
           .print-table-wrap {
             overflow: visible !important;
+            width: 100% !important;
           }
 
           .print-table {
             width: 100% !important;
             min-width: 0 !important;
+            max-width: 100% !important;
             border-collapse: collapse !important;
-            table-layout: auto !important;
-            font-size: 10px !important;
+            table-layout: fixed !important;
+            font-size: 8px !important;
           }
 
           .print-table th,
           .print-table td {
             border: 1px solid #dbe2ea !important;
-            padding: 6px 7px !important;
+            padding: 4px 5px !important;
             white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            vertical-align: top !important;
           }
+
+          .print-table th {
+            font-size: 7px !important;
+            font-weight: 900 !important;
+          }
+
+          .print-text-wrap {
+            white-space: normal !important;
+            word-break: break-word !important;
+            overflow-wrap: anywhere !important;
+            text-overflow: unset !important;
+            line-height: 1.15 !important;
+          }
+
+          .print-col-reserva { width: 6% !important; }
+          .print-col-sku { width: 7% !important; }
+          .print-col-texto { width: 18% !important; }
+          .print-col-cant-req { width: 8% !important; }
+          .print-col-cant-sug { width: 8% !important; }
+          .print-col-ubi-sug { width: 8% !important; }
+          .print-col-cant-tom { width: 8% !important; }
+          .print-col-ubi-tom { width: 8% !important; }
+          .print-col-lote-alm { width: 8% !important; }
+          .print-col-lote-prov { width: 8% !important; }
+          .print-col-venc { width: 7% !important; }
+          .print-col-obs { width: 14% !important; }
 
           .print-obs-head,
           .print-obs-cell {
-            width: 180px !important;
-            min-width: 180px !important;
-            max-width: 180px !important;
+            width: 14% !important;
+            min-width: 14% !important;
+            max-width: 14% !important;
           }
 
           .print-obs-cell {
             white-space: normal !important;
             word-break: break-word !important;
             overflow-wrap: anywhere !important;
-            line-height: 1.25 !important;
+            text-overflow: unset !important;
+            line-height: 1.15 !important;
             vertical-align: top !important;
           }
 
           .print-header {
             display: flex !important;
-            align-items: center !important;
+            align-items: flex-start !important;
             justify-content: space-between !important;
-            gap: 16px !important;
-            margin-bottom: 8px !important;
-            padding-bottom: 6px !important;
+            gap: 10px !important;
+            margin-bottom: 6px !important;
+            padding-bottom: 4px !important;
             border-bottom: 1px solid #133454 !important;
           }
 
           .print-header-left {
             display: flex !important;
             align-items: center !important;
-            gap: 8px !important;
+            gap: 6px !important;
+            min-width: 0 !important;
           }
 
           .print-logo {
-            width: 34px !important;
-            height: 34px !important;
+            width: 28px !important;
+            height: 28px !important;
             object-fit: contain !important;
+            flex: 0 0 auto !important;
           }
 
           .print-title {
-            font-size: 14px !important;
+            font-size: 11px !important;
             font-weight: 900 !important;
             color: #133454 !important;
             margin: 0 !important;
+            line-height: 1.1 !important;
           }
 
           .print-subtitle {
-            font-size: 9px !important;
+            font-size: 7px !important;
             color: #334155 !important;
-            margin-top: 4px !important;
+            margin-top: 2px !important;
+            line-height: 1.1 !important;
           }
 
           .print-meta {
-            font-size: 11px !important;
+            font-size: 8px !important;
             color: #0f172a !important;
             text-align: right !important;
-            line-height: 1.6 !important;
+            line-height: 1.3 !important;
+            flex: 0 0 auto !important;
+          }
+
+          .print-section-title {
+            font-size: 9px !important;
+            font-weight: 900 !important;
+            padding: 6px 8px !important;
           }
 
           .print-alert {
-            margin-top: 6px !important;
+            margin-top: 4px !important;
             color: #c62828 !important;
             font-weight: 800 !important;
+            font-size: 8px !important;
+            line-height: 1.15 !important;
           }
         }
       `}</style>
@@ -1831,7 +1879,7 @@ export default function OrdenPicking() {
         </div>
 
         <div className="print-card" style={shellCardStyle}>
-          <div style={sectionHeaderStyle}>Resumen de la reserva</div>
+          <div className="print-section-title" style={sectionHeaderStyle}>Resumen de la reserva</div>
 
           <div className="print-table-wrap">
             <table className="print-table">
@@ -1840,7 +1888,7 @@ export default function OrdenPicking() {
                   <th>Fecha necesidad</th>
                   <th>Reserva</th>
                   <th>SKU</th>
-                  <th>Texto breve</th>
+                  <th className="print-text-wrap">Texto breve</th>
                   <th style={{ textAlign: "right" }}>Cantidad requerida</th>
                   <th style={{ textAlign: "right" }}>Cantidad retirada</th>
                   <th style={{ textAlign: "right" }}>Diferencia</th>
@@ -1854,7 +1902,7 @@ export default function OrdenPicking() {
                     <td>{fmtDate(r.fecha_necesidad)}</td>
                     <td>{r.reserva}</td>
                     <td>{r.sku}</td>
-                    <td>{r.texto_breve || ""}</td>
+                    <td className="print-text-wrap">{r.texto_breve || ""}</td>
                     <td style={{ textAlign: "right" }}>{formatQty(r.cantidad)}</td>
                     <td style={{ textAlign: "right" }}>{formatQty(r.cantidad_retirada)}</td>
                     <td style={{ textAlign: "right" }}>{formatQty(r.diferencia)}</td>
@@ -1868,7 +1916,7 @@ export default function OrdenPicking() {
         </div>
 
         <div className="print-card" style={shellCardStyle}>
-          <div style={sectionHeaderStyle}>Materiales confirmados</div>
+          <div className="print-section-title" style={sectionHeaderStyle}>Materiales confirmados</div>
 
           <div className="print-table-wrap">
             <table className="print-table">
@@ -1876,7 +1924,7 @@ export default function OrdenPicking() {
                 <tr>
                   <th>Reserva</th>
                   <th>SKU</th>
-                  <th>Texto breve</th>
+                  <th className="print-text-wrap">Texto breve</th>
                   <th style={{ textAlign: "right" }}>Cantidad requerida</th>
                   <th style={{ textAlign: "right" }}>Cantidad confirmada</th>
                   <th>Ubicación tomada</th>
@@ -1898,7 +1946,7 @@ export default function OrdenPicking() {
                     <tr key={r.id}>
                       <td>{r.reserva || ""}</td>
                       <td>{r.sku || ""}</td>
-                      <td>{r.texto_breve || ""}</td>
+                      <td className="print-text-wrap">{r.texto_breve || ""}</td>
                       <td style={{ textAlign: "right" }}>{formatQty(r.cantidad_requerida)}</td>
                       <td style={{ textAlign: "right" }}>{formatQty(r.cantidad_confirmada || 0)}</td>
                       <td>
@@ -1944,7 +1992,7 @@ export default function OrdenPicking() {
         </div>
 
         <div className="print-card" style={shellCardStyle}>
-          <div style={sectionHeaderStyle}>
+          <div className="print-section-title" style={sectionHeaderStyle}>
             {modoImpresion === "final" ? "Pendiente restante" : "Orden de picking pendiente"}
           </div>
 
@@ -1952,18 +2000,18 @@ export default function OrdenPicking() {
             <table className="print-table">
               <thead>
                 <tr>
-                  <th>Reserva</th>
-                  <th>SKU</th>
-                  <th>Texto breve</th>
-                  <th style={{ textAlign: "right" }}>Cantidad requerida</th>
-                  <th style={{ textAlign: "right" }}>Cantidad sugerida</th>
-                  <th>Ubicación sugerida</th>
-                  <th style={{ textAlign: "right" }}>Cantidad tomada</th>
-                  <th>Ubicación tomada</th>
-                  <th>Lote almacén</th>
-                  <th>Lote proveedor</th>
-                  <th>Fecha vencimiento</th>
-                  <th className="print-obs-head">Observación rotación</th>
+                  <th className="print-col-reserva">Reserva</th>
+                  <th className="print-col-sku">SKU</th>
+                  <th className="print-col-texto print-text-wrap">Texto breve</th>
+                  <th className="print-col-cant-req" style={{ textAlign: "right" }}>Cantidad requerida</th>
+                  <th className="print-col-cant-sug" style={{ textAlign: "right" }}>Cantidad sugerida</th>
+                  <th className="print-col-ubi-sug">Ubicación sugerida</th>
+                  <th className="print-col-cant-tom" style={{ textAlign: "right" }}>Cantidad tomada</th>
+                  <th className="print-col-ubi-tom">Ubicación tomada</th>
+                  <th className="print-col-lote-alm">Lote almacén</th>
+                  <th className="print-col-lote-prov">Lote proveedor</th>
+                  <th className="print-col-venc">Fecha vencimiento</th>
+                  <th className="print-col-obs print-obs-head">Observación rotación</th>
                 </tr>
               </thead>
               <tbody>
@@ -1982,39 +2030,43 @@ export default function OrdenPicking() {
 
                     return (
                       <tr key={r.id}>
-                        <td>{r.reserva || ""}</td>
-                        <td>{r.sku || ""}</td>
-                        <td>{r.texto_breve || ""}</td>
-                        <td style={{ textAlign: "right" }}>{formatQty(r.cantidad_requerida)}</td>
-                        <td style={{ textAlign: "right" }}>{formatQty(r.cantidad_sugerida ?? 0)}</td>
-                        <td>
+                        <td className="print-col-reserva">{r.reserva || ""}</td>
+                        <td className="print-col-sku">{r.sku || ""}</td>
+                        <td className="print-col-texto print-text-wrap">{r.texto_breve || ""}</td>
+                        <td className="print-col-cant-req" style={{ textAlign: "right" }}>
+                          {formatQty(r.cantidad_requerida)}
+                        </td>
+                        <td className="print-col-cant-sug" style={{ textAlign: "right" }}>
+                          {formatQty(r.cantidad_sugerida ?? 0)}
+                        </td>
+                        <td className="print-col-ubi-sug">
                           <PrintCompareValue
                             sugerido={r.ubicacion}
                             tomado={usaAlternativa ? alt?.ubicacion : r.ubicacion}
                           />
                         </td>
-                        <td style={{ textAlign: "right" }}>
+                        <td className="print-col-cant-tom" style={{ textAlign: "right" }}>
                           {formatQty(r.cantidad_impresion ?? 0)}
                         </td>
-                        <td>
+                        <td className="print-col-ubi-tom">
                           <PrintCompareValue
                             sugerido={r.ubicacion}
                             tomado={usaAlternativa ? alt?.ubicacion : r.ubicacion}
                           />
                         </td>
-                        <td>
+                        <td className="print-col-lote-alm">
                           <PrintCompareValue
                             sugerido={r.lote_almacen}
                             tomado={usaAlternativa ? alt?.lote_almacen : r.lote_almacen}
                           />
                         </td>
-                        <td>
+                        <td className="print-col-lote-prov">
                           <PrintCompareValue
                             sugerido={r.lote_proveedor}
                             tomado={usaAlternativa ? alt?.lote_proveedor : r.lote_proveedor}
                           />
                         </td>
-                        <td>
+                        <td className="print-col-venc">
                           <PrintCompareValue
                             sugerido={r.fecha_vencimiento}
                             tomado={usaAlternativa ? alt?.fecha_vencimiento : r.fecha_vencimiento}
@@ -2022,7 +2074,7 @@ export default function OrdenPicking() {
                           />
                         </td>
                         <td
-                          className="print-obs-cell"
+                          className="print-col-obs print-obs-cell"
                           style={{
                             color: r.motivo_rotacion_impresion ? colors.bad : "#0f172a",
                             fontWeight: 800,
