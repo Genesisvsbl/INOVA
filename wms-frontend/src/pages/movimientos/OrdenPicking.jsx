@@ -11,6 +11,9 @@ import {
   GitCompareArrows,
   X,
   CheckCircle2,
+  Plus,
+  Search,
+  Trash2,
 } from "lucide-react";
 
 const colors = {
@@ -331,7 +334,17 @@ export default function OrdenPicking() {
 
   const [modalRow, setModalRow] = useState(null);
 
+  const [maximosManuales, setMaximosManuales] = useState({});
+  const [itemsManualExtra, setItemsManualExtra] = useState([]);
+
+  const [busquedaManualOpen, setBusquedaManualOpen] = useState(false);
+  const [skuSearch, setSkuSearch] = useState("");
+  const [skuSearchLoading, setSkuSearchLoading] = useState(false);
+  const [skuSearchResults, setSkuSearchResults] = useState([]);
+  const [skuSearchError, setSkuSearchError] = useState("");
+
   const printTimeoutRef = useRef(null);
+  const skuSearchTimeoutRef = useRef(null);
 
   const buildMotivoRotacion = (texto) => {
     const limpio = String(texto || "").trim();
@@ -343,7 +356,7 @@ export default function OrdenPicking() {
   };
 
   const loadAlternativas = async (row) => {
-    if (!row?.id) return;
+    if (!row?.id || String(row.id).startsWith("manual-")) return;
 
     setCargandoAlternativas((prev) => ({
       ...prev,
@@ -388,6 +401,8 @@ export default function OrdenPicking() {
         [row.id]: true,
       }));
     }
+
+    if (String(row.id).startsWith("manual-")) return;
 
     const yaCargadas = alternativasPorRow[row.id];
     const yaTiene = Array.isArray(yaCargadas) && yaCargadas.length > 0;
@@ -495,6 +510,7 @@ export default function OrdenPicking() {
       const initInc = {};
       const initAltElegida = {};
       const initMotivos = {};
+      const initMaximos = {};
 
       safePick.forEach((r) => {
         const sugerida = Number(r.cantidad_sugerida ?? 0);
@@ -506,6 +522,8 @@ export default function OrdenPicking() {
         initSel[r.id] = !estaConfirmado && sugerida > 0;
         initImp[r.id] = !!r.impreso;
         initInc[r.id] = tieneIncumplimiento;
+        initMaximos[r.id] = Number(r.cantidad_sugerida ?? 0);
+
         initMotivos[r.id] = r.motivo_rotacion
           ? String(r.motivo_rotacion).replace(/^Incumplimiento de rotacion debido a\s*/i, "")
           : "";
@@ -517,6 +535,8 @@ export default function OrdenPicking() {
             lote_proveedor: r.lote_proveedor_alternativo,
             fecha_vencimiento: r.fecha_vencimiento_alternativa,
             cantidad_disponible: Number(r.cantidad_sugerida ?? 0),
+            sku: r.sku,
+            texto_breve: r.texto_breve,
           };
         } else {
           initAltElegida[r.id] = null;
@@ -529,6 +549,7 @@ export default function OrdenPicking() {
       setIncumplimientoRows(initInc);
       setAlternativaElegida(initAltElegida);
       setMotivosRotacion(initMotivos);
+      setMaximosManuales((prev) => ({ ...prev, ...initMaximos }));
     } catch (e) {
       setErr(String(e?.message || e));
       setRows([]);
@@ -547,8 +568,48 @@ export default function OrdenPicking() {
       if (printTimeoutRef.current) {
         clearTimeout(printTimeoutRef.current);
       }
+      if (skuSearchTimeoutRef.current) {
+        clearTimeout(skuSearchTimeoutRef.current);
+      }
     };
   }, []);
+
+  useEffect(() => {
+    if (!busquedaManualOpen) return;
+
+    const q = skuSearch.trim();
+
+    if (skuSearchTimeoutRef.current) {
+      clearTimeout(skuSearchTimeoutRef.current);
+    }
+
+    if (!q || q.length < 2) {
+      setSkuSearchResults([]);
+      setSkuSearchError("");
+      setSkuSearchLoading(false);
+      return;
+    }
+
+    skuSearchTimeoutRef.current = setTimeout(async () => {
+      setSkuSearchLoading(true);
+      setSkuSearchError("");
+
+      try {
+        const res = await fetch(
+          `${API_URL}/despachos/buscar-sku-manual?q=${encodeURIComponent(q)}&limit=20`
+        );
+        if (!res.ok) throw new Error(await res.text());
+
+        const data = await res.json();
+        setSkuSearchResults(Array.isArray(data?.items) ? data.items : []);
+      } catch (e) {
+        setSkuSearchResults([]);
+        setSkuSearchError(String(e?.message || e));
+      } finally {
+        setSkuSearchLoading(false);
+      }
+    }, 350);
+  }, [skuSearch, busquedaManualOpen]);
 
   const rowsConfirmados = useMemo(() => {
     return rows.filter((r) => {
@@ -565,11 +626,17 @@ export default function OrdenPicking() {
     });
   }, [rows]);
 
+  const rowsPendientesFull = useMemo(() => {
+    return [...rowsPendientes, ...itemsManualExtra];
+  }, [rowsPendientes, itemsManualExtra]);
+
   const onChangeCantidad = (id, value, maximo) => {
     let n = Number(value);
     if (!Number.isFinite(n)) n = 0;
     if (n < 0) n = 0;
-    if (n > Number(maximo || 0)) n = Number(maximo || 0);
+
+    const tope = Number(maximo || 0);
+    if (n > tope) n = tope;
 
     setCantidades((prev) => ({
       ...prev,
@@ -592,14 +659,16 @@ export default function OrdenPicking() {
           [id]: 0,
         }));
       } else {
-        const row = rowsPendientes.find((x) => x.id === id);
+        const row = rowsPendientesFull.find((x) => x.id === id);
         const alt = alternativaElegida[id];
         const maximoAlt = Number(alt?.cantidad_disponible ?? 0);
-        const sugerida = alt ? maximoAlt : Number(row?.cantidad_sugerida ?? 0);
+        const sugerida = Number(row?.cantidad_sugerida ?? 0);
+        const maximoManual = Number(maximosManuales[id] ?? sugerida);
+        const base = alt ? maximoAlt : sugerida;
 
         setCantidades((old) => ({
           ...old,
-          [id]: old[id] > 0 ? old[id] : sugerida,
+          [id]: old[id] > 0 ? old[id] : Math.min(base, maximoManual || base),
         }));
       }
 
@@ -611,14 +680,14 @@ export default function OrdenPicking() {
   };
 
   const lineasSeleccionadas = useMemo(() => {
-    return rowsPendientes.filter((r) => {
+    return rowsPendientesFull.filter((r) => {
       const cant = Number(cantidades[r.id] ?? 0);
       return !!seleccionados[r.id] && cant > 0;
     });
-  }, [rowsPendientes, cantidades, seleccionados]);
+  }, [rowsPendientesFull, cantidades, seleccionados]);
 
   const resumen = useMemo(() => {
-    const totalPendientes = rowsPendientes.length;
+    const totalPendientes = rowsPendientesFull.length;
 
     const totalRequerido = detallesReserva.reduce(
       (acc, r) => acc + Number(r.cantidad || 0),
@@ -652,7 +721,7 @@ export default function OrdenPicking() {
       totalComprometer,
       totalIncumplimientoRotacion,
     };
-  }, [rowsPendientes, detallesReserva, lineasSeleccionadas, cantidades, incumplimientoRows]);
+  }, [rowsPendientesFull, detallesReserva, lineasSeleccionadas, cantidades, incumplimientoRows]);
 
   const imprimirSeleccionados = async () => {
     if (!lineasSeleccionadas.length) {
@@ -690,7 +759,7 @@ export default function OrdenPicking() {
   };
 
   const guardarDespacho = async () => {
-    if (!rowsPendientes.length) {
+    if (!rowsPendientesFull.length) {
       alert("No hay líneas pendientes para guardar.");
       return;
     }
@@ -700,6 +769,12 @@ export default function OrdenPicking() {
       const alt = alternativaElegida[r.id];
       const motivo = buildMotivoRotacion(motivosRotacion[r.id]);
 
+      const esManual = !!r.manual;
+      const ubicBase = esManual ? r.ubicacion : r.ubicacion;
+      const loteAlmBase = esManual ? r.lote_almacen : r.lote_almacen;
+      const loteProvBase = esManual ? r.lote_proveedor : r.lote_proveedor;
+      const fvBase = esManual ? r.fecha_vencimiento : r.fecha_vencimiento;
+
       return {
         ...r,
         cantidad_confirmada: Number(cantidades[r.id] ?? 0),
@@ -708,9 +783,11 @@ export default function OrdenPicking() {
         ubicacion_alternativa: usaAlternativa ? alt?.ubicacion || null : null,
         lote_almacen_alternativo: usaAlternativa ? alt?.lote_almacen || null : null,
         lote_proveedor_alternativo: usaAlternativa ? alt?.lote_proveedor || null : null,
-        fecha_vencimiento_alternativa: usaAlternativa
-          ? alt?.fecha_vencimiento || null
-          : null,
+        fecha_vencimiento_alternativa: usaAlternativa ? alt?.fecha_vencimiento || null : null,
+        ubicacion_base_guardado: ubicBase || null,
+        lote_almacen_base_guardado: loteAlmBase || null,
+        lote_proveedor_base_guardado: loteProvBase || null,
+        fecha_vencimiento_base_guardado: fvBase || null,
       };
     });
 
@@ -748,7 +825,7 @@ export default function OrdenPicking() {
         usuario: (usuario || "").trim() || "DESPACHO",
         documento: (documento || "").trim() || null,
         items: lineasGuardar.map((r) => ({
-          id: r.id,
+          id: Number(String(r.id).startsWith("manual-") ? 0 : r.id),
           cantidad_confirmada: Number(r.cantidad_confirmada),
           usar_alternativa: !!r.usar_alternativa,
           motivo_rotacion: r.motivo_rotacion,
@@ -756,6 +833,14 @@ export default function OrdenPicking() {
           lote_almacen_alternativo: r.lote_almacen_alternativo,
           lote_proveedor_alternativo: r.lote_proveedor_alternativo,
           fecha_vencimiento_alternativa: r.fecha_vencimiento_alternativa,
+          manual: !!r.manual,
+          sku: r.sku,
+          texto_breve: r.texto_breve,
+          reserva: r.reserva,
+          ubicacion: r.ubicacion_base_guardado,
+          lote_almacen: r.lote_almacen_base_guardado,
+          lote_proveedor: r.lote_proveedor_base_guardado,
+          fecha_vencimiento: r.fecha_vencimiento_base_guardado,
         })),
       };
 
@@ -780,6 +865,7 @@ export default function OrdenPicking() {
           `% cumplimiento reserva: ${data.pct_cumplimiento_reserva}%`
       );
 
+      setItemsManualExtra([]);
       await loadData();
     } catch (e) {
       alert("❌ Error guardando picking:\n" + (e?.message || e));
@@ -790,7 +876,7 @@ export default function OrdenPicking() {
 
   const lineasParaImprimir =
     modoImpresion === "final"
-      ? rowsPendientes.map((r) => ({
+      ? rowsPendientesFull.map((r) => ({
           ...r,
           cantidad_impresion: Number(cantidades[r.id] ?? 0),
           motivo_rotacion_impresion: buildMotivoRotacion(motivosRotacion[r.id]),
@@ -807,6 +893,105 @@ export default function OrdenPicking() {
   const currentModalAlternativa = modalRow ? alternativaElegida[modalRow.id] : null;
   const currentModalMotivo = modalRow ? motivosRotacion[modalRow.id] || "" : "";
   const currentModalUsa = modalRow ? !!incumplimientoRows[modalRow.id] : false;
+
+  const abrirBuscadorManual = () => {
+    setBusquedaManualOpen(true);
+    setSkuSearch("");
+    setSkuSearchResults([]);
+    setSkuSearchError("");
+  };
+
+  const cerrarBuscadorManual = () => {
+    setBusquedaManualOpen(false);
+    setSkuSearch("");
+    setSkuSearchResults([]);
+    setSkuSearchError("");
+    setSkuSearchLoading(false);
+  };
+
+  const agregarSkuManualDesdeSugerencia = (item) => {
+    const id = `manual-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    const nuevo = {
+      id,
+      manual: true,
+      reserva: reserva || "",
+      sku: item?.sku || "",
+      texto_breve: item?.texto_breve || "",
+      cantidad_requerida: 0,
+      cantidad_sugerida: 0,
+      cantidad_confirmada: 0,
+      ubicacion: item?.ubicacion || "",
+      lote_almacen: item?.lote_almacen || "",
+      lote_proveedor: item?.lote_proveedor || "",
+      fecha_vencimiento: item?.fecha_vencimiento || null,
+      impreso: false,
+      confirmado: false,
+      familia: item?.familia || "",
+      unidad_medida: item?.unidad_medida || "",
+      cantidad_disponible: Number(item?.cantidad_disponible ?? 0),
+    };
+
+    setItemsManualExtra((prev) => [...prev, nuevo]);
+    setCantidades((prev) => ({ ...prev, [id]: 0 }));
+    setSeleccionados((prev) => ({ ...prev, [id]: false }));
+    setImpresos((prev) => ({ ...prev, [id]: false }));
+    setIncumplimientoRows((prev) => ({ ...prev, [id]: false }));
+    setAlternativaElegida((prev) => ({ ...prev, [id]: null }));
+    setMotivosRotacion((prev) => ({ ...prev, [id]: "" }));
+    setMaximosManuales((prev) => ({
+      ...prev,
+      [id]: Number(item?.cantidad_disponible ?? 0),
+    }));
+
+    cerrarBuscadorManual();
+  };
+
+  const eliminarSkuManual = (id) => {
+    setItemsManualExtra((prev) => prev.filter((x) => x.id !== id));
+
+    setCantidades((prev) => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+
+    setSeleccionados((prev) => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+
+    setImpresos((prev) => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+
+    setIncumplimientoRows((prev) => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+
+    setAlternativaElegida((prev) => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+
+    setMotivosRotacion((prev) => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+
+    setMaximosManuales((prev) => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+  };
 
   return (
     <div style={{ background: colors.bg, minHeight: "100vh", padding: 18 }}>
@@ -1055,7 +1240,7 @@ export default function OrdenPicking() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr auto auto auto auto",
+                gridTemplateColumns: "1fr 1fr auto auto auto auto auto",
                 gap: 10,
                 alignItems: "end",
               }}
@@ -1108,14 +1293,19 @@ export default function OrdenPicking() {
                 Regresar
               </button>
 
-              {rowsPendientes.length > 0 && (
+              <button onClick={abrirBuscadorManual} style={secondaryButtonStyle} type="button">
+                <Plus size={15} />
+                Agregar SKU manual
+              </button>
+
+              {rowsPendientesFull.length > 0 && (
                 <button onClick={imprimirSeleccionados} style={secondaryButtonStyle}>
                   <Printer size={15} />
                   Imprimir seleccionados
                 </button>
               )}
 
-              {rowsPendientes.length === 0 && (
+              {rowsPendientesFull.length === 0 && (
                 <button onClick={imprimirResultadoFinal} style={secondaryButtonStyle}>
                   <Printer size={15} />
                   Imprimir resultado final
@@ -1333,10 +1523,11 @@ export default function OrdenPicking() {
           </div>
 
           <div style={tableWrapStyle}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 2600 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 2900 }}>
               <thead>
                 <tr>
                   <th style={thStyle}>Comprometer</th>
+                  <th style={thStyle}>Tipo</th>
                   <th style={thStyle}>Reserva</th>
                   <th style={thStyle}>SKU</th>
                   <th style={thStyle}>Texto breve</th>
@@ -1350,23 +1541,30 @@ export default function OrdenPicking() {
                   <th style={thStyle}>Fecha vencimiento</th>
                   <th style={thStyle}>Impreso</th>
                   <th style={thStyle}>Gestión rotación</th>
+                  <th style={thStyle}>Acción</th>
                   <th style={thStyle}>Estado alerta</th>
                 </tr>
               </thead>
               <tbody>
-                {rowsPendientes.length === 0 ? (
+                {rowsPendientesFull.length === 0 ? (
                   <tr>
-                    <td colSpan={15} style={{ padding: 18, color: colors.good, fontWeight: 800 }}>
+                    <td colSpan={17} style={{ padding: 18, color: colors.good, fontWeight: 800 }}>
                       No hay líneas pendientes.
                     </td>
                   </tr>
                 ) : (
-                  rowsPendientes.map((r, idx) => {
+                  rowsPendientesFull.map((r, idx) => {
                     const usandoAlternativa = !!incumplimientoRows[r.id];
                     const alternativa = alternativaElegida[r.id];
+                    const esManual = !!r.manual;
+
                     const maximoCantidad = usandoAlternativa
                       ? Number(alternativa?.cantidad_disponible ?? 0)
-                      : Number(r.cantidad_sugerida ?? 0);
+                      : Number(maximosManuales[r.id] ?? r.cantidad_sugerida ?? 0);
+
+                    const cantidadActual = Number(cantidades[r.id] ?? 0);
+                    const cantidadSugerida = Number(r.cantidad_sugerida ?? 0);
+                    const excesoSobreSugerido = Math.max(0, cantidadActual - cantidadSugerida);
 
                     return (
                       <tr
@@ -1382,6 +1580,10 @@ export default function OrdenPicking() {
                             checked={!!seleccionados[r.id]}
                             onChange={() => onToggleSeleccion(r.id)}
                           />
+                        </td>
+
+                        <td style={tdStyle}>
+                          <Chip label={esManual ? "MANUAL" : "SUGERIDO"} tone={esManual ? "amber" : "blue"} />
                         </td>
 
                         <td style={{ ...tdStyle, fontWeight: 800, color: colors.blue }}>
@@ -1408,33 +1610,47 @@ export default function OrdenPicking() {
                             min="0"
                             step="0.01"
                             value={cantidades[r.id] ?? 0}
-                            onChange={(e) =>
-                              onChangeCantidad(r.id, e.target.value, maximoCantidad)
-                            }
+                            onChange={(e) => onChangeCantidad(r.id, e.target.value, maximoCantidad)}
                             disabled={!seleccionados[r.id]}
                             style={{
                               width: 120,
                               height: 38,
                               padding: "0 10px",
                               borderRadius: 10,
-                              border: `1px solid ${colors.border}`,
+                              border:
+                                cantidadActual > cantidadSugerida
+                                  ? `1px solid ${colors.bad}`
+                                  : `1px solid ${colors.border}`,
                               textAlign: "right",
                               fontWeight: 800,
+                              color: cantidadActual > cantidadSugerida ? colors.bad : colors.text,
                               background: !seleccionados[r.id] ? "#f8fafc" : "#fff",
                             }}
                           />
-                          {usandoAlternativa && (
+
+                          {cantidadActual > 0 && excesoSobreSugerido > 0 && (
                             <div
                               style={{
                                 marginTop: 6,
                                 fontSize: 11,
-                                fontWeight: 800,
+                                fontWeight: 900,
                                 color: colors.bad,
                               }}
                             >
-                              Máx alt: {formatQty(maximoCantidad)}
+                              Exceso sobre sugerido: {formatQty(excesoSobreSugerido)}
                             </div>
                           )}
+
+                          <div
+                            style={{
+                              marginTop: 4,
+                              fontSize: 11,
+                              fontWeight: 800,
+                              color: colors.muted,
+                            }}
+                          >
+                            Sugerido: {formatQty(cantidadSugerida)} · Máx: {formatQty(maximoCantidad)}
+                          </div>
                         </td>
 
                         <td style={{ ...tdStyle, fontWeight: 700 }}>
@@ -1447,7 +1663,7 @@ export default function OrdenPicking() {
                               {alternativa?.ubicacion || "Pendiente definir"}
                             </div>
                           ) : (
-                            <span style={{ color: colors.muted }}>Sugerida</span>
+                            <span style={{ color: colors.muted }}>{esManual ? "Base manual" : "Sugerida"}</span>
                           )}
                         </td>
 
@@ -1498,6 +1714,21 @@ export default function OrdenPicking() {
                               </button>
                             )}
                           </div>
+                        </td>
+
+                        <td style={{ ...tdStyle, minWidth: 130 }}>
+                          {esManual ? (
+                            <button
+                              type="button"
+                              onClick={() => eliminarSkuManual(r.id)}
+                              style={dangerOutlineButtonStyle}
+                            >
+                              <Trash2 size={15} />
+                              Eliminar
+                            </button>
+                          ) : (
+                            <span style={{ color: colors.muted }}>—</span>
+                          )}
                         </td>
 
                         <td style={{ ...tdStyle, minWidth: 320, whiteSpace: "normal" }}>
@@ -1707,15 +1938,17 @@ export default function OrdenPicking() {
                 >
                   <div style={{ ...labelStyle, marginBottom: 0 }}>Ubicaciones alternativas</div>
 
-                  <button
-                    type="button"
-                    onClick={() => loadAlternativas(modalRow)}
-                    style={secondaryButtonStyle}
-                    disabled={!!cargandoAlternativas[modalRow.id]}
-                  >
-                    <GitCompareArrows size={14} />
-                    {cargandoAlternativas[modalRow.id] ? "Consultando..." : "Actualizar alternativas"}
-                  </button>
+                  {!String(modalRow.id).startsWith("manual-") && (
+                    <button
+                      type="button"
+                      onClick={() => loadAlternativas(modalRow)}
+                      style={secondaryButtonStyle}
+                      disabled={!!cargandoAlternativas[modalRow.id]}
+                    >
+                      <GitCompareArrows size={14} />
+                      {cargandoAlternativas[modalRow.id] ? "Consultando..." : "Actualizar alternativas"}
+                    </button>
+                  )}
                 </div>
 
                 <div
@@ -1727,7 +1960,21 @@ export default function OrdenPicking() {
                     paddingRight: 2,
                   }}
                 >
-                  {!currentModalAlternativas.length ? (
+                  {String(modalRow.id).startsWith("manual-") ? (
+                    <div
+                      style={{
+                        padding: 16,
+                        borderRadius: 12,
+                        border: `1px solid ${colors.infoBd}`,
+                        background: colors.infoBg,
+                        color: colors.text,
+                        fontWeight: 800,
+                      }}
+                    >
+                      Este SKU manual ya tiene una ubicación base seleccionada desde la búsqueda.
+                      Si necesitas otra ubicación, agrega otro SKU manual buscándolo nuevamente.
+                    </div>
+                  ) : !currentModalAlternativas.length ? (
                     <div
                       style={{
                         padding: 16,
@@ -1845,6 +2092,237 @@ export default function OrdenPicking() {
                     Guardar y cerrar
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {busquedaManualOpen && (
+        <div
+          onClick={cerrarBuscadorManual}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: colors.overlay,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 18,
+            zIndex: 9998,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(980px, 96vw)",
+              maxHeight: "92vh",
+              overflow: "auto",
+              background: "#fff",
+              borderRadius: 18,
+              border: `1px solid ${colors.border}`,
+              boxShadow: "0 24px 80px rgba(15,23,42,.22)",
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 20px",
+                borderBottom: `1px solid ${colors.border}`,
+                background: "linear-gradient(180deg, #f8fbff 0%, #f4f7fb 100%)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: 12,
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    color: colors.blue,
+                    fontWeight: 900,
+                    fontSize: 13,
+                    textTransform: "uppercase",
+                    letterSpacing: ".05em",
+                    marginBottom: 8,
+                  }}
+                >
+                  <Search size={16} />
+                  Agregar SKU manual
+                </div>
+
+                <div style={{ fontSize: 22, fontWeight: 900, color: colors.navy }}>
+                  Buscar material disponible
+                </div>
+
+                <div style={{ marginTop: 6, color: colors.muted, fontSize: 13 }}>
+                  Escribe el código o parte del texto breve. Elige una sugerencia y solo ajusta la cantidad.
+                </div>
+              </div>
+
+              <button
+                onClick={cerrarBuscadorManual}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 10,
+                  border: `1px solid ${colors.border}`,
+                  background: "#fff",
+                  cursor: "pointer",
+                  display: "grid",
+                  placeItems: "center",
+                }}
+              >
+                <X size={18} color={colors.text} />
+              </button>
+            </div>
+
+            <div style={{ padding: 20, display: "grid", gap: 18 }}>
+              <div>
+                <div style={labelStyle}>Buscar SKU o texto</div>
+                <div style={{ position: "relative" }}>
+                  <Search
+                    size={14}
+                    color={colors.muted}
+                    style={{
+                      position: "absolute",
+                      left: 12,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                    }}
+                  />
+                  <input
+                    value={skuSearch}
+                    onChange={(e) => setSkuSearch(e.target.value)}
+                    placeholder="Ej: 2147 o tapa pvf"
+                    style={{ ...inputStyle, paddingLeft: 34 }}
+                    autoFocus
+                  />
+                </div>
+
+                <div style={{ marginTop: 8, fontSize: 12, color: colors.muted, fontWeight: 700 }}>
+                  Mínimo 2 caracteres para buscar.
+                </div>
+              </div>
+
+              {skuSearchLoading && (
+                <div
+                  style={{
+                    padding: 14,
+                    borderRadius: 12,
+                    background: colors.warnBg,
+                    border: `1px solid ${colors.warnBd}`,
+                    color: colors.warn,
+                    fontWeight: 800,
+                  }}
+                >
+                  Consultando materiales disponibles...
+                </div>
+              )}
+
+              {!!skuSearchError && (
+                <div
+                  style={{
+                    padding: 14,
+                    borderRadius: 12,
+                    background: colors.badBg,
+                    border: `1px solid ${colors.badBd}`,
+                    color: colors.bad,
+                    fontWeight: 800,
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {skuSearchError}
+                </div>
+              )}
+
+              {!skuSearchLoading && skuSearch.trim().length >= 2 && !skuSearchResults.length && !skuSearchError && (
+                <div
+                  style={{
+                    padding: 14,
+                    borderRadius: 12,
+                    background: colors.soft,
+                    border: `1px solid ${colors.border}`,
+                    color: colors.muted,
+                    fontWeight: 800,
+                  }}
+                >
+                  No se encontraron sugerencias con stock disponible.
+                </div>
+              )}
+
+              {!!skuSearchResults.length && (
+                <div style={{ display: "grid", gap: 10 }}>
+                  {skuSearchResults.map((item, i) => (
+                    <button
+                      key={`${item.sku}-${item.ubicacion}-${item.lote_almacen}-${i}`}
+                      type="button"
+                      onClick={() => agregarSkuManualDesdeSugerencia(item)}
+                      style={{
+                        textAlign: "left",
+                        padding: 14,
+                        borderRadius: 12,
+                        cursor: "pointer",
+                        border: `1px solid ${colors.border}`,
+                        background: "#fff",
+                        color: colors.text,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 12,
+                          flexWrap: "wrap",
+                          marginBottom: 8,
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 900, color: colors.navy }}>
+                            {item.sku || ""}
+                          </div>
+                          <div style={{ marginTop: 4, color: colors.text, fontWeight: 700 }}>
+                            {item.texto_breve || ""}
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            fontWeight: 900,
+                            color: colors.good,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          Disp: {formatQty(item.cantidad_disponible)}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(4, minmax(140px, 1fr))",
+                          gap: 8,
+                          fontSize: 12,
+                          color: colors.muted,
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        <div><b>Ubicación:</b> {item.ubicacion || ""}</div>
+                        <div><b>Lote almacén:</b> {item.lote_almacen || ""}</div>
+                        <div><b>Lote proveedor:</b> {item.lote_proveedor || ""}</div>
+                        <div><b>Fecha vencimiento:</b> {fmtDate(item.fecha_vencimiento)}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button type="button" onClick={cerrarBuscadorManual} style={secondaryButtonStyle}>
+                  Cerrar
+                </button>
               </div>
             </div>
           </div>
