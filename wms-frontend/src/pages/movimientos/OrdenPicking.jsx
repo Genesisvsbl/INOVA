@@ -880,6 +880,21 @@ export default function OrdenPicking() {
             white-space: nowrap !important;
           }
 
+          .print-obs-head,
+          .print-obs-cell {
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+          }
+
+          .print-obs-cell {
+            white-space: normal !important;
+            word-break: break-word !important;
+            overflow-wrap: anywhere !important;
+            line-height: 1.25 !important;
+            vertical-align: top !important;
+          }
+
           .print-header {
             display: flex !important;
             align-items: center !important;
@@ -1948,7 +1963,7 @@ export default function OrdenPicking() {
                   <th>Lote almacén</th>
                   <th>Lote proveedor</th>
                   <th>Fecha vencimiento</th>
-                  <th>Observación rotación</th>
+                  <th className="print-obs-head">Observación rotación</th>
                 </tr>
               </thead>
               <tbody>
@@ -2006,7 +2021,13 @@ export default function OrdenPicking() {
                             format={(v) => fmtDate(v)}
                           />
                         </td>
-                        <td style={{ color: r.motivo_rotacion_impresion ? colors.bad : "#0f172a", fontWeight: 800 }}>
+                        <td
+                          className="print-obs-cell"
+                          style={{
+                            color: r.motivo_rotacion_impresion ? colors.bad : "#0f172a",
+                            fontWeight: 800,
+                          }}
+                        >
                           {r.motivo_rotacion_impresion || ""}
                         </td>
                       </tr>
