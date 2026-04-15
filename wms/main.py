@@ -2582,3 +2582,72 @@ def eliminar_reserva_despacho(reserva: str, db: Session = Depends(get_db)):
         "reserva": reserva,
         "cargas_eliminadas": cargas_eliminadas,
     }
+
+# ==============================
+# ADMIN / RESET SELECTIVO
+# ==============================
+@app.post("/admin/reset-data")
+def reset_data(payload: dict = Body(...), db: Session = Depends(get_db)):
+    confirmacion = str(payload.get("confirmacion") or "").strip().upper()
+
+    if confirmacion != "RESET_INOVA":
+        raise HTTPException(
+            status_code=400,
+            detail="Confirmación inválida. Debe enviar confirmacion=RESET_INOVA"
+        )
+
+    borrar = payload.get("borrar", {})
+
+    try:
+        resultado = {}
+
+        # =========================
+        # OPERACIONES DESPACHO
+        # =========================
+        if borrar.get("despachos"):
+            db.query(models.PickingDetalle).delete(synchronize_session=False)
+            db.query(models.DespachoDetalle).delete(synchronize_session=False)
+            db.query(models.DespachoCarga).delete(synchronize_session=False)
+            resultado["despachos"] = "ok"
+
+        # =========================
+        # INVENTARIOS
+        # =========================
+        if borrar.get("inventarios"):
+            db.query(models.InventarioTareaDetalle).delete(synchronize_session=False)
+            db.query(models.InventarioTarea).delete(synchronize_session=False)
+            resultado["inventarios"] = "ok"
+
+        # =========================
+        # MOVIMIENTOS / TRANSITO
+        # =========================
+        if borrar.get("movimientos"):
+            db.query(models.Movimiento).delete(synchronize_session=False)
+            resultado["movimientos"] = "ok"
+
+        # =========================
+        # ROTULOS
+        # =========================
+        if borrar.get("rotulos"):
+            db.query(models.Rotulo).delete(synchronize_session=False)
+            resultado["rotulos"] = "ok"
+
+        # =========================
+        # MAESTROS (PELIGRO)
+        # =========================
+        if borrar.get("maestros"):
+            db.query(models.Ubicacion).delete(synchronize_session=False)
+            db.query(models.Proveedor).delete(synchronize_session=False)
+            db.query(models.Material).delete(synchronize_session=False)
+            resultado["maestros"] = "ok"
+
+        db.commit()
+
+        return {
+            "mensaje": "Reset ejecutado correctamente",
+            "detalle": resultado
+        }
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error en reset: {str(e)}")
