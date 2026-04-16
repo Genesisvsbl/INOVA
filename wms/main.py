@@ -588,6 +588,53 @@ def buscar_sugerencias_sku_manual_para_picking(q: str, db: Session, limit: int =
     return sugerencias[: max(1, min(limit, 100))]
 
 
+def stock_disponible_exacto(
+    db: Session,
+    material_id: int,
+    ubicacion_id: int,
+    lote_almacen: Optional[str],
+    lote_proveedor: Optional[str],
+    fecha_vencimiento: Optional[date],
+) -> float:
+    total = (
+        db.query(func.sum(models.Movimiento.cantidad_r))
+        .filter(
+            models.Movimiento.material_id == material_id,
+            models.Movimiento.ubicacion_id == ubicacion_id,
+            models.Movimiento.estado == "ALMACENADO",
+            models.Movimiento.lote_almacen == lote_almacen,
+            models.Movimiento.lote_proveedor == lote_proveedor,
+            models.Movimiento.fecha_vencimiento == fecha_vencimiento,
+        )
+        .scalar()
+        or 0
+    )
+    return float(total)
+
+
+def stock_disponible_por_pick(db: Session, pick: models.PickingDetalle) -> float:
+    material = db.query(models.Material).filter(
+        models.Material.codigo == pick.sku
+    ).first()
+    if not material:
+        return 0.0
+
+    ubicacion = db.query(models.Ubicacion).filter(
+        models.Ubicacion.ubicacion == (pick.ubicacion or "").strip()
+    ).first()
+    if not ubicacion:
+        return 0.0
+
+    return stock_disponible_exacto(
+        db=db,
+        material_id=material.id,
+        ubicacion_id=ubicacion.id,
+        lote_almacen=pick.lote_almacen,
+        lote_proveedor=pick.lote_proveedor,
+        fecha_vencimiento=pick.fecha_vencimiento,
+    )
+
+
 # ==============================
 # INVENTARIOS
 # ==============================
@@ -2638,7 +2685,31 @@ def ver_picking(reserva: str, db: Session = Depends(get_db)):
         asc(models.PickingDetalle.id),
     ).all()
 
-    return rows
+    out = []
+    for r in rows:
+        out.append({
+            "id": r.id,
+            "reserva": r.reserva,
+            "sku": r.sku,
+            "texto_breve": r.texto_breve,
+            "cantidad_requerida": float(r.cantidad_requerida or 0),
+            "cantidad_sugerida": float(r.cantidad_sugerida or 0),
+            "cantidad_confirmada": float(r.cantidad_confirmada or 0),
+            "cantidad_disponible": stock_disponible_por_pick(db, r),
+            "ubicacion": r.ubicacion,
+            "lote_almacen": r.lote_almacen,
+            "lote_proveedor": r.lote_proveedor,
+            "fecha_vencimiento": r.fecha_vencimiento,
+            "impreso": bool(r.impreso),
+            "confirmado": bool(r.confirmado),
+            "motivo_rotacion": r.motivo_rotacion,
+            "ubicacion_alternativa": r.ubicacion_alternativa,
+            "lote_almacen_alternativo": r.lote_almacen_alternativo,
+            "lote_proveedor_alternativo": r.lote_proveedor_alternativo,
+            "fecha_vencimiento_alternativa": r.fecha_vencimiento_alternativa,
+        })
+
+    return out
 
 
 @app.get("/despachos/picking-alternativas/{pick_id}")
@@ -2690,26 +2761,146 @@ def confirmar_picking(reserva: str, payload: schemas.PickingConfirmPayload, db: 
     lineas_procesadas = 0
 
     for item in payload.items:
+        es_manual = bool(getattr(item, "manual", False))
+        cantidad = float(item.cantidad_confirmada or 0)
+
+        if cantidad < 0:
+            raise HTTPException(status_code=400, detail="La cantidad no puede ser negativa")
+
+        if cantidad == 0:
+            continue
+
+        usar_alternativa = bool(getattr(item, "usar_alternativa", False))
+        motivo_rotacion = (getattr(item, "motivo_rotacion", None) or "").strip()
+
+        if es_manual:
+            sku_manual = (getattr(item, "sku", None) or "").strip()
+            texto_breve_manual = (getattr(item, "texto_breve", None) or "").strip() or None
+            ubicacion_final = (getattr(item, "ubicacion", None) or "").strip()
+            lote_almacen_final = (getattr(item, "lote_almacen", None) or "").strip() or None
+            lote_proveedor_final = (getattr(item, "lote_proveedor", None) or "").strip() or None
+            fecha_vencimiento_final = getattr(item, "fecha_vencimiento", None)
+
+            if not sku_manual:
+                raise HTTPException(status_code=400, detail="SKU obligatorio en línea manual")
+
+            if not ubicacion_final:
+                raise HTTPException(status_code=400, detail=f"Debe enviar ubicación para SKU manual {sku_manual}")
+
+            if usar_alternativa:
+                if not motivo_rotacion:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Debe registrar el motivo del incumplimiento de rotación para SKU manual {sku_manual}"
+                    )
+
+                ubic_alt = (getattr(item, "ubicacion_alternativa", None) or "").strip()
+                lote_alm_alt = (getattr(item, "lote_almacen_alternativo", None) or "").strip() or None
+                lote_prov_alt = (getattr(item, "lote_proveedor_alternativo", None) or "").strip() or None
+                fv_alt = getattr(item, "fecha_vencimiento_alternativa", None)
+
+                if not ubic_alt:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Debe seleccionar una ubicación alternativa para SKU manual {sku_manual}"
+                    )
+
+                ubicacion_final = ubic_alt
+                lote_almacen_final = lote_alm_alt
+                lote_proveedor_final = lote_prov_alt
+                fecha_vencimiento_final = fv_alt
+
+            material = db.query(models.Material).filter(
+                models.Material.codigo == sku_manual
+            ).first()
+            if not material:
+                raise HTTPException(status_code=404, detail=f"No existe material {sku_manual}")
+
+            ubicacion = db.query(models.Ubicacion).filter(
+                models.Ubicacion.ubicacion == ubicacion_final
+            ).first()
+            if not ubicacion:
+                raise HTTPException(status_code=404, detail=f"No existe ubicación {ubicacion_final}")
+
+            disponible = (
+                db.query(func.sum(models.Movimiento.cantidad_r))
+                .filter(
+                    models.Movimiento.material_id == material.id,
+                    models.Movimiento.ubicacion_id == ubicacion.id,
+                    models.Movimiento.estado == "ALMACENADO",
+                    models.Movimiento.lote_almacen == lote_almacen_final,
+                    models.Movimiento.lote_proveedor == lote_proveedor_final,
+                    models.Movimiento.fecha_vencimiento == fecha_vencimiento_final,
+                )
+                .scalar()
+                or 0
+            )
+            disponible = float(disponible)
+
+            if cantidad > disponible:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Stock insuficiente en SKU manual {sku_manual}. Disponible: {disponible}"
+                )
+
+            despacho_detalle = db.query(models.DespachoDetalle).filter(
+                models.DespachoDetalle.reserva == reserva,
+                models.DespachoDetalle.sku == sku_manual
+            ).order_by(asc(models.DespachoDetalle.id)).first()
+
+            pick_manual = models.PickingDetalle(
+                reserva=reserva,
+                sku=sku_manual,
+                texto_breve=texto_breve_manual,
+                cantidad_requerida=float(despacho_detalle.cantidad or 0) if despacho_detalle else 0,
+                cantidad_sugerida=0,
+                cantidad_confirmada=cantidad,
+                ubicacion=(getattr(item, "ubicacion", None) or "").strip() or ubicacion_final,
+                lote_almacen=(getattr(item, "lote_almacen", None) or "").strip() or lote_almacen_final,
+                lote_proveedor=(getattr(item, "lote_proveedor", None) or "").strip() or lote_proveedor_final,
+                fecha_vencimiento=getattr(item, "fecha_vencimiento", None) or fecha_vencimiento_final,
+                impreso=True,
+                confirmado=True,
+                despacho_detalle_id=despacho_detalle.id if despacho_detalle else None,
+                motivo_rotacion=f"Incumplimiento de rotación debido a {motivo_rotacion}" if usar_alternativa and motivo_rotacion else None,
+                ubicacion_alternativa=ubicacion_final if usar_alternativa else None,
+                lote_almacen_alternativo=lote_almacen_final if usar_alternativa else None,
+                lote_proveedor_alternativo=lote_proveedor_final if usar_alternativa else None,
+                fecha_vencimiento_alternativa=fecha_vencimiento_final if usar_alternativa else None,
+            )
+            db.add(pick_manual)
+
+            mov = models.Movimiento(
+                fecha=datetime.utcnow(),
+                usuario=payload.usuario.strip(),
+                documento=reserva,
+                codigo_cita=reserva,
+                proveedor=None,
+                remesa=None,
+                orden_compra=reserva,
+                um=None,
+                umb=None,
+                material_id=material.id,
+                ubicacion_id=ubicacion.id,
+                estado="ALMACENADO",
+                lote_almacen=lote_almacen_final,
+                lote_proveedor=lote_proveedor_final,
+                fecha_fabricacion=None,
+                fecha_vencimiento=fecha_vencimiento_final,
+                cantidad_r=(-1 * cantidad),
+            )
+            db.add(mov)
+
+            total_guardado += cantidad
+            lineas_procesadas += 1
+            continue
+
         pick = pick_map.get(item.id)
         if not pick:
             raise HTTPException(status_code=404, detail=f"No existe línea picking ID {item.id}")
 
         if pick.confirmado:
             continue
-
-        cantidad = float(item.cantidad_confirmada or 0)
-
-        if cantidad < 0:
-            raise HTTPException(status_code=400, detail=f"La cantidad no puede ser negativa en línea {item.id}")
-
-        if cantidad > float(pick.cantidad_sugerida or 0):
-            raise HTTPException(
-                status_code=400,
-                detail=f"La cantidad confirmada no puede ser mayor a la sugerida en línea {item.id}"
-            )
-
-        usar_alternativa = bool(getattr(item, "usar_alternativa", False))
-        motivo_rotacion = (getattr(item, "motivo_rotacion", None) or "").strip()
 
         ubicacion_final = pick.ubicacion
         lote_almacen_final = pick.lote_almacen
@@ -2763,53 +2954,52 @@ def confirmar_picking(reserva: str, payload: schemas.PickingConfirmPayload, db: 
         if not ubicacion:
             raise HTTPException(status_code=404, detail=f"No existe ubicación {ubicacion_final}")
 
-        if cantidad > 0:
-            disponible = (
-                db.query(func.sum(models.Movimiento.cantidad_r))
-                .filter(
-                    models.Movimiento.material_id == material.id,
-                    models.Movimiento.ubicacion_id == ubicacion.id,
-                    models.Movimiento.estado == "ALMACENADO",
-                    models.Movimiento.lote_almacen == lote_almacen_final,
-                    models.Movimiento.lote_proveedor == lote_proveedor_final,
-                    models.Movimiento.fecha_vencimiento == fecha_vencimiento_final,
-                )
-                .scalar()
-                or 0
+        disponible = (
+            db.query(func.sum(models.Movimiento.cantidad_r))
+            .filter(
+                models.Movimiento.material_id == material.id,
+                models.Movimiento.ubicacion_id == ubicacion.id,
+                models.Movimiento.estado == "ALMACENADO",
+                models.Movimiento.lote_almacen == lote_almacen_final,
+                models.Movimiento.lote_proveedor == lote_proveedor_final,
+                models.Movimiento.fecha_vencimiento == fecha_vencimiento_final,
             )
-            disponible = float(disponible)
+            .scalar()
+            or 0
+        )
+        disponible = float(disponible)
 
-            if cantidad > disponible:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Stock insuficiente en línea {item.id}. Disponible: {disponible}"
-                )
-
-            mov = models.Movimiento(
-                fecha=datetime.utcnow(),
-                usuario=payload.usuario.strip(),
-                documento=reserva,
-                codigo_cita=reserva,
-                proveedor=None,
-                remesa=None,
-                orden_compra=reserva,
-                um=None,
-                umb=None,
-                material_id=material.id,
-                ubicacion_id=ubicacion.id,
-                estado="ALMACENADO",
-                lote_almacen=lote_almacen_final,
-                lote_proveedor=lote_proveedor_final,
-                fecha_fabricacion=None,
-                fecha_vencimiento=fecha_vencimiento_final,
-                cantidad_r=(-1 * cantidad),
+        if cantidad > disponible:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Stock insuficiente en línea {item.id}. Disponible: {disponible}"
             )
-            db.add(mov)
 
-            total_guardado += cantidad
+        mov = models.Movimiento(
+            fecha=datetime.utcnow(),
+            usuario=payload.usuario.strip(),
+            documento=reserva,
+            codigo_cita=reserva,
+            proveedor=None,
+            remesa=None,
+            orden_compra=reserva,
+            um=None,
+            umb=None,
+            material_id=material.id,
+            ubicacion_id=ubicacion.id,
+            estado="ALMACENADO",
+            lote_almacen=lote_almacen_final,
+            lote_proveedor=lote_proveedor_final,
+            fecha_fabricacion=None,
+            fecha_vencimiento=fecha_vencimiento_final,
+            cantidad_r=(-1 * cantidad),
+        )
+        db.add(mov)
 
         pick.cantidad_confirmada = cantidad
         pick.confirmado = True
+
+        total_guardado += cantidad
         lineas_procesadas += 1
 
     db.commit()

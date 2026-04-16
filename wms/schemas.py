@@ -326,6 +326,7 @@ class PickingDetalleOut(BaseModel):
     cantidad_requerida: float
     cantidad_sugerida: float
     cantidad_confirmada: float
+    cantidad_disponible: Optional[float] = 0
 
     ubicacion: Optional[str] = None
     lote_almacen: Optional[str] = None
@@ -374,7 +375,7 @@ class PickingAlternativasResponse(BaseModel):
 
 
 class PickingConfirmItem(BaseModel):
-    id: int
+    id: Optional[int] = None
     cantidad_confirmada: float
 
     usar_alternativa: Optional[bool] = False
@@ -384,6 +385,15 @@ class PickingConfirmItem(BaseModel):
     lote_proveedor_alternativo: Optional[str] = None
     fecha_vencimiento_alternativa: Optional[date] = None
 
+    manual: Optional[bool] = False
+    sku: Optional[str] = None
+    texto_breve: Optional[str] = None
+    reserva: Optional[str] = None
+    ubicacion: Optional[str] = None
+    lote_almacen: Optional[str] = None
+    lote_proveedor: Optional[str] = None
+    fecha_vencimiento: Optional[date] = None
+
 
 class PickingConfirmPayload(BaseModel):
     usuario: str
@@ -391,31 +401,20 @@ class PickingConfirmPayload(BaseModel):
     items: List[PickingConfirmItem]
 
 
-# ==============================
-# BUSQUEDA SKU MANUAL PICKING
-# ==============================
-
-class PickingSkuManualSuggestionOut(BaseModel):
+class SkuManualSuggestionOut(BaseModel):
     sku: str
     texto_breve: Optional[str] = None
-    unidad_medida: Optional[str] = None
     familia: Optional[str] = None
-
+    unidad_medida: Optional[str] = None
     ubicacion: Optional[str] = None
-    zona: Optional[str] = None
-    bodega: Optional[str] = None
-
     lote_almacen: Optional[str] = None
     lote_proveedor: Optional[str] = None
     fecha_vencimiento: Optional[date] = None
-
     cantidad_disponible: float
 
 
-class PickingSkuManualSearchResponse(BaseModel):
-    q: str
-    total: int
-    items: List[PickingSkuManualSuggestionOut] = []
+class SkuManualSuggestionResponse(BaseModel):
+    items: List[SkuManualSuggestionOut]
 
 
 # =========================================================
@@ -423,7 +422,7 @@ class PickingSkuManualSearchResponse(BaseModel):
 # =========================================================
 
 class InventarioTareaCreate(BaseModel):
-    tipo_conteo: str                     # zona / familia / material
+    tipo_conteo: str
     zona: Optional[str] = None
     familia: Optional[str] = None
     codigo_material: Optional[str] = None
