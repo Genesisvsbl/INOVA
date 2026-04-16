@@ -308,6 +308,45 @@ function PrintCompareValue({ sugerido, tomado, format = (v) => v || "" }) {
   );
 }
 
+function getEstadoEntrega(cantidad, sugerida) {
+  const cant = Number(cantidad || 0);
+  const sug = Number(sugerida || 0);
+
+  if (cant <= 0) {
+    return {
+      key: "sin_cantidad",
+      label: "SIN CANTIDAD",
+      tone: "neutral",
+      color: colors.muted,
+    };
+  }
+
+  if (cant > sug) {
+    return {
+      key: "sobre",
+      label: "ENTREGA DE MÁS",
+      tone: "red",
+      color: colors.bad,
+    };
+  }
+
+  if (cant === sug) {
+    return {
+      key: "igual",
+      label: "ENTREGA EXACTA",
+      tone: "green",
+      color: colors.good,
+    };
+  }
+
+  return {
+    key: "debajo",
+    label: "ENTREGA MENOR",
+    tone: "amber",
+    color: colors.warn,
+  };
+}
+
 export default function OrdenPicking() {
   const navigate = useNavigate();
   const { reserva } = useParams();
@@ -514,6 +553,7 @@ export default function OrdenPicking() {
 
       safePick.forEach((r) => {
         const sugerida = Number(r.cantidad_sugerida ?? 0);
+        const disponible = Number(r.cantidad_disponible ?? r.cantidad_sugerida ?? 0);
         const confirmada = Number(r.cantidad_confirmada ?? 0);
         const estaConfirmado = !!r.confirmado || confirmada > 0;
         const tieneIncumplimiento = !!r.motivo_rotacion;
@@ -522,7 +562,7 @@ export default function OrdenPicking() {
         initSel[r.id] = !estaConfirmado && sugerida > 0;
         initImp[r.id] = !!r.impreso;
         initInc[r.id] = tieneIncumplimiento;
-        initMaximos[r.id] = Number(r.cantidad_sugerida ?? 0);
+        initMaximos[r.id] = disponible;
 
         initMotivos[r.id] = r.motivo_rotacion
           ? String(r.motivo_rotacion).replace(/^Incumplimiento de rotacion debido a\s*/i, "")
@@ -534,7 +574,7 @@ export default function OrdenPicking() {
             lote_almacen: r.lote_almacen_alternativo,
             lote_proveedor: r.lote_proveedor_alternativo,
             fecha_vencimiento: r.fecha_vencimiento_alternativa,
-            cantidad_disponible: Number(r.cantidad_sugerida ?? 0),
+            cantidad_disponible: Number(r.cantidad_disponible ?? r.cantidad_sugerida ?? 0),
             sku: r.sku,
             texto_breve: r.texto_breve,
           };
@@ -662,13 +702,31 @@ export default function OrdenPicking() {
     return pendiente > 0 ? pendiente : 0;
   };
 
+  const getCantidadSugeridaVisual = (r) => {
+    const esManual = !!r.manual;
+    const maximoCantidad = !!incumplimientoRows[r.id]
+      ? Number(alternativaElegida[r.id]?.cantidad_disponible ?? 0)
+      : Number(
+          maximosManuales[r.id] ??
+            r.cantidad_disponible ??
+            r.cantidad_sugerida ??
+            0
+        );
+
+    if (esManual) {
+      return Math.min(calcularNecesidadPendientePorSku(r.sku, r.id), maximoCantidad);
+    }
+
+    return Number(r.cantidad_sugerida ?? 0);
+  };
+
   const onChangeCantidad = (id, value, maximo) => {
     let n = Number(value);
     if (!Number.isFinite(n)) n = 0;
     if (n < 0) n = 0;
 
     const tope = Number(maximo || 0);
-    if (n > tope) n = tope;
+    if (tope > 0 && n > tope) n = tope;
 
     setCantidades((prev) => ({
       ...prev,
@@ -694,7 +752,12 @@ export default function OrdenPicking() {
         const row = rowsPendientesFull.find((x) => x.id === id);
         const alt = alternativaElegida[id];
         const maximoAlt = Number(alt?.cantidad_disponible ?? 0);
-        const maximoManual = Number(maximosManuales[id] ?? row?.cantidad_sugerida ?? 0);
+        const maximoManual = Number(
+          maximosManuales[id] ??
+            row?.cantidad_disponible ??
+            row?.cantidad_sugerida ??
+            0
+        );
 
         let sugeridaBase = Number(row?.cantidad_sugerida ?? 0);
 
@@ -754,6 +817,30 @@ export default function OrdenPicking() {
       (r) => !!incumplimientoRows[r.id]
     ).length;
 
+    const totalSobreSugerido = lineasSeleccionadas.filter((r) => {
+      const actual = Number(cantidades[r.id] ?? 0);
+      const sugerida = getCantidadSugeridaVisual(r);
+      return actual > sugerida;
+    }).length;
+
+    const totalIgualSugerido = lineasSeleccionadas.filter((r) => {
+      const actual = Number(cantidades[r.id] ?? 0);
+      const sugerida = getCantidadSugeridaVisual(r);
+      return actual > 0 && actual === sugerida;
+    }).length;
+
+    const totalDebajoSugerido = lineasSeleccionadas.filter((r) => {
+      const actual = Number(cantidades[r.id] ?? 0);
+      const sugerida = getCantidadSugeridaVisual(r);
+      return actual > 0 && actual < sugerida;
+    }).length;
+
+    const diferenciaContraSugerido = lineasSeleccionadas.reduce((acc, r) => {
+      const actual = Number(cantidades[r.id] ?? 0);
+      const sugerida = getCantidadSugeridaVisual(r);
+      return acc + (actual - sugerida);
+    }, 0);
+
     return {
       totalPendientes,
       totalRequerido,
@@ -761,6 +848,10 @@ export default function OrdenPicking() {
       totalPendiente,
       totalComprometer,
       totalIncumplimientoRotacion,
+      totalSobreSugerido,
+      totalIgualSugerido,
+      totalDebajoSugerido,
+      diferenciaContraSugerido,
     };
   }, [rowsPendientesFull, detallesReserva, lineasSeleccionadas, cantidades, incumplimientoRows]);
 
@@ -968,6 +1059,7 @@ export default function OrdenPicking() {
       cantidad_requerida: necesidadPendiente,
       cantidad_sugerida: sugerida,
       cantidad_confirmada: 0,
+      cantidad_disponible: disponible,
       ubicacion: item?.ubicacion || "",
       lote_almacen: item?.lote_almacen || "",
       lote_proveedor: item?.lote_proveedor || "",
@@ -976,7 +1068,6 @@ export default function OrdenPicking() {
       confirmado: false,
       familia: item?.familia || "",
       unidad_medida: item?.unidad_medida || "",
-      cantidad_disponible: disponible,
     };
 
     setItemsManualExtra((prev) => [...prev, nuevo]);
@@ -1275,6 +1366,18 @@ export default function OrdenPicking() {
               <Chip label={`Pendiente: ${formatQty(resumen.totalPendiente)}`} tone="red" />
               <Chip label={`Comprometer: ${formatQty(resumen.totalComprometer)}`} tone="green" />
               <Chip
+                label={`De más: ${resumen.totalSobreSugerido}`}
+                tone={resumen.totalSobreSugerido > 0 ? "red" : "neutral"}
+              />
+              <Chip
+                label={`Exactas: ${resumen.totalIgualSugerido}`}
+                tone={resumen.totalIgualSugerido > 0 ? "green" : "neutral"}
+              />
+              <Chip
+                label={`De menos: ${resumen.totalDebajoSugerido}`}
+                tone={resumen.totalDebajoSugerido > 0 ? "amber" : "neutral"}
+              />
+              <Chip
                 label={`Incumplimientos: ${resumen.totalIncumplimientoRotacion}`}
                 tone={resumen.totalIncumplimientoRotacion > 0 ? "red" : "neutral"}
               />
@@ -1376,7 +1479,7 @@ export default function OrdenPicking() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(6, minmax(170px, 1fr))",
+            gridTemplateColumns: "repeat(9, minmax(150px, 1fr))",
             gap: 10,
             marginTop: 14,
             marginBottom: 14,
@@ -1387,10 +1490,19 @@ export default function OrdenPicking() {
           <SummaryBox label="Total retirado" value={formatQty(resumen.totalRetirado)} tone="green" />
           <SummaryBox label="Pendiente" value={formatQty(resumen.totalPendiente)} tone="red" />
           <SummaryBox label="Comprometer" value={formatQty(resumen.totalComprometer)} tone="green" />
+          <SummaryBox label="Líneas de más" value={resumen.totalSobreSugerido} tone="red" />
+          <SummaryBox label="Líneas exactas" value={resumen.totalIgualSugerido} tone="green" />
+          <SummaryBox label="Líneas de menos" value={resumen.totalDebajoSugerido} tone="amber" />
           <SummaryBox
-            label="Incumplimientos rotación"
-            value={resumen.totalIncumplimientoRotacion}
-            tone={resumen.totalIncumplimientoRotacion > 0 ? "red" : "default"}
+            label="Dif. vs sugerido"
+            value={formatQty(resumen.diferenciaContraSugerido)}
+            tone={
+              resumen.diferenciaContraSugerido > 0
+                ? "red"
+                : resumen.diferenciaContraSugerido < 0
+                ? "amber"
+                : "green"
+            }
           />
         </div>
 
@@ -1437,7 +1549,19 @@ export default function OrdenPicking() {
                     <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
                       {formatQty(r.cantidad_retirada)}
                     </td>
-                    <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                    <td
+                      style={{
+                        ...tdStyle,
+                        textAlign: "right",
+                        fontWeight: 900,
+                        color:
+                          Number(r.diferencia || 0) < 0
+                            ? colors.bad
+                            : Number(r.diferencia || 0) > 0
+                            ? colors.warn
+                            : colors.good,
+                      }}
+                    >
                       {formatQty(r.diferencia)}
                     </td>
                     <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
@@ -1459,14 +1583,16 @@ export default function OrdenPicking() {
           </div>
 
           <div style={tableWrapStyle}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 2300 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 2550 }}>
               <thead>
                 <tr>
                   <th style={thStyle}>Reserva</th>
                   <th style={thStyle}>SKU</th>
                   <th style={thStyle}>Texto breve</th>
                   <th style={{ ...thStyle, textAlign: "right" }}>Cantidad requerida</th>
+                  <th style={{ ...thStyle, textAlign: "right" }}>Cantidad sugerida</th>
                   <th style={{ ...thStyle, textAlign: "right" }}>Cantidad confirmada</th>
+                  <th style={thStyle}>Evidencia entrega</th>
                   <th style={thStyle}>Ubicación tomada</th>
                   <th style={thStyle}>Lote almacén</th>
                   <th style={thStyle}>Lote proveedor</th>
@@ -1478,72 +1604,116 @@ export default function OrdenPicking() {
               <tbody>
                 {rowsConfirmados.length === 0 ? (
                   <tr>
-                    <td colSpan={11} style={{ padding: 18, color: colors.muted, fontWeight: 700 }}>
+                    <td colSpan={13} style={{ padding: 18, color: colors.muted, fontWeight: 700 }}>
                       Aún no hay materiales confirmados.
                     </td>
                   </tr>
                 ) : (
-                  rowsConfirmados.map((r, idx) => (
-                    <tr
-                      key={r.id}
-                      style={{
-                        borderBottom: `1px solid ${colors.border}`,
-                        background: idx % 2 === 0 ? "#fff" : colors.rowAlt,
-                      }}
-                    >
-                      <td style={{ ...tdStyle, fontWeight: 800, color: colors.blue }}>
-                        {r.reserva || ""}
-                      </td>
-                      <td style={{ ...tdStyle, fontWeight: 800 }}>{r.sku || ""}</td>
-                      <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: "normal" }}>
-                        {r.texto_breve || ""}
-                      </td>
-                      <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
-                        {formatQty(r.cantidad_requerida)}
-                      </td>
-                      <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
-                        {formatQty(r.cantidad_confirmada || 0)}
-                      </td>
-                      <td style={{ ...tdStyle, fontWeight: 700 }}>
-                        {r.ubicacion_alternativa || r.ubicacion || ""}
-                      </td>
-                      <td style={{ ...tdStyle, fontWeight: 600 }}>
-                        {r.lote_almacen_alternativo || r.lote_almacen || ""}
-                      </td>
-                      <td style={{ ...tdStyle, fontWeight: 600 }}>
-                        {r.lote_proveedor_alternativo || r.lote_proveedor || ""}
-                      </td>
-                      <td style={{ ...tdStyle, fontWeight: 700 }}>
-                        {fmtDate(r.fecha_vencimiento_alternativa || r.fecha_vencimiento)}
-                      </td>
-                      <td style={{ ...tdStyle, whiteSpace: "normal", minWidth: 340 }}>
-                        {r.motivo_rotacion ? (
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "flex-start",
-                              gap: 8,
-                              padding: 10,
-                              borderRadius: 10,
-                              background: colors.badBg,
-                              border: `1px solid ${colors.badBd}`,
-                              color: colors.bad,
-                              fontWeight: 900,
-                              lineHeight: 1.35,
-                            }}
-                          >
-                            <AlertTriangle size={16} style={{ flex: "0 0 auto", marginTop: 1 }} />
-                            <div>{r.motivo_rotacion}</div>
+                  rowsConfirmados.map((r, idx) => {
+                    const estadoEntrega = getEstadoEntrega(
+                      Number(r.cantidad_confirmada ?? 0),
+                      Number(r.cantidad_sugerida ?? 0)
+                    );
+
+                    const dif = Number(r.cantidad_confirmada ?? 0) - Number(r.cantidad_sugerida ?? 0);
+
+                    return (
+                      <tr
+                        key={r.id}
+                        style={{
+                          borderBottom: `1px solid ${colors.border}`,
+                          background: idx % 2 === 0 ? "#fff" : colors.rowAlt,
+                        }}
+                      >
+                        <td style={{ ...tdStyle, fontWeight: 800, color: colors.blue }}>
+                          {r.reserva || ""}
+                        </td>
+                        <td style={{ ...tdStyle, fontWeight: 800 }}>{r.sku || ""}</td>
+                        <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: "normal" }}>
+                          {r.texto_breve || ""}
+                        </td>
+                        <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                          {formatQty(r.cantidad_requerida)}
+                        </td>
+                        <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                          {formatQty(r.cantidad_sugerida ?? 0)}
+                        </td>
+                        <td
+                          style={{
+                            ...tdStyle,
+                            textAlign: "right",
+                            fontWeight: 900,
+                            color: estadoEntrega.color,
+                          }}
+                        >
+                          {formatQty(r.cantidad_confirmada || 0)}
+                        </td>
+                        <td style={{ ...tdStyle, minWidth: 180, whiteSpace: "normal" }}>
+                          <div style={{ display: "grid", gap: 6 }}>
+                            <Chip
+                              label={estadoEntrega.label}
+                              tone={
+                                estadoEntrega.key === "sobre"
+                                  ? "red"
+                                  : estadoEntrega.key === "igual"
+                                  ? "green"
+                                  : estadoEntrega.key === "debajo"
+                                  ? "amber"
+                                  : "neutral"
+                              }
+                            />
+                            <div
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 900,
+                                color: estadoEntrega.color,
+                              }}
+                            >
+                              Dif. vs sugerido: {formatQty(dif)}
+                            </div>
                           </div>
-                        ) : (
-                          <span style={{ color: colors.muted }}>Sin novedad</span>
-                        )}
-                      </td>
-                      <td style={tdStyle}>
-                        <Chip label="CONFIRMADO" tone="green" />
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td style={{ ...tdStyle, fontWeight: 700 }}>
+                          {r.ubicacion_alternativa || r.ubicacion || ""}
+                        </td>
+                        <td style={{ ...tdStyle, fontWeight: 600 }}>
+                          {r.lote_almacen_alternativo || r.lote_almacen || ""}
+                        </td>
+                        <td style={{ ...tdStyle, fontWeight: 600 }}>
+                          {r.lote_proveedor_alternativo || r.lote_proveedor || ""}
+                        </td>
+                        <td style={{ ...tdStyle, fontWeight: 700 }}>
+                          {fmtDate(r.fecha_vencimiento_alternativa || r.fecha_vencimiento)}
+                        </td>
+                        <td style={{ ...tdStyle, whiteSpace: "normal", minWidth: 340 }}>
+                          {r.motivo_rotacion ? (
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: 8,
+                                padding: 10,
+                                borderRadius: 10,
+                                background: colors.badBg,
+                                border: `1px solid ${colors.badBd}`,
+                                color: colors.bad,
+                                fontWeight: 900,
+                                lineHeight: 1.35,
+                              }}
+                            >
+                              <AlertTriangle size={16} style={{ flex: "0 0 auto", marginTop: 1 }} />
+                              <div>{r.motivo_rotacion}</div>
+                            </div>
+                          ) : (
+                            <span style={{ color: colors.muted }}>Sin novedad</span>
+                          )}
+                        </td>
+                        <td style={tdStyle}>
+                          <Chip label="CONFIRMADO" tone="green" />
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -1570,7 +1740,7 @@ export default function OrdenPicking() {
           </div>
 
           <div style={tableWrapStyle}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 2900 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 3200 }}>
               <thead>
                 <tr>
                   <th style={thStyle}>Comprometer</th>
@@ -1581,6 +1751,7 @@ export default function OrdenPicking() {
                   <th style={{ ...thStyle, textAlign: "right" }}>Cantidad requerida</th>
                   <th style={{ ...thStyle, textAlign: "right" }}>Cantidad sugerida</th>
                   <th style={{ ...thStyle, textAlign: "right" }}>Cantidad a comprometer</th>
+                  <th style={thStyle}>Evidencia entrega</th>
                   <th style={thStyle}>Ubicación sugerida</th>
                   <th style={thStyle}>Ubicación tomada</th>
                   <th style={thStyle}>Lote almacén</th>
@@ -1595,7 +1766,7 @@ export default function OrdenPicking() {
               <tbody>
                 {rowsPendientesFull.length === 0 ? (
                   <tr>
-                    <td colSpan={17} style={{ padding: 18, color: colors.good, fontWeight: 800 }}>
+                    <td colSpan={18} style={{ padding: 18, color: colors.good, fontWeight: 800 }}>
                       No hay líneas pendientes.
                     </td>
                   </tr>
@@ -1607,7 +1778,12 @@ export default function OrdenPicking() {
 
                     const maximoCantidad = usandoAlternativa
                       ? Number(alternativa?.cantidad_disponible ?? 0)
-                      : Number(maximosManuales[r.id] ?? r.cantidad_sugerida ?? 0);
+                      : Number(
+                          maximosManuales[r.id] ??
+                            r.cantidad_disponible ??
+                            r.cantidad_sugerida ??
+                            0
+                        );
 
                     const cantidadActual = Number(cantidades[r.id] ?? 0);
 
@@ -1620,6 +1796,7 @@ export default function OrdenPicking() {
                       : Number(r.cantidad_requerida ?? 0);
 
                     const excesoSobreSugerido = Math.max(0, cantidadActual - cantidadSugeridaVisual);
+                    const estadoEntrega = getEstadoEntrega(cantidadActual, cantidadSugeridaVisual);
 
                     return (
                       <tr
@@ -1704,8 +1881,38 @@ export default function OrdenPicking() {
                               color: colors.muted,
                             }}
                           >
-                            Sugerido: {formatQty(cantidadSugeridaVisual)} · Máx: {formatQty(maximoCantidad)}
+                            Sugerido: {formatQty(cantidadSugeridaVisual)} · Máx disp.: {formatQty(maximoCantidad)}
                           </div>
+                        </td>
+
+                        <td style={{ ...tdStyle, minWidth: 180, whiteSpace: "normal" }}>
+                          {cantidadActual > 0 ? (
+                            <div style={{ display: "grid", gap: 6 }}>
+                              <Chip
+                                label={estadoEntrega.label}
+                                tone={
+                                  estadoEntrega.key === "sobre"
+                                    ? "red"
+                                    : estadoEntrega.key === "igual"
+                                    ? "green"
+                                    : estadoEntrega.key === "debajo"
+                                    ? "amber"
+                                    : "neutral"
+                                }
+                              />
+                              <div
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: 900,
+                                  color: estadoEntrega.color,
+                                }}
+                              >
+                                Dif.: {formatQty(cantidadActual - cantidadSugeridaVisual)}
+                              </div>
+                            </div>
+                          ) : (
+                            <span style={{ color: colors.muted }}>Sin definir</span>
+                          )}
                         </td>
 
                         <td style={{ ...tdStyle, fontWeight: 700 }}>
@@ -1932,7 +2139,12 @@ export default function OrdenPicking() {
                     modalRow?.manual
                       ? Math.min(
                           calcularNecesidadPendientePorSku(modalRow.sku, modalRow.id),
-                          Number(maximosManuales[modalRow.id] ?? modalRow.cantidad_sugerida ?? 0)
+                          Number(
+                            maximosManuales[modalRow.id] ??
+                              modalRow.cantidad_disponible ??
+                              modalRow.cantidad_sugerida ??
+                              0
+                          )
                         )
                       : modalRow.cantidad_sugerida
                   )}
@@ -1941,7 +2153,12 @@ export default function OrdenPicking() {
                 <SummaryBox
                   label="Cantidad a tomar"
                   value={formatQty(cantidades[modalRow.id] ?? 0)}
-                  tone="green"
+                  tone={
+                    Number(cantidades[modalRow.id] ?? 0) >
+                    Number(modalRow.cantidad_sugerida ?? 0)
+                      ? "red"
+                      : "green"
+                  }
                 />
                 <SummaryBox
                   label="Estado alerta"
@@ -2155,7 +2372,12 @@ export default function OrdenPicking() {
                         modalRow?.manual
                           ? Math.min(
                               calcularNecesidadPendientePorSku(modalRow.sku, modalRow.id),
-                              Number(maximosManuales[modalRow.id] ?? modalRow.cantidad_sugerida ?? 0)
+                              Number(
+                                maximosManuales[modalRow.id] ??
+                                  modalRow.cantidad_disponible ??
+                                  modalRow.cantidad_sugerida ??
+                                  0
+                              )
                             )
                           : modalRow.cantidad_sugerida
                       )
@@ -2524,7 +2746,9 @@ export default function OrdenPicking() {
                   <th className="print-nowrap">SKU</th>
                   <th className="print-wrap">Texto breve</th>
                   <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad requerida</th>
+                  <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad sugerida</th>
                   <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad confirmada</th>
+                  <th className="print-nowrap">Evidencia</th>
                   <th className="print-nowrap">Ubicación tomada</th>
                   <th className="print-nowrap">Lote almacén</th>
                   <th className="print-nowrap">Lote proveedor</th>
@@ -2535,46 +2759,55 @@ export default function OrdenPicking() {
               <tbody>
                 {rowsConfirmados.length === 0 ? (
                   <tr>
-                    <td colSpan={10} style={{ padding: 18 }}>
+                    <td colSpan={12} style={{ padding: 18 }}>
                       Aún no hay materiales confirmados.
                     </td>
                   </tr>
                 ) : (
-                  rowsConfirmados.map((r) => (
-                    <tr key={r.id}>
-                      <td className="print-nowrap">{r.reserva || ""}</td>
-                      <td className="print-nowrap">{r.sku || ""}</td>
-                      <td className="print-wrap">{r.texto_breve || ""}</td>
-                      <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.cantidad_requerida)}</td>
-                      <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.cantidad_confirmada || 0)}</td>
-                      <td className="print-nowrap">
-                        <PrintCompareValue
-                          sugerido={r.ubicacion}
-                          tomado={r.ubicacion_alternativa || r.ubicacion}
-                        />
-                      </td>
-                      <td className="print-nowrap">
-                        <PrintCompareValue
-                          sugerido={r.lote_almacen}
-                          tomado={r.lote_almacen_alternativo || r.lote_almacen}
-                        />
-                      </td>
-                      <td className="print-nowrap">
-                        <PrintCompareValue
-                          sugerido={r.lote_proveedor}
-                          tomado={r.lote_proveedor_alternativo || r.lote_proveedor}
-                        />
-                      </td>
-                      <td className="print-nowrap">
-                        <PrintCompareValue
-                          sugerido={r.fecha_vencimiento}
-                          tomado={r.fecha_vencimiento_alternativa || r.fecha_vencimiento}
-                          format={(v) => fmtDate(v)}
-                        />
-                      </td>
-                      <td className="print-nowrap">CONFIRMADO</td>
-                    </tr>
-                  ))
+                  rowsConfirmados.map((r) => {
+                    const estadoEntrega = getEstadoEntrega(
+                      Number(r.cantidad_confirmada ?? 0),
+                      Number(r.cantidad_sugerida ?? 0)
+                    );
+
+                    return (
+                      <tr key={r.id}>
+                        <td className="print-nowrap">{r.reserva || ""}</td>
+                        <td className="print-nowrap">{r.sku || ""}</td>
+                        <td className="print-wrap">{r.texto_breve || ""}</td>
+                        <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.cantidad_requerida)}</td>
+                        <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.cantidad_sugerida ?? 0)}</td>
+                        <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.cantidad_confirmada || 0)}</td>
+                        <td className="print-nowrap">{estadoEntrega.label}</td>
+                        <td className="print-nowrap">
+                          <PrintCompareValue
+                            sugerido={r.ubicacion}
+                            tomado={r.ubicacion_alternativa || r.ubicacion}
+                          />
+                        </td>
+                        <td className="print-nowrap">
+                          <PrintCompareValue
+                            sugerido={r.lote_almacen}
+                            tomado={r.lote_almacen_alternativo || r.lote_almacen}
+                          />
+                        </td>
+                        <td className="print-nowrap">
+                          <PrintCompareValue
+                            sugerido={r.lote_proveedor}
+                            tomado={r.lote_proveedor_alternativo || r.lote_proveedor}
+                          />
+                        </td>
+                        <td className="print-nowrap">
+                          <PrintCompareValue
+                            sugerido={r.fecha_vencimiento}
+                            tomado={r.fecha_vencimiento_alternativa || r.fecha_vencimiento}
+                            format={(v) => fmtDate(v)}
+                          />
+                        </td>
+                        <td className="print-nowrap">CONFIRMADO</td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -2603,8 +2836,8 @@ export default function OrdenPicking() {
                   <th className="print-col-texto print-wrap">Texto breve</th>
                   <th className="print-col-cant-req print-nowrap" style={{ textAlign: "right" }}>Cantidad requerida</th>
                   <th className="print-col-cant-sug print-nowrap" style={{ textAlign: "right" }}>Cantidad sugerida</th>
-                  <th className="print-col-ubi-sug print-nowrap">Ubicación sugerida</th>
                   <th className="print-col-cant-tom print-nowrap" style={{ textAlign: "right" }}>Cantidad tomada</th>
+                  <th className="print-col-ubi-sug print-nowrap">Ubicación sugerida</th>
                   <th className="print-col-ubi-tom print-nowrap">Ubicación tomada</th>
                   <th className="print-col-lote-alm print-nowrap">Lote almacén</th>
                   <th className="print-col-lote-prov print-nowrap">Lote proveedor</th>
@@ -2629,7 +2862,12 @@ export default function OrdenPicking() {
                     const cantidadSugeridaPrint = r.manual
                       ? Math.min(
                           calcularNecesidadPendientePorSku(r.sku, r.id) + Number(r.cantidad_impresion ?? 0),
-                          Number(maximosManuales[r.id] ?? r.cantidad_sugerida ?? 0)
+                          Number(
+                            maximosManuales[r.id] ??
+                              r.cantidad_disponible ??
+                              r.cantidad_sugerida ??
+                              0
+                          )
                         )
                       : Number(r.cantidad_sugerida ?? 0);
 
@@ -2648,14 +2886,14 @@ export default function OrdenPicking() {
                         <td className="print-col-cant-sug print-nowrap" style={{ textAlign: "right" }}>
                           {formatQty(cantidadSugeridaPrint)}
                         </td>
+                        <td className="print-col-cant-tom print-nowrap" style={{ textAlign: "right" }}>
+                          {formatQty(r.cantidad_impresion ?? 0)}
+                        </td>
                         <td className="print-col-ubi-sug print-nowrap">
                           <PrintCompareValue
                             sugerido={r.ubicacion}
                             tomado={usaAlternativa ? alt?.ubicacion : r.ubicacion}
                           />
-                        </td>
-                        <td className="print-col-cant-tom print-nowrap" style={{ textAlign: "right" }}>
-                          {formatQty(r.cantidad_impresion ?? 0)}
                         </td>
                         <td className="print-col-ubi-tom print-nowrap">
                           <PrintCompareValue
