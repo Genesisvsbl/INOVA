@@ -2837,6 +2837,7 @@ def confirmar_picking(reserva: str, payload: schemas.PickingConfirmPayload, db: 
             )
             disponible = float(disponible)
 
+            # ✅ PERMITE más de lo sugerido, pero NO más de lo disponible
             if cantidad > disponible:
                 raise HTTPException(
                     status_code=400,
@@ -2969,6 +2970,7 @@ def confirmar_picking(reserva: str, payload: schemas.PickingConfirmPayload, db: 
         )
         disponible = float(disponible)
 
+        # ✅ PERMITE más de lo sugerido, pero NO más de lo disponible
         if cantidad > disponible:
             raise HTTPException(
                 status_code=400,
