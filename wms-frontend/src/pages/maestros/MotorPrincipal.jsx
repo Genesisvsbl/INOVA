@@ -348,6 +348,8 @@ export default function MotorPrincipal() {
   const [estado, setEstado] = useState("TODOS");
   const [bodega, setBodega] = useState("TODAS");
   const [zona, setZona] = useState("TODAS");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -404,6 +406,21 @@ export default function MotorPrincipal() {
       if (bodega !== "TODAS" && (r.bodega ?? "") !== bodega) return false;
       if (zona !== "TODAS" && (r.zona ?? "") !== zona) return false;
 
+      if (fechaDesde || fechaHasta) {
+        const fechaMovimiento = new Date(r.fecha);
+        if (Number.isNaN(fechaMovimiento.getTime())) return false;
+
+        if (fechaDesde) {
+          const desde = new Date(`${fechaDesde}T00:00:00`);
+          if (fechaMovimiento < desde) return false;
+        }
+
+        if (fechaHasta) {
+          const hasta = new Date(`${fechaHasta}T23:59:59.999`);
+          if (fechaMovimiento > hasta) return false;
+        }
+      }
+
       if (!needle) return true;
 
       const hay = [
@@ -427,7 +444,7 @@ export default function MotorPrincipal() {
 
       return hay.includes(needle);
     });
-  }, [rows, q, tipo, estado, bodega, zona]);
+  }, [rows, q, tipo, estado, bodega, zona, fechaDesde, fechaHasta]);
 
   const stats = useMemo(() => {
     const total = filtered.length;
@@ -467,6 +484,8 @@ export default function MotorPrincipal() {
     setEstado("TODOS");
     setBodega("TODAS");
     setZona("TODAS");
+    setFechaDesde("");
+    setFechaHasta("");
   };
 
   return (
@@ -482,7 +501,7 @@ export default function MotorPrincipal() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(320px, 2fr) repeat(4, minmax(140px, 1fr)) auto",
+              gridTemplateColumns: "minmax(320px, 2fr) repeat(6, minmax(140px, 1fr)) auto",
               gap: 10,
               alignItems: "end",
             }}
@@ -557,6 +576,26 @@ export default function MotorPrincipal() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <div style={fieldLabelStyle}>Fecha desde</div>
+              <input
+                type="date"
+                value={fechaDesde}
+                onChange={(e) => setFechaDesde(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <div style={fieldLabelStyle}>Fecha hasta</div>
+              <input
+                type="date"
+                value={fechaHasta}
+                onChange={(e) => setFechaHasta(e.target.value)}
+                style={inputStyle}
+              />
             </div>
 
             <div style={{ display: "flex", gap: 8 }}>
