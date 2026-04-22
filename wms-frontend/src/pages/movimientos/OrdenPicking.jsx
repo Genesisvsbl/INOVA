@@ -870,7 +870,6 @@ export default function OrdenPicking() {
       ids[r.id] = true;
     });
     setImpresos((prev) => ({ ...prev, ...ids }));
-
     setModoImpresion("seleccionados");
 
     if (printTimeoutRef.current) {
@@ -1143,8 +1142,8 @@ export default function OrdenPicking() {
         }
 
         @page {
-          size: landscape;
-          margin: 10mm;
+          size: Letter landscape;
+          margin: 8mm;
         }
 
         @media print {
@@ -1178,6 +1177,8 @@ export default function OrdenPicking() {
             padding: 0 !important;
             margin: 0 !important;
             overflow: visible !important;
+            transform: none !important;
+            zoom: 1 !important;
           }
 
           .screen-only-root {
@@ -1188,7 +1189,7 @@ export default function OrdenPicking() {
             box-shadow: none !important;
             border: 1px solid #dbe2ea !important;
             border-radius: 6px !important;
-            margin-bottom: 12px !important;
+            margin-bottom: 10px !important;
             overflow: visible !important;
             page-break-inside: auto !important;
             break-inside: auto !important;
@@ -1201,9 +1202,11 @@ export default function OrdenPicking() {
 
           .print-table {
             width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
             border-collapse: collapse !important;
-            table-layout: auto !important;
-            font-size: 10px !important;
+            table-layout: fixed !important;
+            font-size: 9px !important;
           }
 
           .print-table thead {
@@ -1222,14 +1225,14 @@ export default function OrdenPicking() {
           .print-table th,
           .print-table td {
             border: 1px solid #dbe2ea !important;
-            padding: 6px 8px !important;
+            padding: 4px 5px !important;
             vertical-align: top !important;
-            line-height: 1.25 !important;
-            font-size: 9px !important;
+            line-height: 1.2 !important;
+            font-size: 8px !important;
           }
 
           .print-table th {
-            font-size: 9px !important;
+            font-size: 8px !important;
             font-weight: 900 !important;
             white-space: normal !important;
           }
@@ -1251,8 +1254,8 @@ export default function OrdenPicking() {
             align-items: flex-start !important;
             justify-content: space-between !important;
             gap: 10px !important;
-            margin-bottom: 10px !important;
-            padding-bottom: 6px !important;
+            margin-bottom: 8px !important;
+            padding-bottom: 5px !important;
             border-bottom: 1px solid #133454 !important;
           }
 
@@ -1264,14 +1267,14 @@ export default function OrdenPicking() {
           }
 
           .print-logo {
-            width: 32px !important;
-            height: 32px !important;
+            width: 28px !important;
+            height: 28px !important;
             object-fit: contain !important;
             flex: 0 0 auto !important;
           }
 
           .print-title {
-            font-size: 13px !important;
+            font-size: 11px !important;
             font-weight: 900 !important;
             color: #133454 !important;
             margin: 0 !important;
@@ -1279,31 +1282,31 @@ export default function OrdenPicking() {
           }
 
           .print-subtitle {
-            font-size: 9px !important;
+            font-size: 7px !important;
             color: #334155 !important;
             margin-top: 2px !important;
             line-height: 1.1 !important;
           }
 
           .print-meta {
-            font-size: 9px !important;
+            font-size: 7px !important;
             color: #0f172a !important;
             text-align: right !important;
-            line-height: 1.3 !important;
+            line-height: 1.25 !important;
             flex: 0 0 auto !important;
           }
 
           .print-section-title {
-            font-size: 10px !important;
+            font-size: 9px !important;
             font-weight: 900 !important;
-            padding: 8px 10px !important;
+            padding: 6px 8px !important;
           }
 
           .print-alert {
-            margin-top: 6px !important;
+            margin-top: 5px !important;
             color: #c62828 !important;
             font-weight: 800 !important;
-            font-size: 9px !important;
+            font-size: 8px !important;
             line-height: 1.2 !important;
           }
         }
@@ -2836,15 +2839,15 @@ export default function OrdenPicking() {
                   <th className="print-nowrap">Reserva</th>
                   <th className="print-nowrap">SKU</th>
                   <th className="print-wrap">Texto breve</th>
-                  <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad requerida</th>
-                  <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad sugerida</th>
-                  <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad tomada</th>
-                  <th className="print-nowrap">Ubicación sugerida</th>
-                  <th className="print-nowrap">Ubicación tomada</th>
-                  <th className="print-nowrap">Lote almacén</th>
-                  <th className="print-nowrap">Lote proveedor</th>
-                  <th className="print-nowrap">Fecha vencimiento</th>
-                  <th className="print-wrap">Observación rotación</th>
+                  <th className="print-nowrap" style={{ textAlign: "right" }}>Cant. requerida</th>
+                  <th className="print-nowrap" style={{ textAlign: "right" }}>Cant. sugerida</th>
+                  <th className="print-nowrap" style={{ textAlign: "right" }}>Cant. tomada</th>
+                  <th className="print-nowrap">Ubi. sugerida</th>
+                  <th className="print-nowrap">Ubi. tomada</th>
+                  <th className="print-nowrap">Lote alm.</th>
+                  <th className="print-nowrap">Lote prov.</th>
+                  <th className="print-nowrap">Vencimiento</th>
+                  <th className="print-wrap">Observación</th>
                 </tr>
               </thead>
               <tbody>
@@ -2891,9 +2894,7 @@ export default function OrdenPicking() {
                         <td className="print-nowrap" style={{ textAlign: "right" }}>
                           {formatQty(r.cantidad_impresion ?? 0)}
                         </td>
-                        <td className="print-nowrap">
-                          {r.ubicacion || ""}
-                        </td>
+                        <td className="print-nowrap">{r.ubicacion || ""}</td>
                         <td className="print-nowrap">
                           {usaAlternativa ? alt?.ubicacion || "" : r.ubicacion || ""}
                         </td>
