@@ -156,22 +156,6 @@ const selectStyle = {
   fontSize: 14,
 };
 
-const textAreaStyle = {
-  width: "100%",
-  minHeight: 82,
-  padding: "10px 12px",
-  borderRadius: 10,
-  border: `1px solid ${colors.border}`,
-  background: "#fff",
-  fontWeight: 700,
-  color: colors.text,
-  outline: "none",
-  boxSizing: "border-box",
-  fontSize: 13,
-  resize: "vertical",
-  fontFamily: "inherit",
-};
-
 const buttonBase = {
   height: 42,
   padding: "0 16px",
@@ -958,7 +942,7 @@ export default function OrdenPicking() {
 
     if (conIncumplimientoInvalido) {
       alert(
-        "Debes seleccionar el motivo del incumplimiento de rotación y escoger una ubicación alternativa en todas las líneas marcadas."
+        "Debes seleccionar el motivo del incumplimiento de rotación y seleccionar una ubicación alternativa en todas las líneas marcadas."
       );
       return;
     }
@@ -1159,8 +1143,8 @@ export default function OrdenPicking() {
         }
 
         @page {
-          size: Letter landscape;
-          margin: 5mm;
+          size: landscape;
+          margin: 10mm;
         }
 
         @media print {
@@ -1204,10 +1188,10 @@ export default function OrdenPicking() {
             box-shadow: none !important;
             border: 1px solid #dbe2ea !important;
             border-radius: 6px !important;
+            margin-bottom: 12px !important;
+            overflow: visible !important;
             page-break-inside: auto !important;
             break-inside: auto !important;
-            margin-bottom: 8px !important;
-            overflow: visible !important;
           }
 
           .print-table-wrap {
@@ -1217,11 +1201,9 @@ export default function OrdenPicking() {
 
           .print-table {
             width: 100% !important;
-            min-width: 0 !important;
-            max-width: 100% !important;
             border-collapse: collapse !important;
-            table-layout: fixed !important;
-            font-size: 7px !important;
+            table-layout: auto !important;
+            font-size: 10px !important;
           }
 
           .print-table thead {
@@ -1240,13 +1222,14 @@ export default function OrdenPicking() {
           .print-table th,
           .print-table td {
             border: 1px solid #dbe2ea !important;
-            padding: 3px 4px !important;
+            padding: 6px 8px !important;
             vertical-align: top !important;
-            line-height: 1.1 !important;
+            line-height: 1.25 !important;
+            font-size: 9px !important;
           }
 
           .print-table th {
-            font-size: 6.5px !important;
+            font-size: 9px !important;
             font-weight: 900 !important;
             white-space: normal !important;
           }
@@ -1255,7 +1238,9 @@ export default function OrdenPicking() {
             white-space: nowrap !important;
           }
 
-          .print-wrap {
+          .print-wrap,
+          .print-obs-head,
+          .print-obs-cell {
             white-space: normal !important;
             word-break: break-word !important;
             overflow-wrap: anywhere !important;
@@ -1266,27 +1251,27 @@ export default function OrdenPicking() {
             align-items: flex-start !important;
             justify-content: space-between !important;
             gap: 10px !important;
-            margin-bottom: 6px !important;
-            padding-bottom: 4px !important;
+            margin-bottom: 10px !important;
+            padding-bottom: 6px !important;
             border-bottom: 1px solid #133454 !important;
           }
 
           .print-header-left {
             display: flex !important;
             align-items: center !important;
-            gap: 6px !important;
+            gap: 8px !important;
             min-width: 0 !important;
           }
 
           .print-logo {
-            width: 26px !important;
-            height: 26px !important;
+            width: 32px !important;
+            height: 32px !important;
             object-fit: contain !important;
             flex: 0 0 auto !important;
           }
 
           .print-title {
-            font-size: 10px !important;
+            font-size: 13px !important;
             font-weight: 900 !important;
             color: #133454 !important;
             margin: 0 !important;
@@ -1294,58 +1279,32 @@ export default function OrdenPicking() {
           }
 
           .print-subtitle {
-            font-size: 6.5px !important;
+            font-size: 9px !important;
             color: #334155 !important;
             margin-top: 2px !important;
-            line-height: 1.05 !important;
+            line-height: 1.1 !important;
           }
 
           .print-meta {
-            font-size: 7px !important;
+            font-size: 9px !important;
             color: #0f172a !important;
             text-align: right !important;
-            line-height: 1.2 !important;
+            line-height: 1.3 !important;
             flex: 0 0 auto !important;
           }
 
           .print-section-title {
-            font-size: 8px !important;
+            font-size: 10px !important;
             font-weight: 900 !important;
-            padding: 6px 8px !important;
+            padding: 8px 10px !important;
           }
 
           .print-alert {
-            margin-top: 4px !important;
+            margin-top: 6px !important;
             color: #c62828 !important;
             font-weight: 800 !important;
-            font-size: 7px !important;
-            line-height: 1.15 !important;
-          }
-
-          .print-col-reserva { width: 6%; }
-          .print-col-sku { width: 6%; }
-          .print-col-texto { width: 15%; }
-          .print-col-cant-req { width: 8%; }
-          .print-col-cant-sug { width: 8%; }
-          .print-col-ubi-sug { width: 8%; }
-          .print-col-cant-tom { width: 8%; }
-          .print-col-ubi-tom { width: 7%; }
-          .print-col-lote-alm { width: 8%; }
-          .print-col-lote-prov { width: 8%; }
-          .print-col-venc { width: 7%; }
-          .print-col-obs { width: 11%; }
-
-          .print-obs-head,
-          .print-obs-cell {
-            width: 11% !important;
-          }
-
-          .print-obs-cell {
-            white-space: normal !important;
-            word-break: break-word !important;
-            overflow-wrap: anywhere !important;
-            color: #c62828 !important;
-            line-height: 1.08 !important;
+            font-size: 9px !important;
+            line-height: 1.2 !important;
           }
         }
       `}</style>
@@ -2874,18 +2833,18 @@ export default function OrdenPicking() {
             <table className="print-table">
               <thead>
                 <tr>
-                  <th className="print-col-reserva print-nowrap">Reserva</th>
-                  <th className="print-col-sku print-nowrap">SKU</th>
-                  <th className="print-col-texto print-wrap">Texto breve</th>
-                  <th className="print-col-cant-req print-nowrap" style={{ textAlign: "right" }}>Cantidad requerida</th>
-                  <th className="print-col-cant-sug print-nowrap" style={{ textAlign: "right" }}>Cantidad sugerida</th>
-                  <th className="print-col-cant-tom print-nowrap" style={{ textAlign: "right" }}>Cantidad tomada</th>
-                  <th className="print-col-ubi-sug print-nowrap">Ubicación sugerida</th>
-                  <th className="print-col-ubi-tom print-nowrap">Ubicación tomada</th>
-                  <th className="print-col-lote-alm print-nowrap">Lote almacén</th>
-                  <th className="print-col-lote-prov print-nowrap">Lote proveedor</th>
-                  <th className="print-col-venc print-nowrap">Fecha vencimiento</th>
-                  <th className="print-col-obs print-obs-head print-wrap">Observación rotación</th>
+                  <th className="print-nowrap">Reserva</th>
+                  <th className="print-nowrap">SKU</th>
+                  <th className="print-wrap">Texto breve</th>
+                  <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad requerida</th>
+                  <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad sugerida</th>
+                  <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad tomada</th>
+                  <th className="print-nowrap">Ubicación sugerida</th>
+                  <th className="print-nowrap">Ubicación tomada</th>
+                  <th className="print-nowrap">Lote almacén</th>
+                  <th className="print-nowrap">Lote proveedor</th>
+                  <th className="print-nowrap">Fecha vencimiento</th>
+                  <th className="print-wrap">Observación rotación</th>
                 </tr>
               </thead>
               <tbody>
@@ -2920,51 +2879,35 @@ export default function OrdenPicking() {
 
                     return (
                       <tr key={r.id}>
-                        <td className="print-col-reserva print-nowrap">{r.reserva || ""}</td>
-                        <td className="print-col-sku print-nowrap">{r.sku || ""}</td>
-                        <td className="print-col-texto print-wrap">{r.texto_breve || ""}</td>
-                        <td className="print-col-cant-req print-nowrap" style={{ textAlign: "right" }}>
+                        <td className="print-nowrap">{r.reserva || ""}</td>
+                        <td className="print-nowrap">{r.sku || ""}</td>
+                        <td className="print-wrap">{r.texto_breve || ""}</td>
+                        <td className="print-nowrap" style={{ textAlign: "right" }}>
                           {formatQty(cantidadRequeridaPrint)}
                         </td>
-                        <td className="print-col-cant-sug print-nowrap" style={{ textAlign: "right" }}>
+                        <td className="print-nowrap" style={{ textAlign: "right" }}>
                           {formatQty(cantidadSugeridaPrint)}
                         </td>
-                        <td className="print-col-cant-tom print-nowrap" style={{ textAlign: "right" }}>
+                        <td className="print-nowrap" style={{ textAlign: "right" }}>
                           {formatQty(r.cantidad_impresion ?? 0)}
                         </td>
-                        <td className="print-col-ubi-sug print-nowrap">
-                          <PrintCompareValue
-                            sugerido={r.ubicacion}
-                            tomado={usaAlternativa ? alt?.ubicacion : r.ubicacion}
-                          />
+                        <td className="print-nowrap">
+                          {r.ubicacion || ""}
                         </td>
-                        <td className="print-col-ubi-tom print-nowrap">
-                          <PrintCompareValue
-                            sugerido={r.ubicacion}
-                            tomado={usaAlternativa ? alt?.ubicacion : r.ubicacion}
-                          />
+                        <td className="print-nowrap">
+                          {usaAlternativa ? alt?.ubicacion || "" : r.ubicacion || ""}
                         </td>
-                        <td className="print-col-lote-alm print-nowrap">
-                          <PrintCompareValue
-                            sugerido={r.lote_almacen}
-                            tomado={usaAlternativa ? alt?.lote_almacen : r.lote_almacen}
-                          />
+                        <td className="print-nowrap">
+                          {usaAlternativa ? alt?.lote_almacen || "" : r.lote_almacen || ""}
                         </td>
-                        <td className="print-col-lote-prov print-nowrap">
-                          <PrintCompareValue
-                            sugerido={r.lote_proveedor}
-                            tomado={usaAlternativa ? alt?.lote_proveedor : r.lote_proveedor}
-                          />
+                        <td className="print-nowrap">
+                          {usaAlternativa ? alt?.lote_proveedor || "" : r.lote_proveedor || ""}
                         </td>
-                        <td className="print-col-venc print-nowrap">
-                          <PrintCompareValue
-                            sugerido={r.fecha_vencimiento}
-                            tomado={usaAlternativa ? alt?.fecha_vencimiento : r.fecha_vencimiento}
-                            format={(v) => fmtDate(v)}
-                          />
+                        <td className="print-nowrap">
+                          {fmtDate(usaAlternativa ? alt?.fecha_vencimiento : r.fecha_vencimiento)}
                         </td>
                         <td
-                          className="print-col-obs print-obs-cell"
+                          className="print-wrap"
                           style={{
                             color: r.motivo_rotacion_impresion ? colors.bad : "#0f172a",
                             fontWeight: 800,
