@@ -40,6 +40,12 @@ const colors = {
   overlay: "rgba(15, 23, 42, 0.45)",
 };
 
+const MOTIVOS_ROTACION = [
+  "Equipos No operativos",
+  "Mala Identificacion del material",
+  "desicion del opm",
+];
+
 const fmtCO = new Intl.NumberFormat("es-CO", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
@@ -123,6 +129,20 @@ const labelStyle = {
 };
 
 const inputStyle = {
+  width: "100%",
+  height: 42,
+  padding: "0 12px",
+  borderRadius: 10,
+  border: `1px solid ${colors.border}`,
+  background: "#fff",
+  fontWeight: 700,
+  color: colors.text,
+  outline: "none",
+  boxSizing: "border-box",
+  fontSize: 14,
+};
+
+const selectStyle = {
   width: "100%",
   height: 42,
   padding: "0 12px",
@@ -490,7 +510,7 @@ export default function OrdenPicking() {
     }
 
     if (!motivo.trim()) {
-      alert("Debes escribir el motivo del incumplimiento de rotación.");
+      alert("Debes seleccionar el motivo del incumplimiento de rotación.");
       return;
     }
 
@@ -938,7 +958,7 @@ export default function OrdenPicking() {
 
     if (conIncumplimientoInvalido) {
       alert(
-        "Debes escribir el motivo del incumplimiento de rotación y seleccionar una ubicación alternativa en todas las líneas marcadas."
+        "Debes seleccionar el motivo del incumplimiento de rotación y escoger una ubicación alternativa en todas las líneas marcadas."
       );
       return;
     }
@@ -1146,10 +1166,11 @@ export default function OrdenPicking() {
         @media print {
           html, body {
             width: 100%;
-            height: auto;
+            height: auto !important;
             margin: 0 !important;
             padding: 0 !important;
             background: #ffffff !important;
+            overflow: visible !important;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
@@ -1165,12 +1186,14 @@ export default function OrdenPicking() {
 
           .print-area {
             display: block !important;
-            position: absolute;
-            inset: 0;
-            width: 100%;
+            position: static !important;
+            inset: auto !important;
+            width: 100% !important;
+            min-height: auto !important;
             background: #ffffff !important;
             padding: 0 !important;
             margin: 0 !important;
+            overflow: visible !important;
           }
 
           .screen-only-root {
@@ -1181,9 +1204,10 @@ export default function OrdenPicking() {
             box-shadow: none !important;
             border: 1px solid #dbe2ea !important;
             border-radius: 6px !important;
-            page-break-inside: avoid;
-            break-inside: avoid;
+            page-break-inside: auto !important;
+            break-inside: auto !important;
             margin-bottom: 8px !important;
+            overflow: visible !important;
           }
 
           .print-table-wrap {
@@ -1198,6 +1222,19 @@ export default function OrdenPicking() {
             border-collapse: collapse !important;
             table-layout: fixed !important;
             font-size: 7px !important;
+          }
+
+          .print-table thead {
+            display: table-header-group !important;
+          }
+
+          .print-table tfoot {
+            display: table-footer-group !important;
+          }
+
+          .print-table tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
 
           .print-table th,
@@ -2204,7 +2241,7 @@ export default function OrdenPicking() {
 
               <div>
                 <div style={labelStyle}>Motivo obligatorio</div>
-                <textarea
+                <select
                   value={currentModalMotivo}
                   onChange={(e) =>
                     setMotivosRotacion((prev) => ({
@@ -2212,9 +2249,15 @@ export default function OrdenPicking() {
                       [modalRow.id]: e.target.value,
                     }))
                   }
-                  placeholder="Ej: equipos eléctricos no están operativos, lote bloqueado, calidad retenida, daño de estiba, acceso restringido..."
-                  style={textAreaStyle}
-                />
+                  style={selectStyle}
+                >
+                  <option value="">Selecciona un motivo</option>
+                  {MOTIVOS_ROTACION.map((motivo) => (
+                    <option key={motivo} value={motivo}>
+                      {motivo}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
