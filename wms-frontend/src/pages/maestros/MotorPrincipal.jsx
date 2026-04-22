@@ -3,7 +3,6 @@ import { getMotor } from "../../api";
 import {
   Cpu,
   Search,
-  RefreshCw,
   Download,
   FilterX,
 } from "lucide-react";
@@ -170,6 +169,38 @@ function toCSV(rows) {
     "lote_proveedor",
     "fecha_vencimiento",
     "cantidad",
+  ];
+
+  const esc = (x) => {
+    const s = (x ?? "").toString().replaceAll('"', '""');
+    return `"${s}"`;
+  };
+
+  const lines = [
+    headers.join(","),
+    ...rows.map((r) =>
+      headers.map((h) => esc(r[h])).join(",")
+    ),
+  ];
+
+  return lines.join("\n");
+}
+
+function toCSVStock(rows) {
+  const headers = [
+    "codigo_material",
+    "descripcion_material",
+    "unidad_medida",
+    "familia",
+    "ubicacion",
+    "ubicacion_base",
+    "posicion",
+    "zona",
+    "bodega",
+    "lote_almacen",
+    "lote_proveedor",
+    "fecha_vencimiento",
+    "stock",
   ];
 
   const esc = (x) => {
@@ -401,7 +432,14 @@ export default function MotorPrincipal() {
     const needle = q.trim().toLowerCase();
 
     return rows.filter((r) => {
-      if (tipo !== "TODOS" && String(r.tipo || "").toUpperCase() !== tipo) return false;
+      if (
+        tipo !== "TODOS" &&
+        tipo !== "STOCK" &&
+        String(r.tipo || "").toUpperCase() !== tipo
+      ) {
+        return false;
+      }
+
       if (estado !== "TODOS" && String(r.estado || "").toUpperCase() !== estado) return false;
       if (bodega !== "TODAS" && (r.bodega ?? "") !== bodega) return false;
       if (zona !== "TODAS" && (r.zona ?? "") !== zona) return false;
@@ -446,6 +484,61 @@ export default function MotorPrincipal() {
     });
   }, [rows, q, tipo, estado, bodega, zona, fechaDesde, fechaHasta]);
 
+  const stockRows = useMemo(() => {
+    const map = new Map();
+
+    filtered.forEach((r) => {
+      const key = [
+        r.codigo_material ?? "",
+        r.descripcion_material ?? "",
+        r.unidad_medida ?? "",
+        r.familia ?? "",
+        r.ubicacion ?? "",
+        r.ubicacion_base ?? "",
+        r.posicion ?? "",
+        r.zona ?? "",
+        r.bodega ?? "",
+        r.lote_almacen ?? "",
+        r.lote_proveedor ?? "",
+        r.fecha_vencimiento ?? "",
+      ].join("||");
+
+      const qty = Number(r.cantidad ?? 0);
+
+      if (!map.has(key)) {
+        map.set(key, {
+          id: key,
+          codigo_material: r.codigo_material ?? "",
+          descripcion_material: r.descripcion_material ?? "",
+          unidad_medida: r.unidad_medida ?? "",
+          familia: r.familia ?? "",
+          ubicacion: r.ubicacion ?? "",
+          ubicacion_base: r.ubicacion_base ?? "",
+          posicion: r.posicion ?? "",
+          zona: r.zona ?? "",
+          bodega: r.bodega ?? "",
+          lote_almacen: r.lote_almacen ?? "",
+          lote_proveedor: r.lote_proveedor ?? "",
+          fecha_vencimiento: r.fecha_vencimiento ?? "",
+          cantidad: 0,
+          stock: 0,
+        });
+      }
+
+      const item = map.get(key);
+      item.cantidad += qty;
+      item.stock = item.cantidad;
+    });
+
+    return Array.from(map.values())
+      .filter((r) => Number(r.stock || 0) !== 0)
+      .sort((a, b) => {
+        const am = String(a.codigo_material || "");
+        const bm = String(b.codigo_material || "");
+        return am.localeCompare(bm);
+      });
+  }, [filtered]);
+
   const stats = useMemo(() => {
     const total = filtered.length;
     const entradas = filtered.filter((r) => Number(r.cantidad ?? 0) >= 0).length;
@@ -465,16 +558,27 @@ export default function MotorPrincipal() {
       (r) => String(r.estado || "").toUpperCase() === "EN_TRANSITO"
     ).length;
 
-    return { total, entradas, salidas, sumEntradas, sumSalidasAbs, enTransito };
-  }, [filtered]);
+    const totalStock = stockRows.reduce(
+      (acc, r) => acc + Number(r.stock || 0),
+      0
+    );
+
+    return { total, entradas, salidas, sumEntradas, sumSalidasAbs, enTransito, totalStock };
+  }, [filtered, stockRows]);
 
   const onExport = () => {
-    const csv = toCSV(filtered);
     const stamp = new Date();
     const yyyy = stamp.getFullYear();
     const mm = String(stamp.getMonth() + 1).padStart(2, "0");
     const dd = String(stamp.getDate()).padStart(2, "0");
 
+    if (tipo === "STOCK") {
+      const csv = toCSVStock(stockRows);
+      downloadText(`motor_principal_stock_${yyyy}-${mm}-${dd}.csv`, csv);
+      return;
+    }
+
+    const csv = toCSV(filtered);
     downloadText(`motor_principal_${yyyy}-${mm}-${dd}.csv`, csv);
   };
 
@@ -487,6 +591,8 @@ export default function MotorPrincipal() {
     setFechaDesde("");
     setFechaHasta("");
   };
+
+  const showingRows = tipo === "STOCK" ? stockRows : filtered;
 
   return (
     <div style={pageStyle}>
@@ -544,6 +650,7 @@ export default function MotorPrincipal() {
                 <option value="TODOS">TODOS</option>
                 <option value="ENTRADA">ENTRADA</option>
                 <option value="SALIDA">SALIDA</option>
+                <option value="STOCK">STOCK</option>
               </select>
             </div>
 
@@ -621,8 +728,12 @@ export default function MotorPrincipal() {
       >
         <div style={panelStyle}>
           <div style={panelBodyStyle}>
-            <div style={fieldLabelStyle}>Registros</div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: colors.navy }}>{stats.total}</div>
+            <div style={fieldLabelStyle}>
+              {tipo === "STOCK" ? "Registros stock" : "Registros"}
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: colors.navy }}>
+              {tipo === "STOCK" ? stockRows.length : stats.total}
+            </div>
           </div>
         </div>
 
@@ -667,9 +778,13 @@ export default function MotorPrincipal() {
 
         <div style={panelStyle}>
           <div style={panelBodyStyle}>
-            <div style={fieldLabelStyle}>Balance</div>
+            <div style={fieldLabelStyle}>
+              {tipo === "STOCK" ? "Stock total" : "Balance"}
+            </div>
             <div style={{ fontSize: 20, fontWeight: 800, color: colors.blue }}>
-              {fmtNumberCO((stats.sumEntradas || 0) - (stats.sumSalidasAbs || 0))}
+              {tipo === "STOCK"
+                ? fmtNumberCO(stats.totalStock || 0)
+                : fmtNumberCO((stats.sumEntradas || 0) - (stats.sumSalidasAbs || 0))}
             </div>
           </div>
         </div>
@@ -686,129 +801,203 @@ export default function MotorPrincipal() {
             flexWrap: "wrap",
           }}
         >
-          <div>Listado de movimientos</div>
+          <div>{tipo === "STOCK" ? "Listado de stock" : "Listado de movimientos"}</div>
 
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             {loading && <StatusChip label="Cargando" tone="amber" />}
             {err && <StatusChip label="Fallo API" tone="red" />}
-            {!loading && !err && <StatusChip label={`Mostrando ${filtered.length} de ${rows.length}`} tone="blue" />}
+            {!loading && !err && (
+              <StatusChip
+                label={
+                  tipo === "STOCK"
+                    ? `Mostrando ${stockRows.length} grupos de stock`
+                    : `Mostrando ${filtered.length} de ${rows.length}`
+                }
+                tone="blue"
+              />
+            )}
           </div>
         </div>
 
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1700 }}>
-            <thead>
-              <tr>
-                <th style={thStyle}>Fecha</th>
-                <th style={thStyle}>Tipo</th>
-                <th style={thStyle}>Estado</th>
-                <th style={thStyle}>Usuario</th>
-                <th style={thStyle}>Documento</th>
-                <th style={thStyle}>Material</th>
-                <th style={thStyle}>Descripción</th>
-                <th style={thStyle}>UM</th>
-                <th style={thStyle}>Familia</th>
-                <th style={thStyle}>Ubicación base</th>
-                <th style={thStyle}>Posición</th>
-                <th style={thStyle}>Ubicación final</th>
-                <th style={thStyle}>Zona</th>
-                <th style={thStyle}>Bodega</th>
-                <th style={thStyle}>Lote almacén</th>
-                <th style={thStyle}>Lote proveedor</th>
-                <th style={thStyle}>Vencimiento</th>
-                <th style={{ ...thStyle, textAlign: "right" }}>Cantidad</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {!loading && !err && filtered.length === 0 && (
+          {tipo === "STOCK" ? (
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1500 }}>
+              <thead>
                 <tr>
-                  <td colSpan={18} style={tdStyle}>
-                    No hay registros con esos filtros.
-                  </td>
+                  <th style={thStyle}>Material</th>
+                  <th style={thStyle}>Descripción</th>
+                  <th style={thStyle}>UM</th>
+                  <th style={thStyle}>Familia</th>
+                  <th style={thStyle}>Ubicación base</th>
+                  <th style={thStyle}>Posición</th>
+                  <th style={thStyle}>Ubicación final</th>
+                  <th style={thStyle}>Zona</th>
+                  <th style={thStyle}>Bodega</th>
+                  <th style={thStyle}>Lote almacén</th>
+                  <th style={thStyle}>Lote proveedor</th>
+                  <th style={thStyle}>Vencimiento</th>
+                  <th style={{ ...thStyle, textAlign: "right" }}>Stock</th>
                 </tr>
-              )}
+              </thead>
 
-              {filtered.map((r) => {
-                const qty = Number(r.cantidad || 0);
-                const isIn = qty >= 0;
-                const estadoUp = String(r.estado || "").toUpperCase();
-                const ubicFinal = (r.ubicacion ?? "").toString().trim();
-                const ubicBase = (r.ubicacion_base ?? "").toString().trim();
-                const posicion = (r.posicion ?? "").toString().trim();
+              <tbody>
+                {!loading && !err && showingRows.length === 0 && (
+                  <tr>
+                    <td colSpan={13} style={tdStyle}>
+                      No hay registros con esos filtros.
+                    </td>
+                  </tr>
+                )}
 
-                return (
+                {showingRows.map((r) => (
                   <tr key={r.id}>
-                    <td style={tdStyle}>{fmtDateTime(r.fecha)}</td>
-
-                    <td style={tdStyle}>
-                      {String(r.tipo || "").toUpperCase() === "ENTRADA" ? (
-                        <StatusChip label="ENTRADA" tone="green" />
-                      ) : (
-                        <StatusChip label="SALIDA" tone="red" />
-                      )}
-                    </td>
-
-                    <td style={tdStyle}>
-                      {estadoUp === "EN_TRANSITO" ? (
-                        <StatusChip label="EN TRANSITO" tone="amber" />
-                      ) : (
-                        <StatusChip label="ALMACENADO" tone="blue" />
-                      )}
-                    </td>
-
-                    <td style={tdStyle}>{r.usuario || ""}</td>
-                    <td style={tdStyle}>{r.documento || ""}</td>
                     <td style={{ ...tdStyle, fontWeight: 700, color: colors.navy }}>
                       {r.codigo_material || ""}
                     </td>
                     <td style={tdStyle}>{r.descripcion_material || ""}</td>
                     <td style={tdStyle}>{r.unidad_medida || ""}</td>
                     <td style={tdStyle}>{r.familia || ""}</td>
-
-                    <td
-                      style={{
-                        ...tdStyle,
-                        fontWeight: 700,
-                        color: estadoUp === "EN_TRANSITO" ? colors.warn : colors.navy,
-                      }}
-                    >
-                      {ubicBase || (estadoUp === "EN_TRANSITO" ? "EN TRANSITO" : "")}
+                    <td style={{ ...tdStyle, fontWeight: 700, color: colors.navy }}>
+                      {r.ubicacion_base || ""}
                     </td>
-
-                    <td style={tdStyle}>{posicion || ""}</td>
-
-                    <td
-                      style={{
-                        ...tdStyle,
-                        fontWeight: 700,
-                        color: estadoUp === "EN_TRANSITO" ? colors.warn : colors.blue,
-                      }}
-                    >
-                      {ubicFinal || "EN TRANSITO"}
+                    <td style={tdStyle}>{r.posicion || ""}</td>
+                    <td style={{ ...tdStyle, fontWeight: 700, color: colors.blue }}>
+                      {r.ubicacion || ""}
                     </td>
-
                     <td style={tdStyle}>{r.zona || ""}</td>
                     <td style={tdStyle}>{r.bodega || ""}</td>
                     <td style={tdStyle}>{r.lote_almacen || ""}</td>
                     <td style={tdStyle}>{r.lote_proveedor || ""}</td>
                     <td style={tdStyle}>{r.fecha_vencimiento || ""}</td>
-
                     <td
                       style={{
                         ...tdStyle,
                         textAlign: "right",
                         fontWeight: 800,
-                        color: isIn ? colors.good : colors.bad,
+                        color: Number(r.stock || 0) >= 0 ? colors.good : colors.bad,
                       }}
                     >
-                      {fmtNumberCO(qty)}
+                      {fmtNumberCO(r.stock || 0)}
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1700 }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Fecha</th>
+                  <th style={thStyle}>Tipo</th>
+                  <th style={thStyle}>Estado</th>
+                  <th style={thStyle}>Usuario</th>
+                  <th style={thStyle}>Documento</th>
+                  <th style={thStyle}>Material</th>
+                  <th style={thStyle}>Descripción</th>
+                  <th style={thStyle}>UM</th>
+                  <th style={thStyle}>Familia</th>
+                  <th style={thStyle}>Ubicación base</th>
+                  <th style={thStyle}>Posición</th>
+                  <th style={thStyle}>Ubicación final</th>
+                  <th style={thStyle}>Zona</th>
+                  <th style={thStyle}>Bodega</th>
+                  <th style={thStyle}>Lote almacén</th>
+                  <th style={thStyle}>Lote proveedor</th>
+                  <th style={thStyle}>Vencimiento</th>
+                  <th style={{ ...thStyle, textAlign: "right" }}>Cantidad</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {!loading && !err && showingRows.length === 0 && (
+                  <tr>
+                    <td colSpan={18} style={tdStyle}>
+                      No hay registros con esos filtros.
+                    </td>
+                  </tr>
+                )}
+
+                {showingRows.map((r) => {
+                  const qty = Number(r.cantidad || 0);
+                  const isIn = qty >= 0;
+                  const estadoUp = String(r.estado || "").toUpperCase();
+                  const ubicFinal = (r.ubicacion ?? "").toString().trim();
+                  const ubicBase = (r.ubicacion_base ?? "").toString().trim();
+                  const posicion = (r.posicion ?? "").toString().trim();
+
+                  return (
+                    <tr key={r.id}>
+                      <td style={tdStyle}>{fmtDateTime(r.fecha)}</td>
+
+                      <td style={tdStyle}>
+                        {String(r.tipo || "").toUpperCase() === "ENTRADA" ? (
+                          <StatusChip label="ENTRADA" tone="green" />
+                        ) : (
+                          <StatusChip label="SALIDA" tone="red" />
+                        )}
+                      </td>
+
+                      <td style={tdStyle}>
+                        {estadoUp === "EN_TRANSITO" ? (
+                          <StatusChip label="EN TRANSITO" tone="amber" />
+                        ) : (
+                          <StatusChip label="ALMACENADO" tone="blue" />
+                        )}
+                      </td>
+
+                      <td style={tdStyle}>{r.usuario || ""}</td>
+                      <td style={tdStyle}>{r.documento || ""}</td>
+                      <td style={{ ...tdStyle, fontWeight: 700, color: colors.navy }}>
+                        {r.codigo_material || ""}
+                      </td>
+                      <td style={tdStyle}>{r.descripcion_material || ""}</td>
+                      <td style={tdStyle}>{r.unidad_medida || ""}</td>
+                      <td style={tdStyle}>{r.familia || ""}</td>
+
+                      <td
+                        style={{
+                          ...tdStyle,
+                          fontWeight: 700,
+                          color: estadoUp === "EN_TRANSITO" ? colors.warn : colors.navy,
+                        }}
+                      >
+                        {ubicBase || (estadoUp === "EN_TRANSITO" ? "EN TRANSITO" : "")}
+                      </td>
+
+                      <td style={tdStyle}>{posicion || ""}</td>
+
+                      <td
+                        style={{
+                          ...tdStyle,
+                          fontWeight: 700,
+                          color: estadoUp === "EN_TRANSITO" ? colors.warn : colors.blue,
+                        }}
+                      >
+                        {ubicFinal || "EN TRANSITO"}
+                      </td>
+
+                      <td style={tdStyle}>{r.zona || ""}</td>
+                      <td style={tdStyle}>{r.bodega || ""}</td>
+                      <td style={tdStyle}>{r.lote_almacen || ""}</td>
+                      <td style={tdStyle}>{r.lote_proveedor || ""}</td>
+                      <td style={tdStyle}>{r.fecha_vencimiento || ""}</td>
+
+                      <td
+                        style={{
+                          ...tdStyle,
+                          textAlign: "right",
+                          fontWeight: 800,
+                          color: isIn ? colors.good : colors.bad,
+                        }}
+                      >
+                        {fmtNumberCO(qty)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {err && (
