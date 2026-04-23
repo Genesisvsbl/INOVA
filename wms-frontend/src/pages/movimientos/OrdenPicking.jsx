@@ -1121,22 +1121,15 @@ export default function OrdenPicking() {
   };
 
   return (
-    <div
-      className="orden-picking-page"
-      style={{ background: colors.bg, minHeight: "100vh", padding: 18 }}
-    >
+    <div className="orden-picking-page" style={{ background: colors.bg, minHeight: "100vh", padding: 18 }}>
       <style>{`
         .print-area {
           display: none;
         }
 
-        .screen-only-root {
-          display: block;
-        }
-
         @page {
           size: Letter landscape;
-          margin: 6mm;
+          margin: 4mm;
         }
 
         @media print {
@@ -1155,22 +1148,35 @@ export default function OrdenPicking() {
             font-family: Arial, Helvetica, sans-serif !important;
           }
 
-          body {
-            background: #fff !important;
+          .orden-picking-page {
+            background: #ffffff !important;
+            min-height: auto !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: visible !important;
           }
 
-          .screen-only-root {
-            display: none !important;
+          body * {
+            visibility: hidden !important;
+          }
+
+          .print-area,
+          .print-area * {
+            visibility: visible !important;
           }
 
           .print-area {
             display: block !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
             width: 100% !important;
-            height: auto !important;
+            background: #ffffff !important;
             margin: 0 !important;
             padding: 0 !important;
-            background: #ffffff !important;
             overflow: visible !important;
+            transform: none !important;
+            min-height: auto !important;
           }
 
           .print-inner {
@@ -1179,11 +1185,8 @@ export default function OrdenPicking() {
             padding: 4mm !important;
             box-sizing: border-box !important;
             overflow: visible !important;
-          }
-
-          .print-page-break {
-            break-before: page !important;
-            page-break-before: always !important;
+            height: auto !important;
+            min-height: auto !important;
           }
 
           .print-header {
@@ -1191,7 +1194,7 @@ export default function OrdenPicking() {
             align-items: flex-start !important;
             justify-content: space-between !important;
             gap: 10px !important;
-            margin: 0 0 6px 0 !important;
+            margin: 0 0 4px 0 !important;
             padding: 0 0 4px 0 !important;
             border-bottom: 1px solid #133454 !important;
             break-inside: avoid !important;
@@ -1241,13 +1244,13 @@ export default function OrdenPicking() {
           .print-card {
             border: 1px solid #c8d1dc !important;
             border-radius: 4px !important;
-            margin: 0 0 8px 0 !important;
+            margin: 0 0 6px 0 !important;
             overflow: visible !important;
             background: #ffffff !important;
-            box-shadow: none !important;
             break-inside: auto !important;
             page-break-inside: auto !important;
             page-break-after: auto !important;
+            box-shadow: none !important;
           }
 
           .print-section-title {
@@ -1277,24 +1280,23 @@ export default function OrdenPicking() {
             table-layout: fixed !important;
             margin: 0 !important;
             page-break-inside: auto !important;
-            break-inside: auto !important;
           }
 
           .print-table thead {
             display: table-header-group !important;
           }
 
-          .print-table tfoot {
-            display: table-footer-group !important;
-          }
-
           .print-table tbody {
             display: table-row-group !important;
           }
 
+          .print-table tfoot {
+            display: table-footer-group !important;
+          }
+
           .print-table tr {
-            break-inside: avoid !important;
             page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
 
           .print-table th,
@@ -1334,15 +1336,6 @@ export default function OrdenPicking() {
             padding: 0 !important;
             break-inside: avoid !important;
             page-break-inside: avoid !important;
-          }
-
-          button,
-          input,
-          select,
-          textarea,
-          svg {
-            print-color-adjust: exact !important;
-            -webkit-print-color-adjust: exact !important;
           }
         }
       `}</style>
