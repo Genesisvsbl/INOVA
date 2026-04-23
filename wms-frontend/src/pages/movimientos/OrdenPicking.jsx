@@ -105,6 +105,127 @@ function Chip({ label, tone = "neutral" }) {
   );
 }
 
+function SummaryBox({ label, value, tone = "default" }) {
+  const toneStyles = {
+    default: { color: colors.navy },
+    green: { color: colors.good },
+    red: { color: colors.bad },
+    amber: { color: colors.warn },
+    blue: { color: colors.blue },
+  };
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: `1px solid ${colors.border}`,
+        borderRadius: 10,
+        padding: 14,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          color: colors.muted,
+          fontWeight: 800,
+          letterSpacing: ".04em",
+          textTransform: "uppercase",
+          marginBottom: 8,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 18,
+          fontWeight: 900,
+          color: toneStyles[tone]?.color || colors.navy,
+          lineHeight: 1.1,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function PrintCompareValue({ sugerido, tomado, format = (v) => v || "" }) {
+  const sugRaw = sugerido ?? "";
+  const tomRaw = tomado ?? "";
+
+  const sug = format(sugRaw);
+  const tom = format(tomRaw);
+
+  const hayAlternativaReal =
+    String(tomRaw || "").trim() !== "" &&
+    String(sug || "").trim() !== String(tom || "").trim();
+
+  if (!hayAlternativaReal) {
+    return <span>{sug || tom || ""}</span>;
+  }
+
+  return (
+    <div style={{ display: "grid", gap: 1, lineHeight: 1.15 }}>
+      <div
+        style={{
+          color: "#7c8798",
+          textDecoration: "line-through",
+          fontWeight: 700,
+        }}
+      >
+        {sug || ""}
+      </div>
+      <div
+        style={{
+          color: "#0f172a",
+          fontWeight: 800,
+        }}
+      >
+        {tom || ""}
+      </div>
+    </div>
+  );
+}
+
+function getEstadoEntrega(cantidad, sugerida) {
+  const cant = Number(cantidad || 0);
+  const sug = Number(sugerida || 0);
+
+  if (cant <= 0) {
+    return {
+      key: "sin_cantidad",
+      label: "SIN CANTIDAD",
+      tone: "neutral",
+      color: colors.muted,
+    };
+  }
+
+  if (cant > sug) {
+    return {
+      key: "sobre",
+      label: "ENTREGA DE MÁS",
+      tone: "red",
+      color: colors.bad,
+    };
+  }
+
+  if (cant === sug) {
+    return {
+      key: "igual",
+      label: "ENTREGA EXACTA",
+      tone: "green",
+      color: colors.good,
+    };
+  }
+
+  return {
+    key: "debajo",
+    label: "ENTREGA MENOR",
+    tone: "amber",
+    color: colors.warn,
+  };
+}
+
 const shellCardStyle = {
   background: colors.card,
   border: `1px solid ${colors.border}`,
@@ -229,127 +350,6 @@ const tdStyle = {
   fontSize: 13,
   verticalAlign: "top",
 };
-
-function SummaryBox({ label, value, tone = "default" }) {
-  const toneStyles = {
-    default: { color: colors.navy },
-    green: { color: colors.good },
-    red: { color: colors.bad },
-    amber: { color: colors.warn },
-    blue: { color: colors.blue },
-  };
-
-  return (
-    <div
-      style={{
-        background: "#fff",
-        border: `1px solid ${colors.border}`,
-        borderRadius: 10,
-        padding: 14,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 11,
-          color: colors.muted,
-          fontWeight: 800,
-          letterSpacing: ".04em",
-          textTransform: "uppercase",
-          marginBottom: 8,
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          fontSize: 18,
-          fontWeight: 900,
-          color: toneStyles[tone]?.color || colors.navy,
-          lineHeight: 1.1,
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function PrintCompareValue({ sugerido, tomado, format = (v) => v || "" }) {
-  const sugRaw = sugerido ?? "";
-  const tomRaw = tomado ?? "";
-
-  const sug = format(sugRaw);
-  const tom = format(tomRaw);
-
-  const hayAlternativaReal =
-    String(tomRaw || "").trim() !== "" &&
-    String(sug || "").trim() !== String(tom || "").trim();
-
-  if (!hayAlternativaReal) {
-    return <span>{sug || tom || ""}</span>;
-  }
-
-  return (
-    <div style={{ display: "grid", gap: 1, lineHeight: 1.15 }}>
-      <div
-        style={{
-          color: "#7c8798",
-          textDecoration: "line-through",
-          fontWeight: 700,
-        }}
-      >
-        {sug || ""}
-      </div>
-      <div
-        style={{
-          color: "#0f172a",
-          fontWeight: 800,
-        }}
-      >
-        {tom || ""}
-      </div>
-    </div>
-  );
-}
-
-function getEstadoEntrega(cantidad, sugerida) {
-  const cant = Number(cantidad || 0);
-  const sug = Number(sugerida || 0);
-
-  if (cant <= 0) {
-    return {
-      key: "sin_cantidad",
-      label: "SIN CANTIDAD",
-      tone: "neutral",
-      color: colors.muted,
-    };
-  }
-
-  if (cant > sug) {
-    return {
-      key: "sobre",
-      label: "ENTREGA DE MÁS",
-      tone: "red",
-      color: colors.bad,
-    };
-  }
-
-  if (cant === sug) {
-    return {
-      key: "igual",
-      label: "ENTREGA EXACTA",
-      tone: "green",
-      color: colors.good,
-    };
-  }
-
-  return {
-    key: "debajo",
-    label: "ENTREGA MENOR",
-    tone: "amber",
-    color: colors.warn,
-  };
-}
 
 export default function OrdenPicking() {
   const navigate = useNavigate();
@@ -1121,7 +1121,7 @@ export default function OrdenPicking() {
   };
 
   return (
-    <div style={{ background: colors.bg, minHeight: "100vh", padding: 18 }}>
+    <div className="orden-picking-page" style={{ background: colors.bg, minHeight: "100vh", padding: 18 }}>
       <style>{`
         .print-area {
           display: none;
@@ -1129,14 +1129,14 @@ export default function OrdenPicking() {
 
         @page {
           size: Letter landscape;
-          margin: 4mm 4mm;
+          margin: 4mm;
         }
 
         @media print {
           html,
-          body {
+          body,
+          #root {
             width: 100% !important;
-            min-width: 100% !important;
             height: auto !important;
             min-height: auto !important;
             margin: 0 !important;
@@ -1148,40 +1148,33 @@ export default function OrdenPicking() {
             font-family: Arial, Helvetica, sans-serif !important;
           }
 
-          #root {
-            width: 100% !important;
-            max-width: 100% !important;
-            height: auto !important;
-            min-height: auto !important;
-            overflow: visible !important;
-            background: #ffffff !important;
+          body * {
+            visibility: hidden !important;
           }
 
-          .screen-only-root {
-            display: none !important;
+          .print-area,
+          .print-area * {
+            visibility: visible !important;
           }
 
           .print-area {
             display: block !important;
-            position: static !important;
-            inset: auto !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
             width: 100% !important;
-            max-width: 100% !important;
+            background: #ffffff !important;
             margin: 0 !important;
             padding: 0 !important;
-            background: #fff !important;
             overflow: visible !important;
             transform: none !important;
-            height: auto !important;
-            min-height: auto !important;
           }
 
           .print-inner {
             width: 100% !important;
-            max-width: 100% !important;
             margin: 0 !important;
-            padding: 0 !important;
-            overflow: visible !important;
+            padding: 4mm !important;
+            box-sizing: border-box !important;
           }
 
           .print-header {
@@ -1241,11 +1234,10 @@ export default function OrdenPicking() {
             border-radius: 4px !important;
             margin: 0 0 6px 0 !important;
             overflow: visible !important;
+            background: #ffffff !important;
             break-inside: auto !important;
             page-break-inside: auto !important;
             page-break-after: auto !important;
-            page-break-before: auto !important;
-            background: #ffffff !important;
             box-shadow: none !important;
           }
 
@@ -1272,8 +1264,6 @@ export default function OrdenPicking() {
 
           .print-table {
             width: 100% !important;
-            min-width: 100% !important;
-            max-width: 100% !important;
             border-collapse: collapse !important;
             table-layout: fixed !important;
             margin: 0 !important;
@@ -1288,14 +1278,9 @@ export default function OrdenPicking() {
             display: table-row-group !important;
           }
 
-          .print-table tfoot {
-            display: table-footer-group !important;
-          }
-
           .print-table tr {
-            break-inside: avoid !important;
             page-break-inside: avoid !important;
-            page-break-after: auto !important;
+            break-inside: avoid !important;
           }
 
           .print-table th,
@@ -1332,8 +1317,6 @@ export default function OrdenPicking() {
             font-weight: 800 !important;
             font-size: 7px !important;
             line-height: 1.12 !important;
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
             padding: 0 !important;
           }
         }
@@ -2709,11 +2692,7 @@ export default function OrdenPicking() {
                 <h1 className="print-title">
                   {modoImpresion === "final" ? "RESULTADO FINAL DE DESPACHO" : "ORDEN DE PICKING"}
                 </h1>
-                <div className="print-subtitle">
-                  {modoImpresion === "final"
-                    ? "WMS INOVA · Control logístico"
-                    : "WMS INOVA · Control logístico"}
-                </div>
+                <div className="print-subtitle">WMS INOVA · Control logístico</div>
               </div>
             </div>
 
