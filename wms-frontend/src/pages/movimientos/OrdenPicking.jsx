@@ -1,4 +1,3 @@
-```jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_URL } from "../../api";
@@ -2969,4 +2968,3 @@ export default function OrdenPicking() {
     </div>
   );
 }
-```
