@@ -1176,7 +1176,56 @@ export default function OrdenPicking() {
       box-sizing: border-box !important;
     }
 
-    /* 🔥 CLAVE: FORZAR NUEVA PÁGINA */
+    .print-header {
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: flex-start !important;
+      gap: 12px !important;
+      margin-bottom: 6px !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+
+    .print-header-left {
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+      min-width: 0 !important;
+    }
+
+    .print-logo {
+      width: 26px !important;
+      height: 26px !important;
+      object-fit: contain !important;
+      flex: 0 0 auto !important;
+      display: block !important;
+    }
+
+    .print-title {
+      margin: 0 !important;
+      font-size: 15px !important;
+      line-height: 1.05 !important;
+      font-weight: 900 !important;
+      color: #133454 !important;
+    }
+
+    .print-subtitle {
+      margin-top: 2px !important;
+      font-size: 7px !important;
+      color: #5b6b7c !important;
+      font-weight: 700 !important;
+    }
+
+    .print-meta {
+      font-size: 7px !important;
+      line-height: 1.3 !important;
+      text-align: right !important;
+      color: #0f172a !important;
+      font-weight: 700 !important;
+      white-space: nowrap !important;
+      flex: 0 0 auto !important;
+    }
+
     .print-force-new-page {
       break-before: page !important;
       page-break-before: always !important;
@@ -1199,9 +1248,15 @@ export default function OrdenPicking() {
       color: #133454 !important;
     }
 
+    .print-table-wrap {
+      width: 100% !important;
+      overflow: visible !important;
+    }
+
     .print-table {
       width: 100% !important;
       border-collapse: collapse !important;
+      table-layout: auto !important;
     }
 
     .print-table tr {
@@ -1215,6 +1270,7 @@ export default function OrdenPicking() {
       padding: 2px 4px !important;
       font-size: 7px !important;
       line-height: 1.12 !important;
+      vertical-align: top !important;
     }
 
     .print-table th {
