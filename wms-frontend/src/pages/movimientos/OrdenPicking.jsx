@@ -878,7 +878,7 @@ export default function OrdenPicking() {
 
     printTimeoutRef.current = setTimeout(() => {
       window.print();
-    }, 200);
+    }, 180);
   };
 
   const imprimirResultadoFinal = () => {
@@ -890,7 +890,7 @@ export default function OrdenPicking() {
 
     printTimeoutRef.current = setTimeout(() => {
       window.print();
-    }, 200);
+    }, 180);
   };
 
   const guardarDespacho = async () => {
@@ -1143,7 +1143,7 @@ export default function OrdenPicking() {
 
         @page {
           size: Letter landscape;
-          margin: 8mm;
+          margin: 4mm;
         }
 
         @media print {
@@ -1158,46 +1158,99 @@ export default function OrdenPicking() {
             print-color-adjust: exact;
           }
 
-          body * {
-            visibility: hidden;
-          }
-
-          .print-area,
-          .print-area * {
-            visibility: visible;
+          .screen-only-root {
+            display: none !important;
           }
 
           .print-area {
             display: block !important;
             position: static !important;
-            inset: auto !important;
             width: 100% !important;
-            min-height: auto !important;
-            background: #ffffff !important;
-            padding: 0 !important;
             margin: 0 !important;
+            padding: 0 !important;
+            background: #fff !important;
             overflow: visible !important;
             transform: none !important;
-            zoom: 1 !important;
           }
 
-          .screen-only-root {
-            display: none !important;
+          .print-inner {
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          .print-header {
+            display: flex !important;
+            align-items: flex-end !important;
+            justify-content: space-between !important;
+            gap: 8px !important;
+            margin: 0 0 4px 0 !important;
+            padding: 0 0 3px 0 !important;
+            border-bottom: 1px solid #133454 !important;
+          }
+
+          .print-header-left {
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            min-width: 0 !important;
+          }
+
+          .print-logo {
+            width: 22px !important;
+            height: 22px !important;
+            object-fit: contain !important;
+            flex: 0 0 auto !important;
+          }
+
+          .print-title {
+            font-size: 10px !important;
+            font-weight: 900 !important;
+            color: #133454 !important;
+            margin: 0 !important;
+            line-height: 1 !important;
+          }
+
+          .print-subtitle {
+            font-size: 6px !important;
+            color: #334155 !important;
+            margin-top: 1px !important;
+            line-height: 1 !important;
+          }
+
+          .print-meta {
+            font-size: 6px !important;
+            color: #0f172a !important;
+            text-align: right !important;
+            line-height: 1.1 !important;
+            flex: 0 0 auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
 
           .print-card {
             box-shadow: none !important;
             border: 1px solid #dbe2ea !important;
-            border-radius: 6px !important;
-            margin-bottom: 10px !important;
+            border-radius: 4px !important;
+            margin: 4px 0 6px 0 !important;
             overflow: visible !important;
-            page-break-inside: auto !important;
             break-inside: auto !important;
+            page-break-inside: auto !important;
+            page-break-after: auto !important;
+          }
+
+          .print-section-title {
+            font-size: 8px !important;
+            font-weight: 900 !important;
+            padding: 5px 6px !important;
+            margin: 0 !important;
           }
 
           .print-table-wrap {
-            overflow: visible !important;
             width: 100% !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
 
           .print-table {
@@ -1206,33 +1259,33 @@ export default function OrdenPicking() {
             max-width: 100% !important;
             border-collapse: collapse !important;
             table-layout: fixed !important;
-            font-size: 9px !important;
+            margin: 0 !important;
           }
 
           .print-table thead {
             display: table-header-group !important;
           }
 
-          .print-table tfoot {
-            display: table-footer-group !important;
+          .print-table tbody {
+            display: table-row-group !important;
           }
 
           .print-table tr {
-            page-break-inside: avoid !important;
             break-inside: avoid !important;
+            page-break-inside: avoid !important;
           }
 
           .print-table th,
           .print-table td {
             border: 1px solid #dbe2ea !important;
-            padding: 4px 5px !important;
+            padding: 3px 4px !important;
             vertical-align: top !important;
-            line-height: 1.2 !important;
-            font-size: 8px !important;
+            line-height: 1.15 !important;
+            font-size: 7px !important;
           }
 
           .print-table th {
-            font-size: 8px !important;
+            font-size: 7px !important;
             font-weight: 900 !important;
             white-space: normal !important;
           }
@@ -1241,73 +1294,18 @@ export default function OrdenPicking() {
             white-space: nowrap !important;
           }
 
-          .print-wrap,
-          .print-obs-head,
-          .print-obs-cell {
+          .print-wrap {
             white-space: normal !important;
             word-break: break-word !important;
             overflow-wrap: anywhere !important;
           }
 
-          .print-header {
-            display: flex !important;
-            align-items: flex-start !important;
-            justify-content: space-between !important;
-            gap: 10px !important;
-            margin-bottom: 8px !important;
-            padding-bottom: 5px !important;
-            border-bottom: 1px solid #133454 !important;
-          }
-
-          .print-header-left {
-            display: flex !important;
-            align-items: center !important;
-            gap: 8px !important;
-            min-width: 0 !important;
-          }
-
-          .print-logo {
-            width: 28px !important;
-            height: 28px !important;
-            object-fit: contain !important;
-            flex: 0 0 auto !important;
-          }
-
-          .print-title {
-            font-size: 11px !important;
-            font-weight: 900 !important;
-            color: #133454 !important;
-            margin: 0 !important;
-            line-height: 1.05 !important;
-          }
-
-          .print-subtitle {
-            font-size: 7px !important;
-            color: #334155 !important;
-            margin-top: 2px !important;
-            line-height: 1.1 !important;
-          }
-
-          .print-meta {
-            font-size: 7px !important;
-            color: #0f172a !important;
-            text-align: right !important;
-            line-height: 1.25 !important;
-            flex: 0 0 auto !important;
-          }
-
-          .print-section-title {
-            font-size: 9px !important;
-            font-weight: 900 !important;
-            padding: 6px 8px !important;
-          }
-
           .print-alert {
-            margin-top: 5px !important;
+            margin-top: 4px !important;
             color: #c62828 !important;
             font-weight: 800 !important;
-            font-size: 8px !important;
-            line-height: 1.2 !important;
+            font-size: 7px !important;
+            line-height: 1.15 !important;
           }
         }
       `}</style>
@@ -2676,252 +2674,254 @@ export default function OrdenPicking() {
       )}
 
       <div className="print-area">
-        <div className="print-header">
-          <div className="print-header-left">
-            <img src="/INOVA.png" alt="INOVA" className="print-logo" />
-            <div>
-              <h1 className="print-title">
-                {modoImpresion === "final" ? "RESULTADO FINAL DE DESPACHO" : "ORDEN DE PICKING"}
-              </h1>
-              <div className="print-subtitle">
-                {modoImpresion === "final"
-                  ? "WMS INOVA · Resumen final del despacho"
-                  : "WMS INOVA · Control logístico"}
+        <div className="print-inner">
+          <div className="print-header">
+            <div className="print-header-left">
+              <img src="/INOVA.png" alt="INOVA" className="print-logo" />
+              <div>
+                <h1 className="print-title">
+                  {modoImpresion === "final" ? "RESULTADO FINAL DE DESPACHO" : "ORDEN DE PICKING"}
+                </h1>
+                <div className="print-subtitle">
+                  {modoImpresion === "final"
+                    ? "WMS INOVA · Resumen final del despacho"
+                    : "WMS INOVA · Control logístico"}
+                </div>
               </div>
+            </div>
+
+            <div className="print-meta">
+              <div><b>Reserva:</b> {reserva || ""}</div>
+              <div><b>Usuario:</b> {usuario || "DESPACHO"}</div>
+              <div><b>Documento:</b> {documento || ""}</div>
+              <div><b>Fecha impresión:</b> {fmtDate(new Date())}</div>
             </div>
           </div>
 
-          <div className="print-meta">
-            <div><b>Reserva:</b> {reserva || ""}</div>
-            <div><b>Usuario:</b> {usuario || "DESPACHO"}</div>
-            <div><b>Documento:</b> {documento || ""}</div>
-            <div><b>Fecha impresión:</b> {fmtDate(new Date())}</div>
-          </div>
-        </div>
+          <div className="print-card" style={shellCardStyle}>
+            <div className="print-section-title" style={sectionHeaderStyle}>
+              Resumen de la reserva
+            </div>
 
-        <div className="print-card" style={shellCardStyle}>
-          <div className="print-section-title" style={sectionHeaderStyle}>
-            Resumen de la reserva
-          </div>
-
-          <div className="print-table-wrap">
-            <table className="print-table">
-              <thead>
-                <tr>
-                  <th className="print-nowrap">Fecha necesidad</th>
-                  <th className="print-nowrap">Reserva</th>
-                  <th className="print-nowrap">SKU</th>
-                  <th className="print-wrap">Texto breve</th>
-                  <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad requerida</th>
-                  <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad retirada</th>
-                  <th className="print-nowrap" style={{ textAlign: "right" }}>Diferencia</th>
-                  <th className="print-nowrap" style={{ textAlign: "right" }}>% SKU</th>
-                  <th className="print-nowrap">Clasificación</th>
-                </tr>
-              </thead>
-              <tbody>
-                {detallesReserva.map((r) => (
-                  <tr key={r.id}>
-                    <td className="print-nowrap">{fmtDate(r.fecha_necesidad)}</td>
-                    <td className="print-nowrap">{r.reserva}</td>
-                    <td className="print-nowrap">{r.sku}</td>
-                    <td className="print-wrap">{r.texto_breve || ""}</td>
-                    <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.cantidad)}</td>
-                    <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.cantidad_retirada)}</td>
-                    <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.diferencia)}</td>
-                    <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.pct_cumplimiento_sku)}</td>
-                    <td className="print-nowrap">{r.clasificacion_sku || ""}</td>
+            <div className="print-table-wrap">
+              <table className="print-table">
+                <thead>
+                  <tr>
+                    <th className="print-nowrap">Fecha necesidad</th>
+                    <th className="print-nowrap">Reserva</th>
+                    <th className="print-nowrap">SKU</th>
+                    <th className="print-wrap">Texto breve</th>
+                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad requerida</th>
+                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad retirada</th>
+                    <th className="print-nowrap" style={{ textAlign: "right" }}>Diferencia</th>
+                    <th className="print-nowrap" style={{ textAlign: "right" }}>% SKU</th>
+                    <th className="print-nowrap">Clasificación</th>
                   </tr>
+                </thead>
+                <tbody>
+                  {detallesReserva.map((r) => (
+                    <tr key={r.id}>
+                      <td className="print-nowrap">{fmtDate(r.fecha_necesidad)}</td>
+                      <td className="print-nowrap">{r.reserva}</td>
+                      <td className="print-nowrap">{r.sku}</td>
+                      <td className="print-wrap">{r.texto_breve || ""}</td>
+                      <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.cantidad)}</td>
+                      <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.cantidad_retirada)}</td>
+                      <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.diferencia)}</td>
+                      <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.pct_cumplimiento_sku)}</td>
+                      <td className="print-nowrap">{r.clasificacion_sku || ""}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="print-card" style={shellCardStyle}>
+            <div className="print-section-title" style={sectionHeaderStyle}>
+              Materiales confirmados
+            </div>
+
+            <div className="print-table-wrap">
+              <table className="print-table">
+                <thead>
+                  <tr>
+                    <th className="print-nowrap">Reserva</th>
+                    <th className="print-nowrap">SKU</th>
+                    <th className="print-wrap">Texto breve</th>
+                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad requerida</th>
+                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad sugerida</th>
+                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad confirmada</th>
+                    <th className="print-nowrap">Evidencia</th>
+                    <th className="print-nowrap">Ubicación tomada</th>
+                    <th className="print-nowrap">Lote almacén</th>
+                    <th className="print-nowrap">Lote proveedor</th>
+                    <th className="print-nowrap">Fecha vencimiento</th>
+                    <th className="print-nowrap">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rowsConfirmados.length === 0 ? (
+                    <tr>
+                      <td colSpan={12} style={{ padding: 18 }}>
+                        Aún no hay materiales confirmados.
+                      </td>
+                    </tr>
+                  ) : (
+                    rowsConfirmados.map((r) => {
+                      const estadoEntrega = getEstadoEntrega(
+                        Number(r.cantidad_confirmada ?? 0),
+                        Number(r.cantidad_sugerida ?? 0)
+                      );
+
+                      return (
+                        <tr key={r.id}>
+                          <td className="print-nowrap">{r.reserva || ""}</td>
+                          <td className="print-nowrap">{r.sku || ""}</td>
+                          <td className="print-wrap">{r.texto_breve || ""}</td>
+                          <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.cantidad_requerida)}</td>
+                          <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.cantidad_sugerida ?? 0)}</td>
+                          <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.cantidad_confirmada || 0)}</td>
+                          <td className="print-nowrap">{estadoEntrega.label}</td>
+                          <td className="print-nowrap">
+                            <PrintCompareValue
+                              sugerido={r.ubicacion}
+                              tomado={r.ubicacion_alternativa || r.ubicacion}
+                            />
+                          </td>
+                          <td className="print-nowrap">
+                            <PrintCompareValue
+                              sugerido={r.lote_almacen}
+                              tomado={r.lote_almacen_alternativo || r.lote_almacen}
+                            />
+                          </td>
+                          <td className="print-nowrap">
+                            <PrintCompareValue
+                              sugerido={r.lote_proveedor}
+                              tomado={r.lote_proveedor_alternativo || r.lote_proveedor}
+                            />
+                          </td>
+                          <td className="print-nowrap">
+                            <PrintCompareValue
+                              sugerido={r.fecha_vencimiento}
+                              tomado={r.fecha_vencimiento_alternativa || r.fecha_vencimiento}
+                              format={(v) => fmtDate(v)}
+                            />
+                          </td>
+                          <td className="print-nowrap">CONFIRMADO</td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+
+              {rowsConfirmados
+                .filter((r) => !!r.motivo_rotacion)
+                .map((r) => (
+                  <div key={`alerta-print-${r.id}`} className="print-alert">
+                    <b>{r.sku}</b>: {r.motivo_rotacion}
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="print-card" style={shellCardStyle}>
-          <div className="print-section-title" style={sectionHeaderStyle}>
-            Materiales confirmados
+            </div>
           </div>
 
-          <div className="print-table-wrap">
-            <table className="print-table">
-              <thead>
-                <tr>
-                  <th className="print-nowrap">Reserva</th>
-                  <th className="print-nowrap">SKU</th>
-                  <th className="print-wrap">Texto breve</th>
-                  <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad requerida</th>
-                  <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad sugerida</th>
-                  <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad confirmada</th>
-                  <th className="print-nowrap">Evidencia</th>
-                  <th className="print-nowrap">Ubicación tomada</th>
-                  <th className="print-nowrap">Lote almacén</th>
-                  <th className="print-nowrap">Lote proveedor</th>
-                  <th className="print-nowrap">Fecha vencimiento</th>
-                  <th className="print-nowrap">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rowsConfirmados.length === 0 ? (
+          <div className="print-card" style={shellCardStyle}>
+            <div className="print-section-title" style={sectionHeaderStyle}>
+              {modoImpresion === "final" ? "Pendiente restante" : "Orden de picking pendiente"}
+            </div>
+
+            <div className="print-table-wrap">
+              <table className="print-table">
+                <thead>
                   <tr>
-                    <td colSpan={12} style={{ padding: 18 }}>
-                      Aún no hay materiales confirmados.
-                    </td>
+                    <th className="print-nowrap">Reserva</th>
+                    <th className="print-nowrap">SKU</th>
+                    <th className="print-wrap">Texto breve</th>
+                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cant. requerida</th>
+                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cant. sugerida</th>
+                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cant. tomada</th>
+                    <th className="print-nowrap">Ubi. sugerida</th>
+                    <th className="print-nowrap">Ubi. tomada</th>
+                    <th className="print-nowrap">Lote alm.</th>
+                    <th className="print-nowrap">Lote prov.</th>
+                    <th className="print-nowrap">Vencimiento</th>
+                    <th className="print-wrap">Observación</th>
                   </tr>
-                ) : (
-                  rowsConfirmados.map((r) => {
-                    const estadoEntrega = getEstadoEntrega(
-                      Number(r.cantidad_confirmada ?? 0),
-                      Number(r.cantidad_sugerida ?? 0)
-                    );
+                </thead>
+                <tbody>
+                  {lineasParaImprimir.length === 0 ? (
+                    <tr>
+                      <td colSpan={12} style={{ padding: 18 }}>
+                        {modoImpresion === "final"
+                          ? "No hay líneas pendientes. El despacho quedó completamente atendido."
+                          : "No hay líneas pendientes para imprimir."}
+                      </td>
+                    </tr>
+                  ) : (
+                    lineasParaImprimir.map((r) => {
+                      const alt = r.alternativa_impresion;
+                      const usaAlternativa = !!alt;
 
-                    return (
-                      <tr key={r.id}>
-                        <td className="print-nowrap">{r.reserva || ""}</td>
-                        <td className="print-nowrap">{r.sku || ""}</td>
-                        <td className="print-wrap">{r.texto_breve || ""}</td>
-                        <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.cantidad_requerida)}</td>
-                        <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.cantidad_sugerida ?? 0)}</td>
-                        <td className="print-nowrap" style={{ textAlign: "right" }}>{formatQty(r.cantidad_confirmada || 0)}</td>
-                        <td className="print-nowrap">{estadoEntrega.label}</td>
-                        <td className="print-nowrap">
-                          <PrintCompareValue
-                            sugerido={r.ubicacion}
-                            tomado={r.ubicacion_alternativa || r.ubicacion}
-                          />
-                        </td>
-                        <td className="print-nowrap">
-                          <PrintCompareValue
-                            sugerido={r.lote_almacen}
-                            tomado={r.lote_almacen_alternativo || r.lote_almacen}
-                          />
-                        </td>
-                        <td className="print-nowrap">
-                          <PrintCompareValue
-                            sugerido={r.lote_proveedor}
-                            tomado={r.lote_proveedor_alternativo || r.lote_proveedor}
-                          />
-                        </td>
-                        <td className="print-nowrap">
-                          <PrintCompareValue
-                            sugerido={r.fecha_vencimiento}
-                            tomado={r.fecha_vencimiento_alternativa || r.fecha_vencimiento}
-                            format={(v) => fmtDate(v)}
-                          />
-                        </td>
-                        <td className="print-nowrap">CONFIRMADO</td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-
-            {rowsConfirmados
-              .filter((r) => !!r.motivo_rotacion)
-              .map((r) => (
-                <div key={`alerta-print-${r.id}`} className="print-alert">
-                  <b>{r.sku}</b>: {r.motivo_rotacion}
-                </div>
-              ))}
-          </div>
-        </div>
-
-        <div className="print-card" style={shellCardStyle}>
-          <div className="print-section-title" style={sectionHeaderStyle}>
-            {modoImpresion === "final" ? "Pendiente restante" : "Orden de picking pendiente"}
-          </div>
-
-          <div className="print-table-wrap">
-            <table className="print-table">
-              <thead>
-                <tr>
-                  <th className="print-nowrap">Reserva</th>
-                  <th className="print-nowrap">SKU</th>
-                  <th className="print-wrap">Texto breve</th>
-                  <th className="print-nowrap" style={{ textAlign: "right" }}>Cant. requerida</th>
-                  <th className="print-nowrap" style={{ textAlign: "right" }}>Cant. sugerida</th>
-                  <th className="print-nowrap" style={{ textAlign: "right" }}>Cant. tomada</th>
-                  <th className="print-nowrap">Ubi. sugerida</th>
-                  <th className="print-nowrap">Ubi. tomada</th>
-                  <th className="print-nowrap">Lote alm.</th>
-                  <th className="print-nowrap">Lote prov.</th>
-                  <th className="print-nowrap">Vencimiento</th>
-                  <th className="print-wrap">Observación</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lineasParaImprimir.length === 0 ? (
-                  <tr>
-                    <td colSpan={12} style={{ padding: 18 }}>
-                      {modoImpresion === "final"
-                        ? "No hay líneas pendientes. El despacho quedó completamente atendido."
-                        : "No hay líneas pendientes para imprimir."}
-                    </td>
-                  </tr>
-                ) : (
-                  lineasParaImprimir.map((r) => {
-                    const alt = r.alternativa_impresion;
-                    const usaAlternativa = !!alt;
-
-                    const cantidadSugeridaPrint = r.manual
-                      ? Math.min(
-                          calcularNecesidadPendientePorSku(r.sku, r.id) + Number(r.cantidad_impresion ?? 0),
-                          Number(
-                            maximosManuales[r.id] ??
-                              r.cantidad_disponible ??
-                              r.cantidad_sugerida ??
-                              0
+                      const cantidadSugeridaPrint = r.manual
+                        ? Math.min(
+                            calcularNecesidadPendientePorSku(r.sku, r.id) + Number(r.cantidad_impresion ?? 0),
+                            Number(
+                              maximosManuales[r.id] ??
+                                r.cantidad_disponible ??
+                                r.cantidad_sugerida ??
+                                0
+                            )
                           )
-                        )
-                      : Number(r.cantidad_sugerida ?? 0);
+                        : Number(r.cantidad_sugerida ?? 0);
 
-                    const cantidadRequeridaPrint = r.manual
-                      ? calcularNecesidadPendientePorSku(r.sku, r.id) + Number(r.cantidad_impresion ?? 0)
-                      : Number(r.cantidad_requerida ?? 0);
+                      const cantidadRequeridaPrint = r.manual
+                        ? calcularNecesidadPendientePorSku(r.sku, r.id) + Number(r.cantidad_impresion ?? 0)
+                        : Number(r.cantidad_requerida ?? 0);
 
-                    return (
-                      <tr key={r.id}>
-                        <td className="print-nowrap">{r.reserva || ""}</td>
-                        <td className="print-nowrap">{r.sku || ""}</td>
-                        <td className="print-wrap">{r.texto_breve || ""}</td>
-                        <td className="print-nowrap" style={{ textAlign: "right" }}>
-                          {formatQty(cantidadRequeridaPrint)}
-                        </td>
-                        <td className="print-nowrap" style={{ textAlign: "right" }}>
-                          {formatQty(cantidadSugeridaPrint)}
-                        </td>
-                        <td className="print-nowrap" style={{ textAlign: "right" }}>
-                          {formatQty(r.cantidad_impresion ?? 0)}
-                        </td>
-                        <td className="print-nowrap">{r.ubicacion || ""}</td>
-                        <td className="print-nowrap">
-                          {usaAlternativa ? alt?.ubicacion || "" : r.ubicacion || ""}
-                        </td>
-                        <td className="print-nowrap">
-                          {usaAlternativa ? alt?.lote_almacen || "" : r.lote_almacen || ""}
-                        </td>
-                        <td className="print-nowrap">
-                          {usaAlternativa ? alt?.lote_proveedor || "" : r.lote_proveedor || ""}
-                        </td>
-                        <td className="print-nowrap">
-                          {fmtDate(usaAlternativa ? alt?.fecha_vencimiento : r.fecha_vencimiento)}
-                        </td>
-                        <td
-                          className="print-wrap"
-                          style={{
-                            color: r.motivo_rotacion_impresion ? colors.bad : "#0f172a",
-                            fontWeight: 800,
-                          }}
-                        >
-                          {r.motivo_rotacion_impresion || ""}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                      return (
+                        <tr key={r.id}>
+                          <td className="print-nowrap">{r.reserva || ""}</td>
+                          <td className="print-nowrap">{r.sku || ""}</td>
+                          <td className="print-wrap">{r.texto_breve || ""}</td>
+                          <td className="print-nowrap" style={{ textAlign: "right" }}>
+                            {formatQty(cantidadRequeridaPrint)}
+                          </td>
+                          <td className="print-nowrap" style={{ textAlign: "right" }}>
+                            {formatQty(cantidadSugeridaPrint)}
+                          </td>
+                          <td className="print-nowrap" style={{ textAlign: "right" }}>
+                            {formatQty(r.cantidad_impresion ?? 0)}
+                          </td>
+                          <td className="print-nowrap">{r.ubicacion || ""}</td>
+                          <td className="print-nowrap">
+                            {usaAlternativa ? alt?.ubicacion || "" : r.ubicacion || ""}
+                          </td>
+                          <td className="print-nowrap">
+                            {usaAlternativa ? alt?.lote_almacen || "" : r.lote_almacen || ""}
+                          </td>
+                          <td className="print-nowrap">
+                            {usaAlternativa ? alt?.lote_proveedor || "" : r.lote_proveedor || ""}
+                          </td>
+                          <td className="print-nowrap">
+                            {fmtDate(usaAlternativa ? alt?.fecha_vencimiento : r.fecha_vencimiento)}
+                          </td>
+                          <td
+                            className="print-wrap"
+                            style={{
+                              color: r.motivo_rotacion_impresion ? colors.bad : "#0f172a",
+                              fontWeight: 800,
+                            }}
+                          >
+                            {r.motivo_rotacion_impresion || ""}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
