@@ -1,3 +1,4 @@
+```jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_URL } from "../../api";
@@ -1143,7 +1144,7 @@ export default function OrdenPicking() {
 
         @page {
           size: Letter landscape;
-          margin: 4mm;
+          margin: 6mm 5mm;
         }
 
         @media print {
@@ -1159,6 +1160,7 @@ export default function OrdenPicking() {
             overflow: visible !important;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+            font-family: Arial, Helvetica, sans-serif !important;
           }
 
           #root {
@@ -1168,10 +1170,6 @@ export default function OrdenPicking() {
             background: #ffffff !important;
           }
 
-          * {
-            box-shadow: none !important;
-          }
-
           .screen-only-root {
             display: none !important;
           }
@@ -1179,7 +1177,6 @@ export default function OrdenPicking() {
           .print-area {
             display: block !important;
             position: static !important;
-            inset: auto !important;
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
@@ -1201,11 +1198,11 @@ export default function OrdenPicking() {
 
           .print-header {
             display: flex !important;
-            align-items: flex-end !important;
+            align-items: flex-start !important;
             justify-content: space-between !important;
-            gap: 8px !important;
-            margin: 0 0 4px 0 !important;
-            padding: 0 0 3px 0 !important;
+            gap: 12px !important;
+            margin: 0 0 8px 0 !important;
+            padding: 0 0 6px 0 !important;
             border-bottom: 1px solid #133454 !important;
             break-inside: avoid !important;
             page-break-inside: avoid !important;
@@ -1214,62 +1211,64 @@ export default function OrdenPicking() {
           .print-header-left {
             display: flex !important;
             align-items: center !important;
-            gap: 6px !important;
+            gap: 10px !important;
             min-width: 0 !important;
           }
 
           .print-logo {
-            width: 22px !important;
-            height: 22px !important;
+            width: 34px !important;
+            height: 34px !important;
             object-fit: contain !important;
             flex: 0 0 auto !important;
           }
 
           .print-title {
-            font-size: 10px !important;
+            font-size: 18px !important;
             font-weight: 900 !important;
             color: #133454 !important;
             margin: 0 !important;
-            line-height: 1 !important;
+            line-height: 1.05 !important;
           }
 
           .print-subtitle {
-            font-size: 6px !important;
+            font-size: 9px !important;
             color: #334155 !important;
-            margin-top: 1px !important;
-            line-height: 1 !important;
+            margin-top: 2px !important;
+            line-height: 1.15 !important;
           }
 
           .print-meta {
-            font-size: 6px !important;
+            font-size: 10px !important;
             color: #0f172a !important;
             text-align: right !important;
-            line-height: 1.1 !important;
+            line-height: 1.25 !important;
             flex: 0 0 auto !important;
             margin: 0 !important;
             padding: 0 !important;
+            white-space: nowrap !important;
           }
 
           .print-card {
-            box-shadow: none !important;
-            border: 1px solid #dbe2ea !important;
-            border-radius: 4px !important;
-            margin: 4px 0 6px 0 !important;
+            border: 1px solid #cfd8e3 !important;
+            border-radius: 6px !important;
+            margin: 0 0 10px 0 !important;
             overflow: visible !important;
             break-inside: auto !important;
             page-break-inside: auto !important;
             page-break-after: auto !important;
             page-break-before: auto !important;
             background: #ffffff !important;
+            box-shadow: none !important;
           }
 
           .print-section-title {
-            font-size: 8px !important;
+            font-size: 12px !important;
             font-weight: 900 !important;
-            padding: 5px 6px !important;
+            padding: 7px 10px !important;
             margin: 0 !important;
             background: #ffffff !important;
             border-bottom: 1px solid #dbe2ea !important;
+            color: #133454 !important;
             break-inside: avoid !important;
             page-break-inside: avoid !important;
           }
@@ -1313,18 +1312,20 @@ export default function OrdenPicking() {
 
           .print-table th,
           .print-table td {
-            border: 1px solid #dbe2ea !important;
-            padding: 3px 4px !important;
+            border: 1px solid #cfd8e3 !important;
+            padding: 5px 6px !important;
             vertical-align: top !important;
-            line-height: 1.15 !important;
-            font-size: 7px !important;
+            line-height: 1.2 !important;
+            font-size: 10px !important;
             background: #ffffff !important;
+            color: #0f172a !important;
           }
 
           .print-table th {
-            font-size: 7px !important;
+            font-size: 10px !important;
             font-weight: 900 !important;
             white-space: normal !important;
+            background: #f8fafc !important;
           }
 
           .print-nowrap {
@@ -1341,10 +1342,11 @@ export default function OrdenPicking() {
             margin-top: 4px !important;
             color: #c62828 !important;
             font-weight: 800 !important;
-            font-size: 7px !important;
-            line-height: 1.15 !important;
+            font-size: 9px !important;
+            line-height: 1.2 !important;
             break-inside: avoid !important;
             page-break-inside: avoid !important;
+            padding: 2px 0 !important;
           }
 
           .print-no-break {
@@ -1956,9 +1958,7 @@ export default function OrdenPicking() {
                           )}
                         </td>
 
-                        <td style={{ ...tdStyle, fontWeight: 700 }}>
-                          {r.ubicacion || ""}
-                        </td>
+                        <td style={{ ...tdStyle, fontWeight: 700 }}>{r.ubicacion || ""}</td>
 
                         <td style={{ ...tdStyle, fontWeight: 700, whiteSpace: "normal", minWidth: 170 }}>
                           {usandoAlternativa ? (
@@ -2882,14 +2882,14 @@ export default function OrdenPicking() {
                     <th className="print-nowrap">Reserva</th>
                     <th className="print-nowrap">SKU</th>
                     <th className="print-wrap">Texto breve</th>
-                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cant. requerida</th>
-                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cant. sugerida</th>
-                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cant. tomada</th>
-                    <th className="print-nowrap">Ubi. sugerida</th>
-                    <th className="print-nowrap">Ubi. tomada</th>
-                    <th className="print-nowrap">Lote alm.</th>
-                    <th className="print-nowrap">Lote prov.</th>
-                    <th className="print-nowrap">Vencimiento</th>
+                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad requerida</th>
+                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad sugerida</th>
+                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad tomada</th>
+                    <th className="print-nowrap">Ubicación sugerida</th>
+                    <th className="print-nowrap">Ubicación tomada</th>
+                    <th className="print-nowrap">Lote almacén</th>
+                    <th className="print-nowrap">Lote proveedor</th>
+                    <th className="print-nowrap">Fecha vencimiento</th>
                     <th className="print-wrap">Observación rotación</th>
                   </tr>
                 </thead>
@@ -2985,3 +2985,4 @@ export default function OrdenPicking() {
     </div>
   );
 }
+```
