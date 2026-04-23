@@ -1,3 +1,4 @@
+```jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_URL } from "../../api";
@@ -290,10 +291,10 @@ function PrintCompareValue({ sugerido, tomado, format = (v) => v || "" }) {
   }
 
   return (
-    <div style={{ display: "grid", gap: 2, lineHeight: 1.25 }}>
+    <div style={{ display: "grid", gap: 1, lineHeight: 1.15 }}>
       <div
         style={{
-          color: "#8a94a6",
+          color: "#7c8798",
           textDecoration: "line-through",
           fontWeight: 700,
         }}
@@ -609,12 +610,8 @@ export default function OrdenPicking() {
 
   useEffect(() => {
     return () => {
-      if (printTimeoutRef.current) {
-        clearTimeout(printTimeoutRef.current);
-      }
-      if (skuSearchTimeoutRef.current) {
-        clearTimeout(skuSearchTimeoutRef.current);
-      }
+      if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
+      if (skuSearchTimeoutRef.current) clearTimeout(skuSearchTimeoutRef.current);
     };
   }, []);
 
@@ -872,25 +869,15 @@ export default function OrdenPicking() {
     setImpresos((prev) => ({ ...prev, ...ids }));
     setModoImpresion("seleccionados");
 
-    if (printTimeoutRef.current) {
-      clearTimeout(printTimeoutRef.current);
-    }
-
-    printTimeoutRef.current = setTimeout(() => {
-      window.print();
-    }, 180);
+    if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
+    printTimeoutRef.current = setTimeout(() => window.print(), 180);
   };
 
   const imprimirResultadoFinal = () => {
     setModoImpresion("final");
 
-    if (printTimeoutRef.current) {
-      clearTimeout(printTimeoutRef.current);
-    }
-
-    printTimeoutRef.current = setTimeout(() => {
-      window.print();
-    }, 180);
+    if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
+    printTimeoutRef.current = setTimeout(() => window.print(), 180);
   };
 
   const guardarDespacho = async () => {
@@ -1143,7 +1130,7 @@ export default function OrdenPicking() {
 
         @page {
           size: Letter landscape;
-          margin: 6mm 5mm;
+          margin: 4mm 4mm;
         }
 
         @media print {
@@ -1163,6 +1150,8 @@ export default function OrdenPicking() {
           }
 
           #root {
+            width: 100% !important;
+            max-width: 100% !important;
             height: auto !important;
             min-height: auto !important;
             overflow: visible !important;
@@ -1176,6 +1165,7 @@ export default function OrdenPicking() {
           .print-area {
             display: block !important;
             position: static !important;
+            inset: auto !important;
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
@@ -1199,9 +1189,9 @@ export default function OrdenPicking() {
             display: flex !important;
             align-items: flex-start !important;
             justify-content: space-between !important;
-            gap: 12px !important;
-            margin: 0 0 8px 0 !important;
-            padding: 0 0 6px 0 !important;
+            gap: 10px !important;
+            margin: 0 0 4px 0 !important;
+            padding: 0 0 4px 0 !important;
             border-bottom: 1px solid #133454 !important;
             break-inside: avoid !important;
             page-break-inside: avoid !important;
@@ -1210,37 +1200,37 @@ export default function OrdenPicking() {
           .print-header-left {
             display: flex !important;
             align-items: center !important;
-            gap: 10px !important;
+            gap: 8px !important;
             min-width: 0 !important;
           }
 
           .print-logo {
-            width: 34px !important;
-            height: 34px !important;
+            width: 24px !important;
+            height: 24px !important;
             object-fit: contain !important;
             flex: 0 0 auto !important;
           }
 
           .print-title {
-            font-size: 18px !important;
+            font-size: 10px !important;
             font-weight: 900 !important;
             color: #133454 !important;
             margin: 0 !important;
-            line-height: 1.05 !important;
+            line-height: 1 !important;
           }
 
           .print-subtitle {
-            font-size: 9px !important;
+            font-size: 6px !important;
             color: #334155 !important;
-            margin-top: 2px !important;
-            line-height: 1.15 !important;
+            margin-top: 1px !important;
+            line-height: 1 !important;
           }
 
           .print-meta {
-            font-size: 10px !important;
+            font-size: 7px !important;
             color: #0f172a !important;
             text-align: right !important;
-            line-height: 1.25 !important;
+            line-height: 1.15 !important;
             flex: 0 0 auto !important;
             margin: 0 !important;
             padding: 0 !important;
@@ -1248,9 +1238,9 @@ export default function OrdenPicking() {
           }
 
           .print-card {
-            border: 1px solid #cfd8e3 !important;
-            border-radius: 6px !important;
-            margin: 0 0 10px 0 !important;
+            border: 1px solid #c8d1dc !important;
+            border-radius: 4px !important;
+            margin: 0 0 6px 0 !important;
             overflow: visible !important;
             break-inside: auto !important;
             page-break-inside: auto !important;
@@ -1261,12 +1251,12 @@ export default function OrdenPicking() {
           }
 
           .print-section-title {
-            font-size: 12px !important;
+            font-size: 8px !important;
             font-weight: 900 !important;
-            padding: 7px 10px !important;
+            padding: 5px 8px !important;
             margin: 0 !important;
-            background: #ffffff !important;
-            border-bottom: 1px solid #dbe2ea !important;
+            background: #f9fbfd !important;
+            border-bottom: 1px solid #d9e1ea !important;
             color: #133454 !important;
             break-inside: avoid !important;
             page-break-inside: avoid !important;
@@ -1295,12 +1285,12 @@ export default function OrdenPicking() {
             display: table-header-group !important;
           }
 
-          .print-table tfoot {
-            display: table-footer-group !important;
-          }
-
           .print-table tbody {
             display: table-row-group !important;
+          }
+
+          .print-table tfoot {
+            display: table-footer-group !important;
           }
 
           .print-table tr {
@@ -1311,20 +1301,20 @@ export default function OrdenPicking() {
 
           .print-table th,
           .print-table td {
-            border: 1px solid #cfd8e3 !important;
-            padding: 5px 6px !important;
+            border: 1px solid #c8d1dc !important;
+            padding: 2px 4px !important;
             vertical-align: top !important;
-            line-height: 1.2 !important;
-            font-size: 10px !important;
+            line-height: 1.12 !important;
+            font-size: 7px !important;
             background: #ffffff !important;
             color: #0f172a !important;
           }
 
           .print-table th {
-            font-size: 10px !important;
+            font-size: 7px !important;
             font-weight: 900 !important;
             white-space: normal !important;
-            background: #f8fafc !important;
+            background: #f3f6f9 !important;
           }
 
           .print-nowrap {
@@ -1338,19 +1328,14 @@ export default function OrdenPicking() {
           }
 
           .print-alert {
-            margin-top: 4px !important;
+            margin-top: 3px !important;
             color: #c62828 !important;
             font-weight: 800 !important;
-            font-size: 9px !important;
-            line-height: 1.2 !important;
+            font-size: 7px !important;
+            line-height: 1.12 !important;
             break-inside: avoid !important;
             page-break-inside: avoid !important;
-            padding: 2px 0 !important;
-          }
-
-          .print-no-break {
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
+            padding: 0 !important;
           }
         }
       `}</style>
@@ -2727,7 +2712,7 @@ export default function OrdenPicking() {
                 </h1>
                 <div className="print-subtitle">
                   {modoImpresion === "final"
-                    ? "WMS INOVA · Resumen final del despacho"
+                    ? "WMS INOVA · Control logístico"
                     : "WMS INOVA · Control logístico"}
                 </div>
               </div>
@@ -2806,7 +2791,7 @@ export default function OrdenPicking() {
                 <tbody>
                   {rowsConfirmados.length === 0 ? (
                     <tr>
-                      <td colSpan={12} style={{ padding: 18 }}>
+                      <td colSpan={12} style={{ padding: 10 }}>
                         Aún no hay materiales confirmados.
                       </td>
                     </tr>
@@ -2895,7 +2880,7 @@ export default function OrdenPicking() {
                 <tbody>
                   {lineasParaImprimir.length === 0 ? (
                     <tr>
-                      <td colSpan={12} style={{ padding: 18 }}>
+                      <td colSpan={12} style={{ padding: 10 }}>
                         {modoImpresion === "final"
                           ? "No hay líneas pendientes. El despacho quedó completamente atendido."
                           : "No hay líneas pendientes para imprimir."}
@@ -2984,3 +2969,4 @@ export default function OrdenPicking() {
     </div>
   );
 }
+```
