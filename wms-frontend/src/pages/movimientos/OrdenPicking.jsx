@@ -1,3 +1,4 @@
+```jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_URL } from "../../api";
@@ -1147,15 +1148,29 @@ export default function OrdenPicking() {
         }
 
         @media print {
-          html, body {
-            width: 100%;
+          html,
+          body {
+            width: 100% !important;
+            min-width: 100% !important;
             height: auto !important;
+            min-height: auto !important;
             margin: 0 !important;
             padding: 0 !important;
             background: #ffffff !important;
             overflow: visible !important;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+          }
+
+          #root {
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
+            background: #ffffff !important;
+          }
+
+          * {
+            box-shadow: none !important;
           }
 
           .screen-only-root {
@@ -1165,18 +1180,24 @@ export default function OrdenPicking() {
           .print-area {
             display: block !important;
             position: static !important;
+            inset: auto !important;
             width: 100% !important;
+            max-width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
             background: #fff !important;
             overflow: visible !important;
             transform: none !important;
+            height: auto !important;
+            min-height: auto !important;
           }
 
           .print-inner {
             width: 100% !important;
+            max-width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
+            overflow: visible !important;
           }
 
           .print-header {
@@ -1187,6 +1208,8 @@ export default function OrdenPicking() {
             margin: 0 0 4px 0 !important;
             padding: 0 0 3px 0 !important;
             border-bottom: 1px solid #133454 !important;
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
           }
 
           .print-header-left {
@@ -1237,6 +1260,8 @@ export default function OrdenPicking() {
             break-inside: auto !important;
             page-break-inside: auto !important;
             page-break-after: auto !important;
+            page-break-before: auto !important;
+            background: #ffffff !important;
           }
 
           .print-section-title {
@@ -1244,6 +1269,10 @@ export default function OrdenPicking() {
             font-weight: 900 !important;
             padding: 5px 6px !important;
             margin: 0 !important;
+            background: #ffffff !important;
+            border-bottom: 1px solid #dbe2ea !important;
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
           }
 
           .print-table-wrap {
@@ -1251,6 +1280,8 @@ export default function OrdenPicking() {
             overflow: visible !important;
             margin: 0 !important;
             padding: 0 !important;
+            height: auto !important;
+            max-height: none !important;
           }
 
           .print-table {
@@ -1260,10 +1291,15 @@ export default function OrdenPicking() {
             border-collapse: collapse !important;
             table-layout: fixed !important;
             margin: 0 !important;
+            page-break-inside: auto !important;
           }
 
           .print-table thead {
             display: table-header-group !important;
+          }
+
+          .print-table tfoot {
+            display: table-footer-group !important;
           }
 
           .print-table tbody {
@@ -1273,6 +1309,7 @@ export default function OrdenPicking() {
           .print-table tr {
             break-inside: avoid !important;
             page-break-inside: avoid !important;
+            page-break-after: auto !important;
           }
 
           .print-table th,
@@ -1282,6 +1319,7 @@ export default function OrdenPicking() {
             vertical-align: top !important;
             line-height: 1.15 !important;
             font-size: 7px !important;
+            background: #ffffff !important;
           }
 
           .print-table th {
@@ -1306,6 +1344,13 @@ export default function OrdenPicking() {
             font-weight: 800 !important;
             font-size: 7px !important;
             line-height: 1.15 !important;
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+
+          .print-no-break {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
           }
         }
       `}</style>
@@ -2846,7 +2891,7 @@ export default function OrdenPicking() {
                     <th className="print-nowrap">Lote alm.</th>
                     <th className="print-nowrap">Lote prov.</th>
                     <th className="print-nowrap">Vencimiento</th>
-                    <th className="print-wrap">Observación</th>
+                    <th className="print-wrap">Observación rotación</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2895,16 +2940,29 @@ export default function OrdenPicking() {
                           </td>
                           <td className="print-nowrap">{r.ubicacion || ""}</td>
                           <td className="print-nowrap">
-                            {usaAlternativa ? alt?.ubicacion || "" : r.ubicacion || ""}
+                            <PrintCompareValue
+                              sugerido={r.ubicacion || ""}
+                              tomado={usaAlternativa ? alt?.ubicacion || "" : r.ubicacion || ""}
+                            />
                           </td>
                           <td className="print-nowrap">
-                            {usaAlternativa ? alt?.lote_almacen || "" : r.lote_almacen || ""}
+                            <PrintCompareValue
+                              sugerido={r.lote_almacen || ""}
+                              tomado={usaAlternativa ? alt?.lote_almacen || "" : r.lote_almacen || ""}
+                            />
                           </td>
                           <td className="print-nowrap">
-                            {usaAlternativa ? alt?.lote_proveedor || "" : r.lote_proveedor || ""}
+                            <PrintCompareValue
+                              sugerido={r.lote_proveedor || ""}
+                              tomado={usaAlternativa ? alt?.lote_proveedor || "" : r.lote_proveedor || ""}
+                            />
                           </td>
                           <td className="print-nowrap">
-                            {fmtDate(usaAlternativa ? alt?.fecha_vencimiento : r.fecha_vencimiento)}
+                            <PrintCompareValue
+                              sugerido={r.fecha_vencimiento}
+                              tomado={usaAlternativa ? alt?.fecha_vencimiento : r.fecha_vencimiento}
+                              format={(v) => fmtDate(v)}
+                            />
                           </td>
                           <td
                             className="print-wrap"
@@ -2928,3 +2986,4 @@ export default function OrdenPicking() {
     </div>
   );
 }
+```
