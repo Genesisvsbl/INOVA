@@ -1123,222 +1123,122 @@ export default function OrdenPicking() {
   return (
     <div className="orden-picking-page" style={{ background: colors.bg, minHeight: "100vh", padding: 18 }}>
       <style>{`
-        .print-area {
-          display: none;
-        }
+  .print-area {
+    display: none;
+  }
 
-        @page {
-          size: Letter landscape;
-          margin: 4mm;
-        }
+  @page {
+    size: Letter landscape;
+    margin: 4mm;
+  }
 
-        @media print {
-          html,
-          body,
-          #root {
-            width: 100% !important;
-            height: auto !important;
-            min-height: auto !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: #ffffff !important;
-            overflow: visible !important;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-            font-family: Arial, Helvetica, sans-serif !important;
-          }
+  @media print {
+    html,
+    body,
+    #root {
+      width: 100% !important;
+      height: auto !important;
+      min-height: auto !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #ffffff !important;
+      overflow: visible !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      font-family: Arial, Helvetica, sans-serif !important;
+    }
 
-          .orden-picking-page {
-            background: #ffffff !important;
-            min-height: auto !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            overflow: visible !important;
-          }
+    body * {
+      visibility: hidden !important;
+    }
 
-          body * {
-            visibility: hidden !important;
-          }
+    .print-area,
+    .print-area * {
+      visibility: visible !important;
+    }
 
-          .print-area,
-          .print-area * {
-            visibility: visible !important;
-          }
+    .print-area {
+      display: block !important;
+      position: absolute !important;
+      left: 0 !important;
+      top: 0 !important;
+      width: 100% !important;
+      background: #ffffff !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: visible !important;
+    }
 
-          .print-area {
-            display: block !important;
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            background: #ffffff !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            overflow: visible !important;
-            transform: none !important;
-            min-height: auto !important;
-          }
+    .print-inner {
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 4mm !important;
+      box-sizing: border-box !important;
+    }
 
-          .print-inner {
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 4mm !important;
-            box-sizing: border-box !important;
-            overflow: visible !important;
-            height: auto !important;
-            min-height: auto !important;
-          }
+    /* 🔥 CLAVE: FORZAR NUEVA PÁGINA */
+    .print-force-new-page {
+      break-before: page !important;
+      page-break-before: always !important;
+    }
 
-          .print-header {
-            display: flex !important;
-            align-items: flex-start !important;
-            justify-content: space-between !important;
-            gap: 10px !important;
-            margin: 0 0 4px 0 !important;
-            padding: 0 0 4px 0 !important;
-            border-bottom: 1px solid #133454 !important;
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
-          }
+    .print-card {
+      border: 1px solid #c8d1dc !important;
+      border-radius: 4px !important;
+      margin: 0 0 6px 0 !important;
+      background: #ffffff !important;
+      page-break-inside: auto !important;
+    }
 
-          .print-header-left {
-            display: flex !important;
-            align-items: center !important;
-            gap: 8px !important;
-            min-width: 0 !important;
-          }
+    .print-section-title {
+      font-size: 8px !important;
+      font-weight: 900 !important;
+      padding: 5px 8px !important;
+      background: #f9fbfd !important;
+      border-bottom: 1px solid #d9e1ea !important;
+      color: #133454 !important;
+    }
 
-          .print-logo {
-            width: 24px !important;
-            height: 24px !important;
-            object-fit: contain !important;
-            flex: 0 0 auto !important;
-          }
+    .print-table {
+      width: 100% !important;
+      border-collapse: collapse !important;
+    }
 
-          .print-title {
-            font-size: 10px !important;
-            font-weight: 900 !important;
-            color: #133454 !important;
-            margin: 0 !important;
-            line-height: 1 !important;
-          }
+    .print-table tr {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
 
-          .print-subtitle {
-            font-size: 6px !important;
-            color: #334155 !important;
-            margin-top: 1px !important;
-            line-height: 1 !important;
-          }
+    .print-table th,
+    .print-table td {
+      border: 1px solid #c8d1dc !important;
+      padding: 2px 4px !important;
+      font-size: 7px !important;
+      line-height: 1.12 !important;
+    }
 
-          .print-meta {
-            font-size: 7px !important;
-            color: #0f172a !important;
-            text-align: right !important;
-            line-height: 1.15 !important;
-            flex: 0 0 auto !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            white-space: nowrap !important;
-          }
+    .print-table th {
+      font-weight: 900 !important;
+      background: #f3f6f9 !important;
+    }
 
-          .print-card {
-            border: 1px solid #c8d1dc !important;
-            border-radius: 4px !important;
-            margin: 0 0 6px 0 !important;
-            overflow: visible !important;
-            background: #ffffff !important;
-            break-inside: auto !important;
-            page-break-inside: auto !important;
-            page-break-after: auto !important;
-            box-shadow: none !important;
-          }
+    .print-wrap {
+      white-space: normal !important;
+      word-break: break-word !important;
+    }
 
-          .print-section-title {
-            font-size: 8px !important;
-            font-weight: 900 !important;
-            padding: 5px 8px !important;
-            margin: 0 !important;
-            background: #f9fbfd !important;
-            border-bottom: 1px solid #d9e1ea !important;
-            color: #133454 !important;
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
-          }
+    .print-nowrap {
+      white-space: nowrap !important;
+    }
 
-          .print-table-wrap {
-            width: 100% !important;
-            overflow: visible !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            height: auto !important;
-            max-height: none !important;
-          }
-
-          .print-table {
-            width: 100% !important;
-            border-collapse: collapse !important;
-            table-layout: fixed !important;
-            margin: 0 !important;
-            page-break-inside: auto !important;
-          }
-
-          .print-table thead {
-            display: table-header-group !important;
-          }
-
-          .print-table tbody {
-            display: table-row-group !important;
-          }
-
-          .print-table tfoot {
-            display: table-footer-group !important;
-          }
-
-          .print-table tr {
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-          }
-
-          .print-table th,
-          .print-table td {
-            border: 1px solid #c8d1dc !important;
-            padding: 2px 4px !important;
-            vertical-align: top !important;
-            line-height: 1.12 !important;
-            font-size: 7px !important;
-            background: #ffffff !important;
-            color: #0f172a !important;
-          }
-
-          .print-table th {
-            font-size: 7px !important;
-            font-weight: 900 !important;
-            white-space: normal !important;
-            background: #f3f6f9 !important;
-          }
-
-          .print-nowrap {
-            white-space: nowrap !important;
-          }
-
-          .print-wrap {
-            white-space: normal !important;
-            word-break: break-word !important;
-            overflow-wrap: anywhere !important;
-          }
-
-          .print-alert {
-            margin-top: 3px !important;
-            color: #c62828 !important;
-            font-weight: 800 !important;
-            font-size: 7px !important;
-            line-height: 1.12 !important;
-            padding: 0 !important;
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
-          }
-        }
-      `}</style>
+    .print-alert {
+      margin-top: 3px !important;
+      color: #c62828 !important;
+      font-weight: 800 !important;
+      font-size: 7px !important;
+    }
+  }
+`}</style>
 
       <div className="screen-only-root">
         <div style={shellCardStyle}>
@@ -2850,7 +2750,7 @@ export default function OrdenPicking() {
             </div>
           </div>
 
-          <div className="print-card" style={shellCardStyle}>
+          <div className="print-card print-force-new-page" style={shellCardStyle}>
             <div className="print-section-title" style={sectionHeaderStyle}>
               {modoImpresion === "final" ? "Pendiente restante" : "Orden de picking pendiente"}
             </div>
