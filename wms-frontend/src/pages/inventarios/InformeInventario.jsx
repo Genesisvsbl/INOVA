@@ -162,7 +162,201 @@ export default function InformeInventario() {
 
   const handlePrint = () => {
     if (!report || !taskDetail) return;
-    window.print();
+
+    const printArea = document.getElementById("print-area");
+    if (!printArea) return;
+
+    const printWindow = window.open("", "_blank", "width=1400,height=900");
+    if (!printWindow) return;
+
+    printWindow.document.open();
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Informe de inventario - Tarea ${taskDetail.id}</title>
+          <style>
+            @page {
+              size: A4 landscape;
+              margin: 6mm;
+            }
+
+            * {
+              box-sizing: border-box;
+            }
+
+            html,
+            body {
+              margin: 0;
+              padding: 0;
+              width: 100%;
+              height: auto;
+              overflow: visible;
+              background: #ffffff;
+              color: #203246;
+              font-family: "Segoe UI", Arial, sans-serif;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+
+            #print-area {
+              display: block;
+              width: 100%;
+              height: auto;
+              overflow: visible;
+              background: #ffffff;
+            }
+
+            .print-wrapper {
+              display: block;
+              width: 100%;
+              height: auto;
+              overflow: visible;
+            }
+
+            .print-section {
+              display: block;
+              width: 100%;
+              margin: 0;
+              background: #ffffff;
+              overflow: visible;
+              box-shadow: none;
+            }
+
+            .print-section-cover {
+              break-after: page;
+              page-break-after: always;
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+
+            .print-section-flow {
+              break-inside: auto;
+              page-break-inside: auto;
+            }
+
+            .print-page-break {
+              break-before: page;
+              page-break-before: always;
+            }
+
+            .print-table,
+            .print-table-conteo {
+              display: table;
+              width: 100%;
+              table-layout: fixed;
+              border-collapse: collapse;
+              break-inside: auto;
+              page-break-inside: auto;
+            }
+
+            .print-table thead,
+            .print-table-conteo thead {
+              display: table-header-group;
+            }
+
+            .print-table tbody,
+            .print-table-conteo tbody {
+              display: table-row-group;
+            }
+
+            .print-table tr,
+            .print-table-conteo tr {
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+
+            .print-table th,
+            .print-table td,
+            .print-table-conteo th,
+            .print-table-conteo td {
+              white-space: normal;
+              word-break: break-word;
+              overflow-wrap: anywhere;
+            }
+
+            .print-table th {
+              font-size: 7px !important;
+              padding: 3px 4px !important;
+              line-height: 1.05 !important;
+            }
+
+            .print-table td {
+              font-size: 7px !important;
+              padding: 3px 4px !important;
+              line-height: 1.08 !important;
+            }
+
+            .print-table-conteo th {
+              font-size: 6px !important;
+              padding: 2px !important;
+              line-height: 1 !important;
+            }
+
+            .print-table-conteo td {
+              font-size: 6px !important;
+              padding: 2px !important;
+              line-height: 1.05 !important;
+            }
+
+            .print-title {
+              font-size: 16px !important;
+              font-weight: 800 !important;
+              line-height: 1.08 !important;
+              letter-spacing: 0.15px !important;
+            }
+
+            .print-subtitle {
+              font-size: 9px !important;
+              line-height: 1.1 !important;
+            }
+
+            .print-grid-4 {
+              grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            }
+
+            .print-compact-box {
+              padding: 7px !important;
+            }
+
+            .print-compact-box-label {
+              font-size: 8.3px !important;
+              margin-bottom: 3px !important;
+            }
+
+            .print-compact-box-value {
+              font-size: 10px !important;
+              line-height: 1.08 !important;
+            }
+
+            .print-section-tight {
+              padding: 10px !important;
+            }
+
+            .print-block-tight {
+              margin-top: 8px !important;
+            }
+
+            .print-signatures {
+              margin-top: 18px !important;
+            }
+          </style>
+        </head>
+        <body>
+          ${printArea.outerHTML}
+          <script>
+            window.onload = function () {
+              setTimeout(function () {
+                window.focus();
+                window.print();
+              }, 400);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   return (
@@ -214,10 +408,6 @@ export default function InformeInventario() {
             top: 0 !important;
             width: 100% !important;
             height: auto !important;
-            min-height: 0 !important;
-            max-height: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
             overflow: visible !important;
             background: #ffffff !important;
           }
@@ -226,140 +416,6 @@ export default function InformeInventario() {
             max-height: none !important;
             overflow: visible !important;
             box-shadow: none !important;
-          }
-
-          .print-wrapper {
-            display: block !important;
-            width: 100% !important;
-            height: auto !important;
-            overflow: visible !important;
-          }
-
-          .print-section {
-            display: block !important;
-            width: 100% !important;
-            margin: 0 !important;
-            background: #ffffff !important;
-            overflow: visible !important;
-            box-shadow: none !important;
-          }
-
-          .print-section-cover {
-            break-after: page !important;
-            page-break-after: always !important;
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
-          }
-
-          .print-section-flow {
-            break-inside: auto !important;
-            page-break-inside: auto !important;
-          }
-
-          .print-page-break {
-            break-before: page !important;
-            page-break-before: always !important;
-          }
-
-          .print-title {
-            font-size: 16px !important;
-            font-weight: 800 !important;
-            line-height: 1.08 !important;
-            letter-spacing: 0.15px !important;
-          }
-
-          .print-subtitle {
-            font-size: 9px !important;
-            line-height: 1.1 !important;
-          }
-
-          .print-grid-4 {
-            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-          }
-
-          .print-table,
-          .print-table-conteo {
-            display: table !important;
-            width: 100% !important;
-            table-layout: fixed !important;
-            border-collapse: collapse !important;
-            break-inside: auto !important;
-            page-break-inside: auto !important;
-          }
-
-          .print-table thead,
-          .print-table-conteo thead {
-            display: table-header-group !important;
-          }
-
-          .print-table tbody,
-          .print-table-conteo tbody {
-            display: table-row-group !important;
-          }
-
-          .print-table tr,
-          .print-table-conteo tr {
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
-          }
-
-          .print-table th,
-          .print-table td,
-          .print-table-conteo th,
-          .print-table-conteo td {
-            white-space: normal !important;
-            word-break: break-word !important;
-            overflow-wrap: anywhere !important;
-          }
-
-          .print-table th {
-            font-size: 7px !important;
-            padding: 3px 4px !important;
-            line-height: 1.05 !important;
-          }
-
-          .print-table td {
-            font-size: 7px !important;
-            padding: 3px 4px !important;
-            line-height: 1.08 !important;
-          }
-
-          .print-table-conteo th {
-            font-size: 6px !important;
-            padding: 2px !important;
-            line-height: 1 !important;
-          }
-
-          .print-table-conteo td {
-            font-size: 6px !important;
-            padding: 2px !important;
-            line-height: 1.05 !important;
-          }
-
-          .print-compact-box {
-            padding: 7px !important;
-          }
-
-          .print-compact-box-label {
-            font-size: 8.3px !important;
-            margin-bottom: 3px !important;
-          }
-
-          .print-compact-box-value {
-            font-size: 10px !important;
-            line-height: 1.08 !important;
-          }
-
-          .print-signatures {
-            margin-top: 18px !important;
-          }
-
-          .print-section-tight {
-            padding: 10px !important;
-          }
-
-          .print-block-tight {
-            margin-top: 8px !important;
           }
         }
       `}</style>
@@ -386,10 +442,7 @@ export default function InformeInventario() {
 
         <div style={layoutGridStyle}>
           <section style={cardStyle}>
-            <CardHeader
-              title="Listado de tareas"
-              subtitle="Haz clic sobre una tarea y se carga el informe automáticamente."
-            />
+            <CardHeader title="Listado de tareas" subtitle="Haz clic sobre una tarea y se carga el informe automáticamente." />
 
             <div style={{ padding: 18 }}>
               {error ? <MessageBox type="error" text={error} /> : null}
@@ -450,10 +503,7 @@ export default function InformeInventario() {
           </section>
 
           <section style={cardStyle}>
-            <CardHeader
-              title="Consulta puntual"
-              subtitle="Busca un informe por ID y luego imprímelo completo."
-            />
+            <CardHeader title="Consulta puntual" subtitle="Busca un informe por ID y luego imprímelo completo." />
 
             <div style={{ padding: 18 }}>
               <div style={searchRowStyle}>
@@ -482,11 +532,7 @@ export default function InformeInventario() {
                     Recargar
                   </button>
 
-                  <button
-                    style={printButtonStyle}
-                    onClick={handlePrint}
-                    disabled={!report || !taskDetail}
-                  >
+                  <button style={printButtonStyle} onClick={handlePrint} disabled={!report || !taskDetail}>
                     <Printer size={16} />
                     Imprimir tarea
                   </button>
@@ -513,9 +559,7 @@ export default function InformeInventario() {
 
                   {selectedTask && (
                     <div style={selectedTaskBoxStyle}>
-                      <div style={selectedTaskTitleStyle}>
-                        Datos base de la tarea seleccionada
-                      </div>
+                      <div style={selectedTaskTitleStyle}>Datos base de la tarea seleccionada</div>
                       <div style={selectedTaskTextStyle}>
                         Tipo: <strong>{selectedTask.tipo_conteo}</strong> | Criterio:{" "}
                         <strong>{selectedTask.criterio}</strong> | Asignado a:{" "}
@@ -533,10 +577,7 @@ export default function InformeInventario() {
       <div id="print-area">
         {!report || !taskDetail ? null : (
           <div style={printWrapperStyle} className="print-wrapper">
-            <section
-              style={printSectionStyle}
-              className="print-section print-section-cover print-section-tight"
-            >
+            <section style={printSectionStyle} className="print-section print-section-cover print-section-tight">
               <div style={printHeaderStyle}>
                 <div style={printBrandWrapStyle}>
                   <div style={printLogoBoxStyle}>
@@ -546,12 +587,8 @@ export default function InformeInventario() {
                   <div style={{ minWidth: 0 }}>
                     <div style={printBrandNameStyle}>WMS INOVA</div>
                     <div style={printBrandSubStyle}>Control logístico</div>
-                    <div className="print-title" style={printMainTitleStyle}>
-                      INFORME DE INVENTARIO
-                    </div>
-                    <div className="print-subtitle" style={printSubtitleStyle}>
-                      Documento operativo de tarea de inventario
-                    </div>
+                    <div className="print-title" style={printMainTitleStyle}>INFORME DE INVENTARIO</div>
+                    <div className="print-subtitle" style={printSubtitleStyle}>Documento operativo de tarea de inventario</div>
                   </div>
                 </div>
 
@@ -592,10 +629,7 @@ export default function InformeInventario() {
               </div>
             </section>
 
-            <section
-              style={printSectionStyle}
-              className="print-section print-section-flow print-section-tight"
-            >
+            <section style={printSectionStyle} className="print-section print-section-flow print-section-tight">
               <div style={printBlockHeaderStyle}>
                 <FileText size={13} />
                 <span>Hoja de conteo</span>
@@ -659,10 +693,7 @@ export default function InformeInventario() {
               </table>
             </section>
 
-            <section
-              style={printSectionStyle}
-              className="print-section print-section-flow print-page-break print-section-tight"
-            >
+            <section style={printSectionStyle} className="print-section print-section-flow print-page-break print-section-tight">
               <div style={printBlockHeaderStyle}>
                 <GitCompare size={13} />
                 <span>Análisis de diferencias</span>
@@ -727,10 +758,7 @@ export default function InformeInventario() {
               </div>
             </section>
 
-            <section
-              style={printSectionStyle}
-              className="print-section print-page-break print-section-tight"
-            >
+            <section style={printSectionStyle} className="print-section print-page-break print-section-tight">
               <div style={printBlockHeaderStyle}>
                 <CheckCircle2 size={13} />
                 <span>Cierre del informe</span>
@@ -792,12 +820,8 @@ function MiniInfo({ label, value }) {
 function PrintBox({ label, value }) {
   return (
     <div style={printBoxStyle} className="print-compact-box">
-      <div style={printBoxLabelStyle} className="print-compact-box-label">
-        {label}
-      </div>
-      <div style={printBoxValueStyle} className="print-compact-box-value">
-        {value || "-"}
-      </div>
+      <div style={printBoxLabelStyle} className="print-compact-box-label">{label}</div>
+      <div style={printBoxValueStyle} className="print-compact-box-value">{value || "-"}</div>
     </div>
   );
 }
@@ -844,38 +868,18 @@ function getStatusStyle(status) {
   };
 
   if (status === "PENDIENTE") {
-    return {
-      ...base,
-      background: "#fff4db",
-      color: "#9a6700",
-      borderColor: "#f1ddb0",
-    };
+    return { ...base, background: "#fff4db", color: "#9a6700", borderColor: "#f1ddb0" };
   }
 
   if (status === "EN_PROCESO") {
-    return {
-      ...base,
-      background: "#e8f1ff",
-      color: "#0b5ed7",
-      borderColor: "#cfe0ff",
-    };
+    return { ...base, background: "#e8f1ff", color: "#0b5ed7", borderColor: "#cfe0ff" };
   }
 
   if (status === "RECONTEO_PENDIENTE") {
-    return {
-      ...base,
-      background: "#fff1ef",
-      color: "#b42318",
-      borderColor: "#f2c7c2",
-    };
+    return { ...base, background: "#fff1ef", color: "#b42318", borderColor: "#f2c7c2" };
   }
 
-  return {
-    ...base,
-    background: "#eaf7ee",
-    color: "#1f7a3d",
-    borderColor: "#cfe7d5",
-  };
+  return { ...base, background: "#eaf7ee", color: "#1f7a3d", borderColor: "#cfe7d5" };
 }
 
 function formatDate(value) {
@@ -900,12 +904,7 @@ const pageStyle = {
   color: "#1f2d3d",
 };
 
-const pageTopStyle = {
-  display: "flex",
-  gap: 12,
-  alignItems: "center",
-  marginBottom: 18,
-};
+const pageTopStyle = { display: "flex", gap: 12, alignItems: "center", marginBottom: 18 };
 
 const pageTopIconStyle = {
   width: 38,
@@ -917,18 +916,8 @@ const pageTopIconStyle = {
   border: "1px solid #d8e1ea",
 };
 
-const pageTitleStyle = {
-  fontSize: 24,
-  fontWeight: 800,
-  color: "#17324d",
-  letterSpacing: "0.1px",
-};
-
-const pageSubtitleStyle = {
-  fontSize: 13,
-  color: "#66788a",
-  marginTop: 4,
-};
+const pageTitleStyle = { fontSize: 24, fontWeight: 800, color: "#17324d", letterSpacing: "0.1px" };
+const pageSubtitleStyle = { fontSize: 13, color: "#66788a", marginTop: 4 };
 
 const statsGridStyle = {
   display: "grid",
@@ -945,12 +934,7 @@ const statBoxStyle = {
   boxShadow: "0 1px 1px rgba(15,23,42,0.02)",
 };
 
-const statHeaderStyle = {
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  marginBottom: 10,
-};
+const statHeaderStyle = { display: "flex", alignItems: "center", gap: 10, marginBottom: 10 };
 
 const statIconStyle = {
   width: 34,
@@ -962,24 +946,10 @@ const statIconStyle = {
   placeItems: "center",
 };
 
-const statLabelStyle = {
-  fontSize: 12,
-  color: "#66788a",
-  fontWeight: 600,
-};
+const statLabelStyle = { fontSize: 12, color: "#66788a", fontWeight: 600 };
+const statValueStyle = { fontSize: 28, fontWeight: 800, color: "#17324d", lineHeight: 1 };
 
-const statValueStyle = {
-  fontSize: 28,
-  fontWeight: 800,
-  color: "#17324d",
-  lineHeight: 1,
-};
-
-const layoutGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "1.3fr 0.95fr",
-  gap: 16,
-};
+const layoutGridStyle = { display: "grid", gridTemplateColumns: "1.3fr 0.95fr", gap: 16 };
 
 const cardStyle = {
   background: "#fff",
@@ -996,24 +966,10 @@ const cardHeaderStyle = {
   background: "#f8fafc",
 };
 
-const cardTitleStyle = {
-  fontSize: 15,
-  fontWeight: 800,
-  color: "#17324d",
-};
+const cardTitleStyle = { fontSize: 15, fontWeight: 800, color: "#17324d" };
+const cardSubtitleStyle = { fontSize: 12, color: "#6e7f91", marginTop: 4 };
 
-const cardSubtitleStyle = {
-  fontSize: 12,
-  color: "#6e7f91",
-  marginTop: 4,
-};
-
-const tableStyle = {
-  width: "100%",
-  borderCollapse: "collapse",
-  fontSize: 13,
-  minWidth: 760,
-};
+const tableStyle = { width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 760 };
 
 const thStyle = {
   textAlign: "left",
@@ -1033,11 +989,7 @@ const tdStyle = {
   fontSize: 13,
 };
 
-const tdCodeStyle = {
-  ...tdStyle,
-  fontWeight: 800,
-  color: "#17324d",
-};
+const tdCodeStyle = { ...tdStyle, fontWeight: 800, color: "#17324d" };
 
 const emptyCellStyle = {
   padding: 26,
@@ -1046,19 +998,8 @@ const emptyCellStyle = {
   borderBottom: "1px solid #edf2f7",
 };
 
-const searchRowStyle = {
-  display: "flex",
-  gap: 12,
-  alignItems: "end",
-  flexWrap: "wrap",
-};
-
-const labelStyle = {
-  fontSize: 12,
-  fontWeight: 700,
-  color: "#536779",
-  marginBottom: 7,
-};
+const searchRowStyle = { display: "flex", gap: 12, alignItems: "end", flexWrap: "wrap" };
+const labelStyle = { fontSize: 12, fontWeight: 700, color: "#536779", marginBottom: 7 };
 
 const inputStyle = {
   width: "100%",
@@ -1088,31 +1029,16 @@ const primaryButtonStyle = {
 };
 
 const secondaryButtonStyle = {
-  height: 40,
-  borderRadius: 8,
+  ...primaryButtonStyle,
   border: "1px solid #c6d2df",
   background: "#fff",
   color: "#213547",
-  padding: "0 14px",
-  fontWeight: 700,
-  cursor: "pointer",
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 8,
 };
 
 const printButtonStyle = {
-  height: 40,
-  borderRadius: 8,
+  ...primaryButtonStyle,
   border: "1px solid #0f766e",
   background: "#0f766e",
-  color: "#fff",
-  padding: "0 14px",
-  fontWeight: 700,
-  cursor: "pointer",
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 8,
 };
 
 const placeholderBoxStyle = {
@@ -1138,19 +1064,8 @@ const miniInfoStyle = {
   padding: 12,
 };
 
-const miniInfoLabelStyle = {
-  fontSize: 11,
-  color: "#6b7c8d",
-  marginBottom: 6,
-  fontWeight: 600,
-};
-
-const miniInfoValueStyle = {
-  fontSize: 14,
-  fontWeight: 700,
-  color: "#17324d",
-  wordBreak: "break-word",
-};
+const miniInfoLabelStyle = { fontSize: 11, color: "#6b7c8d", marginBottom: 6, fontWeight: 600 };
+const miniInfoValueStyle = { fontSize: 14, fontWeight: 700, color: "#17324d", wordBreak: "break-word" };
 
 const selectedTaskBoxStyle = {
   marginTop: 16,
@@ -1160,24 +1075,10 @@ const selectedTaskBoxStyle = {
   padding: 14,
 };
 
-const selectedTaskTitleStyle = {
-  fontSize: 13,
-  fontWeight: 800,
-  color: "#355b7e",
-  marginBottom: 8,
-};
+const selectedTaskTitleStyle = { fontSize: 13, fontWeight: 800, color: "#355b7e", marginBottom: 8 };
+const selectedTaskTextStyle = { fontSize: 13, color: "#587086", lineHeight: 1.55 };
 
-const selectedTaskTextStyle = {
-  fontSize: 13,
-  color: "#587086",
-  lineHeight: 1.55,
-};
-
-const printWrapperStyle = {
-  marginTop: 0,
-  fontFamily: '"Segoe UI", Arial, sans-serif',
-  color: "#203246",
-};
+const printWrapperStyle = { marginTop: 0, fontFamily: '"Segoe UI", Arial, sans-serif', color: "#203246" };
 
 const printSectionStyle = {
   background: "#fff",
@@ -1196,12 +1097,7 @@ const printHeaderStyle = {
   borderBottom: "2px solid #d9e2ec",
 };
 
-const printBrandWrapStyle = {
-  display: "flex",
-  alignItems: "flex-start",
-  gap: 10,
-  minWidth: 0,
-};
+const printBrandWrapStyle = { display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0 };
 
 const printLogoBoxStyle = {
   width: 52,
@@ -1215,12 +1111,7 @@ const printLogoBoxStyle = {
   overflow: "hidden",
 };
 
-const printLogoImageStyle = {
-  width: "100%",
-  height: "100%",
-  objectFit: "contain",
-  display: "block",
-};
+const printLogoImageStyle = { width: "100%", height: "100%", objectFit: "contain", display: "block" };
 
 const printBrandNameStyle = {
   fontSize: 17,
@@ -1247,12 +1138,7 @@ const printMainTitleStyle = {
   marginTop: 1,
 };
 
-const printSubtitleStyle = {
-  fontSize: 9,
-  color: "#617487",
-  marginTop: 3,
-  fontWeight: 500,
-};
+const printSubtitleStyle = { fontSize: 9, color: "#617487", marginTop: 3, fontWeight: 500 };
 
 const printBadgeStyle = {
   padding: "6px 10px",
@@ -1279,12 +1165,7 @@ const printBoxStyle = {
   padding: 7,
 };
 
-const printBoxLabelStyle = {
-  fontSize: 8.5,
-  color: "#6a7c8f",
-  marginBottom: 4,
-  fontWeight: 600,
-};
+const printBoxLabelStyle = { fontSize: 8.5, color: "#6a7c8f", marginBottom: 4, fontWeight: 600 };
 
 const printBoxValueStyle = {
   fontSize: 10,
@@ -1302,18 +1183,8 @@ const printObservacionBoxStyle = {
   padding: 8,
 };
 
-const printSectionTitleStyle = {
-  fontSize: 11,
-  fontWeight: 800,
-  color: "#17324d",
-  marginBottom: 5,
-};
-
-const printParagraphStyle = {
-  fontSize: 9,
-  color: "#4b6074",
-  lineHeight: 1.35,
-};
+const printSectionTitleStyle = { fontSize: 11, fontWeight: 800, color: "#17324d", marginBottom: 5 };
+const printParagraphStyle = { fontSize: 9, color: "#4b6074", lineHeight: 1.35 };
 
 const executiveGridStyle = {
   display: "grid",
@@ -1334,17 +1205,8 @@ const printBlockHeaderStyle = {
   borderBottom: "1px solid #dce4ec",
 };
 
-const printTableStyle = {
-  width: "100%",
-  borderCollapse: "collapse",
-  tableLayout: "fixed",
-};
-
-const printTableConteoStyle = {
-  width: "100%",
-  borderCollapse: "collapse",
-  tableLayout: "fixed",
-};
+const printTableStyle = { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" };
+const printTableConteoStyle = { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" };
 
 const printThStyle = {
   border: "1px solid #d6dee8",
@@ -1372,11 +1234,7 @@ const printTdStyle = {
   overflowWrap: "anywhere",
 };
 
-const printTdStyleStrong = {
-  ...printTdStyle,
-  fontWeight: 700,
-  color: "#17324d",
-};
+const printTdStyleStrong = { ...printTdStyle, fontWeight: 700, color: "#17324d" };
 
 const printThConteoStyle = {
   border: "1px solid #d6dee8",
@@ -1404,11 +1262,7 @@ const printTdConteoStyle = {
   overflowWrap: "anywhere",
 };
 
-const printTdConteoStrongStyle = {
-  ...printTdConteoStyle,
-  fontWeight: 700,
-  color: "#17324d",
-};
+const printTdConteoStrongStyle = { ...printTdConteoStyle, fontWeight: 700, color: "#17324d" };
 
 const printOkBoxStyle = {
   border: "1px solid #cfe2d6",
@@ -1443,18 +1297,6 @@ const signatureGridStyle = {
   marginTop: 18,
 };
 
-const signatureBoxStyle = {
-  textAlign: "center",
-};
-
-const signatureLineStyle = {
-  borderTop: "1px solid #5c6c7c",
-  marginBottom: 6,
-  height: 1,
-};
-
-const signatureLabelStyle = {
-  fontSize: 8.8,
-  color: "#56697d",
-  fontWeight: 700,
-};
+const signatureBoxStyle = { textAlign: "center" };
+const signatureLineStyle = { borderTop: "1px solid #5c6c7c", marginBottom: 6, height: 1 };
+const signatureLabelStyle = { fontSize: 8.8, color: "#56697d", fontWeight: 700 };
