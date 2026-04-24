@@ -180,7 +180,7 @@ export default function InformeInventario() {
 
           html,
           body {
-            width: 100% !important;
+            width: auto !important;
             height: auto !important;
             margin: 0 !important;
             padding: 0 !important;
@@ -192,8 +192,35 @@ export default function InformeInventario() {
             print-color-adjust: exact !important;
           }
 
-          body * {
-            visibility: hidden !important;
+          body > * {
+            display: none !important;
+          }
+
+          body,
+          #root,
+          #print-area {
+            display: block !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            overflow: visible !important;
+            background: #ffffff !important;
+          }
+
+          #root > * {
+            display: block !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: #ffffff !important;
+            min-height: 0 !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+          }
+
+          .no-print {
+            display: none !important;
           }
 
           #print-area,
@@ -202,18 +229,12 @@ export default function InformeInventario() {
           }
 
           #print-area {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
+            position: static !important;
+            left: auto !important;
+            top: auto !important;
             margin: 0 !important;
             padding: 0 !important;
             overflow: visible !important;
-            background: #ffffff !important;
-          }
-
-          .no-print {
-            display: none !important;
           }
 
           .print-section {
@@ -239,6 +260,26 @@ export default function InformeInventario() {
           .print-page-break {
             break-before: page !important;
             page-break-before: always !important;
+          }
+
+          .print-title {
+            font-size: 16px !important;
+            font-weight: 800 !important;
+            line-height: 1.08 !important;
+            letter-spacing: 0.15px !important;
+          }
+
+          .print-subtitle {
+            font-size: 9px !important;
+            line-height: 1.1 !important;
+          }
+
+          .print-grid-4 {
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+          }
+
+          .print-grid-3 {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
           }
 
           .print-table,
@@ -299,26 +340,6 @@ export default function InformeInventario() {
             line-height: 1.05 !important;
           }
 
-          .print-title {
-            font-size: 16px !important;
-            font-weight: 800 !important;
-            line-height: 1.08 !important;
-            letter-spacing: 0.15px !important;
-          }
-
-          .print-subtitle {
-            font-size: 9px !important;
-            line-height: 1.1 !important;
-          }
-
-          .print-grid-4 {
-            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-          }
-
-          .print-grid-3 {
-            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-          }
-
           .print-compact-box {
             padding: 7px !important;
           }
@@ -361,15 +382,34 @@ export default function InformeInventario() {
         </div>
 
         <div style={statsGridStyle}>
-          <StatBox icon={<ClipboardList size={18} color="#355b7e" />} label="Total tareas" value={dashboard.total} />
-          <StatBox icon={<CheckCircle2 size={18} color="#1f7a3d" />} label="Conciliadas" value={dashboard.conciliadas} />
-          <StatBox icon={<AlertTriangle size={18} color="#8f5c00" />} label="Reconteos" value={dashboard.reconteo} />
-          <StatBox icon={<BarChart3 size={18} color="#0b57d0" />} label="Abiertas" value={dashboard.abiertas} />
+          <StatBox
+            icon={<ClipboardList size={18} color="#355b7e" />}
+            label="Total tareas"
+            value={dashboard.total}
+          />
+          <StatBox
+            icon={<CheckCircle2 size={18} color="#1f7a3d" />}
+            label="Conciliadas"
+            value={dashboard.conciliadas}
+          />
+          <StatBox
+            icon={<AlertTriangle size={18} color="#8f5c00" />}
+            label="Reconteos"
+            value={dashboard.reconteo}
+          />
+          <StatBox
+            icon={<BarChart3 size={18} color="#0b57d0" />}
+            label="Abiertas"
+            value={dashboard.abiertas}
+          />
         </div>
 
         <div style={layoutGridStyle}>
           <section style={cardStyle}>
-            <CardHeader title="Listado de tareas" subtitle="Haz clic sobre una tarea y se carga el informe automáticamente." />
+            <CardHeader
+              title="Listado de tareas"
+              subtitle="Haz clic sobre una tarea y se carga el informe automáticamente."
+            />
 
             <div style={{ padding: 18 }}>
               {error ? <MessageBox type="error" text={error} /> : null}
@@ -389,11 +429,15 @@ export default function InformeInventario() {
                   <tbody>
                     {loadingList ? (
                       <tr>
-                        <td colSpan={6} style={emptyCellStyle}>Cargando tareas...</td>
+                        <td colSpan={6} style={emptyCellStyle}>
+                          Cargando tareas...
+                        </td>
                       </tr>
                     ) : taskList.length === 0 ? (
                       <tr>
-                        <td colSpan={6} style={emptyCellStyle}>No hay tareas para mostrar.</td>
+                        <td colSpan={6} style={emptyCellStyle}>
+                          No hay tareas para mostrar.
+                        </td>
                       </tr>
                     ) : (
                       taskList.map((item) => {
@@ -415,7 +459,9 @@ export default function InformeInventario() {
                             <td style={tdStyle}>{item.tipo_conteo}</td>
                             <td style={tdStyle}>{item.criterio}</td>
                             <td style={tdStyle}>
-                              <span style={getStatusStyle(item.estado)}>{item.estado}</span>
+                              <span style={getStatusStyle(item.estado)}>
+                                {item.estado}
+                              </span>
                             </td>
                             <td style={tdStyle}>{item.porcentaje_exactitud ?? 0}%</td>
                             <td style={tdStyle}>{item.es_reconteo ? "Sí" : "No"}</td>
@@ -430,7 +476,10 @@ export default function InformeInventario() {
           </section>
 
           <section style={cardStyle}>
-            <CardHeader title="Consulta puntual" subtitle="Busca un informe por ID y luego imprímelo completo." />
+            <CardHeader
+              title="Consulta puntual"
+              subtitle="Busca un informe por ID y luego imprímelo completo."
+            />
 
             <div style={{ padding: 18 }}>
               <div style={searchRowStyle}>
@@ -444,7 +493,14 @@ export default function InformeInventario() {
                   />
                 </div>
 
-                <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    alignItems: "flex-end",
+                    flexWrap: "wrap",
+                  }}
+                >
                   <button style={primaryButtonStyle} onClick={handleSearchReport}>
                     <Search size={16} />
                     Consultar
@@ -459,7 +515,11 @@ export default function InformeInventario() {
                     Recargar
                   </button>
 
-                  <button style={printButtonStyle} onClick={handlePrint} disabled={!report || !taskDetail}>
+                  <button
+                    style={printButtonStyle}
+                    onClick={handlePrint}
+                    disabled={!report || !taskDetail}
+                  >
                     <Printer size={16} />
                     Imprimir tarea
                   </button>
@@ -480,13 +540,18 @@ export default function InformeInventario() {
                     <MiniInfo label="Coinciden" value={report.total_coinciden} />
                     <MiniInfo label="No coinciden" value={report.total_no_coinciden} />
                     <MiniInfo label="Exactitud" value={`${report.porcentaje_exactitud}%`} />
-                    <MiniInfo label="Genera reconteo" value={report.genera_reconteo ? "Sí" : "No"} />
+                    <MiniInfo
+                      label="Genera reconteo"
+                      value={report.genera_reconteo ? "Sí" : "No"}
+                    />
                     <MiniInfo label="ID reconteo" value={report.reconteo_tarea_id || "-"} />
                   </div>
 
                   {selectedTask && (
                     <div style={selectedTaskBoxStyle}>
-                      <div style={selectedTaskTitleStyle}>Datos base de la tarea seleccionada</div>
+                      <div style={selectedTaskTitleStyle}>
+                        Datos base de la tarea seleccionada
+                      </div>
                       <div style={selectedTaskTextStyle}>
                         Tipo: <strong>{selectedTask.tipo_conteo}</strong> | Criterio:{" "}
                         <strong>{selectedTask.criterio}</strong> | Asignado a:{" "}
@@ -556,7 +621,10 @@ export default function InformeInventario() {
                 <PrintBox label="Líneas contadas" value={detalleResumen.contadas} />
                 <PrintBox label="Coinciden" value={report.total_coinciden} />
                 <PrintBox label="No coinciden" value={report.total_no_coinciden} />
-                <PrintBox label="Exactitud" value={`${report.porcentajeExactitud ?? report.porcentaje_exactitud}%`} />
+                <PrintBox
+                  label="Exactitud"
+                  value={`${report.porcentajeExactitud ?? report.porcentaje_exactitud}%`}
+                />
                 <PrintBox label="Total sistema" value={detalleResumen.totalSistema} />
                 <PrintBox label="Total contado" value={detalleResumen.totalContado} />
                 <PrintBox label="Desviación total" value={detalleResumen.totalDiferencia} />
@@ -675,7 +743,11 @@ export default function InformeInventario() {
                       <td style={printTdStyle}>{item.cantidad_contada ?? 0}</td>
                       <td style={printTdStyle}>{item.diferencia ?? 0}</td>
                       <td style={printTdStyle}>
-                        {item.coincide === true ? "Sí" : item.coincide === false ? "No" : "Pendiente"}
+                        {item.coincide === true
+                          ? "Sí"
+                          : item.coincide === false
+                          ? "No"
+                          : "Pendiente"}
                       </td>
                       <td style={printTdStyle}>{item.observacion || "-"}</td>
                     </tr>
@@ -688,11 +760,14 @@ export default function InformeInventario() {
 
                 {diferencias.length === 0 ? (
                   <div style={printOkBoxStyle}>
-                    No se detectaron diferencias en la tarea. El conteo coincide con el stock del sistema.
+                    No se detectaron diferencias en la tarea. El conteo coincide
+                    con el stock del sistema.
                   </div>
                 ) : (
                   <div style={printWarnBoxStyle}>
-                    Se detectaron <strong>{diferencias.length}</strong> líneas con diferencia. Revisar el detalle anterior para validar desviaciones, causas y necesidad de reconteo.
+                    Se detectaron <strong>{diferencias.length}</strong> líneas con
+                    diferencia. Revisar el detalle anterior para validar
+                    desviaciones, causas y necesidad de reconteo.
                   </div>
                 )}
               </div>
@@ -713,8 +788,14 @@ export default function InformeInventario() {
                 <PrintBox label="Coinciden" value={report.total_coinciden} />
                 <PrintBox label="No coinciden" value={report.total_no_coinciden} />
                 <PrintBox label="Exactitud" value={`${report.porcentaje_exactitud}%`} />
-                <PrintBox label="Generó reconteo" value={report.genera_reconteo ? "Sí" : "No"} />
-                <PrintBox label="ID reconteo generado" value={report.reconteo_tarea_id || "-"} />
+                <PrintBox
+                  label="Generó reconteo"
+                  value={report.genera_reconteo ? "Sí" : "No"}
+                />
+                <PrintBox
+                  label="ID reconteo generado"
+                  value={report.reconteo_tarea_id || "-"}
+                />
               </div>
 
               <div style={signatureGridStyle} className="print-signatures">
