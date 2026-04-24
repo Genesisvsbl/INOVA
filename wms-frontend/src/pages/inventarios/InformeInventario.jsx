@@ -180,8 +180,10 @@ export default function InformeInventario() {
 
           html,
           body {
-            width: auto !important;
+            width: 100% !important;
             height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
             margin: 0 !important;
             padding: 0 !important;
             overflow: visible !important;
@@ -192,35 +194,8 @@ export default function InformeInventario() {
             print-color-adjust: exact !important;
           }
 
-          body > * {
-            display: none !important;
-          }
-
-          body,
-          #root,
-          #print-area {
-            display: block !important;
-            width: 100% !important;
-            height: auto !important;
-            min-height: 0 !important;
-            max-height: none !important;
-            overflow: visible !important;
-            background: #ffffff !important;
-          }
-
-          #root > * {
-            display: block !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            background: #ffffff !important;
-            min-height: 0 !important;
-            height: auto !important;
-            max-height: none !important;
-            overflow: visible !important;
-          }
-
-          .no-print {
-            display: none !important;
+          body * {
+            visibility: hidden !important;
           }
 
           #print-area,
@@ -228,20 +203,45 @@ export default function InformeInventario() {
             visibility: visible !important;
           }
 
+          .no-print {
+            display: none !important;
+          }
+
           #print-area {
-            position: static !important;
-            left: auto !important;
-            top: auto !important;
+            display: block !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
             margin: 0 !important;
             padding: 0 !important;
+            overflow: visible !important;
+            background: #ffffff !important;
+          }
+
+          #print-area * {
+            max-height: none !important;
+            overflow: visible !important;
+            box-shadow: none !important;
+          }
+
+          .print-wrapper {
+            display: block !important;
+            width: 100% !important;
+            height: auto !important;
             overflow: visible !important;
           }
 
           .print-section {
+            display: block !important;
             width: 100% !important;
             margin: 0 !important;
-            box-shadow: none !important;
+            background: #ffffff !important;
             overflow: visible !important;
+            box-shadow: none !important;
           }
 
           .print-section-cover {
@@ -254,7 +254,6 @@ export default function InformeInventario() {
           .print-section-flow {
             break-inside: auto !important;
             page-break-inside: auto !important;
-            overflow: visible !important;
           }
 
           .print-page-break {
@@ -278,12 +277,9 @@ export default function InformeInventario() {
             grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
           }
 
-          .print-grid-3 {
-            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-          }
-
           .print-table,
           .print-table-conteo {
+            display: table !important;
             width: 100% !important;
             table-layout: fixed !important;
             border-collapse: collapse !important;
@@ -311,8 +307,8 @@ export default function InformeInventario() {
           .print-table td,
           .print-table-conteo th,
           .print-table-conteo td {
-            word-break: break-word !important;
             white-space: normal !important;
+            word-break: break-word !important;
             overflow-wrap: anywhere !important;
           }
 
@@ -382,26 +378,10 @@ export default function InformeInventario() {
         </div>
 
         <div style={statsGridStyle}>
-          <StatBox
-            icon={<ClipboardList size={18} color="#355b7e" />}
-            label="Total tareas"
-            value={dashboard.total}
-          />
-          <StatBox
-            icon={<CheckCircle2 size={18} color="#1f7a3d" />}
-            label="Conciliadas"
-            value={dashboard.conciliadas}
-          />
-          <StatBox
-            icon={<AlertTriangle size={18} color="#8f5c00" />}
-            label="Reconteos"
-            value={dashboard.reconteo}
-          />
-          <StatBox
-            icon={<BarChart3 size={18} color="#0b57d0" />}
-            label="Abiertas"
-            value={dashboard.abiertas}
-          />
+          <StatBox icon={<ClipboardList size={18} color="#355b7e" />} label="Total tareas" value={dashboard.total} />
+          <StatBox icon={<CheckCircle2 size={18} color="#1f7a3d" />} label="Conciliadas" value={dashboard.conciliadas} />
+          <StatBox icon={<AlertTriangle size={18} color="#8f5c00" />} label="Reconteos" value={dashboard.reconteo} />
+          <StatBox icon={<BarChart3 size={18} color="#0b57d0" />} label="Abiertas" value={dashboard.abiertas} />
         </div>
 
         <div style={layoutGridStyle}>
@@ -429,15 +409,11 @@ export default function InformeInventario() {
                   <tbody>
                     {loadingList ? (
                       <tr>
-                        <td colSpan={6} style={emptyCellStyle}>
-                          Cargando tareas...
-                        </td>
+                        <td colSpan={6} style={emptyCellStyle}>Cargando tareas...</td>
                       </tr>
                     ) : taskList.length === 0 ? (
                       <tr>
-                        <td colSpan={6} style={emptyCellStyle}>
-                          No hay tareas para mostrar.
-                        </td>
+                        <td colSpan={6} style={emptyCellStyle}>No hay tareas para mostrar.</td>
                       </tr>
                     ) : (
                       taskList.map((item) => {
@@ -459,9 +435,7 @@ export default function InformeInventario() {
                             <td style={tdStyle}>{item.tipo_conteo}</td>
                             <td style={tdStyle}>{item.criterio}</td>
                             <td style={tdStyle}>
-                              <span style={getStatusStyle(item.estado)}>
-                                {item.estado}
-                              </span>
+                              <span style={getStatusStyle(item.estado)}>{item.estado}</span>
                             </td>
                             <td style={tdStyle}>{item.porcentaje_exactitud ?? 0}%</td>
                             <td style={tdStyle}>{item.es_reconteo ? "Sí" : "No"}</td>
@@ -493,14 +467,7 @@ export default function InformeInventario() {
                   />
                 </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 10,
-                    alignItems: "flex-end",
-                    flexWrap: "wrap",
-                  }}
-                >
+                <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
                   <button style={primaryButtonStyle} onClick={handleSearchReport}>
                     <Search size={16} />
                     Consultar
@@ -540,10 +507,7 @@ export default function InformeInventario() {
                     <MiniInfo label="Coinciden" value={report.total_coinciden} />
                     <MiniInfo label="No coinciden" value={report.total_no_coinciden} />
                     <MiniInfo label="Exactitud" value={`${report.porcentaje_exactitud}%`} />
-                    <MiniInfo
-                      label="Genera reconteo"
-                      value={report.genera_reconteo ? "Sí" : "No"}
-                    />
+                    <MiniInfo label="Genera reconteo" value={report.genera_reconteo ? "Sí" : "No"} />
                     <MiniInfo label="ID reconteo" value={report.reconteo_tarea_id || "-"} />
                   </div>
 
@@ -568,7 +532,7 @@ export default function InformeInventario() {
 
       <div id="print-area">
         {!report || !taskDetail ? null : (
-          <div style={printWrapperStyle}>
+          <div style={printWrapperStyle} className="print-wrapper">
             <section
               style={printSectionStyle}
               className="print-section print-section-cover print-section-tight"
@@ -621,10 +585,7 @@ export default function InformeInventario() {
                 <PrintBox label="Líneas contadas" value={detalleResumen.contadas} />
                 <PrintBox label="Coinciden" value={report.total_coinciden} />
                 <PrintBox label="No coinciden" value={report.total_no_coinciden} />
-                <PrintBox
-                  label="Exactitud"
-                  value={`${report.porcentajeExactitud ?? report.porcentaje_exactitud}%`}
-                />
+                <PrintBox label="Exactitud" value={`${report.porcentajeExactitud ?? report.porcentaje_exactitud}%`} />
                 <PrintBox label="Total sistema" value={detalleResumen.totalSistema} />
                 <PrintBox label="Total contado" value={detalleResumen.totalContado} />
                 <PrintBox label="Desviación total" value={detalleResumen.totalDiferencia} />
@@ -743,11 +704,7 @@ export default function InformeInventario() {
                       <td style={printTdStyle}>{item.cantidad_contada ?? 0}</td>
                       <td style={printTdStyle}>{item.diferencia ?? 0}</td>
                       <td style={printTdStyle}>
-                        {item.coincide === true
-                          ? "Sí"
-                          : item.coincide === false
-                          ? "No"
-                          : "Pendiente"}
+                        {item.coincide === true ? "Sí" : item.coincide === false ? "No" : "Pendiente"}
                       </td>
                       <td style={printTdStyle}>{item.observacion || "-"}</td>
                     </tr>
@@ -760,14 +717,11 @@ export default function InformeInventario() {
 
                 {diferencias.length === 0 ? (
                   <div style={printOkBoxStyle}>
-                    No se detectaron diferencias en la tarea. El conteo coincide
-                    con el stock del sistema.
+                    No se detectaron diferencias en la tarea. El conteo coincide con el stock del sistema.
                   </div>
                 ) : (
                   <div style={printWarnBoxStyle}>
-                    Se detectaron <strong>{diferencias.length}</strong> líneas con
-                    diferencia. Revisar el detalle anterior para validar
-                    desviaciones, causas y necesidad de reconteo.
+                    Se detectaron <strong>{diferencias.length}</strong> líneas con diferencia. Revisar el detalle anterior para validar desviaciones, causas y necesidad de reconteo.
                   </div>
                 )}
               </div>
@@ -788,14 +742,8 @@ export default function InformeInventario() {
                 <PrintBox label="Coinciden" value={report.total_coinciden} />
                 <PrintBox label="No coinciden" value={report.total_no_coinciden} />
                 <PrintBox label="Exactitud" value={`${report.porcentaje_exactitud}%`} />
-                <PrintBox
-                  label="Generó reconteo"
-                  value={report.genera_reconteo ? "Sí" : "No"}
-                />
-                <PrintBox
-                  label="ID reconteo generado"
-                  value={report.reconteo_tarea_id || "-"}
-                />
+                <PrintBox label="Generó reconteo" value={report.genera_reconteo ? "Sí" : "No"} />
+                <PrintBox label="ID reconteo generado" value={report.reconteo_tarea_id || "-"} />
               </div>
 
               <div style={signatureGridStyle} className="print-signatures">
