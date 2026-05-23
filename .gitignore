@@ -1,0 +1,13 @@
+dist/
+node_modules/
+supabase/.temp/
+venv/
+.venv/
+.vs/
+__pycache__/
+*.py[cod]
+*.sqlite
+*.sqlite3
+*.db
+.env*
+!.env.example

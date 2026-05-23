@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="INOVA">
+  <defs>
+    <filter id="softGlow" x="-20%" y="-30%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="1.6" flood-color="#7dd3fc" flood-opacity=".16"/>
+      <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#000000" flood-opacity=".24"/>
+    </filter>
+  </defs>
+  <g fill="none" stroke="#dbeafe" stroke-linecap="round" stroke-linejoin="round" filter="url(#softGlow)">
+    <path d="M80 14a48 48 0 1 1-3 92" stroke-width="9"/>
+    <path d="M57 40v42" stroke-width="11"/>
+    <circle cx="22" cy="74" r="9" fill="#dbeafe" stroke="none"/>
+    <circle cx="38" cy="95" r="11" fill="#dbeafe" stroke="none"/>
+    <circle cx="62" cy="106" r="13" fill="#dbeafe" stroke="none"/>
+  </g>
+</svg>
