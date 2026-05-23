@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: inova-api
+    env: python
+    rootDir: WMS/backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.13.7

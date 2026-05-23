@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 120" role="img" aria-label="INOVA">
+  <defs>
+    <filter id="softGlow" x="-20%" y="-30%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="1.6" flood-color="#7dd3fc" flood-opacity=".16"/>
+      <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#000000" flood-opacity=".24"/>
+    </filter>
+  </defs>
+  <g fill="none" stroke="#dbeafe" stroke-linecap="round" stroke-linejoin="round" filter="url(#softGlow)">
+    <path d="M79 17a47 47 0 1 1-3 86" stroke-width="9"/>
+    <path d="M56 42v40" stroke-width="11"/>
+    <circle cx="21" cy="73" r="9" fill="#dbeafe" stroke="none"/>
+    <circle cx="37" cy="93" r="11" fill="#dbeafe" stroke="none"/>
+    <circle cx="61" cy="104" r="13" fill="#dbeafe" stroke="none"/>
+  </g>
+  <g fill="#eaf2ff" filter="url(#softGlow)" font-family="Inter, Arial, sans-serif" font-weight="900">
+    <text x="132" y="79" font-size="63" letter-spacing="3">INOVA</text>
+  </g>
+</svg>
