@@ -2,8 +2,8 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Layout from "./Layout";
 import Calidad5S from "./pages/5s/Calidad5S.jsx";
-import EtoDigitalApp from "../../../ETO/app/src/App.jsx";
-import "../../../ETO/app/src/index.css";
+import EtoDigitalApp from "./pages/eto/App.jsx";
+import "./pages/eto/index.css";
 
 /* ================= PAGINAS ================= */
 import Inicio from "./pages/Inicio";
@@ -295,4 +295,3 @@ export default function App() {
     </BrowserRouter>
   );
 }
-
