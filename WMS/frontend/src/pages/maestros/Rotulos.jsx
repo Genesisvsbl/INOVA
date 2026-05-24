@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { API_URL } from "../../api";
+import { API_URL, eliminarRotulo as borrarRotulo, getRotulos } from "../../api";
 import {
   Tags,
   Search,
@@ -375,22 +375,18 @@ export default function Rotulos() {
     setLoading(true);
     setErr("");
 
-    const params = new URLSearchParams();
+    const params = {};
 
-    if (q.trim()) params.set("q", q.trim());
+    if (q.trim()) params.q = q.trim();
 
     const { kind, value } = classifySerialInput(serial);
 
-    if (kind === "codigo_cita") params.set("codigo_cita", value);
-    if (kind === "impresion") params.set("impresion", value);
+    if (kind === "codigo_cita") params.codigo_cita = value;
+    if (kind === "impresion") params.impresion = value;
 
-    params.set("limit", "2000");
+    params.limit = "2000";
 
-    fetch(`${API_URL}/rotulos?${params.toString()}`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error(await r.text());
-        return r.json();
-      })
+    getRotulos(params)
       .then((data) => {
         setRows(Array.isArray(data) ? data : []);
         setLoading(false);
@@ -797,12 +793,7 @@ export default function Rotulos() {
     if (!ok) return;
 
     try {
-      const res = await fetch(`${API_URL}/rotulos/${r.id}`, {
-        method: "DELETE",
-      });
-
-      if (!res.ok) throw new Error(await res.text());
-
+      await borrarRotulo(r.id);
       alert("Rótulo eliminado correctamente");
       load();
     } catch (e) {

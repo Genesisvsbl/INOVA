@@ -32,6 +32,124 @@ function apiFetch(path, options = {}) {
 
 export { API_URL, handle, apiFetch };
 
+function compactObject(obj) {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, value]) => value !== undefined && value !== "")
+  );
+}
+
+async function findOne(table, params) {
+  const rows = await selectRows("wms", table, { ...params, limit: "1" });
+  return Array.isArray(rows) && rows.length ? rows[0] : null;
+}
+
+async function resolveMaterialId(codigo) {
+  const value = String(codigo || "").trim();
+  if (!value) throw new Error("Material obligatorio.");
+  const row = await findOne("materiales", {
+    empresa_id: `eq.${empresaId}`,
+    codigo: `eq.${value}`,
+    select: "id,codigo",
+  });
+  if (!row) throw new Error(`No existe material ${value} en Supabase.`);
+  return row.id;
+}
+
+async function resolveUbicacionId(codigo) {
+  const value = String(codigo || "").trim();
+  if (!value) return null;
+  const row = await findOne("ubicaciones", {
+    empresa_id: `eq.${empresaId}`,
+    ubicacion: `eq.${value}`,
+    select: "id,ubicacion",
+  });
+  if (!row) throw new Error(`No existe ubicacion ${value} en Supabase.`);
+  return row.id;
+}
+
+function mapMovimientoRow(row) {
+  const material = row.material || {};
+  const ubicacion = row.ubicacion || {};
+  const cantidad = Number(row.cantidad_r || 0);
+
+  return {
+    id: row.id,
+    fecha: row.fecha,
+    tipo: cantidad >= 0 ? "ENTRADA" : "SALIDA",
+    usuario: row.usuario,
+    documento: row.documento,
+    codigo_cita: row.codigo_cita,
+    proveedor: row.proveedor,
+    remesa: row.remesa,
+    orden_compra: row.orden_compra,
+    sku: material.codigo || row.codigo_material || "",
+    um: row.um || material.unidad_medida || "",
+    umb: row.umb,
+    codigo_material: material.codigo || row.codigo_material || "",
+    descripcion_material: material.descripcion || "",
+    unidad_medida: material.unidad_medida || row.um || "",
+    familia: material.familia || "",
+    estado: row.estado,
+    ubicacion: ubicacion.ubicacion || "EN TRANSITO",
+    ubicacion_base: ubicacion.ubicacion_base || null,
+    posicion: ubicacion.posicion || null,
+    zona: ubicacion.zona || null,
+    familias: ubicacion.familias || null,
+    bodega: ubicacion.bodega || null,
+    lote_almacen: row.lote_almacen,
+    lote_proveedor: row.lote_proveedor,
+    fecha_fabricacion: row.fecha_fabricacion,
+    fecha_vencimiento: row.fecha_vencimiento,
+    cantidad,
+    cantidad_r: cantidad,
+  };
+}
+
+async function buildMovimientoInsert(payload) {
+  const materialId = await resolveMaterialId(payload.codigo_material || payload.sku);
+  const ubicacionId = await resolveUbicacionId(payload.codigo_ubicacion || payload.ubicacion);
+
+  return compactObject({
+    empresa_id: empresaId,
+    fecha: payload.fecha,
+    usuario: payload.usuario,
+    documento: payload.documento,
+    codigo_cita: payload.codigo_cita,
+    proveedor: payload.proveedor,
+    remesa: payload.remesa,
+    orden_compra: payload.orden_compra,
+    um: payload.um,
+    umb: payload.umb,
+    material_id: materialId,
+    ubicacion_id: ubicacionId,
+    estado: payload.estado || (ubicacionId ? "ALMACENADO" : "EN_TRANSITO"),
+    lote_almacen: payload.lote_almacen,
+    lote_proveedor: payload.lote_proveedor,
+    fecha_fabricacion: payload.fecha_fabricacion || null,
+    fecha_vencimiento: payload.fecha_vencimiento || null,
+    cantidad_r: Number(payload.cantidad_r ?? payload.cantidad ?? 0),
+  });
+}
+
+async function buildRotuloInsert(payload) {
+  const sku = String(payload.sku || payload.codigo_material || "").trim();
+  const material = sku
+    ? await findOne("materiales", {
+        empresa_id: `eq.${empresaId}`,
+        codigo: `eq.${sku}`,
+        select: "id,codigo",
+      })
+    : null;
+
+  return compactObject({
+    ...payload,
+    empresa_id: empresaId,
+    material_id: material?.id || null,
+    sku,
+    fecha_recepcion: payload.fecha_recepcion || new Date().toISOString().slice(0, 10),
+  });
+}
+
 export function getMateriales(search = "") {
   if (supabaseEnabled) {
     const params = {
@@ -85,6 +203,10 @@ export function importarMaterialesExcel(file) {
 }
 
 export function crearMovimiento(payload) {
+  if (supabaseEnabled) {
+    return buildMovimientoInsert(payload).then((row) => insertRow("wms", "movimientos", row));
+  }
+
   return apiFetch("/movimientos", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -93,6 +215,13 @@ export function crearMovimiento(payload) {
 }
 
 export function crearMovimientosBulk(payload) {
+  if (supabaseEnabled) {
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+    return Promise.all(items.map(buildMovimientoInsert)).then((rows) =>
+      insertRow("wms", "movimientos", rows)
+    );
+  }
+
   return apiFetch("/movimientos/bulk", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -101,10 +230,31 @@ export function crearMovimientosBulk(payload) {
 }
 
 export function getMovimientos() {
+  if (supabaseEnabled) {
+    return selectRows("wms", "movimientos", {
+      empresa_id: `eq.${empresaId}`,
+      select: "*,material:materiales(codigo,descripcion,unidad_medida,familia),ubicacion:ubicaciones(ubicacion,ubicacion_base,posicion,zona,familias,bodega)",
+      order: "fecha.desc",
+      limit: "3000",
+    }).then((rows) => rows.map(mapMovimientoRow));
+  }
+
   return apiFetch("/movimientos");
 }
 
 export function getEnTransito(q = "") {
+  if (supabaseEnabled) {
+    const params = {
+      empresa_id: `eq.${empresaId}`,
+      estado: "eq.EN_TRANSITO",
+      select: "*,material:materiales(codigo,descripcion,unidad_medida,familia)",
+      order: "fecha.desc",
+      limit: "3000",
+    };
+    if (q) params.or = `(documento.ilike.*${q}*,codigo_cita.ilike.*${q}*,lote_almacen.ilike.*${q}*,lote_proveedor.ilike.*${q}*)`;
+    return selectRows("wms", "movimientos", params).then((rows) => rows.map(mapMovimientoRow));
+  }
+
   const url = new URL(`${API_URL}/movimientos/en-transito`);
 
   if (q) {
@@ -115,6 +265,15 @@ export function getEnTransito(q = "") {
 }
 
 export function asignarUbicacionDesdeTransito(movimientoId, codigoUbicacion) {
+  if (supabaseEnabled) {
+    return resolveUbicacionId(codigoUbicacion).then((ubicacionId) =>
+      updateById("wms", "movimientos", movimientoId, {
+        ubicacion_id: ubicacionId,
+        estado: "ALMACENADO",
+      })
+    );
+  }
+
   return apiFetch(`/movimientos/${movimientoId}/asignar-ubicacion`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -231,10 +390,27 @@ export function importarUbicacionesExcel(file) {
 }
 
 export function getMotor() {
+  if (supabaseEnabled) return getMovimientos();
   return apiFetch("/motor");
 }
 
 export function getRotulos(params = {}) {
+  if (supabaseEnabled) {
+    const query = {
+      empresa_id: `eq.${empresaId}`,
+      select: "*",
+      order: "id.desc",
+      limit: params.limit || "2000",
+    };
+    if (params.codigo_cita) query.codigo_cita = `eq.${params.codigo_cita}`;
+    if (params.impresion) query.impresion = `eq.${params.impresion}`;
+    if (params.q) {
+      const q = params.q;
+      query.or = `(codigo_cita.ilike.*${q}*,impresion.ilike.*${q}*,documento.ilike.*${q}*,sku.ilike.*${q}*,texto_breve.ilike.*${q}*,lote_almacen.ilike.*${q}*,lote_proveedor.ilike.*${q}*,remesa.ilike.*${q}*,orden_compra.ilike.*${q}*,proveedor.ilike.*${q}*,auxiliar.ilike.*${q}*)`;
+    }
+    return selectRows("wms", "rotulos", query);
+  }
+
   const url = new URL(`${API_URL}/rotulos`);
 
   Object.entries(params).forEach(([key, value]) => {
@@ -247,6 +423,10 @@ export function getRotulos(params = {}) {
 }
 
 export function crearRotulo(payload) {
+  if (supabaseEnabled) {
+    return buildRotuloInsert(payload).then((row) => insertRow("wms", "rotulos", row));
+  }
+
   return apiFetch("/rotulos", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -255,6 +435,17 @@ export function crearRotulo(payload) {
 }
 
 export function crearRotulosBulk(payload) {
+  if (supabaseEnabled) {
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+    return Promise.all(items.map(buildRotuloInsert)).then((rows) =>
+      insertRow("wms", "rotulos", rows).then((created) => ({
+        mensaje: "Rotulos guardados",
+        total_guardados: created?.length || rows.length,
+        ids: (created || []).map((row) => row.id),
+      }))
+    );
+  }
+
   return apiFetch("/rotulos/bulk", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -263,6 +454,8 @@ export function crearRotulosBulk(payload) {
 }
 
 export function eliminarRotulo(id) {
+  if (supabaseEnabled) return deleteById("wms", "rotulos", id);
+
   return apiFetch(`/rotulos/${id}`, {
     method: "DELETE",
   });
@@ -334,5 +527,3 @@ export function marcarPickingImpreso(reserva) {
     method: "POST",
   });
 }
-
-

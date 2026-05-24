@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BrowserMultiFormatReader } from "@zxing/browser";
-import { API_URL } from "../../api";
+import { API_URL, crearMovimiento, crearRotulosBulk } from "../../api";
 import {
   ArrowLeft,
   Save,
@@ -1363,30 +1363,11 @@ export default function DesdeRecibo() {
 
   const guardarRotulos = async () => {
     const rotulosItems = construirRotulosItems();
-
-    const rotRes = await fetch(`${API_URL}/rotulos/bulk`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: rotulosItems }),
-    });
-
-    if (!rotRes.ok) {
-      const txt = await rotRes.text();
-      throw new Error("Movimientos OK, pero falló guardando rótulos:\n" + txt);
-    }
+    await crearRotulosBulk({ items: rotulosItems });
   };
 
   const postMovimiento = async (payload) => {
-    const res = await fetch(`${API_URL}/movimientos`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(txt);
-    }
+    await crearMovimiento(payload);
   };
 
   const guardarMovimientos = async () => {

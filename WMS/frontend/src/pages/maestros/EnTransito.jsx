@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
-import { API_URL } from "../../api";
+import { asignarUbicacionDesdeTransito, getEnTransito, getUbicaciones } from "../../api";
 import {
   Truck,
   Search,
@@ -375,16 +375,10 @@ export default function EnTransito() {
     setErr("");
 
     try {
-      const [resRows, resUbis] = await Promise.all([
-        fetch(`${API_URL}/movimientos/en-transito?limit=2000`),
-        fetch(`${API_URL}/ubicaciones?limit=5000`),
+      const [dataRows, dataUbis] = await Promise.all([
+        getEnTransito(),
+        getUbicaciones(),
       ]);
-
-      if (!resRows.ok) throw new Error(await resRows.text());
-      if (!resUbis.ok) throw new Error(await resUbis.text());
-
-      const dataRows = await resRows.json();
-      const dataUbis = await resUbis.json();
 
       const safeRows = Array.isArray(dataRows) ? dataRows : [];
       const safeUbis = Array.isArray(dataUbis) ? dataUbis : [];
@@ -979,16 +973,7 @@ export default function EnTransito() {
     setSavingId(row.id);
 
     try {
-      const res = await fetch(`${API_URL}/movimientos/${row.id}/asignar-ubicacion`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ codigo_ubicacion: ubicacion }),
-      });
-
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt);
-      }
+      await asignarUbicacionDesdeTransito(row.id, ubicacion);
 
       alert(`Ubicación ${ubicacion} asignada al material ${row.codigo_material}`);
       await cargarTodo();
