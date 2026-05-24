@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 180" role="img" aria-label="INOVA">
+  <defs>
+    <filter id="logoDepth" x="-8%" y="-18%" width="116%" height="136%">
+      <feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#000000" flood-opacity=".36"/>
+      <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#ffffff" flood-opacity=".20"/>
+    </filter>
+    <linearGradient id="whiteFace" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset=".58" stop-color="#f8fbff"/>
+      <stop offset="1" stop-color="#dfe8f4"/>
+    </linearGradient>
+  </defs>
+
+  <g filter="url(#logoDepth)">
+    <g fill="none" stroke="url(#whiteFace)" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M143 23a71 71 0 1 1-5 135" stroke-width="15"/>
+      <path d="M103 60v60" stroke-width="18"/>
+    </g>
+    <circle cx="36" cy="108" r="14" fill="url(#whiteFace)"/>
+    <circle cx="65" cy="135" r="17" fill="url(#whiteFace)"/>
+    <circle cx="105" cy="152" r="20" fill="url(#whiteFace)"/>
+    <text x="204" y="117" fill="url(#whiteFace)" font-family="Inter, Arial, Helvetica, sans-serif" font-size="86" font-weight="900" letter-spacing="2">INOVA</text>
+  </g>
+</svg>

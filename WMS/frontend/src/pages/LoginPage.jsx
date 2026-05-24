@@ -404,13 +404,15 @@ export default function LoginPage() {
 
         <div className="brand brand-single">
           <img
-            src="/INOVA2026.png"
+            src="/INOVA2026-clean.svg"
             alt="INOVA Innovamos Contigo"
             className="brand-logo brand-logo-wide"
             loading="eager"
             decoding="sync"
             onError={(event) => {
-              if (event.currentTarget.src.includes("/INOVA2026.png")) {
+              if (event.currentTarget.src.includes("/INOVA2026-clean.svg")) {
+                event.currentTarget.src = "/INOVA2026.png";
+              } else if (event.currentTarget.src.includes("/INOVA2026.png")) {
                 event.currentTarget.src = "/INOVA-dark.png";
               }
             }}
@@ -776,15 +778,15 @@ button { -webkit-tap-highlight-color: transparent; }
 .brand { display: flex; align-items: center; gap: 0; min-width: 0; }
 .brand-single { gap: 0; }
 .brand-logo {
-  width: clamp(300px, 24vw, 430px);
-  height: clamp(78px, 7vw, 116px);
+  width: clamp(300px, 25vw, 440px);
+  height: clamp(76px, 6.8vw, 106px);
   object-fit: contain;
   object-position: center;
   display: block;
   image-rendering: auto;
   filter: drop-shadow(0 10px 24px rgba(0,0,0,.32));
 }
-.brand-logo-wide { width: clamp(300px, 24vw, 430px); height: clamp(78px, 7vw, 116px); }
+.brand-logo-wide { width: clamp(300px, 25vw, 440px); height: clamp(76px, 6.8vw, 106px); }
 
 .icon-button {
   width: 42px;
