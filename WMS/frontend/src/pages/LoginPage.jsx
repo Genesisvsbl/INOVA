@@ -235,6 +235,7 @@ export default function LoginPage() {
   const [assetsReady, setAssetsReady] = useState(true);
   const [requestOpen, setRequestOpen] = useState(false);
   const [requestStatus, setRequestStatus] = useState("");
+  const [loginNotice, setLoginNotice] = useState("");
   const [passwordChangeUser, setPasswordChangeUser] = useState(null);
 
   const selectedPillar = useMemo(
@@ -301,6 +302,7 @@ export default function LoginPage() {
     setShowLogin(true);
     setMenuOpen(false);
     setError("");
+    setLoginNotice("");
     setUsuario("");
     setPassword("");
   };
@@ -413,7 +415,9 @@ export default function LoginPage() {
   const submitAccessRequest = async (payload) => {
     setRequestStatus("");
     await solicitarAcceso(payload);
-    setRequestStatus("Solicitud enviada. La super administradora revisará y aprobará el acceso.");
+    setRequestOpen(false);
+    setShowLogin(true);
+    setLoginNotice("Solicitud enviada. Tu acceso queda pendiente de aprobación.");
   };
 
   return (
@@ -505,6 +509,7 @@ export default function LoginPage() {
               recordarme={recordarme}
               setRecordarme={setRecordarme}
               error={error}
+              notice={loginNotice}
               loading={loading}
               login={login}
               back={() => setShowLogin(false)}
@@ -632,6 +637,7 @@ function LoginCard({
   recordarme,
   setRecordarme,
   error,
+  notice,
   loading,
   login,
   back,
@@ -703,6 +709,7 @@ function LoginCard({
         <p>Ingresa tus credenciales para continuar en el pilar seleccionado.</p>
 
         {error ? <div className="error-box">{error}</div> : null}
+        {notice ? <div className="success-box">{notice}</div> : null}
 
         <label className="field">
           <span><User size={16} /> Usuario</span>

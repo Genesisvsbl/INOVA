@@ -16,6 +16,7 @@ import {
   crearUsuarioEmpresa,
   generarClaveTemporal,
   getAccessCatalogs,
+  guardarPlanEmpresa,
   rechazarSolicitud,
 } from "../../adminApi";
 
@@ -31,6 +32,14 @@ const EMPTY_USER_FORM = {
   pilar: "wms",
   eto_nivel: "1",
   clave_acceso: "",
+};
+const EMPTY_PLAN_FORM = {
+  empresa_id: "",
+  nombre_plan: "Plan empresa",
+  max_usuarios: 5,
+  pilares_incluidos: ["wms"],
+  precio_mensual: "",
+  estado: "ACTIVO",
 };
 
 function fmtDate(value) {
@@ -64,6 +73,8 @@ export default function AdminAccess({ view = "usuarios" }) {
   const [approvalResult, setApprovalResult] = useState(null);
   const [userForm, setUserForm] = useState(EMPTY_USER_FORM);
   const [userCreateResult, setUserCreateResult] = useState(null);
+  const [planForm, setPlanForm] = useState(EMPTY_PLAN_FORM);
+  const [planMessage, setPlanMessage] = useState("");
   const [actionError, setActionError] = useState("");
 
   const actor = useMemo(() => {
@@ -91,6 +102,20 @@ export default function AdminAccess({ view = "usuarios" }) {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    const defaultEmpresa = actor.esSuperAdmin ? data.empresas[0]?.id || "" : actor.empresaId;
+    if (!defaultEmpresa || planForm.empresa_id) return;
+    const plan = data.planes.find((item) => String(item.empresa_id) === String(defaultEmpresa));
+    setPlanForm({
+      empresa_id: String(defaultEmpresa),
+      nombre_plan: plan?.nombre_plan || "Plan empresa",
+      max_usuarios: plan?.max_usuarios || 5,
+      pilares_incluidos: plan?.pilares_incluidos || ["wms"],
+      precio_mensual: plan?.precio_mensual ?? "",
+      estado: plan?.estado || "ACTIVO",
+    });
+  }, [data.empresas, data.planes, actor.esSuperAdmin, actor.empresaId, planForm.empresa_id]);
 
   const pendingRequests = useMemo(
     () => data.solicitudes.filter((item) => item.estado === "PENDIENTE" && (actor.esSuperAdmin || String(item.empresa_id) === String(actor.empresaId))),
@@ -152,8 +177,12 @@ export default function AdminAccess({ view = "usuarios" }) {
     setActionError("");
     try {
       const result = await aprobarSolicitud(selectedRequest, approval);
-      setApprovalResult(result);
       await load();
+      setSelectedRequest(null);
+      setApprovalResult(null);
+      if (result?.mailto) {
+        window.location.href = result.mailto;
+      }
     } catch (err) {
       setActionError(err?.message || "No se pudo aprobar la solicitud.");
     }
@@ -185,8 +214,45 @@ export default function AdminAccess({ view = "usuarios" }) {
       setUserCreateResult(result);
       setUserForm({ ...EMPTY_USER_FORM, empresa_id: selectedCreateEmpresa, clave_acceso: generarClaveTemporal() });
       await load();
+      if (result?.mailto) {
+        window.location.href = result.mailto;
+      }
     } catch (err) {
       setActionError(err?.message || "No se pudo crear el usuario.");
+    }
+  };
+
+  const changePlanEmpresa = (empresaId) => {
+    const plan = data.planes.find((item) => String(item.empresa_id) === String(empresaId));
+    setPlanMessage("");
+    setPlanForm({
+      empresa_id: String(empresaId),
+      nombre_plan: plan?.nombre_plan || "Plan empresa",
+      max_usuarios: plan?.max_usuarios || 5,
+      pilares_incluidos: plan?.pilares_incluidos || ["wms"],
+      precio_mensual: plan?.precio_mensual ?? "",
+      estado: plan?.estado || "ACTIVO",
+    });
+  };
+
+  const togglePlanPillar = (pillar) => {
+    setPlanForm((prev) => {
+      const current = prev.pilares_incluidos || [];
+      const next = current.includes(pillar) ? current.filter((item) => item !== pillar) : [...current, pillar];
+      return { ...prev, pilares_incluidos: next.length ? next : [pillar] };
+    });
+  };
+
+  const savePlan = async (event) => {
+    event.preventDefault();
+    setActionError("");
+    setPlanMessage("");
+    try {
+      await guardarPlanEmpresa(planForm);
+      setPlanMessage("Plan actualizado correctamente.");
+      await load();
+    } catch (err) {
+      setActionError(err?.message || "No se pudo guardar el plan.");
     }
   };
 
@@ -376,6 +442,44 @@ export default function AdminAccess({ view = "usuarios" }) {
       )}
 
       {!loading && view === "empresas" && (
+        <AdminSection title="Editar plan de usuarios" helper="Define cuántos usuarios puede tener cada empresa y qué pilares incluye el paquete.">
+          <form className="admin-plan-form" onSubmit={savePlan}>
+            <label>Empresa
+              <select value={planForm.empresa_id} disabled={!actor.esSuperAdmin} onChange={(event) => changePlanEmpresa(event.target.value)}>
+                {visibleEmpresas.map((empresa) => <option key={empresa.id} value={empresa.id}>{empresa.nombre}</option>)}
+              </select>
+            </label>
+            <label>Nombre del plan
+              <input value={planForm.nombre_plan} onChange={(event) => setPlanForm((prev) => ({ ...prev, nombre_plan: event.target.value }))} />
+            </label>
+            <label>Usuarios incluidos
+              <input type="number" min="1" value={planForm.max_usuarios} onChange={(event) => setPlanForm((prev) => ({ ...prev, max_usuarios: event.target.value }))} />
+            </label>
+            <label>Precio mensual
+              <input type="number" min="0" step="1000" value={planForm.precio_mensual} onChange={(event) => setPlanForm((prev) => ({ ...prev, precio_mensual: event.target.value }))} />
+            </label>
+            <div className="admin-plan-pillars">
+              <span>Pilares incluidos</span>
+              {["wms", "5s", "eto"].map((pillar) => (
+                <label key={pillar}>
+                  <input type="checkbox" checked={(planForm.pilares_incluidos || []).includes(pillar)} onChange={() => togglePlanPillar(pillar)} />
+                  {PILLAR_LABELS[pillar]}
+                </label>
+              ))}
+            </div>
+            <label>Estado
+              <select value={planForm.estado} onChange={(event) => setPlanForm((prev) => ({ ...prev, estado: event.target.value }))}>
+                <option value="ACTIVO">Activo</option>
+                <option value="INACTIVO">Inactivo</option>
+              </select>
+            </label>
+            <button type="submit" className="primary">Guardar plan</button>
+          </form>
+          {planMessage ? <div className="admin-success">{planMessage}</div> : null}
+        </AdminSection>
+      )}
+
+      {!loading && view === "empresas" && (
         <AdminSection title="Empresas y planes" helper="Control comercial para vender paquetes por usuario.">
           <Table headers={["Empresa", "Plan", "Estado", "Usuarios activos", "Límite plan"]} empty="No hay empresas.">
             {visibleEmpresas.map((empresa) => {
@@ -549,5 +653,14 @@ button.danger { color: #dc2626; border-color: #fecaca; background: #fff5f5; }
 .admin-plan-box strong { font-size: 16px; }
 .admin-plan-box span { color: #64748b; font-size: 12px; font-weight: 800; }
 .admin-create-user > button.primary { align-self: end; height: 40px; }
+.admin-plan-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 18px 20px 20px; }
+.admin-plan-form label { display: grid; gap: 6px; color: #475569; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
+.admin-plan-form input, .admin-plan-form select { width: 100%; border: 1px solid #d8e1ef; border-radius: 10px; padding: 10px; color: #17213b; background: #fff; text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 750; }
+.admin-plan-pillars { border: 1px solid #dbeafe; background: #eff6ff; border-radius: 12px; padding: 10px 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.admin-plan-pillars span { width: 100%; color: #475569; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
+.admin-plan-pillars label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #17213b; }
+.admin-plan-pillars input { width: auto; }
+.admin-plan-form > button.primary { align-self: end; height: 40px; }
+.admin-success { margin: 0 20px 20px; border: 1px solid #bbf7d0; background: #f0fdf4; color: #14532d; border-radius: 12px; padding: 12px; font-weight: 900; }
 @media (max-width: 900px) { .admin-page { padding: 14px; } .admin-hero, .admin-metrics { grid-template-columns: 1fr; } .admin-metrics { display: grid; } }
 `;

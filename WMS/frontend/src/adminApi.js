@@ -38,6 +38,33 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+function isMissingColumnError(error) {
+  const message = String(error?.message || "");
+  return message.includes("PGRST204") || message.includes("42703") || message.includes("schema cache");
+}
+
+function withoutPasswordFlags(payload) {
+  const next = { ...payload };
+  delete next.debe_cambiar_clave;
+  delete next.fecha_cambio_clave;
+  delete next.clave_temporal_generada_en;
+  return next;
+}
+
+async function saveUsuario(row, existingId = null) {
+  try {
+    return existingId
+      ? (await updateById("public", "usuarios", existingId, row))[0]
+      : (await insertRow("public", "usuarios", row))[0];
+  } catch (error) {
+    if (!isMissingColumnError(error)) throw error;
+    const fallback = withoutPasswordFlags(row);
+    return existingId
+      ? (await updateById("public", "usuarios", existingId, fallback))[0]
+      : (await insertRow("public", "usuarios", fallback))[0];
+  }
+}
+
 export function generarClaveTemporal(length = 10) {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   return Array.from({ length }, () => {
@@ -217,9 +244,7 @@ export async function aprobarSolicitud(solicitud, { empresa_id, rol_id, clave_ac
     fecha_actualizacion: new Date().toISOString(),
   };
 
-  const user = usuarioRows?.[0]
-    ? (await updateById("public", "usuarios", usuarioRows[0].id, userPayload))[0]
-    : (await insertRow("public", "usuarios", userPayload))[0];
+  const user = await saveUsuario(userPayload, usuarioRows?.[0]?.id || null);
 
   const accessPayload = {
     usuario_id: user.id,
@@ -329,9 +354,7 @@ export async function crearUsuarioEmpresa(payload, actor = {}) {
     fecha_actualizacion: new Date().toISOString(),
   };
 
-  const user = existing?.[0]
-    ? (await updateById("public", "usuarios", existing[0].id, userPayload))[0]
-    : (await insertRow("public", "usuarios", userPayload))[0];
+  const user = await saveUsuario(userPayload, existing?.[0]?.id || null);
 
   const pilar = payload.pilar;
   const accessPayload = {
@@ -396,13 +419,41 @@ export function cambiarEstadoUsuario(id, estado) {
   });
 }
 
+export async function guardarPlanEmpresa(payload) {
+  const empresaIdFinal = Number(payload.empresa_id);
+  if (!empresaIdFinal) throw new Error("Debes seleccionar empresa.");
+  const maxUsuarios = Number(payload.max_usuarios || 1);
+  if (!Number.isFinite(maxUsuarios) || maxUsuarios < 1) {
+    throw new Error("El plan debe permitir mínimo 1 usuario.");
+  }
+
+  const row = {
+    empresa_id: empresaIdFinal,
+    nombre_plan: clean(payload.nombre_plan) || "Plan empresa",
+    max_usuarios: maxUsuarios,
+    pilares_incluidos: payload.pilares_incluidos?.length ? payload.pilares_incluidos : ["wms"],
+    estado: payload.estado || "ACTIVO",
+    precio_mensual: payload.precio_mensual === "" || payload.precio_mensual == null ? null : Number(payload.precio_mensual),
+  };
+
+  const existing = await safeSelect("public", "planes_empresa", {
+    select: "*",
+    empresa_id: eq(empresaIdFinal),
+    limit: "1",
+  }).catch(() => []);
+
+  return existing?.[0]
+    ? updateById("public", "planes_empresa", existing[0].id, row)
+    : insertRow("public", "planes_empresa", row);
+}
+
 export function cambiarClaveObligatoria(userId, nuevaClave) {
   const clave = clean(nuevaClave);
   if (clave.length < 8) throw new Error("La nueva contraseña debe tener mínimo 8 caracteres.");
-  return updateById("public", "usuarios", userId, {
+  return saveUsuario({
     clave_acceso: clave,
     debe_cambiar_clave: false,
     fecha_cambio_clave: new Date().toISOString(),
     fecha_actualizacion: new Date().toISOString(),
-  });
+  }, userId);
 }
