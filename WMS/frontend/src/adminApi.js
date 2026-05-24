@@ -38,6 +38,38 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+export function generarClaveTemporal(length = 10) {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  return Array.from({ length }, () => {
+    if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+      const value = new Uint32Array(1);
+      crypto.getRandomValues(value);
+      return alphabet[value[0] % alphabet.length];
+    }
+    return alphabet[Math.floor(Math.random() * alphabet.length)];
+  }).join("");
+}
+
+export function buildApprovalEmail({ solicitud, claveTemporal, empresa, rol }) {
+  const subject = encodeURIComponent("Acceso aprobado - INOVA");
+  const body = [
+    `Hola ${solicitud.nombre_completo},`,
+    "",
+    "Tu acceso a INOVA fue aprobado.",
+    "",
+    `Empresa: ${empresa?.nombre || solicitud.empresa_nombre || ""}`,
+    `Pilar: ${String(solicitud.pilar || "").toUpperCase()}${solicitud.eto_nivel ? ` - Nivel ${solicitud.eto_nivel}` : ""}`,
+    `Rol: ${rol?.nombre || rol?.codigo || ""}`,
+    `Usuario: ${solicitud.email}`,
+    `Contraseña temporal: ${claveTemporal}`,
+    "",
+    "Por seguridad, al ingresar por primera vez el sistema te pedirá cambiar esta contraseña.",
+    "",
+    "INOVA",
+  ].join("\n");
+  return `mailto:${encodeURIComponent(solicitud.email)}?subject=${subject}&body=${encodeURIComponent(body)}`;
+}
+
 function roleToPermissions(role, pilar, etoNivel) {
   const rol = String(role || "").toUpperCase();
   if (rol === "SUPER_ADMIN") return LEGACY_ADMIN_PERMISSIONS;
@@ -144,6 +176,7 @@ export async function autenticarUsuario({ usuario, password, pilar }) {
     plataforma: pilar,
     accessLevel: etoNivel ? String(etoNivel) : "",
     accessCode: etoNivel ? `N${etoNivel}-ETO` : "",
+    debeCambiarClave: Boolean(user.debe_cambiar_clave),
     permisos: roleToPermissions(user.rol, pilar, etoNivel),
   };
 }
@@ -156,6 +189,9 @@ export async function aprobarSolicitud(solicitud, { empresa_id, rol_id, clave_ac
     ? await safeSelect("public", "roles", { select: "*", id: eq(rol_id), limit: "1" })
     : [];
   const rol = rolRows?.[0];
+  const empresaRows = await safeSelect("public", "empresas", { select: "*", id: eq(empresaIdFinal), limit: "1" });
+  const empresa = empresaRows?.[0];
+  const claveTemporal = clean(clave_acceso) || generarClaveTemporal();
 
   const usuarioRows = await safeSelect("public", "usuarios", {
     select: "*",
@@ -173,7 +209,9 @@ export async function aprobarSolicitud(solicitud, { empresa_id, rol_id, clave_ac
     telefono: solicitud.telefono,
     cargo: solicitud.cargo,
     rol: rol?.codigo || "CONSULTA",
-    clave_acceso: clave_acceso || solicitud.documento,
+    clave_acceso: claveTemporal,
+    debe_cambiar_clave: true,
+    clave_temporal_generada_en: new Date().toISOString(),
     estado: "ACTIVO",
     fecha_actualizacion: new Date().toISOString(),
   };
@@ -212,12 +250,18 @@ export async function aprobarSolicitud(solicitud, { empresa_id, rol_id, clave_ac
     estado: "ACTIVA",
   }).catch(() => {});
 
-  return updateById("public", "solicitudes_acceso", solicitud.id, {
+  await updateById("public", "solicitudes_acceso", solicitud.id, {
     estado: "APROBADA",
     usuario_creado_id: user.id,
     empresa_id: empresaIdFinal,
     fecha_respuesta: new Date().toISOString(),
   });
+
+  return {
+    user,
+    claveTemporal,
+    mailto: buildApprovalEmail({ solicitud, claveTemporal, empresa, rol }),
+  };
 }
 
 export function rechazarSolicitud(id, observacion_admin = "") {
@@ -231,6 +275,17 @@ export function rechazarSolicitud(id, observacion_admin = "") {
 export function cambiarEstadoUsuario(id, estado) {
   return updateById("public", "usuarios", id, {
     estado,
+    fecha_actualizacion: new Date().toISOString(),
+  });
+}
+
+export function cambiarClaveObligatoria(userId, nuevaClave) {
+  const clave = clean(nuevaClave);
+  if (clave.length < 8) throw new Error("La nueva contraseña debe tener mínimo 8 caracteres.");
+  return updateById("public", "usuarios", userId, {
+    clave_acceso: clave,
+    debe_cambiar_clave: false,
+    fecha_cambio_clave: new Date().toISOString(),
     fecha_actualizacion: new Date().toISOString(),
   });
 }

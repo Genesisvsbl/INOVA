@@ -13,6 +13,7 @@ import {
 import {
   aprobarSolicitud,
   cambiarEstadoUsuario,
+  generarClaveTemporal,
   getAccessCatalogs,
   rechazarSolicitud,
 } from "../../adminApi";
@@ -47,6 +48,7 @@ export default function AdminAccess({ view = "usuarios" }) {
   const [error, setError] = useState("");
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [approval, setApproval] = useState({ empresa_id: "", rol_id: "", clave_acceso: "", eto_nivel: "1" });
+  const [approvalResult, setApprovalResult] = useState(null);
 
   async function load() {
     setLoading(true);
@@ -94,15 +96,16 @@ export default function AdminAccess({ view = "usuarios" }) {
     setApproval({
       empresa_id: defaultEmpresa,
       rol_id: defaultRole?.id || "",
-      clave_acceso: solicitud.documento || "",
+      clave_acceso: generarClaveTemporal(),
       eto_nivel: String(solicitud.eto_nivel || 1),
     });
+    setApprovalResult(null);
   };
 
   const confirmApproval = async () => {
     if (!selectedRequest) return;
-    await aprobarSolicitud(selectedRequest, approval);
-    setSelectedRequest(null);
+    const result = await aprobarSolicitud(selectedRequest, approval);
+    setApprovalResult(result);
     await load();
   };
 
@@ -286,12 +289,28 @@ export default function AdminAccess({ view = "usuarios" }) {
               </label>
             )}
             <label>
-              Clave temporal
-              <input value={approval.clave_acceso} onChange={(event) => setApproval((prev) => ({ ...prev, clave_acceso: event.target.value }))} />
+              Clave temporal generada
+              <div className="admin-inline-field">
+                <input value={approval.clave_acceso} onChange={(event) => setApproval((prev) => ({ ...prev, clave_acceso: event.target.value }))} />
+                <button type="button" onClick={() => setApproval((prev) => ({ ...prev, clave_acceso: generarClaveTemporal() }))}>Generar</button>
+              </div>
             </label>
+            {approvalResult ? (
+              <div className="admin-approval-result">
+                <strong>Acceso aprobado</strong>
+                <span>Usuario: {selectedRequest.email}</span>
+                <span>Contraseña temporal: {approvalResult.claveTemporal}</span>
+                <small>El usuario deberá cambiarla al iniciar sesión.</small>
+                <a href={approvalResult.mailto}>Abrir correo de aprobación</a>
+              </div>
+            ) : null}
             <div className="admin-modal-actions">
               <button type="button" onClick={() => setSelectedRequest(null)}>Cancelar</button>
-              <button type="button" className="primary" onClick={confirmApproval}><KeyRound size={15} /> Aprobar y crear acceso</button>
+              {approvalResult ? (
+                <button type="button" className="primary" onClick={() => setSelectedRequest(null)}>Finalizar</button>
+              ) : (
+                <button type="button" className="primary" onClick={confirmApproval}><KeyRound size={15} /> Aprobar y generar clave</button>
+              )}
             </div>
           </div>
         </div>
@@ -374,5 +393,9 @@ button.danger { color: #dc2626; border-color: #fecaca; background: #fff5f5; }
 .admin-modal label { display: grid; gap: 6px; font-weight: 850; font-size: 12px; color: #475569; }
 .admin-modal input, .admin-modal select { border: 1px solid #d8e1ef; border-radius: 10px; padding: 10px; }
 .admin-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+.admin-inline-field { display: flex; gap: 8px; }
+.admin-inline-field input { flex: 1; }
+.admin-approval-result { display: grid; gap: 5px; border: 1px solid #bbf7d0; background: #f0fdf4; color: #14532d; border-radius: 12px; padding: 12px; }
+.admin-approval-result a { color: #047857; font-weight: 900; text-decoration: underline; }
 @media (max-width: 900px) { .admin-page { padding: 14px; } .admin-hero, .admin-metrics { grid-template-columns: 1fr; } .admin-metrics { display: grid; } }
 `;

@@ -5,6 +5,9 @@ alter table if exists public.usuarios
   add column if not exists telefono text,
   add column if not exists cargo text,
   add column if not exists clave_acceso text,
+  add column if not exists debe_cambiar_clave boolean not null default false,
+  add column if not exists fecha_cambio_clave timestamp without time zone,
+  add column if not exists clave_temporal_generada_en timestamp without time zone,
   add column if not exists es_super_admin boolean not null default false,
   add column if not exists ultimo_acceso timestamp without time zone,
   add column if not exists fecha_actualizacion timestamp without time zone;

@@ -15,7 +15,7 @@ import {
   User,
   X,
 } from "lucide-react";
-import { autenticarUsuario, solicitarAcceso } from "../adminApi";
+import { autenticarUsuario, cambiarClaveObligatoria, solicitarAcceso } from "../adminApi";
 const fiveSImage = "/5S.png";
 const etoImage = "/ETO.png";
 const ALLOW_LEGACY_LOGIN = import.meta.env.VITE_ALLOW_LEGACY_LOGIN === "true";
@@ -235,6 +235,7 @@ export default function LoginPage() {
   const [assetsReady, setAssetsReady] = useState(true);
   const [requestOpen, setRequestOpen] = useState(false);
   const [requestStatus, setRequestStatus] = useState("");
+  const [passwordChangeUser, setPasswordChangeUser] = useState(null);
 
   const selectedPillar = useMemo(
     () => PILLARS.find((pillar) => pillar.id === selectedPillarId) || PILLARS[0],
@@ -394,6 +395,12 @@ export default function LoginPage() {
         sessionStorage.removeItem("etoRole");
       }
 
+      if (usuarioEncontrado.debeCambiarClave) {
+        setPasswordChangeUser(usuarioEncontrado);
+        setLoading(false);
+        return;
+      }
+
       window.location.href = selectedPillar.route;
     } catch (err) {
       setError(err?.message || "No se pudo validar el acceso.");
@@ -514,6 +521,18 @@ export default function LoginPage() {
             setRequestStatus("");
           }}
           onSubmit={submitAccessRequest}
+        />
+      )}
+
+      {passwordChangeUser && (
+        <ForcedPasswordModal
+          user={passwordChangeUser}
+          onCancel={() => setPasswordChangeUser(null)}
+          onSubmit={async (newPassword) => {
+            await cambiarClaveObligatoria(passwordChangeUser.userId, newPassword);
+            setPasswordChangeUser(null);
+            window.location.href = selectedPillar.route;
+          }}
         />
       )}
     </div>
@@ -809,6 +828,58 @@ function AccessRequestModal({ pillar, status, onClose, onSubmit }) {
 
         <button type="button" className="login-submit" onClick={submit} disabled={sending || Boolean(status)}>
           {sending ? "Enviando solicitud..." : "Enviar solicitud"}
+        </button>
+      </section>
+    </div>
+  );
+}
+
+function ForcedPasswordModal({ user, onCancel, onSubmit }) {
+  const [passwordOne, setPasswordOne] = useState("");
+  const [passwordTwo, setPasswordTwo] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async () => {
+    setError("");
+    if (passwordOne.length < 8) {
+      setError("La nueva contraseña debe tener mínimo 8 caracteres.");
+      return;
+    }
+    if (passwordOne !== passwordTwo) {
+      setError("Las contraseñas no coinciden.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await onSubmit(passwordOne);
+    } catch (err) {
+      setError(err?.message || "No se pudo cambiar la contraseña.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="access-modal-backdrop">
+      <section className="access-modal password-change-modal">
+        <button type="button" className="access-close" onClick={onCancel} aria-label="Cerrar cambio de contraseña">
+          <X size={18} />
+        </button>
+        <span>Seguridad de acceso</span>
+        <h2>Cambia tu contraseña</h2>
+        <p>Hola {user.nombre}. Tu acceso fue aprobado con una contraseña temporal. Debes crear una nueva para continuar.</p>
+
+        {error ? <div className="error-box">{error}</div> : null}
+
+        <div className="access-form-grid">
+          <label>Nueva contraseña<input type="password" value={passwordOne} onChange={(event) => setPasswordOne(event.target.value)} autoComplete="new-password" /></label>
+          <label>Confirmar contraseña<input type="password" value={passwordTwo} onChange={(event) => setPasswordTwo(event.target.value)} autoComplete="new-password" /></label>
+        </div>
+
+        <button type="button" className="login-submit" onClick={submit} disabled={saving}>
+          {saving ? "Guardando contraseña..." : "Cambiar contraseña y continuar"}
         </button>
       </section>
     </div>
