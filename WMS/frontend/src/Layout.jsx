@@ -445,7 +445,19 @@ function SectionTitle({ children }) {
 }
 
 function SubNav({ children }) {
-  return <div className="subnav" role="group">{children}</div>;
+  const itemCount = Array.isArray(children) ? children.length : children ? 1 : 0;
+  return (
+    <div
+      className="subnav"
+      role="group"
+      style={{
+        gridTemplateRows: `repeat(${itemCount}, 34px)`,
+        minHeight: itemCount * 37 + 10,
+      }}
+    >
+      {children}
+    </div>
+  );
 }
 
 function navStyle({ isActive }, expanded) {
@@ -805,17 +817,16 @@ button { -webkit-tap-highlight-color: transparent; }
 .menu-left { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
 .menu-left span, .sidebar-nav a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .subnav {
-  display: flex !important;
-  flex-direction: column !important;
+  display: grid !important;
   width: 100%;
   gap: 3px;
-  padding: 3px 0 7px;
-  margin: -2px 0 4px;
-  overflow: visible !important;
-  min-height: max-content;
+  padding: 5px 0 5px;
+  margin: 0 0 4px;
+  overflow: hidden !important;
 }
 .subnav a {
-  flex: 0 0 auto !important;
+  min-height: 34px !important;
+  height: 34px !important;
   width: 100% !important;
   opacity: 1 !important;
   visibility: visible !important;
