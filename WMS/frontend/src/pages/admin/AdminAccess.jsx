@@ -41,6 +41,7 @@ export default function AdminAccess({ view = "usuarios" }) {
     usuarios: [],
     usuarioPilares: [],
     planes: [],
+    missingTables: [],
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -143,6 +144,13 @@ export default function AdminAccess({ view = "usuarios" }) {
           <small>Si ves una tabla inexistente, aplica la migración `20260524093000_access_control_multiempresa.sql` en Supabase.</small>
         </div>
       )}
+
+      {!error && data.missingTables?.length ? (
+        <div className="admin-error">
+          Faltan tablas en Supabase: {data.missingTables.join(", ")}.
+          <small>Aplica la migración `20260524093000_access_control_multiempresa.sql` para activar solicitudes, roles, permisos, planes y licencias.</small>
+        </div>
+      ) : null}
 
       {loading ? <EmptyState>Cargando información desde Supabase...</EmptyState> : null}
 

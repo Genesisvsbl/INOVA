@@ -187,6 +187,18 @@ create unique index if not exists ux_usuario_pilares_scope
 create index if not exists ix_roles_empresa_estado on public.roles(empresa_id, estado);
 create index if not exists ix_licencias_empresa_estado on public.licencias_usuario(empresa_id, estado);
 
+alter table if exists public.empresas disable row level security;
+alter table if exists public.usuarios disable row level security;
+alter table if exists public.pilares disable row level security;
+alter table if exists public.roles disable row level security;
+alter table if exists public.permisos disable row level security;
+alter table if exists public.role_permisos disable row level security;
+alter table if exists public.usuario_pilares disable row level security;
+alter table if exists public.solicitudes_acceso disable row level security;
+alter table if exists public.planes_empresa disable row level security;
+alter table if exists public.licencias_usuario disable row level security;
+alter table if exists public.auditoria_admin disable row level security;
+
 grant select, insert, update, delete on table public.pilares, public.roles, public.permisos, public.role_permisos, public.usuario_pilares, public.solicitudes_acceso, public.planes_empresa, public.licencias_usuario, public.auditoria_admin to anon, authenticated;
 grant select, insert, update on table public.usuarios, public.empresas to anon, authenticated;
 grant usage, select on all sequences in schema public to anon, authenticated;

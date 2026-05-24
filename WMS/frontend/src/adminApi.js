@@ -59,16 +59,29 @@ async function safeSelect(schema, table, params = {}) {
 }
 
 export async function getAccessCatalogs() {
+  const missingTables = [];
+  const optional = async (table, params) => {
+    try {
+      return await safeSelect("public", table, params);
+    } catch (error) {
+      if (String(error?.message || "").includes("PGRST205")) {
+        missingTables.push(table);
+        return [];
+      }
+      throw error;
+    }
+  };
+
   const [empresas, roles, solicitudes, usuarios, usuarioPilares, planes] = await Promise.all([
-    safeSelect("public", "empresas", { select: "*", order: "nombre.asc" }),
-    safeSelect("public", "roles", { select: "*", order: "nombre.asc" }),
-    safeSelect("public", "solicitudes_acceso", { select: "*", order: "fecha_solicitud.desc" }),
-    safeSelect("public", "usuarios", { select: "*", order: "nombre.asc" }),
-    safeSelect("public", "usuario_pilares", { select: "*", order: "fecha_creacion.desc" }),
-    safeSelect("public", "planes_empresa", { select: "*", order: "fecha_creacion.desc" }),
+    optional("empresas", { select: "*", order: "nombre.asc" }),
+    optional("roles", { select: "*", order: "nombre.asc" }),
+    optional("solicitudes_acceso", { select: "*", order: "fecha_solicitud.desc" }),
+    optional("usuarios", { select: "*", order: "nombre.asc" }),
+    optional("usuario_pilares", { select: "*", order: "fecha_creacion.desc" }),
+    optional("planes_empresa", { select: "*", order: "fecha_creacion.desc" }),
   ]);
 
-  return { empresas, roles, solicitudes, usuarios, usuarioPilares, planes };
+  return { empresas, roles, solicitudes, usuarios, usuarioPilares, planes, missingTables };
 }
 
 export async function solicitarAcceso(payload) {
