@@ -445,7 +445,7 @@ function SectionTitle({ children }) {
 }
 
 function SubNav({ children }) {
-  return <div className="subnav">{children}</div>;
+  return <div className="subnav" role="group">{children}</div>;
 }
 
 function navStyle({ isActive }, expanded) {
@@ -513,10 +513,12 @@ function menuStyle(active, expanded) {
 }
 
 const childNavStyle = ({ isActive }) => ({
-  minHeight: 35,
+  minHeight: 34,
+  height: 34,
   display: "flex",
   alignItems: "center",
-  padding: "0 12px 0 46px",
+  justifyContent: "flex-start",
+  padding: "0 10px 0 44px",
   borderRadius: 12,
   color: isActive ? "#4f46e5" : "#667085",
   background: isActive ? "rgba(124,58,237,.08)" : "transparent",
@@ -802,7 +804,22 @@ button { -webkit-tap-highlight-color: transparent; }
 .section-title { color: #7b8496; font-size: 10px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; padding: 14px 12px 5px; }
 .menu-left { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
 .menu-left span, .sidebar-nav a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.subnav { display: grid; gap: 3px; padding: 2px 0 4px; overflow: auto; scrollbar-width: none; }
+.subnav {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100%;
+  gap: 3px;
+  padding: 3px 0 7px;
+  margin: -2px 0 4px;
+  overflow: visible !important;
+  min-height: max-content;
+}
+.subnav a {
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
 .subnav a:hover {
   background: rgba(99,102,241,.08) !important;
   color: #4338ca !important;
