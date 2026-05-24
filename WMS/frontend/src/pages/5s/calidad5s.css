@@ -123,13 +123,21 @@ button {
   align-items: center;
   gap: 12px;
   min-width: 0;
+  height: 52px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
   overflow: hidden;
 }
 
 .brand-header img {
-  width: 172px;
-  height: 52px;
+  width: 158px;
+  height: 46px;
   object-fit: contain;
+  object-position: left center;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .brand-header strong {
@@ -143,13 +151,14 @@ button {
 
 .brand-header small {
   display: block;
-  margin-top: 6px;
-  color: #67dcff;
+  margin-left: 2px;
+  color: rgba(255, 255, 255, .82);
   font-size: 10px;
   line-height: 1;
   font-weight: 850;
-  letter-spacing: .19em;
+  letter-spacing: .15em;
   white-space: nowrap;
+  text-shadow: none;
 }
 
 .notification-btn {
@@ -905,20 +914,32 @@ button {
   width: 42px;
   height: 42px;
   object-fit: contain;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0b3b7a, #1d74d8);
+  padding: 5px;
 }
 
 .brand-sidebar {
   width: 100%;
+  height: 72px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 16px;
+  gap: 10px;
+  padding: 0 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(29, 116, 216, .28);
+  background: linear-gradient(135deg, #082f63, #1d74d8 56%, #07111f);
+  box-shadow: 0 16px 34px rgba(29, 116, 216, .20);
+  overflow: hidden;
 }
 
 .brand-sidebar img {
-  width: 204px;
-  height: 58px;
+  width: 168px;
+  height: 54px;
   object-fit: contain;
+  object-position: left center;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .brand-sidebar strong {
@@ -932,8 +953,9 @@ button {
 
 .brand-sidebar small {
   display: block;
-  margin-top: 6px;
-  color: #7b8496;
+  margin-left: auto;
+  color: #ffffff;
+  text-shadow: 0 1px 8px rgba(0,0,0,.35);
   font-size: 10px;
   line-height: 1;
   font-weight: 850;
@@ -6386,11 +6408,14 @@ button {
 .s5-layout .brand-sidebar {
   padding: 0 10px !important;
   gap: 8px !important;
+  background: linear-gradient(135deg, #082f49, #0ea5e9 56%, #07111f) !important;
+  border-color: rgba(14, 165, 233, .28) !important;
 }
 
 .s5-layout .brand-sidebar img {
-  width: 176px !important;
-  height: 48px !important;
+  width: 168px !important;
+  height: 50px !important;
+  object-position: left center !important;
 }
 
 .s5-layout .sidebar-nav {

@@ -182,9 +182,7 @@ function BrandHeader() {
   return (
     <div className="brand-header">
       <LogoImage />
-      <div>
-        <small>CALIDAD 5S</small>
-      </div>
+      <small>5S</small>
     </div>
   );
 }
@@ -193,9 +191,7 @@ function BrandSidebar() {
   return (
     <div className="brand-sidebar">
       <LogoImage tone="dark" />
-      <div>
-        <small>CALIDAD 5S</small>
-      </div>
+      <small>5S</small>
     </div>
   );
 }

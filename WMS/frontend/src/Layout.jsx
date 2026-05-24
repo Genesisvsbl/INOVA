@@ -406,10 +406,8 @@ export default function Layout() {
 function BrandHeader() {
   return (
     <div className="brand-header">
-      <img src="/INOVA2026.png" alt="INOVA" />
-      <div>
-        <small>WMS</small>
-      </div>
+      <img src="/INOVA2026.png" alt="INOVA" loading="eager" decoding="sync" fetchPriority="high" />
+      <small>WMS</small>
     </div>
   );
 }
@@ -417,10 +415,8 @@ function BrandHeader() {
 function BrandSidebar() {
   return (
     <div className="brand-sidebar">
-      <img src="/INOVA2026.png" alt="INOVA" />
-      <div>
-        <small>WMS</small>
-      </div>
+      <img src="/INOVA2026.png" alt="INOVA" loading="eager" decoding="sync" fetchPriority="high" />
+      <small>WMS</small>
     </div>
   );
 }
@@ -581,11 +577,25 @@ button { -webkit-tap-highlight-color: transparent; }
   box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
 }
 
-.brand-header { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.brand-header img {
-  width: 172px;
+.brand-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
   height: 52px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: hidden;
+}
+.brand-header img {
+  width: 158px;
+  height: 46px;
   object-fit: contain;
+  object-position: left center;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 .brand-header strong {
   display: block;
@@ -597,13 +607,14 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .brand-header small {
   display: block;
-  margin-top: 6px;
-  color: rgba(255,255,255,.70);
+  margin-left: 2px;
+  color: rgba(255,255,255,.82);
   font-size: 10px;
   line-height: 1;
   font-weight: 850;
-  letter-spacing: .19em;
+  letter-spacing: .15em;
   white-space: nowrap;
+  text-shadow: none;
 }
 
 
@@ -725,13 +736,31 @@ button { -webkit-tap-highlight-color: transparent; }
   width: 42px;
   height: 42px;
   object-fit: contain;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #312064, #4f32b8);
+  padding: 5px;
 }
 
-.brand-sidebar { width: 100%; display: flex; align-items: center; gap: 12px; padding: 0 12px; }
+.brand-sidebar {
+  width: 100%;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(124, 94, 255, .28);
+  background: linear-gradient(135deg, #25163f, #4f32b8 54%, #0b1020);
+  box-shadow: 0 16px 34px rgba(79, 50, 184, .22);
+  overflow: hidden;
+}
 .brand-sidebar img {
-  width: 178px;
-  height: 58px;
+  width: 168px;
+  height: 54px;
   object-fit: contain;
+  object-position: left center;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .brand-sidebar strong {
   display: block;
@@ -743,13 +772,14 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .brand-sidebar small {
   display: block;
-  margin-top: 6px;
-  color: #7b8496;
+  margin-left: auto;
+  color: #ffffff;
   font-size: 10px;
   line-height: 1;
   font-weight: 850;
   letter-spacing: .15em;
   white-space: nowrap;
+  text-shadow: 0 1px 8px rgba(0,0,0,.35);
 }
 
 .sidebar-nav { flex: 1 1 auto; min-height: 0; display: grid; align-content: start; gap: 7px; overflow: auto; padding-top: 12px; scrollbar-width: none; }
