@@ -6019,7 +6019,7 @@ export default function Calidad5S() {
   const [sidebarPinned, setSidebarPinned] = useState(false);
   const [sidebarHover, setSidebarHover] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [assetsReady, setAssetsReady] = useState(false);
+  const [assetsReady, setAssetsReady] = useState(true);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [cronogramaAlerts, setCronogramaAlerts] = useState([]);
   const [alertsLoading, setAlertsLoading] = useState(false);

@@ -13,12 +13,25 @@ import {
 import {
   aprobarSolicitud,
   cambiarEstadoUsuario,
+  crearUsuarioEmpresa,
   generarClaveTemporal,
   getAccessCatalogs,
   rechazarSolicitud,
 } from "../../adminApi";
 
 const PILLAR_LABELS = { wms: "WMS", "5s": "5S", eto: "ETO" };
+const EMPTY_USER_FORM = {
+  nombre: "",
+  documento: "",
+  email: "",
+  telefono: "",
+  cargo: "",
+  empresa_id: "",
+  rol_id: "",
+  pilar: "wms",
+  eto_nivel: "1",
+  clave_acceso: "",
+};
 
 function fmtDate(value) {
   if (!value) return "-";
@@ -49,6 +62,19 @@ export default function AdminAccess({ view = "usuarios" }) {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [approval, setApproval] = useState({ empresa_id: "", rol_id: "", clave_acceso: "", eto_nivel: "1" });
   const [approvalResult, setApprovalResult] = useState(null);
+  const [userForm, setUserForm] = useState(EMPTY_USER_FORM);
+  const [userCreateResult, setUserCreateResult] = useState(null);
+  const [actionError, setActionError] = useState("");
+
+  const actor = useMemo(() => {
+    const rol = sessionStorage.getItem("rol") || "";
+    return {
+      userId: sessionStorage.getItem("userId") || "",
+      empresaId: sessionStorage.getItem("empresaId") || "",
+      rol,
+      esSuperAdmin: sessionStorage.getItem("esSuperAdmin") === "true" || rol === "SUPER_ADMIN",
+    };
+  }, []);
 
   async function load() {
     setLoading(true);
@@ -67,13 +93,32 @@ export default function AdminAccess({ view = "usuarios" }) {
   }, []);
 
   const pendingRequests = useMemo(
-    () => data.solicitudes.filter((item) => item.estado === "PENDIENTE"),
-    [data.solicitudes]
+    () => data.solicitudes.filter((item) => item.estado === "PENDIENTE" && (actor.esSuperAdmin || String(item.empresa_id) === String(actor.empresaId))),
+    [data.solicitudes, actor.esSuperAdmin, actor.empresaId]
+  );
+
+  const visibleEmpresas = useMemo(
+    () => actor.esSuperAdmin ? data.empresas : data.empresas.filter((item) => String(item.id) === String(actor.empresaId)),
+    [data.empresas, actor.esSuperAdmin, actor.empresaId]
+  );
+
+  const visibleUsuarios = useMemo(
+    () => actor.esSuperAdmin ? data.usuarios : data.usuarios.filter((item) => String(item.empresa_id) === String(actor.empresaId)),
+    [data.usuarios, actor.esSuperAdmin, actor.empresaId]
+  );
+
+  const visibleRoles = useMemo(
+    () => data.roles.filter((role) => {
+      const code = String(role.codigo || "").toUpperCase();
+      if (code === "SUPER_ADMIN") return false;
+      return actor.esSuperAdmin || String(role.empresa_id) === String(actor.empresaId);
+    }),
+    [data.roles, actor.esSuperAdmin, actor.empresaId]
   );
 
   const activeLicenses = useMemo(
-    () => data.usuarios.filter((item) => item.estado === "ACTIVO").length,
-    [data.usuarios]
+    () => visibleUsuarios.filter((item) => item.estado === "ACTIVO").length,
+    [visibleUsuarios]
   );
 
   const empresaById = useMemo(
@@ -87,11 +132,11 @@ export default function AdminAccess({ view = "usuarios" }) {
   );
 
   const openApproval = (solicitud) => {
-    const defaultEmpresa = solicitud.empresa_id || data.empresas[0]?.id || "";
+    const defaultEmpresa = actor.esSuperAdmin ? (solicitud.empresa_id || visibleEmpresas[0]?.id || "") : actor.empresaId;
     const defaultRole =
-      data.roles.find((rol) => String(rol.empresa_id) === String(defaultEmpresa) && rol.codigo.includes(String(solicitud.pilar).toUpperCase())) ||
-      data.roles.find((rol) => String(rol.empresa_id) === String(defaultEmpresa)) ||
-      data.roles[0];
+      visibleRoles.find((rol) => String(rol.empresa_id) === String(defaultEmpresa) && rol.codigo.includes(String(solicitud.pilar).toUpperCase())) ||
+      visibleRoles.find((rol) => String(rol.empresa_id) === String(defaultEmpresa)) ||
+      visibleRoles[0];
     setSelectedRequest(solicitud);
     setApproval({
       empresa_id: defaultEmpresa,
@@ -104,9 +149,45 @@ export default function AdminAccess({ view = "usuarios" }) {
 
   const confirmApproval = async () => {
     if (!selectedRequest) return;
-    const result = await aprobarSolicitud(selectedRequest, approval);
-    setApprovalResult(result);
-    await load();
+    setActionError("");
+    try {
+      const result = await aprobarSolicitud(selectedRequest, approval);
+      setApprovalResult(result);
+      await load();
+    } catch (err) {
+      setActionError(err?.message || "No se pudo aprobar la solicitud.");
+    }
+  };
+
+  const defaultEmpresaId = actor.esSuperAdmin ? visibleEmpresas[0]?.id || "" : actor.empresaId;
+  const selectedCreateEmpresa = userForm.empresa_id || defaultEmpresaId;
+  const roleOptionsForCreate = visibleRoles.filter((role) => {
+    if (String(role.empresa_id) !== String(selectedCreateEmpresa)) return false;
+    const code = String(role.codigo || "").toUpperCase();
+    const pilar = String(userForm.pilar || "").toUpperCase();
+    return code.includes(pilar) || code.includes("ADMIN") || code.includes("CONSULTA") || code.includes("OPERADOR");
+  });
+  const planForCreate = data.planes.find((item) => String(item.empresa_id) === String(selectedCreateEmpresa) && String(item.estado || "ACTIVO") === "ACTIVO");
+  const activeUsersForCreate = visibleUsuarios.filter((item) => String(item.empresa_id) === String(selectedCreateEmpresa) && item.estado === "ACTIVO").length;
+
+  const createDirectUser = async (event) => {
+    event.preventDefault();
+    setActionError("");
+    setUserCreateResult(null);
+    try {
+      const payload = {
+        ...userForm,
+        empresa_id: selectedCreateEmpresa,
+        rol_id: userForm.rol_id || roleOptionsForCreate[0]?.id || "",
+        clave_acceso: userForm.clave_acceso || generarClaveTemporal(),
+      };
+      const result = await crearUsuarioEmpresa(payload, actor);
+      setUserCreateResult(result);
+      setUserForm({ ...EMPTY_USER_FORM, empresa_id: selectedCreateEmpresa, clave_acceso: generarClaveTemporal() });
+      await load();
+    } catch (err) {
+      setActionError(err?.message || "No se pudo crear el usuario.");
+    }
   };
 
   const reject = async (solicitud) => {
@@ -129,6 +210,7 @@ export default function AdminAccess({ view = "usuarios" }) {
         <div>
           <span>Control multiempresa</span>
           <h1>Usuarios, roles y accesos</h1>
+          <p>{actor.esSuperAdmin ? "Vista global de super administración." : "Vista limitada a la empresa asignada."}</p>
           <p>Administra solicitudes, licencias por usuario y permisos por pilar sin usuarios quemados en código.</p>
         </div>
         <button type="button" onClick={load}>Actualizar</button>
@@ -137,8 +219,8 @@ export default function AdminAccess({ view = "usuarios" }) {
       <section className="admin-metrics">
         <Metric icon={Clock3} label="Solicitudes pendientes" value={pendingRequests.length} />
         <Metric icon={Users} label="Usuarios activos" value={activeLicenses} />
-        <Metric icon={Building2} label="Empresas" value={data.empresas.length} />
-        <Metric icon={ShieldCheck} label="Roles" value={data.roles.length} />
+        <Metric icon={Building2} label="Empresas" value={visibleEmpresas.length} />
+        <Metric icon={ShieldCheck} label="Roles" value={visibleRoles.length} />
       </section>
 
       {error && (
@@ -157,14 +239,76 @@ export default function AdminAccess({ view = "usuarios" }) {
 
       {loading ? <EmptyState>Cargando información desde Supabase...</EmptyState> : null}
 
+      {actionError ? <div className="admin-error">{actionError}</div> : null}
+
       {!loading && view === "usuarios" && (
         <>
+          <AdminSection
+            title="Crear usuario de empresa"
+            helper="El administrador de empresa crea usuarios según el cupo del plan, sin permisos de super administración."
+          >
+            <form className="admin-create-user" onSubmit={createDirectUser}>
+              <label>Empresa
+                <select value={selectedCreateEmpresa} disabled={!actor.esSuperAdmin} onChange={(event) => setUserForm((prev) => ({ ...prev, empresa_id: event.target.value, rol_id: "" }))}>
+                  {visibleEmpresas.map((empresa) => <option key={empresa.id} value={empresa.id}>{empresa.nombre}</option>)}
+                </select>
+              </label>
+              <label>Nombre completo<input required value={userForm.nombre} onChange={(event) => setUserForm((prev) => ({ ...prev, nombre: event.target.value }))} /></label>
+              <label>Cédula / documento<input required value={userForm.documento} onChange={(event) => setUserForm((prev) => ({ ...prev, documento: event.target.value }))} /></label>
+              <label>Correo electrónico<input required type="email" value={userForm.email} onChange={(event) => setUserForm((prev) => ({ ...prev, email: event.target.value }))} /></label>
+              <label>Teléfono<input value={userForm.telefono} onChange={(event) => setUserForm((prev) => ({ ...prev, telefono: event.target.value }))} /></label>
+              <label>Cargo<input value={userForm.cargo} onChange={(event) => setUserForm((prev) => ({ ...prev, cargo: event.target.value }))} /></label>
+              <label>Pilar
+                <select value={userForm.pilar} onChange={(event) => setUserForm((prev) => ({ ...prev, pilar: event.target.value, rol_id: "" }))}>
+                  <option value="wms">WMS</option>
+                  <option value="5s">5S</option>
+                  <option value="eto">ETO</option>
+                </select>
+              </label>
+              {userForm.pilar === "eto" && (
+                <label>Nivel ETO
+                  <select value={userForm.eto_nivel} onChange={(event) => setUserForm((prev) => ({ ...prev, eto_nivel: event.target.value }))}>
+                    <option value="1">Nivel 1</option>
+                    <option value="2">Nivel 2</option>
+                  </select>
+                </label>
+              )}
+              <label>Rol
+                <select required value={userForm.rol_id || roleOptionsForCreate[0]?.id || ""} onChange={(event) => setUserForm((prev) => ({ ...prev, rol_id: event.target.value }))}>
+                  {roleOptionsForCreate.map((role) => <option key={role.id} value={role.id}>{role.nombre}</option>)}
+                </select>
+              </label>
+              <label>Clave temporal
+                <div className="admin-inline-field">
+                  <input value={userForm.clave_acceso} placeholder="Se genera automáticamente" onChange={(event) => setUserForm((prev) => ({ ...prev, clave_acceso: event.target.value }))} />
+                  <button type="button" onClick={() => setUserForm((prev) => ({ ...prev, clave_acceso: generarClaveTemporal() }))}>Generar</button>
+                </div>
+              </label>
+              <div className="admin-plan-box">
+                <strong>{activeUsersForCreate} / {planForCreate?.max_usuarios || "sin límite"}</strong>
+                <span>{planForCreate?.nombre_plan || "Plan sin límite configurado"}</span>
+              </div>
+              <button type="submit" className="primary"><KeyRound size={15} /> Crear usuario</button>
+            </form>
+            {userCreateResult ? (
+              <div className="admin-approval-result">
+                <strong>Usuario creado</strong>
+                <span>Usuario: {userCreateResult.user.email}</span>
+                <span>Contraseña temporal: {userCreateResult.claveTemporal}</span>
+                <small>Al ingresar deberá cambiarla.</small>
+                <a href={userCreateResult.mailto}>Abrir correo de aprobación</a>
+              </div>
+            ) : null}
+          </AdminSection>
+
           <AdminSection title="Solicitudes de acceso" helper="Bandeja donde apruebas o rechazas nuevos usuarios.">
             <Table
               headers={["Fecha", "Solicitante", "Empresa", "Pilar", "Estado", "Acciones"]}
               empty="No hay solicitudes registradas."
             >
-              {data.solicitudes.map((item) => (
+              {data.solicitudes
+                .filter((item) => actor.esSuperAdmin || String(item.empresa_id) === String(actor.empresaId))
+                .map((item) => (
                 <tr key={item.id}>
                   <td>{fmtDate(item.fecha_solicitud)}</td>
                   <td>
@@ -189,7 +333,7 @@ export default function AdminAccess({ view = "usuarios" }) {
 
           <AdminSection title="Usuarios registrados" helper="Usuarios de Supabase con estado, empresa y accesos por pilar.">
             <Table headers={["Usuario", "Empresa", "Rol", "Estado", "Último acceso", "Acciones"]} empty="No hay usuarios.">
-              {data.usuarios.map((user) => (
+              {visibleUsuarios.map((user) => (
                 <tr key={user.id}>
                   <td>
                     <strong>{user.nombre}</strong>
@@ -215,7 +359,7 @@ export default function AdminAccess({ view = "usuarios" }) {
       {!loading && view === "roles" && (
         <AdminSection title="Roles y permisos" helper="Roles por empresa. ETO conserva niveles separados.">
           <Table headers={["Rol", "Empresa", "Alcance", "Estado", "Sistema"]} empty="No hay roles.">
-            {data.roles.map((role) => (
+            {visibleRoles.map((role) => (
               <tr key={role.id}>
                 <td>
                   <strong>{role.nombre}</strong>
@@ -234,9 +378,9 @@ export default function AdminAccess({ view = "usuarios" }) {
       {!loading && view === "empresas" && (
         <AdminSection title="Empresas y planes" helper="Control comercial para vender paquetes por usuario.">
           <Table headers={["Empresa", "Plan", "Estado", "Usuarios activos", "Límite plan"]} empty="No hay empresas.">
-            {data.empresas.map((empresa) => {
+            {visibleEmpresas.map((empresa) => {
               const plan = data.planes.find((item) => String(item.empresa_id) === String(empresa.id));
-              const users = data.usuarios.filter((item) => String(item.empresa_id) === String(empresa.id) && item.estado === "ACTIVO").length;
+              const users = visibleUsuarios.filter((item) => String(item.empresa_id) === String(empresa.id) && item.estado === "ACTIVO").length;
               return (
                 <tr key={empresa.id}>
                   <td>
@@ -268,13 +412,13 @@ export default function AdminAccess({ view = "usuarios" }) {
             <label>
               Empresa
               <select value={approval.empresa_id} onChange={(event) => setApproval((prev) => ({ ...prev, empresa_id: event.target.value }))}>
-                {data.empresas.map((empresa) => <option key={empresa.id} value={empresa.id}>{empresa.nombre}</option>)}
+                {visibleEmpresas.map((empresa) => <option key={empresa.id} value={empresa.id}>{empresa.nombre}</option>)}
               </select>
             </label>
             <label>
               Rol
               <select value={approval.rol_id} onChange={(event) => setApproval((prev) => ({ ...prev, rol_id: event.target.value }))}>
-                {data.roles
+                {visibleRoles
                   .filter((role) => !approval.empresa_id || String(role.empresa_id) === String(approval.empresa_id))
                   .map((role) => <option key={role.id} value={role.id}>{role.nombre}</option>)}
               </select>
@@ -397,5 +541,13 @@ button.danger { color: #dc2626; border-color: #fecaca; background: #fff5f5; }
 .admin-inline-field input { flex: 1; }
 .admin-approval-result { display: grid; gap: 5px; border: 1px solid #bbf7d0; background: #f0fdf4; color: #14532d; border-radius: 12px; padding: 12px; }
 .admin-approval-result a { color: #047857; font-weight: 900; text-decoration: underline; }
+.admin-create-user { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 18px 20px 20px; }
+.admin-create-user label { display: grid; gap: 6px; color: #475569; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
+.admin-create-user input, .admin-create-user select { width: 100%; border: 1px solid #d8e1ef; border-radius: 10px; padding: 10px; color: #17213b; background: #fff; text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 750; }
+.admin-create-user .admin-inline-field { align-items: center; }
+.admin-plan-box { border: 1px solid #dbeafe; background: #eff6ff; color: #1d4ed8; border-radius: 12px; padding: 10px 12px; display: grid; gap: 3px; align-content: center; }
+.admin-plan-box strong { font-size: 16px; }
+.admin-plan-box span { color: #64748b; font-size: 12px; font-weight: 800; }
+.admin-create-user > button.primary { align-self: end; height: 40px; }
 @media (max-width: 900px) { .admin-page { padding: 14px; } .admin-hero, .admin-metrics { grid-template-columns: 1fr; } .admin-metrics { display: grid; } }
 `;

@@ -81,7 +81,7 @@ function roleToPermissions(role, pilar, etoNivel) {
     if (String(etoNivel) === "1") base.push("eto.nivel1");
     if (String(etoNivel) === "2") base.push("eto.nivel2");
   }
-  if (rol.includes("ADMIN")) base.push("admin.usuarios.ver");
+  if (rol.includes("ADMIN")) base.push("admin.usuarios.ver", "admin.usuarios.gestionar", "roles.ver");
   return base;
 }
 
@@ -168,6 +168,7 @@ export async function autenticarUsuario({ usuario, password, pilar }) {
     auth: "true",
     userId: String(user.id),
     empresaId: String(acceso.empresa_id || user.empresa_id || empresaId),
+    esSuperAdmin: Boolean(superAdmin),
     nombre: user.nombre,
     usuario: user.usuario || user.email,
     email: user.email,
@@ -256,6 +257,122 @@ export async function aprobarSolicitud(solicitud, { empresa_id, rol_id, clave_ac
     empresa_id: empresaIdFinal,
     fecha_respuesta: new Date().toISOString(),
   });
+
+  return {
+    user,
+    claveTemporal,
+    mailto: buildApprovalEmail({ solicitud, claveTemporal, empresa, rol }),
+  };
+}
+
+export async function crearUsuarioEmpresa(payload, actor = {}) {
+  const actorRol = String(actor.rol || "").toUpperCase();
+  const actorIsSuperAdmin = actor.esSuperAdmin || actorRol === "SUPER_ADMIN";
+  const empresaIdFinal = Number(actorIsSuperAdmin ? payload.empresa_id : actor.empresaId);
+  if (!empresaIdFinal) throw new Error("Debes asignar una empresa.");
+
+  const rolRows = payload.rol_id
+    ? await safeSelect("public", "roles", { select: "*", id: eq(payload.rol_id), limit: "1" })
+    : [];
+  const rol = rolRows?.[0];
+  const rolCodigo = String(rol?.codigo || payload.rol || "").toUpperCase();
+
+  if (!rol || !rolCodigo) throw new Error("Debes seleccionar un rol.");
+  if (rolCodigo === "SUPER_ADMIN") throw new Error("El rol SUPER_ADMIN solo puede administrarse fuera de este flujo.");
+  if (!actorIsSuperAdmin && String(rol.empresa_id) !== String(empresaIdFinal)) {
+    throw new Error("No puedes asignar roles de otra empresa.");
+  }
+
+  const planes = await safeSelect("public", "planes_empresa", {
+    select: "*",
+    empresa_id: eq(empresaIdFinal),
+    estado: eq("ACTIVO"),
+    limit: "1",
+  }).catch(() => []);
+  const plan = planes?.[0];
+  const maxUsuarios = Number(plan?.max_usuarios || 0);
+
+  const usuariosActivos = await safeSelect("public", "usuarios", {
+    select: "id",
+    empresa_id: eq(empresaIdFinal),
+    estado: eq("ACTIVO"),
+  });
+
+  const email = clean(payload.email).toLowerCase();
+  const documento = clean(payload.documento);
+  const existing = await safeSelect("public", "usuarios", {
+    select: "*",
+    empresa_id: eq(empresaIdFinal),
+    or: `(email.ilike.${email},documento.eq.${documento})`,
+    limit: "1",
+  });
+
+  if (!existing?.[0] && maxUsuarios && usuariosActivos.length >= maxUsuarios) {
+    throw new Error(`La empresa ya alcanzó el límite del plan (${maxUsuarios} usuarios).`);
+  }
+
+  const claveTemporal = clean(payload.clave_acceso) || generarClaveTemporal();
+  const userPayload = {
+    empresa_id: empresaIdFinal,
+    nombre: clean(payload.nombre),
+    email,
+    usuario: email,
+    documento,
+    telefono: clean(payload.telefono),
+    cargo: clean(payload.cargo),
+    rol: rolCodigo,
+    clave_acceso: claveTemporal,
+    debe_cambiar_clave: true,
+    clave_temporal_generada_en: new Date().toISOString(),
+    es_super_admin: false,
+    estado: "ACTIVO",
+    fecha_actualizacion: new Date().toISOString(),
+  };
+
+  const user = existing?.[0]
+    ? (await updateById("public", "usuarios", existing[0].id, userPayload))[0]
+    : (await insertRow("public", "usuarios", userPayload))[0];
+
+  const pilar = payload.pilar;
+  const accessPayload = {
+    usuario_id: user.id,
+    empresa_id: empresaIdFinal,
+    pilar,
+    rol_id: rol.id,
+    eto_nivel: pilar === "eto" ? Number(payload.eto_nivel || 1) : null,
+    estado: "ACTIVO",
+  };
+
+  const existingAccess = await safeSelect("public", "usuario_pilares", {
+    select: "*",
+    usuario_id: eq(user.id),
+    empresa_id: eq(empresaIdFinal),
+    pilar: eq(pilar),
+    ...(accessPayload.eto_nivel ? { eto_nivel: eq(accessPayload.eto_nivel) } : { eto_nivel: "is.null" }),
+    limit: "1",
+  });
+
+  if (existingAccess?.[0]) {
+    await updateById("public", "usuario_pilares", existingAccess[0].id, accessPayload);
+  } else {
+    await insertRow("public", "usuario_pilares", accessPayload);
+  }
+
+  await insertRow("public", "licencias_usuario", {
+    empresa_id: empresaIdFinal,
+    usuario_id: user.id,
+    estado: "ACTIVA",
+  }).catch(() => {});
+
+  const empresaRows = await safeSelect("public", "empresas", { select: "*", id: eq(empresaIdFinal), limit: "1" }).catch(() => []);
+  const empresa = empresaRows?.[0];
+  const solicitud = {
+    nombre_completo: user.nombre,
+    email: user.email,
+    empresa_nombre: empresa?.nombre,
+    pilar,
+    eto_nivel: accessPayload.eto_nivel,
+  };
 
   return {
     user,

@@ -365,6 +365,8 @@ export default function LoginPage() {
 
       sessionStorage.setItem("auth", usuarioEncontrado.auth);
       sessionStorage.setItem("userId", usuarioEncontrado.userId);
+      sessionStorage.setItem("empresaId", usuarioEncontrado.empresaId || "");
+      sessionStorage.setItem("esSuperAdmin", String(Boolean(usuarioEncontrado.esSuperAdmin || usuarioEncontrado.rol === "SUPER_ADMIN")));
       sessionStorage.setItem("nombre", usuarioEncontrado.nombre);
       sessionStorage.setItem("usuario", usuarioEncontrado.usuario);
       sessionStorage.setItem("rol", usuarioEncontrado.rol);

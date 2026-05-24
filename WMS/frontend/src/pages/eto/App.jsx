@@ -30,6 +30,7 @@ import IndicatorsView from "./modules/indicators/IndicatorsView";
 import DailyView from "./modules/daily/DailyView";
 import HistoryView from "./modules/history/HistoryView";
 import DashboardView from "./modules/dashboard/DashboardView";
+import AdminAccess from "../admin/AdminAccess";
 
 const TABS = [
   { key: "portal", label: "Portal" },
@@ -510,7 +511,7 @@ export default function App() {
   const [processes, setProcesses] = useState([]);
   const [indicators, setIndicators] = useState([]);
   const [entities, setEntities] = useState([]);
-  const [assetsReady, setAssetsReady] = useState(false);
+  const [assetsReady, setAssetsReady] = useState(true);
 
   const [editingProcessId, setEditingProcessId] = useState(null);
   const [editingIndicatorId, setEditingIndicatorId] = useState(null);
@@ -1120,6 +1121,7 @@ export default function App() {
     sessionStorage.getItem("etoRole") ||
     sessionStorage.getItem("rol") ||
     `NIVEL_${accessLevel}_ETO`;
+  const canAdmin = /SUPER_ADMIN|ADMIN/i.test(rol);
 
   const contentPaddingLeft = config.isMobile
     ? config.gap
@@ -1219,6 +1221,10 @@ export default function App() {
           indicators={indicators}
         />
       );
+    }
+
+    if (tab === "config") {
+      return <AdminAccess view="usuarios" />;
     }
 
     return (
@@ -1432,8 +1438,13 @@ export default function App() {
 
               <button
                 type="button"
-                style={tabButtonStyle(false, sidebarExpanded)}
+                style={tabButtonStyle(tab === "config", sidebarExpanded)}
                 title="Configuracion"
+                onClick={() => {
+                  setTab("config");
+                  closeMobileMenu();
+                }}
+                disabled={!canAdmin}
               >
                 <Settings size={18} />
                 {sidebarExpanded && <span>Configuracion</span>}
