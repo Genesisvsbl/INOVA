@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   CheckCircle2,
@@ -8,8 +8,7 @@ import {
   GitCompare,
   AlertTriangle,
 } from "lucide-react";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+import { finalizarInventarioTarea, getInventarioConciliacion, getInventarioTarea } from "../../api";
 
 export default function Conciliacion() {
   const navigate = useNavigate();
@@ -39,18 +38,15 @@ export default function Conciliacion() {
     setFinalInfo(null);
 
     try {
-      const res = await fetch(
-        `${API_URL}/inventarios/tareas/${taskIdValue}/conciliacion`
-      );
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.detail || "No se pudo consultar la conciliación");
-      }
-
+      const [tarea, detalles] = await Promise.all([
+        getInventarioTarea(taskIdValue),
+        getInventarioConciliacion(taskIdValue),
+      ]);
+      if (!tarea) throw new Error("No se pudo consultar la conciliacion");
+      const data = { ...tarea, detalles };
       setTask(data);
     } catch (err) {
-      setError(err.message || "Error cargando conciliación");
+      setError(err.message || "Error cargando conciliaciÃ³n");
       setTask(null);
     } finally {
       setLoading(false);
@@ -112,23 +108,7 @@ export default function Conciliacion() {
     setSuccessMsg("");
 
     try {
-      const res = await fetch(`${API_URL}/inventarios/tareas/${task.id}/finalizar`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          usuario: usuario.trim(),
-          asignado_a_reconteo: asignadoReconteo.trim() || null,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.detail || "No se pudo finalizar la tarea");
-      }
-
+      const data = await finalizarInventarioTarea(task.id);
       setFinalInfo(data);
       setSuccessMsg("Tarea finalizada correctamente");
       await loadTask(task.id);
@@ -141,13 +121,13 @@ export default function Conciliacion() {
 
   return (
     <PageShell
-      title="Conciliación"
-      subtitle="Compara sistema vs físico y finaliza la tarea para cerrar o generar reconteo automático."
+      title="ConciliaciÃ³n"
+      subtitle="Compara sistema vs fÃ­sico y finaliza la tarea para cerrar o generar reconteo automÃ¡tico."
       icon={<CheckCircle2 size={18} color="#355b7e" />}
     >
       <section style={cardStyle}>
         <CardHeader
-          title="Consulta de conciliación"
+          title="Consulta de conciliaciÃ³n"
           subtitle="Selecciona la tarea y revisa el comparativo antes de finalizar."
         />
 
@@ -207,7 +187,7 @@ export default function Conciliacion() {
             <div style={summaryGridStyle}>
               <MiniInfo label="Estado tarea" value={task.estado} />
               <MiniInfo label="Criterio" value={task.criterio} />
-              <MiniInfo label="Total líneas" value={task.total_lineas} />
+              <MiniInfo label="Total lÃ­neas" value={task.total_lineas} />
               <MiniInfo label="Coinciden" value={task.total_coinciden} />
               <MiniInfo label="No coinciden" value={task.total_no_coinciden} />
               <MiniInfo
@@ -223,8 +203,8 @@ export default function Conciliacion() {
 
       <section style={{ ...cardStyle, marginTop: 16 }}>
         <CardHeader
-          title="Comparativo por línea"
-          subtitle="Aquí sí se muestra la cantidad del sistema y el resultado del conteo."
+          title="Comparativo por lÃ­nea"
+          subtitle="AquÃ­ sÃ­ se muestra la cantidad del sistema y el resultado del conteo."
         />
 
         <div style={{ padding: 18 }}>
@@ -233,29 +213,29 @@ export default function Conciliacion() {
               <thead>
                 <tr style={{ background: "#fbfcfd" }}>
                   <th style={thStyle}>Detalle</th>
-                  <th style={thStyle}>Ubicación</th>
-                  <th style={thStyle}>Código</th>
-                  <th style={thStyle}>Descripción</th>
-                  <th style={thStyle}>Lote almacén</th>
+                  <th style={thStyle}>UbicaciÃ³n</th>
+                  <th style={thStyle}>CÃ³digo</th>
+                  <th style={thStyle}>DescripciÃ³n</th>
+                  <th style={thStyle}>Lote almacÃ©n</th>
                   <th style={thStyle}>Lote proveedor</th>
                   <th style={thStyle}>Sistema</th>
                   <th style={thStyle}>Contado</th>
                   <th style={thStyle}>Diferencia</th>
                   <th style={thStyle}>Coincide</th>
-                  <th style={thStyle}>Observación</th>
+                  <th style={thStyle}>ObservaciÃ³n</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
                     <td colSpan={11} style={emptyCellStyle}>
-                      Cargando conciliación...
+                      Cargando conciliaciÃ³n...
                     </td>
                   </tr>
                 ) : !task ? (
                   <tr>
                     <td colSpan={11} style={emptyCellStyle}>
-                      Carga una tarea para revisar la conciliación.
+                      Carga una tarea para revisar la conciliaciÃ³n.
                     </td>
                   </tr>
                 ) : task.detalles?.length === 0 ? (
@@ -287,7 +267,7 @@ export default function Conciliacion() {
                       </td>
                       <td style={tdStyle}>
                         {item.coincide === true ? (
-                          <span style={badgeOkStyle}>Sí</span>
+                          <span style={badgeOkStyle}>SÃ­</span>
                         ) : item.coincide === false ? (
                           <span style={badgeErrorStyle}>No</span>
                         ) : (
@@ -311,7 +291,7 @@ export default function Conciliacion() {
               <div style={warningTextStyle}>
                 Si existen diferencias, el backend cambia la tarea a
                 <strong> RECONTEO_PENDIENTE </strong>
-                y crea automáticamente una nueva tarea de reconteo.
+                y crea automÃ¡ticamente una nueva tarea de reconteo.
               </div>
             </div>
 
@@ -340,10 +320,10 @@ export default function Conciliacion() {
 
           {finalInfo && (
             <div style={resultBoxStyle}>
-              <div style={resultTitleStyle}>Resultado de finalización</div>
+              <div style={resultTitleStyle}>Resultado de finalizaciÃ³n</div>
               <div style={resultGridStyle}>
                 <MiniInfo label="Estado final" value={finalInfo.estado} />
-                <MiniInfo label="Total líneas" value={finalInfo.total_lineas} />
+                <MiniInfo label="Total lÃ­neas" value={finalInfo.total_lineas} />
                 <MiniInfo label="Coinciden" value={finalInfo.total_coinciden} />
                 <MiniInfo
                   label="No coinciden"
@@ -355,7 +335,7 @@ export default function Conciliacion() {
                 />
                 <MiniInfo
                   label="Genera reconteo"
-                  value={finalInfo.genera_reconteo ? "Sí" : "No"}
+                  value={finalInfo.genera_reconteo ? "SÃ­" : "No"}
                 />
               </div>
 
@@ -716,3 +696,4 @@ const resultGridStyle = {
   gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
   gap: 12,
 };
+

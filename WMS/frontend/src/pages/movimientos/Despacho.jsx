@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { API_URL } from "../../api";
+import {
+  eliminarReserva as eliminarReservaSupabase,
+  generarPicking,
+  getDespachos,
+  importarDespachos,
+  verPicking,
+} from "../../api";
 import {
   Upload,
   Search,
@@ -345,14 +351,7 @@ export default function Despacho() {
     setErr("");
 
     try {
-      const params = new URLSearchParams();
-      if (reservaBuscar.trim()) params.set("reserva", reservaBuscar.trim());
-
-      const qs = params.toString();
-      const res = await fetch(`${API_URL}/despachos${qs ? `?${qs}` : ""}`);
-      if (!res.ok) throw new Error(await res.text());
-
-      const data = await res.json();
+      const data = await getDespachos({ reserva: reservaBuscar.trim() });
       setRows(Array.isArray(data) ? data : []);
     } catch (e) {
       setErr(String(e?.message || e));
@@ -371,16 +370,7 @@ export default function Despacho() {
     setLoadingPicking(true);
 
     try {
-      const res = await fetch(
-        `${API_URL}/despachos/picking/${encodeURIComponent(reservaBuscar.trim())}`
-      );
-
-      if (!res.ok) {
-        setPickingRows([]);
-        return;
-      }
-
-      const data = await res.json();
+      const data = await verPicking(reservaBuscar.trim());
       setPickingRows(Array.isArray(data) ? data : []);
     } catch {
       setPickingRows([]);
@@ -403,17 +393,7 @@ export default function Despacho() {
     setErr("");
 
     try {
-      const form = new FormData();
-      form.append("file", file);
-
-      const res = await fetch(`${API_URL}/despachos/importar`, {
-        method: "POST",
-        body: form,
-      });
-
-      if (!res.ok) throw new Error(await res.text());
-
-      const data = await res.json();
+      const data = await importarDespachos(file);
       setUltimaCargaId(data?.carga_id || null);
 
       alert(
@@ -462,14 +442,7 @@ export default function Despacho() {
     }
 
     try {
-      const res = await fetch(
-        `${API_URL}/despachos/generar-picking/${encodeURIComponent(reservaFinal)}`,
-        { method: "POST" }
-      );
-
-      if (!res.ok) throw new Error(await res.text());
-
-      const data = await res.json();
+      const data = await generarPicking(reservaFinal);
 
       alert(
         `✅ Picking generado\n\n` +
@@ -531,16 +504,7 @@ export default function Despacho() {
     if (!ok) return;
 
     try {
-      const res = await fetch(
-        `${API_URL}/despachos/reserva/${encodeURIComponent(reservaId)}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
+      await eliminarReservaSupabase(reservaId);
 
       const actual = getReservaStore();
       delete actual[reservaId];

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { API_URL } from "../../api";
+import { confirmarPicking, getDespachos, getStock, marcarPickingImpreso, verPicking } from "../../api";
 import {
   ArrowLeft,
   Printer,
@@ -407,11 +407,8 @@ export default function OrdenPicking() {
     }));
 
     try {
-      const res = await fetch(`${API_URL}/despachos/picking-alternativas/${row.id}`);
-      if (!res.ok) throw new Error(await res.text());
-
-      const data = await res.json();
-      const alternativas = Array.isArray(data?.alternativas) ? data.alternativas : [];
+      const data = await getStock(row.sku);
+      const alternativas = Array.isArray(data?.lotes) ? data.lotes : [];
 
       setAlternativasPorRow((prev) => ({
         ...prev,
@@ -530,16 +527,10 @@ export default function OrdenPicking() {
     setErr("");
 
     try {
-      const [pickRes, despRes] = await Promise.all([
-        fetch(`${API_URL}/despachos/picking/${encodeURIComponent(reserva)}`),
-        fetch(`${API_URL}/despachos?reserva=${encodeURIComponent(reserva)}`),
+      const [pickData, despData] = await Promise.all([
+        verPicking(reserva),
+        getDespachos({ reserva }),
       ]);
-
-      if (!pickRes.ok) throw new Error(await pickRes.text());
-      if (!despRes.ok) throw new Error(await despRes.text());
-
-      const pickData = await pickRes.json();
-      const despData = await despRes.json();
 
       const safePick = Array.isArray(pickData) ? pickData : [];
       const safeDesp = Array.isArray(despData) ? despData : [];
@@ -635,13 +626,13 @@ export default function OrdenPicking() {
       setSkuSearchError("");
 
       try {
-        const res = await fetch(
-          `${API_URL}/despachos/buscar-sku-manual?q=${encodeURIComponent(q)}&limit=20`
-        );
-        if (!res.ok) throw new Error(await res.text());
-
-        const data = await res.json();
-        setSkuSearchResults(Array.isArray(data?.items) ? data.items : []);
+        const data = await getStock(q);
+        const items = (Array.isArray(data?.lotes) ? data.lotes : []).map((item) => ({
+          ...item,
+          sku: data.codigo,
+          texto_breve: data.descripcion,
+        }));
+        setSkuSearchResults(items);
       } catch (e) {
         setSkuSearchResults([]);
         setSkuSearchError(String(e?.message || e));
@@ -966,18 +957,7 @@ export default function OrdenPicking() {
         })),
       };
 
-      const res = await fetch(
-        `${API_URL}/despachos/confirmar-picking/${encodeURIComponent(reserva)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      if (!res.ok) throw new Error(await res.text());
-
-      const data = await res.json();
+      const data = await confirmarPicking(reserva, payload);
 
       alert(
         `✅ Despacho guardado correctamente\n\n` +

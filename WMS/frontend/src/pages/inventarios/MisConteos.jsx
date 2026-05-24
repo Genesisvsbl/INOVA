@@ -10,8 +10,7 @@ import {
   Eye,
   ArrowRight,
 } from "lucide-react";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+import { getInventarioTareas } from "../../api";
 
 export default function MisConteos() {
   const navigate = useNavigate();
@@ -31,16 +30,10 @@ export default function MisConteos() {
     setError("");
 
     try {
-      const params = new URLSearchParams();
-      if (usuario.trim()) params.append("asignado_a", usuario.trim());
-      if (estado.trim()) params.append("estado", estado.trim());
-
-      const res = await fetch(`${API_URL}/inventarios/tareas?${params.toString()}`);
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.detail || "No se pudieron consultar las tareas");
-      }
+      const data = await getInventarioTareas({
+        asignado_a: usuario.trim(),
+        estado: estado.trim(),
+      });
 
       setTasks(Array.isArray(data) ? data : []);
     } catch (err) {

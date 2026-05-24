@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
-import { API_URL } from "../../api";
+import { getMotorPorUbicacion, getUbicaciones, registrarAjusteInterno } from "../../api";
 import {
   Camera,
   ImagePlus,
@@ -72,13 +72,7 @@ export default function Reasignacion() {
   };
 
   const cargarUbicaciones = async () => {
-    const res = await fetch(`${API_URL}/ubicaciones?limit=5000`);
-    const data = await leerRespuesta(res);
-
-    if (!res.ok) {
-      throw new Error(data.detail || "Error cargando ubicaciones");
-    }
-
+    const data = await getUbicaciones();
     setUbicaciones(Array.isArray(data) ? data : []);
   };
 
@@ -105,15 +99,7 @@ export default function Reasignacion() {
     try {
       setLoading(true);
 
-      const res = await fetch(
-        `${API_URL}/motor/ubicacion/${encodeURIComponent(ubic)}`
-      );
-
-      const data = await leerRespuesta(res);
-
-      if (!res.ok) {
-        throw new Error(data.detail || "Error consultando ubicación");
-      }
+      const data = await getMotorPorUbicacion(ubic);
 
       setUbicacionOrigen(data.ubicacion || ubic);
       setUbicacionInfo(data);
@@ -267,17 +253,7 @@ export default function Reasignacion() {
     try {
       setLoading(true);
 
-      const res = await fetch(`${API_URL}/movimientos/ajuste-interno`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await leerRespuesta(res);
-
-      if (!res.ok) {
-        throw new Error(data.detail || data.message || "Error ejecutando movimiento");
-      }
+      const data = await registrarAjusteInterno(payload);
 
       setToast({
         type: "success",

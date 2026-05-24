@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { API_URL, eliminarRotulo as borrarRotulo, getRotulos } from "../../api";
+import { eliminarRotulo as borrarRotulo, getRotulos } from "../../api";
 import {
   Tags,
   Search,
@@ -227,6 +227,36 @@ function classifySerialInput(raw) {
   return { kind: "codigo_cita", value: s };
 }
 
+function descargarRotulosCsv(items) {
+  const cols = [
+    "codigo_cita",
+    "impresion",
+    "documento",
+    "sku",
+    "texto_breve",
+    "lote_almacen",
+    "lote_proveedor",
+    "fecha_fabricacion",
+    "fecha_vencimiento",
+    "cantidad",
+    "proveedor",
+    "remesa",
+    "orden_compra",
+    "auxiliar",
+  ];
+  const escapeCsv = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+  const csv = [cols.join(";")]
+    .concat((items || []).map((row) => cols.map((col) => escapeCsv(row[col])).join(";")))
+    .join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "rotulo_print.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function ModuleHeader({ title, subtitle, helper }) {
   return (
     <div style={panelStyle}>
@@ -412,21 +442,17 @@ export default function Rotulos() {
 
   const exportCSV = () => {
     const { kind, value } = classifySerialInput(serial);
-    const url = `${API_URL}/rotulos/export`;
-
-    if (kind === "none") {
-      window.open(url, "_blank");
-    } else if (kind === "codigo_cita") {
-      window.open(`${url}?codigo_cita=${encodeURIComponent(value)}`, "_blank");
-    } else {
-      window.open(`${url}?impresion=${encodeURIComponent(value)}`, "_blank");
-    }
-
+    const data = rows.filter((r) => {
+      if (kind === "codigo_cita") return String(r.codigo_cita || "") === String(value);
+      if (kind === "impresion") return String(r.impresion || "") === String(value);
+      return true;
+    });
+    descargarRotulosCsv(data);
     mostrarAyudaDescarga();
   };
 
   const exportarFila = (rotuloId) => {
-    window.open(`${API_URL}/rotulos/export?rotulo_id=${rotuloId}`, "_blank");
+    descargarRotulosCsv(rows.filter((r) => String(r.id) === String(rotuloId)));
     mostrarAyudaDescarga();
   };
 

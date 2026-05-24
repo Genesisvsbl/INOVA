@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from "react";
-import { getUbicaciones, crearUbicacion, editarUbicacion, eliminarUbicacion } from "../../api";
+import { getUbicaciones, crearUbicacion, editarUbicacion, eliminarUbicacion, importarUbicacionesExcel } from "../../api";
 import {
   MapPin,
   Search,
@@ -469,19 +469,7 @@ export default function Ubicaciones() {
     setImportando(true);
 
     try {
-      const formData = new FormData();
-      formData.append("file", archivoExcel);
-
-      const r = await fetch(`${API_URL}/ubicaciones/importar`, {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await r.json().catch(() => null);
-
-      if (!r.ok) {
-        throw new Error(data?.detail || "Error importando ubicaciones");
-      }
+      const data = await importarUbicacionesExcel(archivoExcel);
 
       setArchivoExcel(null);
 

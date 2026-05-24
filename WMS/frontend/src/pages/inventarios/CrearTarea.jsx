@@ -12,8 +12,7 @@ import {
   CheckCircle2,
   AlertTriangle,
 } from "lucide-react";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+import { crearTareaInventario, getMateriales, getUbicaciones } from "../../api";
 
 export default function CrearTarea() {
   const navigate = useNavigate();
@@ -46,20 +45,12 @@ export default function CrearTarea() {
     setLoadingCatalogos(true);
     try {
       const [ubicacionesRes, materialesRes] = await Promise.all([
-        fetch(`${API_URL}/ubicaciones?limit=5000`),
-        fetch(`${API_URL}/materiales?limit=5000`),
+        getUbicaciones(),
+        getMateriales(),
       ]);
 
-      const ubicacionesData = await ubicacionesRes.json();
-      const materialesData = await materialesRes.json();
-
-      if (!ubicacionesRes.ok) {
-        throw new Error(ubicacionesData.detail || "No se pudieron cargar las ubicaciones");
-      }
-
-      if (!materialesRes.ok) {
-        throw new Error(materialesData.detail || "No se pudieron cargar los materiales");
-      }
+      const ubicacionesData = ubicacionesRes;
+      const materialesData = materialesRes;
 
       const zonasUnicas = [...new Set(
         (Array.isArray(ubicacionesData) ? ubicacionesData : [])
@@ -155,19 +146,7 @@ export default function CrearTarea() {
         observacion: form.observacion.trim() || null,
       };
 
-      const res = await fetch(`${API_URL}/inventarios/tareas`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.detail || "No se pudo crear la tarea");
-      }
+      const data = await crearTareaInventario(payload);
 
       setCreatedTask(data);
       setSuccessMsg("Tarea creada correctamente");
