@@ -1799,3 +1799,79 @@ tbody tr:hover {
     height: 110px;
   }
 }
+
+/* ETO keeps its own green table accents even when hosted inside the WMS shell. */
+.eto-layout .table-tools-bar,
+.portal-shell .table-tools-bar {
+  border-color: rgba(34, 197, 94, 0.22) !important;
+  background: #f7fcf9 !important;
+}
+
+.eto-layout .table-tools-search input:focus,
+.eto-layout .table-tools-select select:focus,
+.portal-shell .table-tools-search input:focus,
+.portal-shell .table-tools-select select:focus {
+  border-color: rgba(34, 197, 94, 0.58) !important;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.13) !important;
+}
+
+.eto-layout .table-tools-clear,
+.portal-shell .table-tools-clear {
+  border-color: rgba(34, 197, 94, 0.24) !important;
+  background: #f0fdf4 !important;
+  color: #059669 !important;
+}
+
+.eto-layout .table-tools-clear:hover,
+.portal-shell .table-tools-clear:hover {
+  background: #dcfce7 !important;
+  border-color: rgba(34, 197, 94, 0.35) !important;
+}
+
+.eto-layout .table-tools-count,
+.portal-shell .table-tools-count {
+  background: #ecfdf5 !important;
+  border-color: rgba(34, 197, 94, 0.22) !important;
+  color: #059669 !important;
+}
+
+.eto-layout .inova-data-table:not(.print-table):not(.receipt-table) thead th,
+.eto-layout table.table-tools-ready:not(.print-table):not(.receipt-table) thead th,
+.portal-shell .inova-data-table:not(.print-table):not(.receipt-table) thead th,
+.portal-shell table.table-tools-ready:not(.print-table):not(.receipt-table) thead th {
+  background: #f1f8f4 !important;
+  color: #123524 !important;
+}
+
+.eto-layout .inova-data-table:not(.print-table):not(.receipt-table) tbody tr:nth-child(even),
+.eto-layout table.table-tools-ready:not(.print-table):not(.receipt-table) tbody tr:nth-child(even),
+.portal-shell .inova-data-table:not(.print-table):not(.receipt-table) tbody tr:nth-child(even),
+.portal-shell table.table-tools-ready:not(.print-table):not(.receipt-table) tbody tr:nth-child(even) {
+  background: #fbfefc !important;
+}
+
+.eto-layout .inova-data-table:not(.print-table):not(.receipt-table) tbody tr:hover,
+.eto-layout table.table-tools-ready:not(.print-table):not(.receipt-table) tbody tr:hover,
+.portal-shell .inova-data-table:not(.print-table):not(.receipt-table) tbody tr:hover,
+.portal-shell table.table-tools-ready:not(.print-table):not(.receipt-table) tbody tr:hover {
+  background: #eefbf3 !important;
+  box-shadow: inset 2px 0 0 #22c55e !important;
+}
+
+.eto-layout .table-sortable-header::after,
+.portal-shell .table-sortable-header::after {
+  color: #34a46d !important;
+}
+
+.eto-layout .table-sortable-header.table-sort-asc::after,
+.eto-layout .table-sortable-header.table-sort-desc::after,
+.portal-shell .table-sortable-header.table-sort-asc::after,
+.portal-shell .table-sortable-header.table-sort-desc::after {
+  color: #059669 !important;
+}
+
+.eto-layout .table-sortable-header:hover,
+.portal-shell .table-sortable-header:hover {
+  color: #059669 !important;
+  background: #ecfdf5 !important;
+}
