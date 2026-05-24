@@ -404,15 +404,13 @@ export default function LoginPage() {
 
         <div className="brand brand-single">
           <img
-            src="/inova-login-white.svg"
+            src="/INOVA2026.png"
             alt="INOVA Innovamos Contigo"
             className="brand-logo brand-logo-wide"
             loading="eager"
             decoding="sync"
             onError={(event) => {
-              if (event.currentTarget.src.includes("/inova-login-white.svg")) {
-                event.currentTarget.src = "/inova-ui-logo.svg";
-              } else if (event.currentTarget.src.includes("/inova-ui-logo.svg")) {
+              if (event.currentTarget.src.includes("/INOVA2026.png")) {
                 event.currentTarget.src = "/INOVA-dark.png";
               }
             }}
@@ -778,15 +776,15 @@ button { -webkit-tap-highlight-color: transparent; }
 .brand { display: flex; align-items: center; gap: 0; min-width: 0; }
 .brand-single { gap: 0; }
 .brand-logo {
-  width: clamp(270px, 21vw, 380px);
-  height: clamp(68px, 6.3vw, 96px);
+  width: clamp(300px, 24vw, 430px);
+  height: clamp(78px, 7vw, 116px);
   object-fit: contain;
   object-position: center;
   display: block;
   image-rendering: auto;
   filter: drop-shadow(0 10px 24px rgba(0,0,0,.32));
 }
-.brand-logo-wide { width: clamp(270px, 21vw, 380px); height: clamp(68px, 6.3vw, 96px); }
+.brand-logo-wide { width: clamp(300px, 24vw, 430px); height: clamp(78px, 7vw, 116px); }
 
 .icon-button {
   width: 42px;
@@ -1229,7 +1227,7 @@ button { -webkit-tap-highlight-color: transparent; }
   .login-topbar { padding-top: 12px; }
   .landing-view { padding-top: 6px; padding-bottom: 18px; }
   .landing-head { margin-top: 0; margin-bottom: 12px; gap: 6px; }
-  .brand-logo { height: 78px; width: 300px; }
+  .brand-logo { height: 84px; width: 330px; }
   .landing-card { grid-template-rows: minmax(190px, 39%) auto 64px; }
   .landing-card-content { padding-top: 20px; }
   .landing-title-row h2 { font-size: 66px; }
@@ -1273,7 +1271,7 @@ button { -webkit-tap-highlight-color: transparent; }
   :root { --topbar-height: 92px; }
   .login-topbar { width: min(100% - 24px, 680px); padding-top: 12px; }
   .mobile-only { display: grid; }
-  .brand-logo { width: min(72vw, 330px); height: 74px; }
+  .brand-logo { width: min(78vw, 360px); height: 86px; }
   .landing-view { padding-top: 16px; }
   .landing-head { margin-top: 0; }
   .landing-head p { font-size: 14px; }
