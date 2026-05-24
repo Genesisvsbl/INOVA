@@ -275,7 +275,9 @@ export default function Layout() {
                   event.stopPropagation();
                   toggleMenu("datosMaestros");
                 }}
-                onMouseEnter={() => {}}
+                onMouseEnter={() => {
+                  if (sidebarExpanded) setOpenMenu("datosMaestros");
+                }}
                 title="Datos maestros"
               >
                 <span className="menu-left">
@@ -303,7 +305,9 @@ export default function Layout() {
                   event.stopPropagation();
                   toggleMenu("movimientos");
                 }}
-                onMouseEnter={() => {}}
+                onMouseEnter={() => {
+                  if (sidebarExpanded) setOpenMenu("movimientos");
+                }}
                 title="Movimientos"
               >
                 <span className="menu-left">
@@ -333,7 +337,9 @@ export default function Layout() {
                   event.stopPropagation();
                   toggleMenu("inventarios");
                 }}
-                onMouseEnter={() => {}}
+                onMouseEnter={() => {
+                  if (sidebarExpanded) setOpenMenu("inventarios");
+                }}
                 title="Inventarios"
               >
                 <span className="menu-left">
@@ -986,4 +992,3 @@ button { -webkit-tap-highlight-color: transparent; }
   .top-icon-btn { width: 40px; height: 40px; border-radius: 13px; }
 }
 `;
-
