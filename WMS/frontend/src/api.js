@@ -207,11 +207,7 @@ export function crearMovimiento(payload) {
     return buildMovimientoInsert(payload).then((row) => insertRow("wms", "movimientos", row));
   }
 
-  return apiFetch("/movimientos", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  return Promise.reject(new Error("Supabase no esta configurado para guardar movimientos WMS."));
 }
 
 export function crearMovimientosBulk(payload) {
@@ -222,11 +218,7 @@ export function crearMovimientosBulk(payload) {
     );
   }
 
-  return apiFetch("/movimientos/bulk", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  return Promise.reject(new Error("Supabase no esta configurado para guardar movimientos WMS."));
 }
 
 export function getMovimientos() {
@@ -239,7 +231,7 @@ export function getMovimientos() {
     }).then((rows) => rows.map(mapMovimientoRow));
   }
 
-  return apiFetch("/movimientos");
+  return Promise.resolve([]);
 }
 
 export function getEnTransito(q = "") {
@@ -255,13 +247,7 @@ export function getEnTransito(q = "") {
     return selectRows("wms", "movimientos", params).then((rows) => rows.map(mapMovimientoRow));
   }
 
-  const url = new URL(`${API_URL}/movimientos/en-transito`);
-
-  if (q) {
-    url.searchParams.set("q", q);
-  }
-
-  return fetch(url).then(handle);
+  return Promise.resolve([]);
 }
 
 export function asignarUbicacionDesdeTransito(movimientoId, codigoUbicacion) {
@@ -274,11 +260,7 @@ export function asignarUbicacionDesdeTransito(movimientoId, codigoUbicacion) {
     );
   }
 
-  return apiFetch(`/movimientos/${movimientoId}/asignar-ubicacion`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ codigo_ubicacion: codigoUbicacion }),
-  });
+  return Promise.reject(new Error("Supabase no esta configurado para actualizar transito WMS."));
 }
 
 export function getStock(codigo) {
@@ -391,7 +373,7 @@ export function importarUbicacionesExcel(file) {
 
 export function getMotor() {
   if (supabaseEnabled) return getMovimientos();
-  return apiFetch("/motor");
+  return Promise.resolve([]);
 }
 
 export function getRotulos(params = {}) {
@@ -411,15 +393,7 @@ export function getRotulos(params = {}) {
     return selectRows("wms", "rotulos", query);
   }
 
-  const url = new URL(`${API_URL}/rotulos`);
-
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      url.searchParams.set(key, value);
-    }
-  });
-
-  return fetch(url).then(handle);
+  return Promise.resolve([]);
 }
 
 export function crearRotulo(payload) {
@@ -427,11 +401,7 @@ export function crearRotulo(payload) {
     return buildRotuloInsert(payload).then((row) => insertRow("wms", "rotulos", row));
   }
 
-  return apiFetch("/rotulos", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  return Promise.reject(new Error("Supabase no esta configurado para guardar rotulos WMS."));
 }
 
 export function crearRotulosBulk(payload) {
@@ -446,19 +416,13 @@ export function crearRotulosBulk(payload) {
     );
   }
 
-  return apiFetch("/rotulos/bulk", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  return Promise.reject(new Error("Supabase no esta configurado para guardar rotulos WMS."));
 }
 
 export function eliminarRotulo(id) {
   if (supabaseEnabled) return deleteById("wms", "rotulos", id);
 
-  return apiFetch(`/rotulos/${id}`, {
-    method: "DELETE",
-  });
+  return Promise.reject(new Error("Supabase no esta configurado para eliminar rotulos WMS."));
 }
 
 export function imprimirRotulo(rotuloId, copias = 1) {
