@@ -4,6 +4,8 @@ const DEFAULT_EMPRESA_ID = Number(import.meta.env.VITE_EMPRESA_ID || 1);
 
 export const supabaseEnabled = Boolean(SUPABASE_URL && SUPABASE_KEY);
 export const empresaId = DEFAULT_EMPRESA_ID;
+export const supabaseUrl = SUPABASE_URL;
+export const supabaseKey = SUPABASE_KEY;
 
 function buildUrl(schema, table, params = {}) {
   const url = new URL(`${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/${table}`);
@@ -89,4 +91,3 @@ export function deleteById(schema, table, id) {
     params: { id: `eq.${id}` },
   });
 }
-

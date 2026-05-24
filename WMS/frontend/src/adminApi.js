@@ -3,6 +3,8 @@ import {
   insertRow,
   selectRows,
   supabaseEnabled,
+  supabaseKey,
+  supabaseUrl,
   updateById,
 } from "./supabaseRest";
 
@@ -95,6 +97,35 @@ export function buildApprovalEmail({ solicitud, claveTemporal, empresa, rol }) {
     "INOVA",
   ].join("\n");
   return `mailto:${encodeURIComponent(solicitud.email)}?subject=${subject}&body=${encodeURIComponent(body)}`;
+}
+
+export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa, rol }) {
+  if (!supabaseUrl || !supabaseKey) throw new Error("Supabase no está configurado.");
+  const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/functions/v1/send-approval-email`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+    },
+    body: JSON.stringify({
+      nombre: solicitud.nombre_completo,
+      email: solicitud.email,
+      empresa: empresa?.nombre || solicitud.empresa_nombre || "",
+      pilar: solicitud.pilar,
+      etoNivel: solicitud.eto_nivel || null,
+      rol: rol?.nombre || rol?.codigo || "",
+      claveTemporal,
+      loginUrl: `${window.location.origin}/login`,
+    }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || `No se pudo enviar correo (${response.status}).`);
+  }
+
+  return response.json().catch(() => ({ ok: true }));
 }
 
 function roleToPermissions(role, pilar, etoNivel) {
@@ -283,10 +314,20 @@ export async function aprobarSolicitud(solicitud, { empresa_id, rol_id, clave_ac
     fecha_respuesta: new Date().toISOString(),
   });
 
+  const mailto = buildApprovalEmail({ solicitud, claveTemporal, empresa, rol });
+  let emailSent = false;
+  try {
+    await enviarCorreoAprobacion({ solicitud, claveTemporal, empresa, rol });
+    emailSent = true;
+  } catch (error) {
+    console.warn("No se pudo enviar el correo HTML de aprobación:", error);
+  }
+
   return {
     user,
     claveTemporal,
-    mailto: buildApprovalEmail({ solicitud, claveTemporal, empresa, rol }),
+    mailto,
+    emailSent,
   };
 }
 
@@ -397,10 +438,20 @@ export async function crearUsuarioEmpresa(payload, actor = {}) {
     eto_nivel: accessPayload.eto_nivel,
   };
 
+  const mailto = buildApprovalEmail({ solicitud, claveTemporal, empresa, rol });
+  let emailSent = false;
+  try {
+    await enviarCorreoAprobacion({ solicitud, claveTemporal, empresa, rol });
+    emailSent = true;
+  } catch (error) {
+    console.warn("No se pudo enviar el correo HTML de aprobación:", error);
+  }
+
   return {
     user,
     claveTemporal,
-    mailto: buildApprovalEmail({ solicitud, claveTemporal, empresa, rol }),
+    mailto,
+    emailSent,
   };
 }
 

@@ -180,7 +180,7 @@ export default function AdminAccess({ view = "usuarios" }) {
       await load();
       setSelectedRequest(null);
       setApprovalResult(null);
-      if (result?.mailto) {
+      if (!result?.emailSent && result?.mailto) {
         window.location.href = result.mailto;
       }
     } catch (err) {
@@ -214,7 +214,7 @@ export default function AdminAccess({ view = "usuarios" }) {
       setUserCreateResult(result);
       setUserForm({ ...EMPTY_USER_FORM, empresa_id: selectedCreateEmpresa, clave_acceso: generarClaveTemporal() });
       await load();
-      if (result?.mailto) {
+      if (!result?.emailSent && result?.mailto) {
         window.location.href = result.mailto;
       }
     } catch (err) {
