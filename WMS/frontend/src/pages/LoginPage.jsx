@@ -15,8 +15,8 @@ import {
   User,
   X,
 } from "lucide-react";
-import fiveSImage from "../../../../5S/assets/5S.png";
-import etoImage from "../../../../ETO/app/public/ETO.png";
+const fiveSImage = "/5S.png";
+const etoImage = "/ETO.png";
 
 const ADMIN_PERMISSIONS = [
   "usuarios.ver",
