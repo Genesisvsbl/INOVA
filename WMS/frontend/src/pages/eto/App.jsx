@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import API from "./api";
 import {
   Activity,
@@ -36,7 +36,7 @@ const TABS = [
   { key: "processes", label: "Procesos" },
   { key: "indicators", label: "Indicadores" },
   { key: "daily", label: "Captura diaria" },
-  { key: "history", label: "Histórico" },
+  { key: "history", label: "HistÃ³rico" },
   { key: "dashboard", label: "Dashboard" },
 ];
 
@@ -58,7 +58,7 @@ const COLORS = {
   soft: "#f7f9fd",
 };
 
-const PRELOAD_IMAGES = ["/INOVA.png", "/INOVA-dark.png", "/inova-mark-dark.png", "/inova-logo.png"];
+const PRELOAD_IMAGES = ["/INOVA2026.png", "/INOVA2026.png", "/INOVA2026.png", "/INOVA2026.png"];
 
 function preloadImages(sources) {
   if (typeof window === "undefined") return Promise.resolve();
@@ -149,14 +149,14 @@ const EMPTY_ENTITY_FORM = {
 function LogoImage({ className = "" }) {
   return (
     <img
-      src="/INOVA.png"
+      src="/INOVA2026.png"
       alt="ETO"
       className={className}
       loading="eager"
       decoding="sync"
       fetchPriority="high"
       onError={(e) => {
-        e.currentTarget.src = "/INOVA.png";
+        e.currentTarget.src = "/INOVA2026.png";
       }}
     />
   );
@@ -260,7 +260,7 @@ function PortalView({
     {
       key: "indicators",
       title: "Indicadores",
-      subtitle: "Define metas, reglas y seguimiento de desempeño.",
+      subtitle: "Define metas, reglas y seguimiento de desempeÃ±o.",
       icon: Target,
       meta: `${indicators.length} configurados`,
       tone: "emerald",
@@ -270,13 +270,13 @@ function PortalView({
       title: "Captura diaria",
       subtitle: "Registra resultados por fecha, turno y proceso.",
       icon: ClipboardCheck,
-      meta: "Operación diaria",
+      meta: "OperaciÃ³n diaria",
       tone: "teal",
     },
     {
       key: "history",
-      title: "Histórico",
-      subtitle: "Consulta trazabilidad, análisis y consolidado mensual.",
+      title: "HistÃ³rico",
+      subtitle: "Consulta trazabilidad, anÃ¡lisis y consolidado mensual.",
       icon: FileText,
       meta: "Consulta avanzada",
       tone: "slate",
@@ -313,11 +313,11 @@ function PortalView({
     <div className="portal-shell">
       <section className="portal-hero">
         <div className="portal-hero-copy">
-          <span className="section-kicker">VISIÓN GENERAL</span>
+          <span className="section-kicker">VISIÃ“N GENERAL</span>
           <h2>Centro de control</h2>
           <p>
             Plataforma corporativa para parametrizar indicadores, capturar
-            resultados y analizar desempeño operativo por proceso.
+            resultados y analizar desempeÃ±o operativo por proceso.
           </p>
 
           <div className="portal-hero-actions">
@@ -351,9 +351,9 @@ function PortalView({
             </div>
 
             <div className="portal-status-body">
-              <strong>Operación lista</strong>
+              <strong>OperaciÃ³n lista</strong>
               <p>
-                El módulo está preparado para administrar procesos, indicadores
+                El mÃ³dulo estÃ¡ preparado para administrar procesos, indicadores
                 y seguimiento operativo.
               </p>
             </div>
@@ -364,15 +364,15 @@ function PortalView({
                 <b>Activo</b>
               </div>
               <div>
-                <small>Sesión</small>
+                <small>SesiÃ³n</small>
                 <b>ETO</b>
               </div>
               <div>
                 <small>Monitoreo</small>
-                <b>En línea</b>
+                <b>En lÃ­nea</b>
               </div>
               <div>
-                <small>Actualización</small>
+                <small>ActualizaciÃ³n</small>
                 <b>Tiempo real</b>
               </div>
             </div>
@@ -401,8 +401,8 @@ function PortalView({
         <article className="portal-panel portal-panel-large">
           <div className="portal-panel-head">
             <div>
-              <span className="portal-panel-kicker">ACCESO RÁPIDO</span>
-              <h3>Módulos disponibles</h3>
+              <span className="portal-panel-kicker">ACCESO RÃPIDO</span>
+              <h3>MÃ³dulos disponibles</h3>
               <p>
                 Ingresa directamente al flujo de trabajo que necesitas gestionar.
               </p>
@@ -432,7 +432,7 @@ function PortalView({
                   </div>
 
                   <div className="portal-shortcut-link">
-                    <span>Abrir módulo</span>
+                    <span>Abrir mÃ³dulo</span>
                     <ArrowRight size={16} />
                   </div>
                 </button>
@@ -448,15 +448,15 @@ function PortalView({
             <ul className="portal-bullet-list">
               <li>
                 <span><Clock3 size={15} /></span>
-                Gestión rápida de procesos e indicadores.
+                GestiÃ³n rÃ¡pida de procesos e indicadores.
               </li>
               <li>
                 <span><ClipboardCheck size={15} /></span>
-                Captura diaria y consulta histórica en un solo lugar.
+                Captura diaria y consulta histÃ³rica en un solo lugar.
               </li>
               <li>
                 <span><BarChart3 size={15} /></span>
-                Visión ejecutiva con KPIs y analítica por proceso.
+                VisiÃ³n ejecutiva con KPIs y analÃ­tica por proceso.
               </li>
             </ul>
           </article>
@@ -469,7 +469,7 @@ function PortalView({
               <div className="portal-panel-kicker">RECOMENDADO</div>
               <h3>Explora el dashboard</h3>
               <p>
-                Visualiza tendencias, resultados y desempeño consolidado de tus
+                Visualiza tendencias, resultados y desempeÃ±o consolidado de tus
                 indicadores.
               </p>
             </div>
@@ -641,7 +641,7 @@ export default function App() {
 
     const expectedCode = ACCESS_CODES[Number(accessLevel)];
     if (accessCode.trim().toUpperCase() !== expectedCode) {
-      setAccessError("Código incorrecto para el nivel seleccionado.");
+      setAccessError("CÃ³digo incorrecto para el nivel seleccionado.");
       return;
     }
 
@@ -750,7 +750,7 @@ export default function App() {
 
   async function handleDeleteProcess(item) {
     const ok = window.confirm(
-      `¿Deseas eliminar el proceso "${item.name}"?\n\nEsto también eliminará sus indicadores y registros asociados si existen.`
+      `Â¿Deseas eliminar el proceso "${item.name}"?\n\nEsto tambiÃ©n eliminarÃ¡ sus indicadores y registros asociados si existen.`
     );
     if (!ok) return;
 
@@ -858,7 +858,7 @@ export default function App() {
 
   async function handleDeleteIndicator(item) {
     const ok = window.confirm(
-      `¿Deseas eliminar el indicador "${item.code} - ${item.name}"?`
+      `Â¿Deseas eliminar el indicador "${item.code} - ${item.name}"?`
     );
     if (!ok) return;
 
@@ -1005,7 +1005,7 @@ export default function App() {
     const entityName = item.entity_name || item.name || "-";
 
     const ok = window.confirm(
-      `¿Deseas eliminar la entidad "${entityName}"?`
+      `Â¿Deseas eliminar la entidad "${entityName}"?`
     );
     if (!ok) return;
 
@@ -1080,7 +1080,7 @@ export default function App() {
 
   async function handleDeleteEntityTarget(item) {
     const ok = window.confirm(
-      `¿Deseas quitar a "${item.entity_name}" del indicador "${
+      `Â¿Deseas quitar a "${item.entity_name}" del indicador "${
         selectedIndicatorForEntities?.name || ""
       }"?`
     );
@@ -1307,7 +1307,7 @@ export default function App() {
                 setSidebarPinned((value) => !value);
               }
             }}
-            aria-label={sidebarExpanded ? "Cerrar menú" : "Abrir menú"}
+            aria-label={sidebarExpanded ? "Cerrar menÃº" : "Abrir menÃº"}
           >
             {config.isMobile ? (
               sidebarExpanded ? <X size={20} /> : <Menu size={21} />
@@ -1368,7 +1368,7 @@ export default function App() {
           <button
             type="button"
             className="mobile-backdrop"
-            aria-label="Cerrar menú"
+            aria-label="Cerrar menÃº"
             onClick={() => {
               setMobileSidebarOpen(false);
               setSidebarPinned(false);
@@ -1400,12 +1400,12 @@ export default function App() {
               {sidebarExpanded ? (
                 <BrandSidebar />
               ) : (
-                <img className="sidebar-logo-mini" src="/inova-mark-dark.png" alt="INOVA" loading="eager" decoding="sync" fetchPriority="high" />
+                <img className="sidebar-logo-mini" src="/INOVA2026.png" alt="INOVA" loading="eager" decoding="sync" fetchPriority="high" />
               )}
             </div>
 
             <div className="sidebar-nav">
-              {sidebarExpanded && <SectionTitle>Gestión ETO</SectionTitle>}
+              {sidebarExpanded && <SectionTitle>GestiÃ³n ETO</SectionTitle>}
 
               {TABS.map((item) => {
                 const Icon = TAB_ICONS[item.key] || Activity;
@@ -1428,15 +1428,15 @@ export default function App() {
                 );
               })}
 
-              {sidebarExpanded && <SectionTitle>Sesión</SectionTitle>}
+              {sidebarExpanded && <SectionTitle>SesiÃ³n</SectionTitle>}
 
               <button
                 type="button"
                 style={tabButtonStyle(false, sidebarExpanded)}
-                title="Configuración"
+                title="ConfiguraciÃ³n"
               >
                 <Settings size={18} />
-                {sidebarExpanded && <span>Configuración</span>}
+                {sidebarExpanded && <span>ConfiguraciÃ³n</span>}
               </button>
             </div>
 
@@ -1451,7 +1451,7 @@ export default function App() {
             {sidebarExpanded && (
               <button type="button" className="logout-btn" onClick={handleLogout}>
                 <LogOut size={17} />
-                Cerrar sesión
+                Cerrar sesiÃ³n
               </button>
             )}
           </div>
@@ -1464,7 +1464,7 @@ export default function App() {
 function BrandHeader() {
   return (
     <div className="brand-header">
-      <img src="/INOVA.png" alt="INOVA" loading="eager" decoding="sync" fetchPriority="high" />
+      <img src="/INOVA2026.png" alt="INOVA" loading="eager" decoding="sync" fetchPriority="high" />
       <div>
         <small>ETO</small>
       </div>
@@ -1475,7 +1475,7 @@ function BrandHeader() {
 function BrandSidebar() {
   return (
     <div className="brand-sidebar">
-      <img src="/INOVA-dark.png" alt="INOVA" loading="eager" decoding="sync" fetchPriority="high" />
+      <img src="/INOVA2026.png" alt="INOVA" loading="eager" decoding="sync" fetchPriority="high" />
       <div>
         <small>ETO</small>
       </div>
@@ -2503,3 +2503,4 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 
 `;
+

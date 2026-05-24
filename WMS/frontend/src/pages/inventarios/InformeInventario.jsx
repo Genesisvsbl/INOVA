@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   FileBarChart2,
@@ -426,7 +426,7 @@ export default function InformeInventario() {
           <div>
             <div style={pageTitleStyle}>Informe de inventario</div>
             <div style={pageSubtitleStyle}>
-              Consulta el cierre por tarea y genera una impresión formal tipo software.
+              Consulta el cierre por tarea y genera una impresiÃ³n formal tipo software.
             </div>
           </div>
         </div>
@@ -440,7 +440,7 @@ export default function InformeInventario() {
 
         <div style={layoutGridStyle}>
           <section style={cardStyle}>
-            <CardHeader title="Listado de tareas" subtitle="Haz clic sobre una tarea y se carga el informe automáticamente." />
+            <CardHeader title="Listado de tareas" subtitle="Haz clic sobre una tarea y se carga el informe automÃ¡ticamente." />
 
             <div style={{ padding: 18 }}>
               {error ? <MessageBox type="error" text={error} /> : null}
@@ -489,7 +489,7 @@ export default function InformeInventario() {
                               <span style={getStatusStyle(item.estado)}>{item.estado}</span>
                             </td>
                             <td style={tdStyle}>{item.porcentaje_exactitud ?? 0}%</td>
-                            <td style={tdStyle}>{item.es_reconteo ? "Sí" : "No"}</td>
+                            <td style={tdStyle}>{item.es_reconteo ? "SÃ­" : "No"}</td>
                           </tr>
                         );
                       })
@@ -501,7 +501,7 @@ export default function InformeInventario() {
           </section>
 
           <section style={cardStyle}>
-            <CardHeader title="Consulta puntual" subtitle="Busca un informe por ID y luego imprímelo completo." />
+            <CardHeader title="Consulta puntual" subtitle="Busca un informe por ID y luego imprÃ­melo completo." />
 
             <div style={{ padding: 18 }}>
               <div style={searchRowStyle}>
@@ -547,11 +547,11 @@ export default function InformeInventario() {
                   <div style={detailGridStyle}>
                     <MiniInfo label="Tarea" value={report.tarea_id} />
                     <MiniInfo label="Estado" value={report.estado} />
-                    <MiniInfo label="Total líneas" value={report.total_lineas} />
+                    <MiniInfo label="Total lÃ­neas" value={report.total_lineas} />
                     <MiniInfo label="Coinciden" value={report.total_coinciden} />
                     <MiniInfo label="No coinciden" value={report.total_no_coinciden} />
                     <MiniInfo label="Exactitud" value={`${report.porcentaje_exactitud}%`} />
-                    <MiniInfo label="Genera reconteo" value={report.genera_reconteo ? "Sí" : "No"} />
+                    <MiniInfo label="Genera reconteo" value={report.genera_reconteo ? "SÃ­" : "No"} />
                     <MiniInfo label="ID reconteo" value={report.reconteo_tarea_id || "-"} />
                   </div>
 
@@ -579,12 +579,12 @@ export default function InformeInventario() {
               <div style={printHeaderStyle}>
                 <div style={printBrandWrapStyle}>
                   <div style={printLogoBoxStyle}>
-                    <img src="/INOVA-dark.png" alt="INOVA" style={printLogoImageStyle} />
+                    <img src="/INOVA2026.png" alt="INOVA" style={printLogoImageStyle} />
                   </div>
 
                   <div style={{ minWidth: 0 }}>
                     <div style={printBrandNameStyle}>WMS INOVA</div>
-                    <div style={printBrandSubStyle}>Control logístico</div>
+                    <div style={printBrandSubStyle}>Control logÃ­stico</div>
                     <div className="print-title" style={printMainTitleStyle}>INFORME DE INVENTARIO</div>
                     <div className="print-subtitle" style={printSubtitleStyle}>Documento operativo de tarea de inventario</div>
                   </div>
@@ -599,31 +599,31 @@ export default function InformeInventario() {
                 <PrintBox label="Criterio" value={taskDetail.criterio} />
                 <PrintBox label="Asignado a" value={taskDetail.asignado_a} />
                 <PrintBox label="Creado por" value={taskDetail.creado_por} />
-                <PrintBox label="Reconteo" value={taskDetail.es_reconteo ? "Sí" : "No"} />
-                <PrintBox label="Fecha creación" value={formatDateTime(taskDetail.fecha_creacion)} />
+                <PrintBox label="Reconteo" value={taskDetail.es_reconteo ? "SÃ­" : "No"} />
+                <PrintBox label="Fecha creaciÃ³n" value={formatDateTime(taskDetail.fecha_creacion)} />
                 <PrintBox label="Fecha inicio" value={formatDateTime(taskDetail.fecha_inicio)} />
-                <PrintBox label="Fecha finalización" value={formatDateTime(taskDetail.fecha_finalizacion)} />
-                <PrintBox label="Fecha conciliación" value={formatDateTime(taskDetail.fecha_conciliacion)} />
+                <PrintBox label="Fecha finalizaciÃ³n" value={formatDateTime(taskDetail.fecha_finalizacion)} />
+                <PrintBox label="Fecha conciliaciÃ³n" value={formatDateTime(taskDetail.fecha_conciliacion)} />
                 <PrintBox label="Fecha cierre" value={formatDateTime(taskDetail.fecha_cierre)} />
                 <PrintBox label="Tarea origen" value={taskDetail.tarea_origen_id || "-"} />
               </div>
 
               <div style={printObservacionBoxStyle} className="print-block-tight">
-                <div style={printSectionTitleStyle}>Observación general</div>
+                <div style={printSectionTitleStyle}>ObservaciÃ³n general</div>
                 <div style={printParagraphStyle}>
                   {taskDetail.observacion || "Sin observaciones registradas."}
                 </div>
               </div>
 
               <div style={executiveGridStyle} className="print-grid-4 print-block-tight">
-                <PrintBox label="Total líneas" value={report.total_lineas} />
-                <PrintBox label="Líneas contadas" value={detalleResumen.contadas} />
+                <PrintBox label="Total lÃ­neas" value={report.total_lineas} />
+                <PrintBox label="LÃ­neas contadas" value={detalleResumen.contadas} />
                 <PrintBox label="Coinciden" value={report.total_coinciden} />
                 <PrintBox label="No coinciden" value={report.total_no_coinciden} />
                 <PrintBox label="Exactitud" value={`${report.porcentajeExactitud ?? report.porcentaje_exactitud}%`} />
                 <PrintBox label="Total sistema" value={detalleResumen.totalSistema} />
                 <PrintBox label="Total contado" value={detalleResumen.totalContado} />
-                <PrintBox label="Desviación total" value={detalleResumen.totalDiferencia} />
+                <PrintBox label="DesviaciÃ³n total" value={detalleResumen.totalDiferencia} />
               </div>
             </section>
 
@@ -694,7 +694,7 @@ export default function InformeInventario() {
             <section style={printSectionStyle} className="print-section print-section-flow print-page-break print-section-tight">
               <div style={printBlockHeaderStyle}>
                 <GitCompare size={13} />
-                <span>Análisis de diferencias</span>
+                <span>AnÃ¡lisis de diferencias</span>
               </div>
 
               <table style={printTableStyle} className="print-table">
@@ -712,14 +712,14 @@ export default function InformeInventario() {
                 <thead>
                   <tr>
                     <th style={printThStyle}>Detalle</th>
-                    <th style={printThStyle}>Ubicación</th>
-                    <th style={printThStyle}>Código material</th>
-                    <th style={printThStyle}>Descripción</th>
+                    <th style={printThStyle}>UbicaciÃ³n</th>
+                    <th style={printThStyle}>CÃ³digo material</th>
+                    <th style={printThStyle}>DescripciÃ³n</th>
                     <th style={printThStyle}>Sistema</th>
                     <th style={printThStyle}>Contado</th>
                     <th style={printThStyle}>Diferencia</th>
                     <th style={printThStyle}>Coincide</th>
-                    <th style={printThStyle}>Observación</th>
+                    <th style={printThStyle}>ObservaciÃ³n</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -733,7 +733,7 @@ export default function InformeInventario() {
                       <td style={printTdStyle}>{item.cantidad_contada ?? 0}</td>
                       <td style={printTdStyle}>{item.diferencia ?? 0}</td>
                       <td style={printTdStyle}>
-                        {item.coincide === true ? "Sí" : item.coincide === false ? "No" : "Pendiente"}
+                        {item.coincide === true ? "SÃ­" : item.coincide === false ? "No" : "Pendiente"}
                       </td>
                       <td style={printTdStyle}>{item.observacion || "-"}</td>
                     </tr>
@@ -750,7 +750,7 @@ export default function InformeInventario() {
                   </div>
                 ) : (
                   <div style={printWarnBoxStyle}>
-                    Se detectaron <strong>{diferencias.length}</strong> líneas con diferencia. Revisar el detalle anterior para validar desviaciones, causas y necesidad de reconteo.
+                    Se detectaron <strong>{diferencias.length}</strong> lÃ­neas con diferencia. Revisar el detalle anterior para validar desviaciones, causas y necesidad de reconteo.
                   </div>
                 )}
               </div>
@@ -764,11 +764,11 @@ export default function InformeInventario() {
 
               <div style={closingGridStyle} className="print-grid-4">
                 <PrintBox label="Estado final" value={report.estado} />
-                <PrintBox label="Total líneas" value={report.total_lineas} />
+                <PrintBox label="Total lÃ­neas" value={report.total_lineas} />
                 <PrintBox label="Coinciden" value={report.total_coinciden} />
                 <PrintBox label="No coinciden" value={report.total_no_coinciden} />
                 <PrintBox label="Exactitud" value={`${report.porcentaje_exactitud}%`} />
-                <PrintBox label="Generó reconteo" value={report.genera_reconteo ? "Sí" : "No"} />
+                <PrintBox label="GenerÃ³ reconteo" value={report.genera_reconteo ? "SÃ­" : "No"} />
                 <PrintBox label="ID reconteo generado" value={report.reconteo_tarea_id || "-"} />
               </div>
 
@@ -779,11 +779,11 @@ export default function InformeInventario() {
                 </div>
                 <div style={signatureBoxStyle}>
                   <div style={signatureLineStyle} />
-                  <div style={signatureLabelStyle}>Supervisor / validación</div>
+                  <div style={signatureLabelStyle}>Supervisor / validaciÃ³n</div>
                 </div>
                 <div style={signatureBoxStyle}>
                   <div style={signatureLineStyle} />
-                  <div style={signatureLabelStyle}>Aprobación final</div>
+                  <div style={signatureLabelStyle}>AprobaciÃ³n final</div>
                 </div>
               </div>
             </section>
@@ -1298,3 +1298,4 @@ const signatureGridStyle = {
 const signatureBoxStyle = { textAlign: "center" };
 const signatureLineStyle = { borderTop: "1px solid #5c6c7c", marginBottom: 6, height: 1 };
 const signatureLabelStyle = { fontSize: 8.8, color: "#56697d", fontWeight: 700 };
+

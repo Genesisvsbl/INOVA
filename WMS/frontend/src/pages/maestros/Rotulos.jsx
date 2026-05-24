@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { eliminarRotulo as borrarRotulo, getRotulos } from "../../api";
 import {
   Tags,
@@ -299,7 +299,7 @@ function ModuleHeader({ title, subtitle, helper }) {
                 marginBottom: 4,
               }}
             >
-              Historial de rótulos
+              Historial de rÃ³tulos
             </div>
 
             <div
@@ -436,7 +436,7 @@ export default function Rotulos() {
 
   const mostrarAyudaDescarga = () => {
     alert(
-      `El archivo se descargará como rotulo_print.csv.\n\nGuárdalo o reemplázalo en esta ruta:\n${DOWNLOAD_HINT_PATH}\n\nLuego abre BarTender y dale Imprimir.`
+      `El archivo se descargarÃ¡ como rotulo_print.csv.\n\nGuÃ¡rdalo o reemplÃ¡zalo en esta ruta:\n${DOWNLOAD_HINT_PATH}\n\nLuego abre BarTender y dale Imprimir.`
     );
   };
 
@@ -481,7 +481,7 @@ export default function Rotulos() {
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Rótulo ${impresion}</title>
+  <title>RÃ³tulo ${impresion}</title>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 
   <style>
@@ -522,10 +522,10 @@ export default function Rotulos() {
 
     .logo-inova {
       position: absolute;
-      top: 2mm;
+      top: 1.6mm;
       left: 3mm;
-      width: 12mm;
-      height: 12mm;
+      width: 32mm;
+      height: 13mm;
       object-fit: contain;
       display: block;
     }
@@ -697,7 +697,7 @@ export default function Rotulos() {
 
 <body>
   <div class="label">
-    <img src="/INOVA-dark.png" class="logo-inova" alt="Logo Inova" />
+    <img src="/INOVA2026.png" class="logo-inova" alt="Logo Inova" />
     <img src="/favicon.ico" class="logo-b" alt="Logo B" />
 
     <div class="auxiliar">${auxiliar}</div>
@@ -705,7 +705,7 @@ export default function Rotulos() {
 
     <div class="info">
       <div class="line">
-        <div>FECHA FABRICACIÓN</div>
+        <div>FECHA FABRICACIÃ“N</div>
         <div>:</div>
         <div>${fechaFab}</div>
       </div>
@@ -800,7 +800,7 @@ export default function Rotulos() {
     const win = window.open("", "_blank", "width=700,height=400");
 
     if (!win) {
-      alert("El navegador bloqueó la ventana de impresión.");
+      alert("El navegador bloqueÃ³ la ventana de impresiÃ³n.");
       return;
     }
 
@@ -811,7 +811,7 @@ export default function Rotulos() {
 
   const eliminarRotulo = async (r) => {
     const ok = window.confirm(
-      `¿Seguro que deseas eliminar este rótulo?\n\nImpresión: ${
+      `Â¿Seguro que deseas eliminar este rÃ³tulo?\n\nImpresiÃ³n: ${
         r.impresion || ""
       }\nSerial: ${r.codigo_cita || ""}`
     );
@@ -820,19 +820,19 @@ export default function Rotulos() {
 
     try {
       await borrarRotulo(r.id);
-      alert("Rótulo eliminado correctamente");
+      alert("RÃ³tulo eliminado correctamente");
       load();
     } catch (e) {
-      alert("Error eliminando rótulo:\n" + (e?.message || e));
+      alert("Error eliminando rÃ³tulo:\n" + (e?.message || e));
     }
   };
 
   return (
     <div style={pageStyle}>
       <ModuleHeader
-        title="Rótulos por serial o impresión"
-        subtitle='Consulta por serial de cita o por serial exacto de impresión, por ejemplo "13002" o "13002-01".'
-        helper="Impresión y trazabilidad"
+        title="RÃ³tulos por serial o impresiÃ³n"
+        subtitle='Consulta por serial de cita o por serial exacto de impresiÃ³n, por ejemplo "13002" o "13002-01".'
+        helper="ImpresiÃ³n y trazabilidad"
       />
 
       <div style={panelStyle}>
@@ -881,7 +881,7 @@ export default function Rotulos() {
             </div>
 
             <div>
-              <div style={fieldLabelStyle}>Serial / impresión</div>
+              <div style={fieldLabelStyle}>Serial / impresiÃ³n</div>
 
               <input
                 value={serial}
@@ -940,7 +940,7 @@ export default function Rotulos() {
       </div>
 
       <div style={panelStyle}>
-        <div style={panelHeaderStyle}>Listado de rótulos</div>
+        <div style={panelHeaderStyle}>Listado de rÃ³tulos</div>
 
         <div style={{ width: "100%", overflowX: "hidden" }}>
           <table
@@ -953,9 +953,9 @@ export default function Rotulos() {
           >
             <thead>
               <tr>
-                <th style={{ ...thCompactStyle, width: "5.5%" }}>Serial impresión</th>
+                <th style={{ ...thCompactStyle, width: "5.5%" }}>Serial impresiÃ³n</th>
                 <th style={{ ...thCompactStyle, width: "5%" }}>Serial cita</th>
-                <th style={{ ...thCompactStyle, width: "5%" }}>Fecha recepción</th>
+                <th style={{ ...thCompactStyle, width: "5%" }}>Fecha recepciÃ³n</th>
                 <th style={{ ...thCompactStyle, width: "3%" }}>Semana</th>
                 <th style={{ ...thCompactStyle, width: "7%" }}>Proveedor</th>
                 <th style={{ ...thCompactStyle, width: "5.5%" }}>Auxiliar</th>
@@ -967,11 +967,11 @@ export default function Rotulos() {
                 <th style={{ ...thCompactStyle, width: "8.5%" }}>Texto breve</th>
                 <th style={{ ...thCompactStyle, width: "2.8%" }}>UM</th>
                 <th style={{ ...thCompactStyle, width: "3%" }}>UMB</th>
-                <th style={{ ...thCompactStyle, width: "5%" }}>F. fabricación</th>
+                <th style={{ ...thCompactStyle, width: "5%" }}>F. fabricaciÃ³n</th>
                 <th style={{ ...thCompactStyle, width: "5%" }}>F. vencimiento</th>
                 <th style={{ ...thCompactStyle, width: "5.2%" }}>Lote proveedor</th>
-                <th style={{ ...thCompactStyle, width: "5.5%" }}>Lote almacén</th>
-                <th style={{ ...thCompactStyle, width: "5%", textAlign: "center" }}>Acción</th>
+                <th style={{ ...thCompactStyle, width: "5.5%" }}>Lote almacÃ©n</th>
+                <th style={{ ...thCompactStyle, width: "5%", textAlign: "center" }}>AcciÃ³n</th>
               </tr>
             </thead>
 
@@ -979,7 +979,7 @@ export default function Rotulos() {
               {!loading && !err && rows.length === 0 && (
                 <tr>
                   <td colSpan={19} style={tdStyle}>
-                    No hay rótulos con esos filtros.
+                    No hay rÃ³tulos con esos filtros.
                   </td>
                 </tr>
               )}
@@ -1107,11 +1107,12 @@ export default function Rotulos() {
             fontWeight: 600,
           }}
         >
-          Usa <b>Imprimir</b> para generar el rótulo 2x4 directamente desde el
-          sistema. También puedes usar <b>Exportar</b> por fila para bajar solo
-          un rótulo como <b>rotulo_print.csv</b>.
+          Usa <b>Imprimir</b> para generar el rÃ³tulo 2x4 directamente desde el
+          sistema. TambiÃ©n puedes usar <b>Exportar</b> por fila para bajar solo
+          un rÃ³tulo como <b>rotulo_print.csv</b>.
         </div>
       </div>
     </div>
   );
 }
+

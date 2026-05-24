@@ -241,7 +241,7 @@ export default function Layout() {
         >
           <div className="sidebar-inner">
             <div className="sidebar-top">
-              {sidebarExpanded ? <BrandSidebar /> : <img className="sidebar-logo-mini" src="/inova-mark-dark.png" alt="INOVA" />}
+              {sidebarExpanded ? <BrandSidebar /> : <img className="sidebar-logo-mini" src="/INOVA2026.png" alt="INOVA" />}
             </div>
 
             <nav className="sidebar-nav" onClick={handleSidebarNavClick}>
@@ -406,7 +406,7 @@ export default function Layout() {
 function BrandHeader() {
   return (
     <div className="brand-header">
-      <img src="/INOVA.png" alt="INOVA" />
+      <img src="/INOVA2026.png" alt="INOVA" />
       <div>
         <small>WMS</small>
       </div>
@@ -417,7 +417,7 @@ function BrandHeader() {
 function BrandSidebar() {
   return (
     <div className="brand-sidebar">
-      <img src="/INOVA-dark.png" alt="INOVA" />
+      <img src="/INOVA2026.png" alt="INOVA" />
       <div>
         <small>WMS</small>
       </div>
@@ -998,3 +998,4 @@ button { -webkit-tap-highlight-color: transparent; }
   .top-icon-btn { width: 40px; height: 40px; border-radius: 13px; }
 }
 `;
+

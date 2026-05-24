@@ -242,11 +242,11 @@ export default function LoginPage() {
       "/ICONOINOVA.ico",
       "/INOVA1.jpeg",
       "/INOVA.jpeg",
-      "/inova-logo.png",
+      "/INOVA2026.png",
       "/WMS.png",
       fiveSImage,
       etoImage,
-      "/INOVA.png",
+      "/INOVA2026.png",
     ];
 
     let cancelled = false;
@@ -411,7 +411,7 @@ export default function LoginPage() {
             decoding="sync"
             onError={(event) => {
               if (event.currentTarget.src.includes("/INOVA2026.png")) {
-                event.currentTarget.src = "/INOVA-dark.png";
+                event.currentTarget.src = "/INOVA2026.png";
               }
             }}
           />
@@ -1366,4 +1366,5 @@ button { -webkit-tap-highlight-color: transparent; }
   .microsoft-button { height: 50px; }
 }
 `;
+
 

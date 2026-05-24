@@ -93,7 +93,7 @@ import {
 } from "./api5s";
 import "./calidad5s.css";
 
-const PRELOAD_IMAGES = ["/INOVA.png", "/INOVA-dark.png", "/inova-mark-dark.png", "/inova-logo.png"];
+const PRELOAD_IMAGES = ["/INOVA2026.png", "/INOVA2026.png", "/INOVA2026.png", "/INOVA2026.png"];
 
 const TABS_5S = [
   { key: "portal", label: "Portal", icon: Home },
@@ -165,7 +165,7 @@ function getConfig(width) {
 function LogoImage({ className = "", tone = "light" }) {
   return (
     <img
-      src={tone === "dark" ? "/INOVA-dark.png" : "/INOVA.png"}
+      src={tone === "dark" ? "/INOVA2026.png" : "/INOVA2026.png"}
       alt="INOVA"
       className={className}
       loading="eager"
@@ -6460,7 +6460,7 @@ export default function Calidad5S() {
               {sidebarExpanded ? (
                 <BrandSidebar />
               ) : (
-                <img className="sidebar-logo-mini" src="/inova-mark-dark.png" alt="INOVA" loading="eager" decoding="sync" fetchPriority="high" />
+                <img className="sidebar-logo-mini" src="/INOVA2026.png" alt="INOVA" loading="eager" decoding="sync" fetchPriority="high" />
               )}
             </div>
 
@@ -6518,4 +6518,5 @@ export default function Calidad5S() {
     </div>
   );
 }
+
 
