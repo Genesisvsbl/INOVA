@@ -123,12 +123,11 @@ export default function Layout() {
     : (sidebarExpanded ? config.sidebarExpanded : config.sidebarCollapsed) + config.gap * 2;
 
   const toggleMenu = (key) => {
-    if (!sidebarExpanded) return;
+    if (!sidebarExpanded) {
+      setSidebarPinned(true);
+    }
 
-    // Solo permite un módulo abierto a la vez:
-    // si abres uno, automáticamente se cierra el anterior.
-    // si vuelves a tocar el mismo, se cierra.
-    setOpenMenu((value) => (value === key ? null : key));
+    setOpenMenu(key);
   };
 
   const closeMobileMenu = () => {
@@ -275,9 +274,7 @@ export default function Layout() {
                   event.stopPropagation();
                   toggleMenu("datosMaestros");
                 }}
-                onMouseEnter={() => {
-                  if (sidebarExpanded) setOpenMenu("datosMaestros");
-                }}
+                onMouseEnter={() => setOpenMenu("datosMaestros")}
                 title="Datos maestros"
               >
                 <span className="menu-left">
@@ -305,9 +302,7 @@ export default function Layout() {
                   event.stopPropagation();
                   toggleMenu("movimientos");
                 }}
-                onMouseEnter={() => {
-                  if (sidebarExpanded) setOpenMenu("movimientos");
-                }}
+                onMouseEnter={() => setOpenMenu("movimientos")}
                 title="Movimientos"
               >
                 <span className="menu-left">
@@ -337,9 +332,7 @@ export default function Layout() {
                   event.stopPropagation();
                   toggleMenu("inventarios");
                 }}
-                onMouseEnter={() => {
-                  if (sidebarExpanded) setOpenMenu("inventarios");
-                }}
+                onMouseEnter={() => setOpenMenu("inventarios")}
                 title="Inventarios"
               >
                 <span className="menu-left">
