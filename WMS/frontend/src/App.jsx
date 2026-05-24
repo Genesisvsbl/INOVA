@@ -37,6 +37,7 @@ import InformeInventario from "./pages/inventarios/InformeInventario";
 
 /* ================= LOGIN ================= */
 import LoginPage from "./pages/LoginPage";
+import AdminAccess from "./pages/admin/AdminAccess";
 
 
 function useGlobalTableTools() {
@@ -282,6 +283,10 @@ function AppRoutes() {
           </Route>
 
           <Route path="stock" element={<Stock />} />
+          <Route path="admin/usuarios" element={<AdminAccess view="usuarios" />} />
+          <Route path="admin/roles" element={<AdminAccess view="roles" />} />
+          <Route path="admin/auditoria" element={<AdminAccess view="auditoria" />} />
+          <Route path="admin/configuracion" element={<AdminAccess view="empresas" />} />
           <Route path="*" element={<div>Ruta no encontrada</div>} />
         </Route>
       </Routes>

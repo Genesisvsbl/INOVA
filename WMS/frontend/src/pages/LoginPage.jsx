@@ -15,8 +15,10 @@ import {
   User,
   X,
 } from "lucide-react";
+import { autenticarUsuario, solicitarAcceso } from "../adminApi";
 const fiveSImage = "/5S.png";
 const etoImage = "/ETO.png";
+const ALLOW_LEGACY_LOGIN = import.meta.env.VITE_ALLOW_LEGACY_LOGIN === "true";
 
 const ADMIN_PERMISSIONS = [
   "usuarios.ver",
@@ -231,6 +233,8 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [assetsReady, setAssetsReady] = useState(true);
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [requestStatus, setRequestStatus] = useState("");
 
   const selectedPillar = useMemo(
     () => PILLARS.find((pillar) => pillar.id === selectedPillarId) || PILLARS[0],
@@ -300,7 +304,7 @@ export default function LoginPage() {
     setPassword("");
   };
 
-  const login = () => {
+  const login = async () => {
     setError("");
 
     if (!usuario.trim() || !password.trim()) {
@@ -310,24 +314,35 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    setTimeout(() => {
+    try {
       const usuarioInput = usuario.trim();
       const passwordInput = password.trim();
-
       const plataformaSeleccionada = selectedPillar.id;
+      let usuarioEncontrado;
 
-      const usuarioEncontrado = USERS_MOCK.find((u) => {
-        const samePlatform = u.plataforma === plataformaSeleccionada;
-        const isGlobalAdmin = u.rol === "SUPER_ADMIN";
-        const sameUser = u.usuario.toLowerCase() === usuarioInput.toLowerCase();
+      try {
+        usuarioEncontrado = await autenticarUsuario({
+          usuario: usuarioInput,
+          password: passwordInput,
+          pilar: plataformaSeleccionada,
+        });
+      } catch (supabaseError) {
+        if (!ALLOW_LEGACY_LOGIN) throw supabaseError;
 
-        const samePassword =
-          u.plataforma === "eto"
-            ? u.password.toUpperCase() === passwordInput.toUpperCase()
-            : u.password === passwordInput;
+        usuarioEncontrado = USERS_MOCK.find((u) => {
+          const samePlatform = u.plataforma === plataformaSeleccionada;
+          const isGlobalAdmin = u.rol === "SUPER_ADMIN";
+          const sameUser = u.usuario.toLowerCase() === usuarioInput.toLowerCase();
+          const samePassword =
+            u.plataforma === "eto"
+              ? u.password.toUpperCase() === passwordInput.toUpperCase()
+              : u.password === passwordInput;
 
-        return (samePlatform || isGlobalAdmin) && sameUser && samePassword;
-      });
+          return (samePlatform || isGlobalAdmin) && sameUser && samePassword;
+        });
+
+        if (!usuarioEncontrado) throw supabaseError;
+      }
 
       if (!usuarioEncontrado) {
         setError("Credenciales incorrectas.");
@@ -380,7 +395,16 @@ export default function LoginPage() {
       }
 
       window.location.href = selectedPillar.route;
-    }, 450);
+    } catch (err) {
+      setError(err?.message || "No se pudo validar el acceso.");
+      setLoading(false);
+    }
+  };
+
+  const submitAccessRequest = async (payload) => {
+    setRequestStatus("");
+    await solicitarAcceso(payload);
+    setRequestStatus("Solicitud enviada. La super administradora revisará y aprobará el acceso.");
   };
 
   return (
@@ -475,9 +499,22 @@ export default function LoginPage() {
               loading={loading}
               login={login}
               back={() => setShowLogin(false)}
+              requestAccess={() => setRequestOpen(true)}
             />
           </section>
         </main>
+      )}
+
+      {requestOpen && (
+        <AccessRequestModal
+          pillar={selectedPillar}
+          status={requestStatus}
+          onClose={() => {
+            setRequestOpen(false);
+            setRequestStatus("");
+          }}
+          onSubmit={submitAccessRequest}
+        />
       )}
     </div>
   );
@@ -577,6 +614,7 @@ function LoginCard({
   loading,
   login,
   back,
+  requestAccess,
 }) {
   const usuarioRef = useRef(null);
   const passwordRef = useRef(null);
@@ -694,8 +732,85 @@ function LoginCard({
           Iniciar sesión con Microsoft
         </button>
 
-        <small className="login-note">¿No tienes acceso? Contacta a tu administrador.</small>
+        <small className="login-note">
+          ¿No tienes acceso? <button type="button" className="request-link" onClick={requestAccess}>Solicitar acceso</button>
+        </small>
       </div>
+    </div>
+  );
+}
+
+function AccessRequestModal({ pillar, status, onClose, onSubmit }) {
+  const [form, setForm] = useState({
+    nombre_completo: "",
+    documento: "",
+    email: "",
+    telefono: "",
+    empresa_nombre: "",
+    cargo: "",
+    pilar: pillar.id,
+    eto_nivel: "1",
+    motivo: "",
+  });
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setForm((prev) => ({ ...prev, pilar: pillar.id }));
+  }, [pillar.id]);
+
+  const setValue = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  const submit = async () => {
+    setError("");
+    if (!form.nombre_completo.trim() || !form.documento.trim() || !form.email.trim() || !form.empresa_nombre.trim()) {
+      setError("Completa nombre, documento, correo y empresa.");
+      return;
+    }
+
+    setSending(true);
+    try {
+      await onSubmit(form);
+    } catch (err) {
+      setError(err?.message || "No se pudo enviar la solicitud.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="access-modal-backdrop">
+      <section
+        className="access-modal"
+        style={{ "--accent": pillar.accent, "--accent2": pillar.accent2, "--glow": pillar.glow }}
+      >
+        <button type="button" className="access-close" onClick={onClose} aria-label="Cerrar solicitud">
+          <X size={18} />
+        </button>
+        <span>Solicitud de acceso</span>
+        <h2>{pillar.title}</h2>
+        <p>Tu solicitud quedará pendiente para aprobación de la super administradora.</p>
+
+        {error ? <div className="error-box">{error}</div> : null}
+        {status ? <div className="success-box">{status}</div> : null}
+
+        <div className="access-form-grid">
+          <label>Nombre completo<input value={form.nombre_completo} onChange={(event) => setValue("nombre_completo", event.target.value)} /></label>
+          <label>Cédula / documento<input value={form.documento} onChange={(event) => setValue("documento", event.target.value)} /></label>
+          <label>Correo electrónico<input value={form.email} onChange={(event) => setValue("email", event.target.value)} /></label>
+          <label>Teléfono<input value={form.telefono} onChange={(event) => setValue("telefono", event.target.value)} /></label>
+          <label>Empresa<input value={form.empresa_nombre} onChange={(event) => setValue("empresa_nombre", event.target.value)} /></label>
+          <label>Cargo<input value={form.cargo} onChange={(event) => setValue("cargo", event.target.value)} /></label>
+          {pillar.id === "eto" && (
+            <label>Nivel ETO<select value={form.eto_nivel} onChange={(event) => setValue("eto_nivel", event.target.value)}><option value="1">Nivel 1</option><option value="2">Nivel 2</option></select></label>
+          )}
+          <label className="full">Motivo<textarea value={form.motivo} onChange={(event) => setValue("motivo", event.target.value)} /></label>
+        </div>
+
+        <button type="button" className="login-submit" onClick={submit} disabled={sending || Boolean(status)}>
+          {sending ? "Enviando solicitud..." : "Enviar solicitud"}
+        </button>
+      </section>
     </div>
   );
 }
@@ -1199,6 +1314,20 @@ button { -webkit-tap-highlight-color: transparent; }
 .ms-grid i:nth-child(3) { background: #00a4ef; }
 .ms-grid i:nth-child(4) { background: #ffb900; }
 .login-note { display: block; margin-top: 14px; text-align: center; color: rgba(255,255,255,.52); line-height: 1.35; }
+.request-link { border: 0; background: transparent; color: #fff; padding: 0; font-weight: 950; text-decoration: underline; cursor: pointer; }
+.success-box { color: #064e3b; background: #dcfce7; border: 1px solid #86efac; border-radius: 14px; padding: 11px 12px; font-size: 13px; font-weight: 850; }
+.access-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: rgba(3,7,18,.66); backdrop-filter: blur(8px); }
+.access-modal { position: relative; width: min(760px, 100%); max-height: calc(100vh - 36px); overflow: auto; border: 1px solid rgba(255,255,255,.16); border-radius: 26px; background: linear-gradient(135deg, rgba(12,18,35,.98), rgba(22,31,52,.96)); box-shadow: 0 34px 90px rgba(0,0,0,.42); padding: 28px; }
+.access-modal > span { color: var(--accent); text-transform: uppercase; letter-spacing: .14em; font-size: 11px; font-weight: 950; }
+.access-modal h2 { margin: 6px 0 4px; font-size: 32px; }
+.access-modal p { margin: 0 0 18px; color: rgba(255,255,255,.68); }
+.access-close { position: absolute; top: 16px; right: 16px; width: 38px; height: 38px; border-radius: 12px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.08); color: #fff; display: grid; place-items: center; cursor: pointer; }
+.access-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+.access-form-grid label { display: grid; gap: 7px; color: rgba(255,255,255,.76); font-size: 12px; font-weight: 850; }
+.access-form-grid .full { grid-column: 1 / -1; }
+.access-form-grid input, .access-form-grid select, .access-form-grid textarea { width: 100%; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.08); color: #fff; border-radius: 14px; padding: 11px 12px; outline: none; }
+.access-form-grid textarea { min-height: 86px; resize: vertical; }
+.access-form-grid option { color: #111827; }
 
 .mobile-login-back {
   display: none;
