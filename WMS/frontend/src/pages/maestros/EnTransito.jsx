@@ -274,7 +274,7 @@ function ModuleHeader({ title, subtitle, helper }) {
                 marginBottom: 4,
               }}
             >
-              En trÃ¡nsito
+              En tránsito
             </div>
 
             <div
@@ -480,7 +480,7 @@ export default function EnTransito() {
     }));
   };
 
-  const pedirManual = (id, mensaje = "Escribe o pega el cÃ³digo de ubicaciÃ³n:") => {
+  const pedirManual = (id, mensaje = "Escribe o pega el código de ubicación:") => {
     const manual = window.prompt(mensaje);
 
     if (manual !== null) {
@@ -500,7 +500,7 @@ export default function EnTransito() {
     const fallbackManual = () => {
       pedirManual(
         id,
-        "No se pudo decodificar automÃ¡ticamente. Escribe o pega el cÃ³digo de ubicaciÃ³n:"
+        "No se pudo decodificar automáticamente. Escribe o pega el código de ubicación:"
       );
     };
 
@@ -634,7 +634,7 @@ export default function EnTransito() {
     if (!navigator.mediaDevices?.getUserMedia) {
       pedirManual(
         id,
-        "Este dispositivo no permite abrir cÃ¡mara desde el navegador. Escribe o pega el cÃ³digo de ubicaciÃ³n:"
+        "Este dispositivo no permite abrir cámara desde el navegador. Escribe o pega el código de ubicación:"
       );
       return;
     }
@@ -674,7 +674,7 @@ export default function EnTransito() {
       header.style.borderBottom = "1px solid #e2e8f0";
 
       const title = document.createElement("div");
-      title.innerText = "Escanear ubicaciÃ³n";
+      title.innerText = "Escanear ubicación";
       title.style.fontWeight = "900";
       title.style.color = "#0f2744";
 
@@ -692,7 +692,7 @@ export default function EnTransito() {
       body.style.padding = "14px";
 
       const help = document.createElement("div");
-      help.innerText = "Apunta la cÃ¡mara al cÃ³digo QR o cÃ³digo de barras de la ubicaciÃ³n.";
+      help.innerText = "Apunta la cámara al código QR o código de barras de la ubicación.";
       help.style.fontSize = "13px";
       help.style.fontWeight = "700";
       help.style.color = "#64748B";
@@ -752,7 +752,7 @@ export default function EnTransito() {
       closeBtn.onclick = cleanup;
 
       manualBtn.onclick = () => {
-        const manual = window.prompt("Escribe o pega el cÃ³digo de ubicaciÃ³n:");
+        const manual = window.prompt("Escribe o pega el código de ubicación:");
         if (manual !== null) {
           onChangeUbic(id, manual);
           cleanup();
@@ -809,7 +809,7 @@ export default function EnTransito() {
 
       pedirManual(
         id,
-        "No se pudo abrir la cÃ¡mara. Escribe o pega el cÃ³digo de ubicaciÃ³n:"
+        "No se pudo abrir la cámara. Escribe o pega el código de ubicación:"
       );
 
       setScanningId(null);
@@ -853,7 +853,7 @@ export default function EnTransito() {
       <html lang="es">
         <head>
           <meta charset="UTF-8" />
-          <title>Soporte Materiales en TrÃ¡nsito</title>
+          <title>Soporte Materiales en Tránsito</title>
           <style>
             @page { size: A4 landscape; margin: 10mm; }
             * { box-sizing: border-box; }
@@ -882,13 +882,13 @@ export default function EnTransito() {
               <div class="header-left">
                 <img src="${window.location.origin}/INOVA2026.png" alt="Logo" class="logo" onerror="this.style.display='none'" />
                 <div>
-                  <h1 class="title">SOPORTE DE MATERIALES EN TRÃNSITO</h1>
-                  <div class="subtitle">Material pendiente por ubicaciÃ³n definitiva</div>
+                  <h1 class="title">SOPORTE DE MATERIALES EN TRÁNSITO</h1>
+                  <div class="subtitle">Material pendiente por ubicación definitiva</div>
                 </div>
               </div>
 
               <div class="meta">
-                <div>Fecha impresiÃ³n: ${fmtDateTime(new Date())}</div>
+                <div>Fecha impresión: ${fmtDateTime(new Date())}</div>
                 <div>Total registros: ${filtered.length}</div>
               </div>
             </div>
@@ -911,12 +911,12 @@ export default function EnTransito() {
                   <th>Estado</th>
                   <th>Usuario</th>
                   <th>Documento</th>
-                  <th>CÃ³digo Cita</th>
+                  <th>Código Cita</th>
                   <th>Proveedor</th>
                   <th>Material</th>
-                  <th>DescripciÃ³n</th>
+                  <th>Descripción</th>
                   <th>UM</th>
-                  <th>Lote AlmacÃ©n</th>
+                  <th>Lote Almacén</th>
                   <th>Lote Proveedor</th>
                   <th>F. Vencimiento</th>
                   <th>Cantidad</th>
@@ -926,7 +926,7 @@ export default function EnTransito() {
             </table>
 
             <div class="footer">
-              Documento generado desde la hoja de materiales en trÃ¡nsito del WMS.
+              Documento generado desde la hoja de materiales en tránsito del WMS.
             </div>
           </div>
         </body>
@@ -938,7 +938,7 @@ export default function EnTransito() {
     const printWindow = window.open("", "_blank", "width=1400,height=900");
 
     if (!printWindow) {
-      alert("El navegador bloqueÃ³ la ventana de impresiÃ³n.");
+      alert("El navegador bloqueó la ventana de impresión.");
       return;
     }
 
@@ -957,7 +957,7 @@ export default function EnTransito() {
     const ubicacion = normalizeUbicacion(ubicPorId[row.id]);
 
     if (!ubicacion) {
-      alert("Debes escribir, seleccionar, escanear o subir foto de una ubicaciÃ³n.");
+      alert("Debes escribir, seleccionar, escanear o subir foto de una ubicación.");
       return;
     }
 
@@ -965,7 +965,7 @@ export default function EnTransito() {
 
     if (!esValida) {
       alert(
-        `La ubicaciÃ³n "${ubicacion}" no existe en la lista de ubicaciones vÃ¡lidas. Verifica el cÃ³digo.`
+        `La ubicación "${ubicacion}" no existe en la lista de ubicaciones válidas. Verifica el código.`
       );
       return;
     }
@@ -975,10 +975,10 @@ export default function EnTransito() {
     try {
       await asignarUbicacionDesdeTransito(row.id, ubicacion);
 
-      alert(`UbicaciÃ³n ${ubicacion} asignada al material ${row.codigo_material}`);
+      alert(`Ubicación ${ubicacion} asignada al material ${row.codigo_material}`);
       await cargarTodo();
     } catch (e) {
-      alert("Error asignando ubicaciÃ³n:\n" + (e?.message || e));
+      alert("Error asignando ubicación:\n" + (e?.message || e));
     } finally {
       setSavingId(null);
     }
@@ -1001,8 +1001,8 @@ export default function EnTransito() {
       />
 
       <ModuleHeader
-        title="Materiales sin ubicaciÃ³n asignada"
-        subtitle="Listado operativo de material pendiente por ubicar y asignaciÃ³n definitiva."
+        title="Materiales sin ubicación asignada"
+        subtitle="Listado operativo de material pendiente por ubicar y asignación definitiva."
         helper="Pendiente por ubicar"
       />
 
@@ -1094,19 +1094,19 @@ export default function EnTransito() {
                 <th style={{ ...thStyle, width: "5.8%" }}>Estado</th>
                 <th style={{ ...thStyle, width: "4.7%" }}>Usuario</th>
                 <th style={{ ...thStyle, width: "4.8%" }}>Material</th>
-                <th style={{ ...thStyle, width: "15.8%" }}>DescripciÃ³n</th>
+                <th style={{ ...thStyle, width: "15.8%" }}>Descripción</th>
                 <th style={{ ...thStyle, width: "3.5%" }}>Unidad</th>
                 <th style={{ ...thStyle, width: "5.8%" }}>Familia</th>
                 <th style={{ ...thStyle, width: "2.7%" }}>UM</th>
                 <th style={{ ...thStyle, width: "3%" }}>UMB</th>
-                <th style={{ ...thStyle, width: "7.1%" }}>Lote almacÃ©n</th>
+                <th style={{ ...thStyle, width: "7.1%" }}>Lote almacén</th>
                 <th style={{ ...thStyle, width: "6.2%" }}>Lote proveedor</th>
-                <th style={{ ...thStyle, width: "5.4%" }}>F. fabricaciÃ³n</th>
+                <th style={{ ...thStyle, width: "5.4%" }}>F. fabricación</th>
                 <th style={{ ...thStyle, width: "5.4%" }}>F. vencimiento</th>
                 <th style={{ ...thStyle, width: "4.8%", textAlign: "right" }}>Cantidad</th>
-                <th style={{ ...thStyle, width: "8.4%" }}>Asignar ubicaciÃ³n</th>
+                <th style={{ ...thStyle, width: "8.4%" }}>Asignar ubicación</th>
                 <th style={{ ...thStyle, width: "3.8%", textAlign: "center" }}>Valid.</th>
-                <th style={{ ...thStyle, width: "3%", textAlign: "center" }}>AcciÃ³n</th>
+                <th style={{ ...thStyle, width: "3%", textAlign: "center" }}>Acción</th>
               </tr>
             </thead>
 
@@ -1114,7 +1114,7 @@ export default function EnTransito() {
               {!loading && !err && filtered.length === 0 && (
                 <tr>
                   <td colSpan={17} style={tdStyle}>
-                    No hay materiales en trÃ¡nsito.
+                    No hay materiales en tránsito.
                   </td>
                 </tr>
               )}
@@ -1126,7 +1126,7 @@ export default function EnTransito() {
                   <tr key={r.id}>
                     <td style={{ ...tdStyle, fontSize: 8.5 }}>{fmtDateTime(r.fecha)}</td>
                     <td style={{ ...tdStyle, padding: "5px 2px", whiteSpace: "nowrap" }}>
-                      <StatusChip label="EN TRÃNSITO" tone="amber" />
+                      <StatusChip label="EN TRÁNSITO" tone="amber" />
                     </td>
                     <td style={{ ...tdStyle, fontSize: 8.6 }}>{r.usuario || ""}</td>
                     <td style={{ ...tdStyle, fontWeight: 900, color: colors.navy, fontSize: 9 }}>
@@ -1159,7 +1159,7 @@ export default function EnTransito() {
                           list="ubicacionesListEnTransito"
                           value={ubicPorId[r.id] || ""}
                           onChange={(e) => onChangeUbic(r.id, e.target.value)}
-                          placeholder="UbicaciÃ³n"
+                          placeholder="Ubicación"
                           style={{
                             ...inputStyle,
                             width: "100%",
@@ -1186,7 +1186,7 @@ export default function EnTransito() {
                           type="button"
                           onClick={() => escanearUbicacion(r)}
                           disabled={scanningId === r.id}
-                          title="Escanear con cÃ¡mara"
+                          title="Escanear con cámara"
                           style={{
                             ...iconButtonStyle,
                             width: 20,
@@ -1204,7 +1204,7 @@ export default function EnTransito() {
                         <button
                           type="button"
                           onClick={() => abrirSelectorImagen(r)}
-                          title="Subir foto del cÃ³digo"
+                          title="Subir foto del código"
                           style={{
                             ...iconButtonStyle,
                             width: 20,
@@ -1305,8 +1305,8 @@ export default function EnTransito() {
       </div>
 
       <div style={{ color: colors.muted, fontSize: 12, fontWeight: 600 }}>
-        Desde esta hoja puedes exportar CSV, imprimir soporte, usar lector fÃ­sico,
-        cÃ¡mara o foto para asignar ubicaciÃ³n definitiva al material pendiente.
+        Desde esta hoja puedes exportar CSV, imprimir soporte, usar lector físico,
+        cámara o foto para asignar ubicación definitiva al material pendiente.
       </div>
     </div>
   );
