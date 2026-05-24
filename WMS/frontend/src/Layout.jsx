@@ -92,8 +92,15 @@ export default function Layout() {
       setSidebarHover(false);
     }
 
-    // Al cambiar de ruta, todos los módulos quedan cerrados.
-    setOpenMenu(null);
+    if (location.pathname.startsWith("/datos-maestros")) {
+      setOpenMenu("datosMaestros");
+    } else if (location.pathname.startsWith("/movimientos")) {
+      setOpenMenu("movimientos");
+    } else if (location.pathname.startsWith("/inventarios")) {
+      setOpenMenu("inventarios");
+    } else {
+      setOpenMenu(null);
+    }
   }, [config.isMobile, location.pathname]);
 
   const isDatosActive = location.pathname.startsWith("/datos-maestros");
@@ -102,6 +109,14 @@ export default function Layout() {
   const isAdminUsuariosActive = location.pathname.startsWith("/admin/usuarios");
   const isAdminRolesActive = location.pathname.startsWith("/admin/roles");
   const isAdminAuditoriaActive = location.pathname.startsWith("/admin/auditoria");
+  const activeMenu = isDatosActive
+    ? "datosMaestros"
+    : isMovimientosActive
+      ? "movimientos"
+      : isInventariosActive
+        ? "inventarios"
+        : null;
+  const visibleOpenMenu = openMenu || activeMenu;
 
   const contentPaddingLeft = config.isMobile
     ? config.gap
@@ -267,10 +282,10 @@ export default function Layout() {
                   <Database size={18} />
                   {sidebarExpanded && <span>Datos maestros</span>}
                 </span>
-                {sidebarExpanded && (openMenu === "datosMaestros" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
+                {sidebarExpanded && (visibleOpenMenu === "datosMaestros" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
               </button>
 
-              {sidebarExpanded && openMenu === "datosMaestros" && (
+              {sidebarExpanded && visibleOpenMenu === "datosMaestros" && (
                 <SubNav>
                   <NavLink to="/datos-maestros/materiales" style={childNavStyle}>Materiales</NavLink>
                   <NavLink to="/datos-maestros/proveedores" style={childNavStyle}>Proveedores</NavLink>
@@ -295,10 +310,10 @@ export default function Layout() {
                   <ArrowRightLeft size={18} />
                   {sidebarExpanded && <span>Movimientos</span>}
                 </span>
-                {sidebarExpanded && (openMenu === "movimientos" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
+                {sidebarExpanded && (visibleOpenMenu === "movimientos" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
               </button>
 
-              {sidebarExpanded && openMenu === "movimientos" && (
+              {sidebarExpanded && visibleOpenMenu === "movimientos" && (
                 <SubNav>
                   <NavLink to="/movimientos/recibo" style={childNavStyle}>Recibo</NavLink>
                   <NavLink to="/movimientos/despacho" style={childNavStyle}>Despacho</NavLink>
@@ -325,10 +340,10 @@ export default function Layout() {
                   <ClipboardCheck size={18} />
                   {sidebarExpanded && <span>Inventarios</span>}
                 </span>
-                {sidebarExpanded && (openMenu === "inventarios" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
+                {sidebarExpanded && (visibleOpenMenu === "inventarios" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
               </button>
 
-              {sidebarExpanded && openMenu === "inventarios" && (
+              {sidebarExpanded && visibleOpenMenu === "inventarios" && (
                 <SubNav>
                   <NavLink to="/inventarios" style={childNavStyle}>Panel inventarios</NavLink>
                   <NavLink to="/inventarios/crear-tarea" style={childNavStyle}>Crear tarea</NavLink>
@@ -971,6 +986,4 @@ button { -webkit-tap-highlight-color: transparent; }
   .top-icon-btn { width: 40px; height: 40px; border-radius: 13px; }
 }
 `;
-
-
 
