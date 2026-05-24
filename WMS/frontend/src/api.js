@@ -441,13 +441,40 @@ export function importarProveedoresExcel(file) {
 
 export function getUbicaciones(search = "") {
   if (supabaseEnabled) {
+    if (!search) {
+      const loadAll = async () => {
+        const all = [];
+        let lastId = 0;
+        const pageSize = 1000;
+
+        while (true) {
+          const rows = await selectRows("wms", "ubicaciones", {
+            empresa_id: `eq.${empresaId}`,
+            id: `gt.${lastId}`,
+            select: "*",
+            order: "id.asc",
+            limit: String(pageSize),
+          });
+
+          if (!Array.isArray(rows) || rows.length === 0) break;
+          all.push(...rows);
+          lastId = Number(rows[rows.length - 1]?.id || lastId);
+          if (rows.length < pageSize) break;
+        }
+
+        return all.sort((a, b) => String(a.ubicacion || "").localeCompare(String(b.ubicacion || "")));
+      };
+
+      return loadAll();
+    }
+
     const params = {
       empresa_id: `eq.${empresaId}`,
       select: "*",
       order: "ubicacion.asc",
-      limit: "5000",
+      limit: "1000",
     };
-    if (search) params.or = `(ubicacion.ilike.*${search}*,ubicacion_base.ilike.*${search}*,zona.ilike.*${search}*,bodega.ilike.*${search}*)`;
+    params.or = `(ubicacion.ilike.*${search}*,ubicacion_base.ilike.*${search}*,zona.ilike.*${search}*,bodega.ilike.*${search}*)`;
     return selectRows("wms", "ubicaciones", params);
   }
 
