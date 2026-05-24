@@ -15,9 +15,10 @@ from database import Base
 
 class Process(Base):
     __tablename__ = "processes"
+    __table_args__ = (UniqueConstraint("level", "name", name="uq_process_level_name"),)
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False, unique=True, index=True)
+    name = Column(String, nullable=False, index=True)
     level = Column(Integer, nullable=False)
 
     indicators = relationship("Indicator", back_populates="process", cascade="all, delete")

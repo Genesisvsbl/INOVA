@@ -84,7 +84,7 @@ export default function PortalView({
       <section className="portal-hero">
         <div className="portal-hero-copy">
           <span className="section-kicker">VISIÓN GENERAL</span>
-          <h2>Centro de control ETO DIGITAL</h2>
+          <h2>Centro de control ETO</h2>
           <p>
             Plataforma corporativa para parametrizar indicadores, capturar
             resultados y analizar desempeño operativo por proceso.
@@ -135,7 +135,7 @@ export default function PortalView({
               </div>
               <div>
                 <small>Sesión</small>
-                <b>ETO DIGITAL</b>
+                <b>ETO</b>
               </div>
               <div>
                 <small>Monitoreo</small>

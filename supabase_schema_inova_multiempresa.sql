@@ -388,7 +388,7 @@ create table if not exists eto_digital.processes (
   empresa_id bigint not null references public.empresas(id),
   name text not null,
   level integer not null,
-  unique (empresa_id, name)
+  unique (empresa_id, level, name)
 );
 
 create table if not exists eto_digital.indicators (

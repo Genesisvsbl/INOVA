@@ -21,7 +21,7 @@ const INOVA_LOGIN_URL =
   "https://inova-delta.vercel.app/login?resetLogin=true";
 
 export default function EtoPortal() {
-  const [status, setStatus] = useState("Preparando entorno ETO DIGITAL...");
+  const [status, setStatus] = useState("Preparando entorno ETO...");
   const [attempt, setAttempt] = useState(1);
   const [progress, setProgress] = useState(12);
 
@@ -163,7 +163,7 @@ export default function EtoPortal() {
             ACCESO AUTORIZADO
           </span>
 
-          <h1>ETO DIGITAL</h1>
+          <h1>ETO</h1>
 
           <p>{status}</p>
         </div>
@@ -253,7 +253,7 @@ body {
   background:
     radial-gradient(circle at 50% -4%, rgba(74,222,128,.30), transparent 24%),
     radial-gradient(circle at 16% 24%, rgba(34,197,94,.20), transparent 28%),
-    radial-gradient(circle at 86% 36%, rgba(6,182,212,.20), transparent 30%),
+    radial-gradient(circle at 86% 36%, rgba(34,197,94,.20), transparent 30%),
     radial-gradient(circle at 50% 112%, rgba(34,197,94,.26), transparent 36%),
     linear-gradient(135deg, #010806 0%, #03140f 36%, #041827 72%, #020617 100%);
 }
@@ -571,7 +571,7 @@ body {
 .progress-bar {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #22c55e, #4ade80, #14b8a6, #38bdf8, #a855f7);
+  background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80, #86efac, #bbf7d0);
   box-shadow:
     0 0 24px rgba(34,197,94,.58),
     0 0 12px rgba(56,189,248,.32);

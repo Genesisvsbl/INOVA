@@ -43,7 +43,7 @@ function mapEtoParams(resource, searchParams) {
     }
   });
 
-  if (resource === "processes") params.order = "name.asc";
+  if (resource === "processes") params.order = "id.asc";
   if (resource === "indicators") params.order = "name.asc";
   if (resource === "entities") params.order = "name.asc";
   if (resource === "daily-records" || resource === "entity-records") params.order = "record_date.desc";

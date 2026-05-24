@@ -114,9 +114,9 @@ export default function ProcessesView({
               </thead>
 
               <tbody>
-                {processes.map((item) => (
+                {processes.map((item, index) => (
                   <tr key={item.id}>
-                    <td>{item.id}</td>
+                    <td>{index + 1}</td>
 
                     <td>
                       <strong className="process-name">{item.name}</strong>

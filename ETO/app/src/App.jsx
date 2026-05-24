@@ -51,7 +51,7 @@ const COLORS = {
   green: "#16a34a",
   green2: "#22c55e",
   emerald: "#10b981",
-  cyan: "#38bdf8",
+  cyan: "#22c55e",
   text: "#10162f",
   muted: "#667085",
   line: "#e7ecf4",
@@ -150,7 +150,7 @@ function LogoImage({ className = "" }) {
   return (
     <img
       src="/INOVA.png"
-      alt="ETO DIGITAL"
+      alt="ETO"
       className={className}
       loading="eager"
       decoding="sync"
@@ -365,7 +365,7 @@ function PortalView({
               </div>
               <div>
                 <small>Sesión</small>
-                <b>ETO DIGITAL</b>
+                <b>ETO</b>
               </div>
               <div>
                 <small>Monitoreo</small>
@@ -1226,7 +1226,7 @@ export default function App() {
       >
         <div style={{ textAlign: "center" }}>
           <strong style={{ display: "block", fontSize: 22, marginBottom: 8 }}>
-            Preparando ETO DIGITAL...
+            Preparando ETO...
           </strong>
           <span style={{ color: "rgba(255,255,255,.68)", fontSize: 14 }}>
             Cargando recursos visuales.
@@ -1445,7 +1445,7 @@ function BrandHeader() {
     <div className="brand-header">
       <img src="/INOVA.png" alt="INOVA" loading="eager" decoding="sync" fetchPriority="high" />
       <div>
-        <small>ETO DIGITAL</small>
+        <small>ETO</small>
       </div>
     </div>
   );
@@ -1456,7 +1456,7 @@ function BrandSidebar() {
     <div className="brand-sidebar">
       <img src="/INOVA-dark.png" alt="INOVA" loading="eager" decoding="sync" fetchPriority="high" />
       <div>
-        <small>ETO DIGITAL</small>
+        <small>ETO</small>
       </div>
     </div>
   );
@@ -1518,7 +1518,7 @@ button { -webkit-tap-highlight-color: transparent; }
   color: #10162f;
   background:
     radial-gradient(circle at 8% -8%, rgba(34,197,94,.14), transparent 30%),
-    radial-gradient(circle at 90% 0%, rgba(14,165,233,.10), transparent 30%),
+    radial-gradient(circle at 90% 0%, rgba(34,197,94,.10), transparent 30%),
     linear-gradient(135deg, rgba(255,255,255,.44) 0 1px, transparent 1px),
     linear-gradient(180deg, #f8fbff 0%, #edf4fb 48%, #e9f1f9 100%);
   background-size: auto, auto, 42px 42px, auto;
@@ -1535,8 +1535,8 @@ button { -webkit-tap-highlight-color: transparent; }
   padding: 0 clamp(16px, 2vw, 28px);
   background:
     radial-gradient(circle at 18% 100%, rgba(34,197,94,.30), transparent 13%),
-    radial-gradient(circle at 78% 100%, rgba(6,182,212,.24), transparent 15%),
-    linear-gradient(90deg, #050713 0%, #07100c 34%, #06251e 64%, #050713 100%);
+    radial-gradient(circle at 78% 100%, rgba(34,197,94,.24), transparent 15%),
+    linear-gradient(90deg, #050713 0%, #07100c 34%, #06351f 64%, #050713 100%);
   border-bottom: 1px solid rgba(255,255,255,.10);
   box-shadow: 0 16px 42px rgba(15,23,42,.24);
   position: relative;

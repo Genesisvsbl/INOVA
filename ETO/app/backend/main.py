@@ -1194,9 +1194,13 @@ def version():
 # -------------------------
 @app.post("/processes", response_model=ProcessOut)
 def create_process(payload: ProcessCreate, db: Session = Depends(get_db)):
-    exists = db.query(Process).filter(Process.name == payload.name.strip()).first()
+    exists = (
+        db.query(Process)
+        .filter(Process.name == payload.name.strip(), Process.level == payload.level)
+        .first()
+    )
     if exists:
-        raise HTTPException(status_code=400, detail="El proceso ya existe")
+        raise HTTPException(status_code=400, detail="El proceso ya existe en este nivel")
 
     process = Process(name=payload.name.strip(), level=payload.level)
     db.add(process)
@@ -1221,11 +1225,15 @@ def update_process(process_id: int, payload: ProcessCreate, db: Session = Depend
 
     exists = (
         db.query(Process)
-        .filter(Process.name == payload.name.strip(), Process.id != process_id)
+        .filter(
+            Process.name == payload.name.strip(),
+            Process.level == payload.level,
+            Process.id != process_id,
+        )
         .first()
     )
     if exists:
-        raise HTTPException(status_code=400, detail="Ya existe otro proceso con ese nombre")
+        raise HTTPException(status_code=400, detail="Ya existe otro proceso con ese nombre en este nivel")
 
     process.name = payload.name.strip()
     process.level = payload.level
