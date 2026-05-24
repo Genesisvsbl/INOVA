@@ -404,15 +404,13 @@ export default function LoginPage() {
 
         <div className="brand brand-single">
           <img
-            src="/INOVA2026-clean.svg"
+            src="/INOVA2026.png"
             alt="INOVA Innovamos Contigo"
             className="brand-logo brand-logo-wide"
             loading="eager"
             decoding="sync"
             onError={(event) => {
-              if (event.currentTarget.src.includes("/INOVA2026-clean.svg")) {
-                event.currentTarget.src = "/INOVA2026.png";
-              } else if (event.currentTarget.src.includes("/INOVA2026.png")) {
+              if (event.currentTarget.src.includes("/INOVA2026.png")) {
                 event.currentTarget.src = "/INOVA-dark.png";
               }
             }}
