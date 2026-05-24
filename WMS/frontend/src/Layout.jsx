@@ -92,15 +92,7 @@ export default function Layout() {
       setSidebarHover(false);
     }
 
-    if (location.pathname.startsWith("/datos-maestros")) {
-      setOpenMenu("datosMaestros");
-    } else if (location.pathname.startsWith("/movimientos")) {
-      setOpenMenu("movimientos");
-    } else if (location.pathname.startsWith("/inventarios")) {
-      setOpenMenu("inventarios");
-    } else {
-      setOpenMenu(null);
-    }
+    setOpenMenu(null);
   }, [config.isMobile, location.pathname]);
 
   const isDatosActive = location.pathname.startsWith("/datos-maestros");
@@ -109,14 +101,7 @@ export default function Layout() {
   const isAdminUsuariosActive = location.pathname.startsWith("/admin/usuarios");
   const isAdminRolesActive = location.pathname.startsWith("/admin/roles");
   const isAdminAuditoriaActive = location.pathname.startsWith("/admin/auditoria");
-  const activeMenu = isDatosActive
-    ? "datosMaestros"
-    : isMovimientosActive
-      ? "movimientos"
-      : isInventariosActive
-        ? "inventarios"
-        : null;
-  const visibleOpenMenu = openMenu || activeMenu;
+  const visibleOpenMenu = openMenu;
 
   const contentPaddingLeft = config.isMobile
     ? config.gap
@@ -127,7 +112,7 @@ export default function Layout() {
       setSidebarPinned(true);
     }
 
-    setOpenMenu(key);
+    setOpenMenu((value) => (value === key ? null : key));
   };
 
   const closeMobileMenu = () => {
@@ -274,7 +259,7 @@ export default function Layout() {
                   event.stopPropagation();
                   toggleMenu("datosMaestros");
                 }}
-                onMouseEnter={() => setOpenMenu("datosMaestros")}
+                onMouseEnter={() => {}}
                 title="Datos maestros"
               >
                 <span className="menu-left">
@@ -302,7 +287,7 @@ export default function Layout() {
                   event.stopPropagation();
                   toggleMenu("movimientos");
                 }}
-                onMouseEnter={() => setOpenMenu("movimientos")}
+                onMouseEnter={() => {}}
                 title="Movimientos"
               >
                 <span className="menu-left">
@@ -332,7 +317,7 @@ export default function Layout() {
                   event.stopPropagation();
                   toggleMenu("inventarios");
                 }}
-                onMouseEnter={() => setOpenMenu("inventarios")}
+                onMouseEnter={() => {}}
                 title="Inventarios"
               >
                 <span className="menu-left">
