@@ -522,10 +522,10 @@ export default function Rotulos() {
 
     .logo-inova {
       position: absolute;
-      top: 2.2mm;
+      top: 1.7mm;
       left: 3mm;
-      width: 44mm;
-      height: 13mm;
+      width: 49mm;
+      height: 14mm;
       object-fit: contain;
       object-position: left center;
       display: block;
