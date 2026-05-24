@@ -23,3 +23,5 @@ Plataforma SaaS multiempresa organizada por pilares.
 La carpeta original `wms/` no se pudo retirar porque Windows reporto archivos en uso durante el movimiento. La copia organizada esta en `WMS/`; cuando ningun proceso este usando `wms/`, se puede eliminar o archivar tras confirmar que no contiene cambios nuevos.
 
 Respaldo Codex 5S actualizado para sincronizacion local y GitHub.
+
+Respaldo Codex verificado para subida GitHub - 2026-05-23 19:55.
