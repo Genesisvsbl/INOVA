@@ -230,7 +230,7 @@ export default function LoginPage() {
   const [recordarme, setRecordarme] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [assetsReady, setAssetsReady] = useState(false);
+  const [assetsReady, setAssetsReady] = useState(true);
 
   const selectedPillar = useMemo(
     () => PILLARS.find((pillar) => pillar.id === selectedPillarId) || PILLARS[0],
@@ -407,6 +407,8 @@ export default function LoginPage() {
             src="/ICONOINOVA.ico"
             alt="INOVA Innovamos Contigo"
             className="brand-logo brand-logo-wide white-logo"
+            loading="eager"
+            decoding="sync"
             onError={(event) => {
               if (event.currentTarget.src.includes("/ICONOINOVA.ico")) {
                 event.currentTarget.src = "/INOVA1.jpeg";
@@ -511,7 +513,7 @@ function LandingCard({ pillar, onClick }) {
       style={{ "--accent": pillar.accent, "--accent2": pillar.accent2, "--glow": pillar.glow }}
     >
       <div className="landing-card-image">
-        <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} />
+        <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} loading="eager" decoding="sync" />
       </div>
 
       <div className="landing-card-content">
@@ -544,7 +546,7 @@ function PillarCard({ pillar, active, compact, onClick }) {
       style={{ "--accent": pillar.accent, "--accent2": pillar.accent2, "--glow": pillar.glow }}
     >
       <div className="pillar-visual">
-        <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} />
+        <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} loading="eager" decoding="sync" />
         <div className="pillar-image-shade" />
       </div>
 
@@ -632,7 +634,7 @@ function LoginCard({
         </button>
 
         <div className="login-visual-mini">
-          <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} />
+          <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} loading="eager" decoding="sync" />
           <div className="login-visual-overlay" />
         </div>
       </div>
@@ -733,18 +735,10 @@ button { -webkit-tap-highlight-color: transparent; }
   flex-direction: column;
 }
 
-.inova-shell.assets-loading .login-topbar,
-.inova-shell.assets-loading .landing-view,
-.inova-shell.assets-loading .main-grid {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.inova-shell.assets-ready .login-topbar,
-.inova-shell.assets-ready .landing-view,
-.inova-shell.assets-ready .main-grid {
+.inova-shell .login-topbar,
+.inova-shell .landing-view,
+.inova-shell .main-grid {
   opacity: 1;
-  transition: opacity .18s ease;
 }
 
 .bg-grid {
