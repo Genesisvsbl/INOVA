@@ -167,6 +167,7 @@ function toCSV(rows) {
     "bodega",
     "lote_almacen",
     "lote_proveedor",
+    "fecha_fabricacion",
     "fecha_vencimiento",
     "cantidad",
   ];
@@ -199,6 +200,7 @@ function toCSVStock(rows) {
     "bodega",
     "lote_almacen",
     "lote_proveedor",
+    "fecha_fabricacion",
     "fecha_vencimiento",
     "stock",
   ];
@@ -486,6 +488,8 @@ export default function MotorPrincipal() {
         r.bodega,
         r.lote_almacen,
         r.lote_proveedor,
+        r.fecha_fabricacion,
+        r.fecha_vencimiento,
         r.tipo,
       ]
         .map((x) => (x ?? "").toString().toLowerCase())
@@ -511,6 +515,7 @@ export default function MotorPrincipal() {
         r.bodega ?? "",
         r.lote_almacen ?? "",
         r.lote_proveedor ?? "",
+        r.fecha_fabricacion ?? "",
         r.fecha_vencimiento ?? "",
       ].join("||");
 
@@ -530,6 +535,7 @@ export default function MotorPrincipal() {
           bodega: r.bodega ?? "",
           lote_almacen: r.lote_almacen ?? "",
           lote_proveedor: r.lote_proveedor ?? "",
+          fecha_fabricacion: r.fecha_fabricacion ?? "",
           fecha_vencimiento: r.fecha_vencimiento ?? "",
           cantidad: 0,
           stock: 0,
@@ -832,7 +838,7 @@ export default function MotorPrincipal() {
 
         <div style={{ width: "100%", overflowX: "auto", paddingBottom: 4 }}>
           {tipo === "STOCK" ? (
-            <table style={{ width: "100%", minWidth: 1450, borderCollapse: "collapse", tableLayout: "fixed" }}>
+            <table style={{ width: "100%", minWidth: 1550, borderCollapse: "collapse", tableLayout: "fixed" }}>
               <thead>
                 <tr>
                   <th style={{ ...thStyle, width: "6%" }}>Material</th>
@@ -846,6 +852,7 @@ export default function MotorPrincipal() {
                   <th style={{ ...thStyle, width: "5.5%" }}>Bodega</th>
                   <th style={{ ...thStyle, width: "8.5%" }}>Lote almacén</th>
                   <th style={{ ...thStyle, width: "8.5%" }}>Lote proveedor</th>
+                  <th style={{ ...thStyle, width: "6%" }}>Fabricaci&oacute;n</th>
                   <th style={{ ...thStyle, width: "6%" }}>Vencimiento</th>
                   <th style={{ ...thStyle, width: "5.5%", textAlign: "right" }}>Stock</th>
                 </tr>
@@ -854,7 +861,7 @@ export default function MotorPrincipal() {
               <tbody>
                 {!loading && !err && showingRows.length === 0 && (
                   <tr>
-                    <td colSpan={13} style={tdStyle}>
+                    <td colSpan={14} style={tdStyle}>
                       No hay registros con esos filtros.
                     </td>
                   </tr>
@@ -879,6 +886,7 @@ export default function MotorPrincipal() {
                     <td style={tdStyle}>{r.bodega || ""}</td>
                     <td style={tdStyle}>{r.lote_almacen || ""}</td>
                     <td style={tdStyle}>{r.lote_proveedor || ""}</td>
+                    <td style={tdStyle}>{r.fecha_fabricacion || ""}</td>
                     <td style={tdStyle}>{r.fecha_vencimiento || ""}</td>
                     <td
                       style={{
@@ -895,7 +903,7 @@ export default function MotorPrincipal() {
               </tbody>
             </table>
           ) : (
-            <table style={{ width: "100%", minWidth: 1880, borderCollapse: "collapse", tableLayout: "fixed" }}>
+            <table style={{ width: "100%", minWidth: 1980, borderCollapse: "collapse", tableLayout: "fixed" }}>
               <thead>
                 <tr>
                   <th style={{ ...thStyle, width: "5%" }}>Fecha</th>
@@ -914,6 +922,7 @@ export default function MotorPrincipal() {
                   <th style={{ ...thStyle, width: "5%" }}>Bodega</th>
                   <th style={{ ...thStyle, width: "7.5%" }}>Lote almacén</th>
                   <th style={{ ...thStyle, width: "7.1%" }}>Lote proveedor</th>
+                  <th style={{ ...thStyle, width: "5.4%" }}>Fabricaci&oacute;n</th>
                   <th style={{ ...thStyle, width: "5.4%" }}>Vencimiento</th>
                   <th style={{ ...thStyle, width: "4.6%", textAlign: "right" }}>Cantidad</th>
                 </tr>
@@ -922,7 +931,7 @@ export default function MotorPrincipal() {
               <tbody>
                 {!loading && !err && showingRows.length === 0 && (
                   <tr>
-                    <td colSpan={18} style={tdStyle}>
+                    <td colSpan={19} style={tdStyle}>
                       No hay registros con esos filtros.
                     </td>
                   </tr>
@@ -991,6 +1000,7 @@ export default function MotorPrincipal() {
                       <td style={tdStyle}>{r.bodega || ""}</td>
                       <td style={tdStyle}>{r.lote_almacen || ""}</td>
                       <td style={tdStyle}>{r.lote_proveedor || ""}</td>
+                      <td style={tdStyle}>{r.fecha_fabricacion || ""}</td>
                       <td style={tdStyle}>{r.fecha_vencimiento || ""}</td>
 
                       <td
