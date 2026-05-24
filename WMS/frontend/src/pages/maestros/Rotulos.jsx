@@ -524,8 +524,8 @@ export default function Rotulos() {
       position: absolute;
       top: 2.2mm;
       left: 3mm;
-      width: 39mm;
-      height: 11.5mm;
+      width: 44mm;
+      height: 13mm;
       object-fit: contain;
       object-position: left center;
       display: block;
