@@ -101,6 +101,7 @@ function useGlobalTableTools() {
 
     const enhance = () => {
       enhanceScheduled = false;
+      const isEtoRoute = location.pathname.startsWith("/eto");
       document.querySelectorAll("table").forEach((table) => {
         const skip = table.closest(".table-tools-skip") || table.classList.contains("print-table") || table.classList.contains("receipt-table");
         if (skip) return;
@@ -108,8 +109,13 @@ function useGlobalTableTools() {
         const hasBody = Boolean(table.tBodies?.[0]);
         if (!headers.length || !hasBody) return;
 
+        table.classList.toggle("table-tools-eto", isEtoRoute);
+        table.classList.toggle("table-tools-wms", !isEtoRoute);
+
         if (table.dataset.tableTools === "1") {
           const toolbar = table.previousElementSibling?.classList?.contains("table-tools-bar") ? table.previousElementSibling : null;
+          toolbar?.classList.toggle("table-tools-eto", isEtoRoute);
+          toolbar?.classList.toggle("table-tools-wms", !isEtoRoute);
           const count = toolbar?.querySelector(".table-tools-count");
           updateCount(table, count);
           return;
@@ -120,6 +126,7 @@ function useGlobalTableTools() {
 
         const toolbar = document.createElement("div");
         toolbar.className = "table-tools-bar";
+        toolbar.classList.add(isEtoRoute ? "table-tools-eto" : "table-tools-wms");
 
         const inputWrap = document.createElement("label");
         inputWrap.className = "table-tools-search";
@@ -288,6 +295,5 @@ export default function App() {
     </BrowserRouter>
   );
 }
-
 
 

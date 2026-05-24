@@ -226,6 +226,62 @@ table.table-tools-ready:not(.print-table):not(.receipt-table) tbody tr:hover {
   color: #4f46e5 !important;
   background: linear-gradient(180deg, #eef2ff, #ece9ff) !important;
 }
+
+.table-tools-bar.table-tools-eto {
+  border-color: rgba(34,197,94,.22) !important;
+  background: #f7fcf9 !important;
+}
+
+.table-tools-bar.table-tools-eto .table-tools-search input:focus,
+.table-tools-bar.table-tools-eto .table-tools-select select:focus {
+  border-color: rgba(34,197,94,.58) !important;
+  box-shadow: 0 0 0 4px rgba(34,197,94,.13) !important;
+}
+
+.table-tools-bar.table-tools-eto .table-tools-clear {
+  border-color: rgba(34,197,94,.24) !important;
+  background: #f0fdf4 !important;
+  color: #059669 !important;
+}
+
+.table-tools-bar.table-tools-eto .table-tools-clear:hover {
+  background: #dcfce7 !important;
+  border-color: rgba(34,197,94,.35) !important;
+}
+
+.table-tools-bar.table-tools-eto .table-tools-count {
+  background: #ecfdf5 !important;
+  border-color: rgba(34,197,94,.22) !important;
+  color: #059669 !important;
+}
+
+table.table-tools-ready.table-tools-eto:not(.print-table):not(.receipt-table) thead th {
+  background: #f1f8f4 !important;
+  color: #123524 !important;
+}
+
+table.table-tools-ready.table-tools-eto:not(.print-table):not(.receipt-table) tbody tr:nth-child(even) {
+  background: #fbfefc !important;
+}
+
+table.table-tools-ready.table-tools-eto:not(.print-table):not(.receipt-table) tbody tr:hover {
+  background: #eefbf3 !important;
+  box-shadow: inset 2px 0 0 #22c55e !important;
+}
+
+table.table-tools-ready.table-tools-eto .table-sortable-header::after {
+  color: #34a46d !important;
+}
+
+table.table-tools-ready.table-tools-eto .table-sortable-header.table-sort-asc::after,
+table.table-tools-ready.table-tools-eto .table-sortable-header.table-sort-desc::after {
+  color: #059669 !important;
+}
+
+table.table-tools-ready.table-tools-eto .table-sortable-header:hover {
+  color: #059669 !important;
+  background: #ecfdf5 !important;
+}
 @media (max-width: 760px) {
   .table-tools-bar {
     display: grid !important;
