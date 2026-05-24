@@ -579,18 +579,39 @@ export default function App() {
   async function loadBaseData() {
     try {
       setLoading(true);
+      setMessage("");
 
-      const [processList, indicatorList, entityList] = await Promise.all([
+      const [processResult, indicatorResult, entityResult] = await Promise.allSettled([
         API.getProcesses(Number(accessLevel)),
         API.getIndicators({ level: Number(accessLevel) }),
         API.getEntities(),
       ]);
 
-      setProcesses(processList);
-      setIndicators(indicatorList);
-      setEntities(entityList);
+      if (processResult.status === "fulfilled") {
+        setProcesses(Array.isArray(processResult.value) ? processResult.value : []);
+      } else {
+        console.warn("No se pudieron cargar procesos ETO:", processResult.reason);
+        setProcesses([]);
+      }
+
+      if (indicatorResult.status === "fulfilled") {
+        setIndicators(Array.isArray(indicatorResult.value) ? indicatorResult.value : []);
+      } else {
+        console.warn("No se pudieron cargar indicadores ETO:", indicatorResult.reason);
+        setIndicators([]);
+      }
+
+      if (entityResult.status === "fulfilled") {
+        setEntities(Array.isArray(entityResult.value) ? entityResult.value : []);
+      } else {
+        console.warn("No se pudieron cargar entidades ETO:", entityResult.reason);
+        setEntities([]);
+      }
     } catch (err) {
-      setMessage(err.message);
+      console.warn("No se pudo cargar la base de ETO:", err);
+      setProcesses([]);
+      setIndicators([]);
+      setEntities([]);
     } finally {
       setLoading(false);
     }
