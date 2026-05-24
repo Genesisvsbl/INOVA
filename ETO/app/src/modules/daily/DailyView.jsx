@@ -1101,6 +1101,10 @@ const dailyCss = `
   font-weight: 950;
 }
 
+.daily-mini-kpi:first-child strong {
+  font-size: 20px;
+}
+
 .daily-alert {
   position: relative;
   z-index: 1;

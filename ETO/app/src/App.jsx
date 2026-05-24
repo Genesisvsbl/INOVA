@@ -1506,7 +1506,7 @@ html, body, #root { width: 100%; height: 100%; margin: 0; padding: 0; }
 body {
   overflow: hidden;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-  background: #eef4fb;
+  background: #eef8f3;
 }
 button, input { font: inherit; }
 button { -webkit-tap-highlight-color: transparent; }
@@ -1520,7 +1520,7 @@ button { -webkit-tap-highlight-color: transparent; }
     radial-gradient(circle at 8% -8%, rgba(34,197,94,.14), transparent 30%),
     radial-gradient(circle at 90% 0%, rgba(34,197,94,.10), transparent 30%),
     linear-gradient(135deg, rgba(255,255,255,.44) 0 1px, transparent 1px),
-    linear-gradient(180deg, #f8fbff 0%, #edf4fb 48%, #e9f1f9 100%);
+    linear-gradient(180deg, #f8fcfa 0%, #edf8f2 48%, #e8f3ee 100%);
   background-size: auto, auto, 42px 42px, auto;
 }
 

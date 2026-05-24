@@ -78,8 +78,8 @@ button:focus-visible {
   border: 1px solid rgba(214, 224, 238, .94) !important;
   border-radius: 14px !important;
   background:
-    linear-gradient(180deg, rgba(255,255,255,.99), rgba(248,251,255,.96)),
-    radial-gradient(circle at 8% 0%, rgba(37,99,235,.08), transparent 30%) !important;
+    linear-gradient(180deg, rgba(255,255,255,.99), rgba(247,252,249,.96)),
+    radial-gradient(circle at 8% 0%, rgba(34,197,94,.10), transparent 30%) !important;
   box-shadow: 0 14px 36px rgba(15,23,42,.07) !important;
   box-sizing: border-box !important;
 }
@@ -113,15 +113,15 @@ button:focus-visible {
 }
 .table-tools-search input:focus,
 .table-tools-select select:focus {
-  border-color: rgba(37,99,235,.55) !important;
-  box-shadow: 0 0 0 4px rgba(37,99,235,.10) !important;
+  border-color: rgba(34,197,94,.58) !important;
+  box-shadow: 0 0 0 4px rgba(34,197,94,.12) !important;
 }
 .table-tools-clear {
   height: 38px !important;
-  border: 1px solid rgba(37,99,235,.18) !important;
+  border: 1px solid rgba(34,197,94,.22) !important;
   border-radius: 12px !important;
-  background: rgba(37,99,235,.08) !important;
-  color: #1d4ed8 !important;
+  background: rgba(34,197,94,.09) !important;
+  color: #059669 !important;
   padding: 0 15px !important;
   font-size: 12px !important;
   font-weight: 950 !important;
@@ -130,9 +130,9 @@ button:focus-visible {
   transition: transform .16s ease, box-shadow .16s ease, background .16s ease !important;
 }
 .table-tools-clear:hover {
-  background: rgba(37,99,235,.13) !important;
-  border-color: rgba(37,99,235,.24) !important;
-  box-shadow: 0 10px 24px rgba(37,99,235,.12) !important;
+  background: rgba(34,197,94,.14) !important;
+  border-color: rgba(34,197,94,.28) !important;
+  box-shadow: 0 10px 24px rgba(34,197,94,.14) !important;
   transform: translateY(-1px) !important;
 }
 .table-tools-count {
@@ -142,9 +142,9 @@ button:focus-visible {
   align-items: center !important;
   justify-content: center !important;
   border-radius: 12px !important;
-  background: linear-gradient(135deg, #edf6ff, #eef2ff) !important;
-  color: #2563eb !important;
-  border: 1px solid rgba(37,99,235,.10) !important;
+  background: linear-gradient(135deg, #ecfdf5, #f0fdf4) !important;
+  color: #059669 !important;
+  border: 1px solid rgba(34,197,94,.18) !important;
   font-size: 12px !important;
   font-weight: 950 !important;
   white-space: nowrap !important;
@@ -164,7 +164,7 @@ table.table-tools-ready:not(.print-table):not(.receipt-table) thead th {
   position: sticky !important;
   top: 0 !important;
   z-index: 2 !important;
-  background: linear-gradient(180deg, #f8fbff, #eef4fb) !important;
+  background: linear-gradient(180deg, #f8fcfa, #edf8f2) !important;
   color: #334155 !important;
   border-bottom: 1px solid #dfe8f3 !important;
   font-size: 10px !important;
@@ -191,12 +191,12 @@ table.table-tools-ready:not(.print-table):not(.receipt-table) tbody tr {
 }
 .inova-data-table:not(.print-table):not(.receipt-table) tbody tr:nth-child(even),
 table.table-tools-ready:not(.print-table):not(.receipt-table) tbody tr:nth-child(even) {
-  background: #fbfdff !important;
+  background: #fbfefc !important;
 }
 .inova-data-table:not(.print-table):not(.receipt-table) tbody tr:hover,
 table.table-tools-ready:not(.print-table):not(.receipt-table) tbody tr:hover {
-  background: #eef6ff !important;
-  box-shadow: inset 3px 0 0 #2563eb !important;
+  background: #eefbf3 !important;
+  box-shadow: inset 3px 0 0 #22c55e !important;
 }
 .table-tools-ready thead th,
 .table-sortable-header {
@@ -211,15 +211,15 @@ table.table-tools-ready:not(.print-table):not(.receipt-table) tbody tr:hover {
   right: 9px !important;
   top: 50% !important;
   transform: translateY(-50%) !important;
-  color: #94a3b8 !important;
+  color: #34a46d !important;
   font-size: 11px !important;
   font-weight: 950 !important;
 }
-.table-sortable-header.table-sort-asc::after { content: "↑"; color: #2563eb !important; }
-.table-sortable-header.table-sort-desc::after { content: "↓"; color: #2563eb !important; }
+.table-sortable-header.table-sort-asc::after { content: "↑"; color: #059669 !important; }
+.table-sortable-header.table-sort-desc::after { content: "↓"; color: #059669 !important; }
 .table-sortable-header:hover {
-  color: #1d4ed8 !important;
-  background: linear-gradient(180deg, #edf6ff, #e8f1ff) !important;
+  color: #059669 !important;
+  background: linear-gradient(180deg, #ecfdf5, #e8f8ef) !important;
 }
 @media (max-width: 760px) {
   .table-tools-bar {

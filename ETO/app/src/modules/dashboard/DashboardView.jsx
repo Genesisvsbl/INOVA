@@ -1170,9 +1170,9 @@ function ExecutiveIndicatorCard({
           >
             <div
               style={{
-                background: "#eef4ff",
+                background: "#eefbf3",
                 color: CHART_COLORS.navy,
-                border: "1px solid rgba(36,89,195,0.15)",
+                border: "1px solid rgba(34,197,94,0.18)",
                 borderRadius: 18,
                 padding: "14px 16px",
                 minHeight: 84,
@@ -2540,7 +2540,7 @@ const dashboardWowCss = `
   background:
     radial-gradient(circle at 98% 0%, rgba(34,197,94,.16), transparent 30%),
     radial-gradient(circle at 0% 12%, rgba(5,150,105,.09), transparent 28%),
-    linear-gradient(135deg, #ffffff 0%, #f8fbff 44%, #f2fbf7 100%) !important;
+    linear-gradient(135deg, #ffffff 0%, #f8fcfa 44%, #f2fbf7 100%) !important;
 }
 
 .dashboard-wow-page::after {
