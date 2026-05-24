@@ -781,7 +781,7 @@ function PortalView({ setTab }) {
       <section className="portal-hero">
         <div className="portal-hero-copy">
           <span className="section-kicker">VISIÓN GENERAL</span>
-          <h2>Centro de control</h2>
+          <h2>Centro de control 5S</h2>
           <p>
             Plataforma corporativa para gestionar el sistema 5S: orden,
             limpieza, disciplina, inspecciones, hallazgos y cumplimiento por
