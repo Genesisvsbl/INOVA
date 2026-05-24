@@ -830,9 +830,9 @@ export default function MotorPrincipal() {
           </div>
         </div>
 
-        <div style={{ width: "100%", overflowX: "hidden" }}>
+        <div style={{ width: "100%", overflowX: "auto", paddingBottom: 4 }}>
           {tipo === "STOCK" ? (
-            <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+            <table style={{ width: "100%", minWidth: 1450, borderCollapse: "collapse", tableLayout: "fixed" }}>
               <thead>
                 <tr>
                   <th style={{ ...thStyle, width: "6%" }}>Material</th>
@@ -895,7 +895,7 @@ export default function MotorPrincipal() {
               </tbody>
             </table>
           ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+            <table style={{ width: "100%", minWidth: 1880, borderCollapse: "collapse", tableLayout: "fixed" }}>
               <thead>
                 <tr>
                   <th style={{ ...thStyle, width: "5%" }}>Fecha</th>
