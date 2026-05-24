@@ -73,19 +73,19 @@ export default function Inventarios() {
   const operations = [
     {
       title: "Crear tarea",
-      desc: "Genera una nueva tarea de inventario fÃ­sico o cÃ­clico.",
+      desc: "Genera una nueva tarea de inventario fisico o ciclico.",
       to: "/inventarios/crear-tarea",
       icon: Plus,
     },
     {
-      title: "Conteo fÃ­sico",
-      desc: "Registra cantidades contadas por ubicaciÃ³n, material o lote.",
+      title: "Conteo fisico",
+      desc: "Registra cantidades contadas por ubicacion, material o lote.",
       to: "/inventarios/conteo-fisico",
       icon: Boxes,
     },
     {
-      title: "ConciliaciÃ³n",
-      desc: "Compara el stock del sistema contra el stock fÃ­sico registrado.",
+      title: "Conciliacion",
+      desc: "Compara el stock del sistema contra el stock fisico registrado.",
       to: "/inventarios/conciliacion",
       icon: CheckCircle2,
     },
@@ -103,7 +103,7 @@ export default function Inventarios() {
     },
     {
       title: "Informe inventario",
-      desc: "Consulta histÃ³ricos, productividad, diferencias y cierres.",
+      desc: "Consulta historicos, productividad, diferencias y cierres.",
       to: "/inventarios/informe",
       icon: FileBarChart2,
     },
@@ -227,7 +227,7 @@ export default function Inventarios() {
                   marginTop: 4,
                 }}
               >
-                GestiÃ³n de conteos fÃ­sicos, conciliaciÃ³n, reconteos y cierres.
+                Gestion de conteos fisicos, conciliacion, reconteos y cierres.
               </div>
             </div>
           </div>
@@ -482,7 +482,7 @@ export default function Inventarios() {
                     fontSize: 14,
                   }}
                 >
-                  Ãšltimas tareas de inventario
+                  Ultimas tareas de inventario
                 </div>
 
                 <div style={{ fontSize: 12, color: "#708090" }}>
@@ -500,9 +500,9 @@ export default function Inventarios() {
                 >
                   <thead>
                     <tr style={{ background: "#fbfcfd" }}>
-                      <th style={thStyle}>CÃ³digo</th>
+                      <th style={thStyle}>Codigo</th>
                       <th style={thStyle}>Tipo</th>
-                      <th style={thStyle}>UbicaciÃ³n</th>
+                      <th style={thStyle}>Ubicacion</th>
                       <th style={thStyle}>Estado</th>
                       <th style={thStyle}>Responsable</th>
                       <th style={thStyle}>Fecha</th>

@@ -46,7 +46,7 @@ export default function Conciliacion() {
       const data = { ...tarea, detalles };
       setTask(data);
     } catch (err) {
-      setError(err.message || "Error cargando conciliaciÃ³n");
+      setError(err.message || "Error cargando conciliacion");
       setTask(null);
     } finally {
       setLoading(false);
@@ -121,13 +121,13 @@ export default function Conciliacion() {
 
   return (
     <PageShell
-      title="ConciliaciÃ³n"
-      subtitle="Compara sistema vs fÃ­sico y finaliza la tarea para cerrar o generar reconteo automÃ¡tico."
+      title="Conciliacion"
+      subtitle="Compara sistema vs fisico y finaliza la tarea para cerrar o generar reconteo automatico."
       icon={<CheckCircle2 size={18} color="#355b7e" />}
     >
       <section style={cardStyle}>
         <CardHeader
-          title="Consulta de conciliaciÃ³n"
+          title="Consulta de conciliacion"
           subtitle="Selecciona la tarea y revisa el comparativo antes de finalizar."
         />
 
@@ -187,7 +187,7 @@ export default function Conciliacion() {
             <div style={summaryGridStyle}>
               <MiniInfo label="Estado tarea" value={task.estado} />
               <MiniInfo label="Criterio" value={task.criterio} />
-              <MiniInfo label="Total lÃ­neas" value={task.total_lineas} />
+              <MiniInfo label="Total lineas" value={task.total_lineas} />
               <MiniInfo label="Coinciden" value={task.total_coinciden} />
               <MiniInfo label="No coinciden" value={task.total_no_coinciden} />
               <MiniInfo
@@ -203,8 +203,8 @@ export default function Conciliacion() {
 
       <section style={{ ...cardStyle, marginTop: 16 }}>
         <CardHeader
-          title="Comparativo por lÃ­nea"
-          subtitle="AquÃ­ sÃ­ se muestra la cantidad del sistema y el resultado del conteo."
+          title="Comparativo por linea"
+          subtitle="Aqui si se muestra la cantidad del sistema y el resultado del conteo."
         />
 
         <div style={{ padding: 18 }}>
@@ -213,29 +213,29 @@ export default function Conciliacion() {
               <thead>
                 <tr style={{ background: "#fbfcfd" }}>
                   <th style={thStyle}>Detalle</th>
-                  <th style={thStyle}>UbicaciÃ³n</th>
-                  <th style={thStyle}>CÃ³digo</th>
-                  <th style={thStyle}>DescripciÃ³n</th>
-                  <th style={thStyle}>Lote almacÃ©n</th>
+                  <th style={thStyle}>Ubicacion</th>
+                  <th style={thStyle}>Codigo</th>
+                  <th style={thStyle}>Descripcion</th>
+                  <th style={thStyle}>Lote almacen</th>
                   <th style={thStyle}>Lote proveedor</th>
                   <th style={thStyle}>Sistema</th>
                   <th style={thStyle}>Contado</th>
                   <th style={thStyle}>Diferencia</th>
                   <th style={thStyle}>Coincide</th>
-                  <th style={thStyle}>ObservaciÃ³n</th>
+                  <th style={thStyle}>Observacion</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
                     <td colSpan={11} style={emptyCellStyle}>
-                      Cargando conciliaciÃ³n...
+                      Cargando conciliacion...
                     </td>
                   </tr>
                 ) : !task ? (
                   <tr>
                     <td colSpan={11} style={emptyCellStyle}>
-                      Carga una tarea para revisar la conciliaciÃ³n.
+                      Carga una tarea para revisar la conciliacion.
                     </td>
                   </tr>
                 ) : task.detalles?.length === 0 ? (
@@ -267,7 +267,7 @@ export default function Conciliacion() {
                       </td>
                       <td style={tdStyle}>
                         {item.coincide === true ? (
-                          <span style={badgeOkStyle}>SÃ­</span>
+                          <span style={badgeOkStyle}>Si</span>
                         ) : item.coincide === false ? (
                           <span style={badgeErrorStyle}>No</span>
                         ) : (
@@ -291,7 +291,7 @@ export default function Conciliacion() {
               <div style={warningTextStyle}>
                 Si existen diferencias, el backend cambia la tarea a
                 <strong> RECONTEO_PENDIENTE </strong>
-                y crea automÃ¡ticamente una nueva tarea de reconteo.
+                y crea automaticamente una nueva tarea de reconteo.
               </div>
             </div>
 
@@ -320,10 +320,10 @@ export default function Conciliacion() {
 
           {finalInfo && (
             <div style={resultBoxStyle}>
-              <div style={resultTitleStyle}>Resultado de finalizaciÃ³n</div>
+              <div style={resultTitleStyle}>Resultado de finalizacion</div>
               <div style={resultGridStyle}>
                 <MiniInfo label="Estado final" value={finalInfo.estado} />
-                <MiniInfo label="Total lÃ­neas" value={finalInfo.total_lineas} />
+                <MiniInfo label="Total lineas" value={finalInfo.total_lineas} />
                 <MiniInfo label="Coinciden" value={finalInfo.total_coinciden} />
                 <MiniInfo
                   label="No coinciden"
@@ -335,7 +335,7 @@ export default function Conciliacion() {
                 />
                 <MiniInfo
                   label="Genera reconteo"
-                  value={finalInfo.genera_reconteo ? "SÃ­" : "No"}
+                  value={finalInfo.genera_reconteo ? "Si" : "No"}
                 />
               </div>
 
