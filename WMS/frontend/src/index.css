@@ -171,19 +171,20 @@ table.table-tools-ready:not(.print-table):not(.receipt-table) thead th {
   background: #f4f7fb !important;
   color: #17243a !important;
   border-bottom: 1px solid #dfe8f3 !important;
-  font-size: 9.5px !important;
+  font-size: 8.2px !important;
   font-weight: 850 !important;
-  letter-spacing: .07em !important;
+  letter-spacing: .045em !important;
   text-transform: uppercase !important;
-  padding-top: 9px !important;
-  padding-bottom: 9px !important;
+  padding: 8px 8px !important;
   text-align: center !important;
   vertical-align: middle !important;
-  white-space: normal !important;
-  line-height: 1.12 !important;
+  white-space: nowrap !important;
+  line-height: 1 !important;
   word-break: normal !important;
-  overflow-wrap: anywhere !important;
+  overflow-wrap: normal !important;
   hyphens: none !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 .inova-data-table:not(.print-table):not(.receipt-table) tbody td,
 table.table-tools-ready:not(.print-table):not(.receipt-table) tbody td {
@@ -191,15 +192,18 @@ table.table-tools-ready:not(.print-table):not(.receipt-table) tbody td {
   background: transparent !important;
   border-bottom: 1px solid #edf2f7 !important;
   color: #1e2f46 !important;
-  font-size: 11px !important;
+  font-size: 9.4px !important;
   font-weight: 650 !important;
+  padding: 9px 8px !important;
   text-align: center !important;
   vertical-align: middle !important;
-  white-space: normal !important;
-  line-height: 1.18 !important;
+  white-space: nowrap !important;
+  line-height: 1.05 !important;
   word-break: normal !important;
-  overflow-wrap: anywhere !important;
+  overflow-wrap: normal !important;
   hyphens: none !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 .inova-data-table:not(.print-table):not(.receipt-table) tbody tr,
 table.table-tools-ready:not(.print-table):not(.receipt-table) tbody tr {
