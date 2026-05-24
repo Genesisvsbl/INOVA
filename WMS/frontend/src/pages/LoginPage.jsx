@@ -404,18 +404,16 @@ export default function LoginPage() {
 
         <div className="brand brand-single">
           <img
-            src="/ICONOINOVA.ico"
+            src="/inova-ui-logo.svg"
             alt="INOVA Innovamos Contigo"
-            className="brand-logo brand-logo-wide white-logo"
+            className="brand-logo brand-logo-wide"
             loading="eager"
             decoding="sync"
             onError={(event) => {
-              if (event.currentTarget.src.includes("/ICONOINOVA.ico")) {
-                event.currentTarget.src = "/INOVA1.jpeg";
-              } else if (event.currentTarget.src.includes("/INOVA1.jpeg")) {
-                event.currentTarget.src = "/INOVA.jpeg";
-              } else if (event.currentTarget.src.includes("/INOVA.jpeg")) {
+              if (event.currentTarget.src.includes("/inova-ui-logo.svg")) {
                 event.currentTarget.src = "/inova-logo.png";
+              } else if (event.currentTarget.src.includes("/inova-logo.png")) {
+                event.currentTarget.src = "/INOVA.png";
               }
             }}
           />
@@ -780,14 +778,15 @@ button { -webkit-tap-highlight-color: transparent; }
 .brand { display: flex; align-items: center; gap: 0; min-width: 0; }
 .brand-single { gap: 0; }
 .brand-logo {
-  width: clamp(250px, 20vw, 340px);
-  height: clamp(78px, 7vw, 108px);
+  width: clamp(230px, 18vw, 318px);
+  height: clamp(60px, 5.8vw, 84px);
   object-fit: contain;
   object-position: center;
   display: block;
+  image-rendering: auto;
+  filter: drop-shadow(0 8px 22px rgba(0,0,0,.28));
 }
-.brand-logo-wide { width: clamp(250px, 20vw, 340px); height: clamp(78px, 7vw, 108px); }
-.white-logo { filter: brightness(0) invert(1) drop-shadow(0 0 18px rgba(255,255,255,.22)); }
+.brand-logo-wide { width: clamp(230px, 18vw, 318px); height: clamp(60px, 5.8vw, 84px); }
 
 .icon-button {
   width: 42px;
