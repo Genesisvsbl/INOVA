@@ -404,16 +404,16 @@ export default function LoginPage() {
 
         <div className="brand brand-single">
           <img
-            src="/inova-ui-logo.svg"
+            src="/inova-login-white.svg"
             alt="INOVA Innovamos Contigo"
             className="brand-logo brand-logo-wide"
             loading="eager"
             decoding="sync"
             onError={(event) => {
-              if (event.currentTarget.src.includes("/inova-ui-logo.svg")) {
-                event.currentTarget.src = "/inova-logo.png";
-              } else if (event.currentTarget.src.includes("/inova-logo.png")) {
-                event.currentTarget.src = "/INOVA.png";
+              if (event.currentTarget.src.includes("/inova-login-white.svg")) {
+                event.currentTarget.src = "/inova-ui-logo.svg";
+              } else if (event.currentTarget.src.includes("/inova-ui-logo.svg")) {
+                event.currentTarget.src = "/INOVA-dark.png";
               }
             }}
           />
@@ -778,15 +778,15 @@ button { -webkit-tap-highlight-color: transparent; }
 .brand { display: flex; align-items: center; gap: 0; min-width: 0; }
 .brand-single { gap: 0; }
 .brand-logo {
-  width: clamp(230px, 18vw, 318px);
-  height: clamp(60px, 5.8vw, 84px);
+  width: clamp(270px, 21vw, 380px);
+  height: clamp(68px, 6.3vw, 96px);
   object-fit: contain;
   object-position: center;
   display: block;
   image-rendering: auto;
-  filter: drop-shadow(0 8px 22px rgba(0,0,0,.28));
+  filter: drop-shadow(0 10px 24px rgba(0,0,0,.32));
 }
-.brand-logo-wide { width: clamp(230px, 18vw, 318px); height: clamp(60px, 5.8vw, 84px); }
+.brand-logo-wide { width: clamp(270px, 21vw, 380px); height: clamp(68px, 6.3vw, 96px); }
 
 .icon-button {
   width: 42px;
@@ -1273,7 +1273,7 @@ button { -webkit-tap-highlight-color: transparent; }
   :root { --topbar-height: 92px; }
   .login-topbar { width: min(100% - 24px, 680px); padding-top: 12px; }
   .mobile-only { display: grid; }
-  .brand-logo { width: 220px; height: 62px; }
+  .brand-logo { width: min(72vw, 330px); height: 74px; }
   .landing-view { padding-top: 16px; }
   .landing-head { margin-top: 0; }
   .landing-head p { font-size: 14px; }
