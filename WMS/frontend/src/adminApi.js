@@ -106,6 +106,20 @@ export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa
 
   return response.json().catch(() => ({ ok: true }));
 }
+
+function normalizeEmailError(error) {
+  const message = String(error?.message || error || "");
+  if (message === "Failed to fetch" || message.includes("Failed to fetch")) {
+    return "Correo automatico no disponible: la funcion send-approval-email no esta desplegada o no responde en Supabase.";
+  }
+  if (message.includes("RESEND_API_KEY")) {
+    return "Correo automatico no disponible: falta configurar RESEND_API_KEY en Supabase.";
+  }
+  if (message.includes("domain is not verified") || message.includes("verify a domain")) {
+    return "Correo automatico no disponible: falta verificar el dominio inova.app para usar no-reply@inova.app.";
+  }
+  return message || "No se pudo enviar el correo automatico.";
+}
 function roleToPermissions(role, pilar, etoNivel) {
   const rol = String(role || "").toUpperCase();
   if (rol === "SUPER_ADMIN") return LEGACY_ADMIN_PERMISSIONS;
@@ -299,7 +313,7 @@ export async function aprobarSolicitud(solicitud, { empresa_id, rol_id, clave_ac
     emailSent = true;
   } catch (error) {
     console.warn("No se pudo enviar el correo HTML de aprobación:", error);
-    emailError = error?.message || "No se pudo enviar el correo automatico.";
+    emailError = normalizeEmailError(error);
   }
 
   return {
@@ -424,7 +438,7 @@ export async function crearUsuarioEmpresa(payload, actor = {}) {
     emailSent = true;
   } catch (error) {
     console.warn("No se pudo enviar el correo HTML de aprobación:", error);
-    emailError = error?.message || "No se pudo enviar el correo automatico.";
+    emailError = normalizeEmailError(error);
   }
 
   return {

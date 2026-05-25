@@ -98,7 +98,7 @@ export default function AdminAccess({ view = "usuarios" }) {
     try {
       setData(await getAccessCatalogs());
     } catch (err) {
-      setError(err?.message || "No se pudo cargar administraci?n de accesos.");
+      setError(err?.message || "No se pudo cargar administracion de accesos.");
     } finally {
       setLoading(false);
     }
@@ -207,7 +207,7 @@ export default function AdminAccess({ view = "usuarios" }) {
       await load();
       setSelectedRequest(null);
       setApprovalResult(result);
-      if (!result?.emailSent) setActionError(result?.emailError || "El acceso se aprobo, pero el correo automatico no salio. Revisa RESEND_API_KEY y APPROVAL_FROM_EMAIL en Supabase.");
+      if (!result?.emailSent) setActionError(result?.emailError || "El acceso se aprobo, pero el correo automatico no salio. Revisa la funcion de correo en Supabase y las variables RESEND_API_KEY / APPROVAL_FROM_EMAIL.");
     } catch (err) {
       setActionError(err?.message || "No se pudo aprobar la solicitud.");
     }
@@ -239,7 +239,7 @@ export default function AdminAccess({ view = "usuarios" }) {
       setUserCreateResult(result);
       setUserForm({ ...EMPTY_USER_FORM, empresa_id: selectedCreateEmpresa, clave_acceso: generarClaveTemporal() });
       await load();
-      if (!result?.emailSent) setActionError(result?.emailError || "El usuario se creo, pero el correo automatico no salio. Revisa RESEND_API_KEY y APPROVAL_FROM_EMAIL en Supabase.");
+      if (!result?.emailSent) setActionError(result?.emailError || "El usuario se creo, pero el correo automatico no salio. Revisa la funcion de correo en Supabase y las variables RESEND_API_KEY / APPROVAL_FROM_EMAIL.");
     } catch (err) {
       setActionError(err?.message || "No se pudo crear el usuario.");
     }
@@ -340,8 +340,8 @@ export default function AdminAccess({ view = "usuarios" }) {
         <div>
           <span>Control multiempresa</span>
           <h1>Usuarios, roles y accesos</h1>
-          <p>{actor.esSuperAdmin ? "Vista global de super administraci?n." : "Vista limitada a la empresa asignada."}</p>
-          <p>Administra solicitudes, licencias por usuario y permisos por pilar sin usuarios quemados en c?digo.</p>
+          <p>{actor.esSuperAdmin ? "Vista global de super administracion." : "Vista limitada a la empresa asignada."}</p>
+          <p>Administra solicitudes, licencias por usuario y permisos por pilar sin usuarios quemados en codigo.</p>
         </div>
         <button type="button" onClick={load}>Actualizar</button>
       </header>
@@ -356,18 +356,18 @@ export default function AdminAccess({ view = "usuarios" }) {
       {error && (
         <div className="admin-error">
           {error}
-          <small>Si ves una tabla inexistente, aplica la migraci?n `20260524093000_access_control_multiempresa.sql` en Supabase.</small>
+          <small>Si ves una tabla inexistente, aplica la migracion `20260524093000_access_control_multiempresa.sql` en Supabase.</small>
         </div>
       )}
 
       {!error && data.missingTables?.length ? (
         <div className="admin-error">
           Faltan tablas en Supabase: {data.missingTables.join(", ")}.
-          <small>Aplica la migraci?n `20260524093000_access_control_multiempresa.sql` para activar solicitudes, roles, permisos, planes y licencias.</small>
+          <small>Aplica la migracion `20260524093000_access_control_multiempresa.sql` para activar solicitudes, roles, permisos, planes y licencias.</small>
         </div>
       ) : null}
 
-      {loading ? <EmptyState>Cargando informaci?n desde Supabase...</EmptyState> : null}
+      {loading ? <EmptyState>Cargando informacion desde Supabase...</EmptyState> : null}
 
       {actionError ? <div className="admin-error">{actionError}</div> : null}
 
@@ -375,7 +375,7 @@ export default function AdminAccess({ view = "usuarios" }) {
         <>
           <AdminSection
             title="Crear usuario de empresa"
-            helper="El administrador de empresa crea usuarios seg?n el cupo del plan, sin permisos de super administraci?n."
+            helper="El administrador de empresa crea usuarios segun el cupo del plan, sin permisos de super administracion."
           >
             <form className="admin-create-user" onSubmit={createDirectUser}>
               <label>Empresa
@@ -384,9 +384,9 @@ export default function AdminAccess({ view = "usuarios" }) {
                 </select>
               </label>
               <label>Nombre completo<input required value={userForm.nombre} onChange={(event) => setUserForm((prev) => ({ ...prev, nombre: event.target.value }))} /></label>
-              <label>C?dula / documento<input required value={userForm.documento} onChange={(event) => setUserForm((prev) => ({ ...prev, documento: event.target.value }))} /></label>
-              <label>Correo electr?nico<input required type="email" value={userForm.email} onChange={(event) => setUserForm((prev) => ({ ...prev, email: event.target.value }))} /></label>
-              <label>Tel?fono<input value={userForm.telefono} onChange={(event) => setUserForm((prev) => ({ ...prev, telefono: event.target.value }))} /></label>
+              <label>Cedula / documento<input required value={userForm.documento} onChange={(event) => setUserForm((prev) => ({ ...prev, documento: event.target.value }))} /></label>
+              <label>Correo electronico<input required type="email" value={userForm.email} onChange={(event) => setUserForm((prev) => ({ ...prev, email: event.target.value }))} /></label>
+              <label>Telefono<input value={userForm.telefono} onChange={(event) => setUserForm((prev) => ({ ...prev, telefono: event.target.value }))} /></label>
               <label>Cargo<input value={userForm.cargo} onChange={(event) => setUserForm((prev) => ({ ...prev, cargo: event.target.value }))} /></label>
               <label>Pilar
                 <select value={userForm.pilar} onChange={(event) => setUserForm((prev) => ({ ...prev, pilar: event.target.value, rol_id: "" }))}>
@@ -410,13 +410,13 @@ export default function AdminAccess({ view = "usuarios" }) {
               </label>
               <label>Clave temporal
                 <div className="admin-inline-field">
-                  <input value={userForm.clave_acceso} placeholder="Se genera autom?ticamente" onChange={(event) => setUserForm((prev) => ({ ...prev, clave_acceso: event.target.value }))} />
+                  <input value={userForm.clave_acceso} placeholder="Se genera automaticamente" onChange={(event) => setUserForm((prev) => ({ ...prev, clave_acceso: event.target.value }))} />
                   <button type="button" onClick={() => setUserForm((prev) => ({ ...prev, clave_acceso: generarClaveTemporal() }))}>Generar</button>
                 </div>
               </label>
               <div className="admin-plan-box">
-                <strong>{activeUsersForCreate} / {planForCreate?.max_usuarios || "sin l?mite"}</strong>
-                <span>{planForCreate?.nombre_plan || "Plan sin l?mite configurado"}</span>
+                <strong>{activeUsersForCreate} / {planForCreate?.max_usuarios || "sin limite"}</strong>
+                <span>{planForCreate?.nombre_plan || "Plan sin limite configurado"}</span>
               </div>
               <button type="submit" className="primary"><KeyRound size={15} /> Crear usuario</button>
             </form>
@@ -442,10 +442,10 @@ export default function AdminAccess({ view = "usuarios" }) {
                   <td>{fmtDate(item.fecha_solicitud)}</td>
                   <td>
                     <strong>{item.nombre_completo}</strong>
-                    <small>{item.documento} ? {item.email}</small>
+                    <small>{item.documento} - {item.email}</small>
                   </td>
                   <td>{item.empresa_nombre}</td>
-                  <td>{PILLAR_LABELS[item.pilar] || item.pilar}{item.eto_nivel ? ` ? Nivel ${item.eto_nivel}` : ""}</td>
+                  <td>{PILLAR_LABELS[item.pilar] || item.pilar}{item.eto_nivel ? ` - Nivel ${item.eto_nivel}` : ""}</td>
                   <td><StatusBadge estado={item.estado} /></td>
                   <td>
                     {item.estado === "PENDIENTE" ? (
@@ -461,12 +461,12 @@ export default function AdminAccess({ view = "usuarios" }) {
           </AdminSection>
 
           <AdminSection title="Usuarios registrados" helper="Usuarios de Supabase con estado, empresa y accesos por pilar.">
-            <Table headers={["Usuario", "Empresa", "Rol", "Estado", "?ltimo acceso", "Acciones"]} empty="No hay usuarios.">
+            <Table headers={["Usuario", "Empresa", "Rol", "Estado", "Ultimo acceso", "Acciones"]} empty="No hay usuarios.">
               {visibleUsuarios.map((user) => (
                 <tr key={user.id}>
                   <td>
                     <strong>{user.nombre}</strong>
-                    <small>{user.documento || "Sin documento"} ? {user.email || user.usuario}</small>
+                    <small>{user.documento || "Sin documento"} - {user.email || user.usuario}</small>
                   </td>
                   <td>{empresaById.get(String(user.empresa_id))?.nombre || user.empresa_id}</td>
                   <td>{user.rol}</td>
@@ -500,7 +500,7 @@ export default function AdminAccess({ view = "usuarios" }) {
                 <td>{empresaById.get(String(role.empresa_id))?.nombre || "Global"}</td>
                 <td>{role.alcance}</td>
                 <td><StatusBadge estado={role.estado} /></td>
-                <td>{role.es_sistema ? "S?" : "No"}</td>
+                <td>{role.es_sistema ? "Si" : "No"}</td>
               </tr>
             ))}
           </Table>
@@ -508,7 +508,7 @@ export default function AdminAccess({ view = "usuarios" }) {
       )}
 
       {!loading && view === "empresas" && (
-        <AdminSection title="Editar plan de usuarios" helper="Define cu?ntos usuarios puede tener cada empresa y qu? pilares incluye el paquete.">
+        <AdminSection title="Editar plan de usuarios" helper="Define cuantos usuarios puede tener cada empresa y que pilares incluye el paquete.">
           <form className="admin-plan-form" onSubmit={savePlan}>
             <label>Empresa
               <select value={planForm.empresa_id} disabled={!actor.esSuperAdmin} onChange={(event) => changePlanEmpresa(event.target.value)}>
@@ -547,7 +547,7 @@ export default function AdminAccess({ view = "usuarios" }) {
 
       {!loading && view === "empresas" && (
         <AdminSection title="Empresas y planes" helper="Control comercial para vender paquetes por usuario.">
-          <Table headers={["Empresa", "Plan", "Estado", "Usuarios activos", "L?mite plan"]} empty="No hay empresas.">
+          <Table headers={["Empresa", "Plan", "Estado", "Usuarios activos", "Limite plan"]} empty="No hay empresas.">
             {visibleEmpresas.map((empresa) => {
               const plan = data.planes.find((item) => String(item.empresa_id) === String(empresa.id));
               const users = visibleUsuarios.filter((item) => String(item.empresa_id) === String(empresa.id) && item.estado === "ACTIVO").length;
@@ -569,8 +569,8 @@ export default function AdminAccess({ view = "usuarios" }) {
       )}
 
       {!loading && view === "auditoria" && (
-        <AdminSection title="Auditor?a" helper="Base lista para registrar eventos administrativos.">
-          <EmptyState>La tabla `auditoria_admin` qued? preparada para registrar aprobaciones, cambios de rol y cambios de licencias.</EmptyState>
+        <AdminSection title="Auditoria" helper="Base lista para registrar eventos administrativos.">
+          <EmptyState>La tabla `auditoria_admin` quedo preparada para registrar aprobaciones, cambios de rol y cambios de licencias.</EmptyState>
         </AdminSection>
       )}
 
@@ -578,7 +578,7 @@ export default function AdminAccess({ view = "usuarios" }) {
         <div className="admin-modal-backdrop">
           <div className="admin-modal">
             <h2>Aprobar solicitud</h2>
-            <p>{selectedRequest.nombre_completo} ? {PILLAR_LABELS[selectedRequest.pilar]}</p>
+            <p>{selectedRequest.nombre_completo} - {PILLAR_LABELS[selectedRequest.pilar]}</p>
             <label>
               Empresa
               <select value={approval.empresa_id} onChange={(event) => setApproval((prev) => ({ ...prev, empresa_id: event.target.value }))}>
@@ -639,7 +639,7 @@ export default function AdminAccess({ view = "usuarios" }) {
         <div className="admin-modal-backdrop">
           <div className="admin-modal">
             <h2>Editar rol y acceso</h2>
-            <p>{editingUser.nombre} ? {editingUser.email || editingUser.usuario}</p>
+            <p>{editingUser.nombre} - {editingUser.email || editingUser.usuario}</p>
             <label>
               Empresa
               <select
