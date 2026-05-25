@@ -1,13 +1,6 @@
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
-const FROM_EMAIL = Deno.env.get("APPROVAL_FROM_EMAIL") || "INOVA <no-reply@inova.app>";
+export const APPROVAL_EMAIL_FROM = "INOVA <no-reply@inova.app>";
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
-const THEMES = {
+export const APPROVAL_THEMES = {
   wms: {
     label: "WMS",
     primary: "#5b4ee6",
@@ -34,27 +27,34 @@ const THEMES = {
   },
 };
 
-function escapeHtml(value: unknown) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+export function getApprovalTheme(pilar = "wms") {
+  return APPROVAL_THEMES[String(pilar || "wms").toLowerCase()] || APPROVAL_THEMES.wms;
 }
 
-function approvalTemplate(payload: Record<string, unknown>) {
-  const pilarKey = String(payload.pilar || "wms").toLowerCase();
-  const theme = THEMES[pilarKey as keyof typeof THEMES] || THEMES.wms;
-  const pilarLabel = `${theme.label}${payload.etoNivel ? ` - Nivel ${escapeHtml(payload.etoNivel)}` : ""}`;
-  const loginUrl = String(payload.loginUrl || "https://inova-delta.vercel.app/login");
-  const row = (icon: string, label: string, value: unknown) => `
+export function buildApprovalPayload({ solicitud, claveTemporal, empresa, rol, loginUrl }) {
+  return {
+    nombre: solicitud?.nombre_completo || solicitud?.nombre || "",
+    email: solicitud?.email || "",
+    empresa: empresa?.nombre || solicitud?.empresa_nombre || "",
+    pilar: solicitud?.pilar || "wms",
+    etoNivel: solicitud?.eto_nivel || null,
+    rol: rol?.nombre || rol?.codigo || "",
+    claveTemporal,
+    loginUrl,
+  };
+}
+
+export function buildApprovalEmailHtml(payload = {}) {
+  const theme = getApprovalTheme(payload.pilar);
+  const pilarLabel = `${theme.label}${payload.etoNivel ? ` - Nivel ${payload.etoNivel}` : ""}`;
+  const safe = (value) => String(value ?? "");
+  const row = (icon, label, value) => `
     <tr>
       <td style="width:46px;padding:13px 0;border-bottom:1px solid #e8eef7;">
         <span style="display:inline-grid;place-items:center;width:32px;height:32px;border-radius:999px;background:${theme.soft};color:${theme.primary};font-size:15px;font-weight:900;">${icon}</span>
       </td>
       <td style="padding:13px 0;border-bottom:1px solid #e8eef7;color:#526179;font-size:15px;">${label}:</td>
-      <td style="padding:13px 0;border-bottom:1px solid #e8eef7;color:#071226;font-size:15px;font-weight:850;text-align:right;">${escapeHtml(value)}</td>
+      <td style="padding:13px 0;border-bottom:1px solid #e8eef7;color:#071226;font-size:15px;font-weight:850;text-align:right;">${safe(value)}</td>
     </tr>`;
 
   return `<!doctype html>
@@ -82,7 +82,7 @@ function approvalTemplate(payload: Record<string, unknown>) {
             </tr>
             <tr>
               <td style="padding:10px 42px 0;">
-                <p style="margin:0 0 18px;color:#17213b;font-size:17px;line-height:1.45;">Hola ${escapeHtml(payload.nombre)},<br/>Tu acceso a INOVA fue aprobado.</p>
+                <p style="margin:0 0 18px;color:#17213b;font-size:17px;line-height:1.45;">Hola ${safe(payload.nombre)},<br/>Tu acceso a INOVA fue aprobado.</p>
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid ${theme.line};border-radius:14px;padding:0 18px;background:#ffffff;">
                   ${row("🏢", "Empresa", payload.empresa)}
                   ${row(theme.icon, "Pilar", pilarLabel)}
@@ -95,7 +95,7 @@ function approvalTemplate(payload: Record<string, unknown>) {
                   <span style="font-size:14px;line-height:1.4;">Por seguridad, al ingresar por primera vez el sistema te pedirá cambiar esta contraseña.</span>
                 </div>
                 <div style="text-align:center;margin:22px 0 12px;">
-                  <a href="${escapeHtml(loginUrl)}" style="display:inline-block;text-decoration:none;color:#ffffff;background:linear-gradient(135deg,${theme.primary},${theme.secondary});padding:15px 34px;border-radius:12px;font-size:16px;font-weight:900;box-shadow:0 12px 30px ${theme.primary}55;">Ingresar a INOVA →</a>
+                  <a href="${safe(payload.loginUrl || "https://inova-delta.vercel.app/login")}" style="display:inline-block;text-decoration:none;color:#ffffff;background:linear-gradient(135deg,${theme.primary},${theme.secondary});padding:15px 34px;border-radius:12px;font-size:16px;font-weight:900;box-shadow:0 12px 30px ${theme.primary}55;">Ingresar a INOVA →</a>
                 </div>
               </td>
             </tr>
@@ -112,36 +112,3 @@ function approvalTemplate(payload: Record<string, unknown>) {
   </body>
 </html>`;
 }
-
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405, headers: CORS_HEADERS });
-  if (!RESEND_API_KEY) return new Response("RESEND_API_KEY no está configurada.", { status: 500, headers: CORS_HEADERS });
-
-  const payload = await req.json();
-  if (!payload?.email || !payload?.claveTemporal) {
-    return new Response("Faltan email o contraseña temporal.", { status: 400, headers: CORS_HEADERS });
-  }
-
-  const pilar = String(payload.pilar || "wms").toLowerCase();
-  const theme = THEMES[pilar as keyof typeof THEMES] || THEMES.wms;
-  const html = approvalTemplate(payload);
-
-  const resendResponse = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: FROM_EMAIL,
-      to: [payload.email],
-      subject: `Acceso aprobado a INOVA ${theme.label}`,
-      html,
-    }),
-  });
-
-  const result = await resendResponse.text();
-  if (!resendResponse.ok) return new Response(result, { status: resendResponse.status, headers: CORS_HEADERS });
-  return new Response(result, { status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
-});

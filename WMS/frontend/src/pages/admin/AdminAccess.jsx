@@ -11,6 +11,7 @@ import {
   XCircle,
 } from "lucide-react";
 import {
+  actualizarRolUsuario,
   aprobarSolicitud,
   cambiarEstadoUsuario,
   crearUsuarioEmpresa,
@@ -19,6 +20,7 @@ import {
   guardarPlanEmpresa,
   rechazarSolicitud,
 } from "../../adminApi";
+import { buildApprovalEmailHtml, buildApprovalPayload } from "../../approvalEmailTemplate";
 
 const PILLAR_LABELS = { wms: "WMS", "5s": "5S", eto: "ETO" };
 const EMPTY_USER_FORM = {
@@ -76,6 +78,8 @@ export default function AdminAccess({ view = "usuarios" }) {
   const [planForm, setPlanForm] = useState(EMPTY_PLAN_FORM);
   const [planMessage, setPlanMessage] = useState("");
   const [actionError, setActionError] = useState("");
+  const [editingUser, setEditingUser] = useState(null);
+  const [roleEdit, setRoleEdit] = useState({ empresa_id: "", pilar: "wms", rol_id: "", eto_nivel: "1", estado: "ACTIVO" });
 
   const actor = useMemo(() => {
     const rol = sessionStorage.getItem("rol") || "";
@@ -86,6 +90,7 @@ export default function AdminAccess({ view = "usuarios" }) {
       esSuperAdmin: sessionStorage.getItem("esSuperAdmin") === "true" || rol === "SUPER_ADMIN",
     };
   }, []);
+  const canManageRoles = actor.esSuperAdmin || String(actor.rol || "").toUpperCase().includes("ADMIN");
 
   async function load() {
     setLoading(true);
@@ -93,7 +98,7 @@ export default function AdminAccess({ view = "usuarios" }) {
     try {
       setData(await getAccessCatalogs());
     } catch (err) {
-      setError(err?.message || "No se pudo cargar administración de accesos.");
+      setError(err?.message || "No se pudo cargar administraci?n de accesos.");
     } finally {
       setLoading(false);
     }
@@ -156,6 +161,28 @@ export default function AdminAccess({ view = "usuarios" }) {
     [data.roles]
   );
 
+  const accessByUserId = useMemo(() => {
+    const map = new Map();
+    data.usuarioPilares.forEach((access) => {
+      const key = String(access.usuario_id);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(access);
+    });
+    return map;
+  }, [data.usuarioPilares]);
+
+  const selectedApprovalEmpresa = empresaById.get(String(approval.empresa_id));
+  const selectedApprovalRole = roleById.get(String(approval.rol_id));
+  const approvalPreviewPayload = selectedRequest
+    ? buildApprovalPayload({
+        solicitud: { ...selectedRequest, eto_nivel: selectedRequest.pilar === "eto" ? approval.eto_nivel : selectedRequest.eto_nivel },
+        claveTemporal: approval.clave_acceso,
+        empresa: selectedApprovalEmpresa,
+        rol: selectedApprovalRole,
+        loginUrl: typeof window !== "undefined" ? `${window.location.origin}/login` : "https://inova-delta.vercel.app/login",
+      })
+    : null;
+
   const openApproval = (solicitud) => {
     const defaultEmpresa = actor.esSuperAdmin ? (solicitud.empresa_id || visibleEmpresas[0]?.id || "") : actor.empresaId;
     const defaultRole =
@@ -179,10 +206,8 @@ export default function AdminAccess({ view = "usuarios" }) {
       const result = await aprobarSolicitud(selectedRequest, approval);
       await load();
       setSelectedRequest(null);
-      setApprovalResult(null);
-      if (!result?.emailSent && result?.mailto) {
-        window.location.href = result.mailto;
-      }
+      setApprovalResult(result);
+      if (!result?.emailSent) setActionError(result?.emailError || "El acceso se aprobo, pero el correo automatico no salio. Revisa RESEND_API_KEY y APPROVAL_FROM_EMAIL en Supabase.");
     } catch (err) {
       setActionError(err?.message || "No se pudo aprobar la solicitud.");
     }
@@ -214,9 +239,7 @@ export default function AdminAccess({ view = "usuarios" }) {
       setUserCreateResult(result);
       setUserForm({ ...EMPTY_USER_FORM, empresa_id: selectedCreateEmpresa, clave_acceso: generarClaveTemporal() });
       await load();
-      if (!result?.emailSent && result?.mailto) {
-        window.location.href = result.mailto;
-      }
+      if (!result?.emailSent) setActionError(result?.emailError || "El usuario se creo, pero el correo automatico no salio. Revisa RESEND_API_KEY y APPROVAL_FROM_EMAIL en Supabase.");
     } catch (err) {
       setActionError(err?.message || "No se pudo crear el usuario.");
     }
@@ -269,6 +292,47 @@ export default function AdminAccess({ view = "usuarios" }) {
     await load();
   };
 
+  const openRoleEdit = (user) => {
+    const accesses = accessByUserId.get(String(user.id)) || [];
+    const firstAccess = accesses[0];
+    const empresaId = actor.esSuperAdmin ? (firstAccess?.empresa_id || user.empresa_id || visibleEmpresas[0]?.id || "") : actor.empresaId;
+    const role =
+      visibleRoles.find((item) => String(item.id) === String(firstAccess?.rol_id)) ||
+      visibleRoles.find((item) => String(item.empresa_id) === String(empresaId) && String(item.codigo).toUpperCase() === String(user.rol).toUpperCase()) ||
+      visibleRoles.find((item) => String(item.empresa_id) === String(empresaId));
+    setEditingUser(user);
+    setRoleEdit({
+      empresa_id: String(empresaId || ""),
+      pilar: firstAccess?.pilar || "wms",
+      rol_id: role?.id || "",
+      eto_nivel: String(firstAccess?.eto_nivel || 1),
+      estado: firstAccess?.estado || "ACTIVO",
+    });
+  };
+
+  const roleOptionsForEdit = visibleRoles.filter((role) => {
+    if (String(role.empresa_id) !== String(roleEdit.empresa_id)) return false;
+    const code = String(role.codigo || "").toUpperCase();
+    const pilar = String(roleEdit.pilar || "").toUpperCase();
+    return code.includes(pilar) || code.includes("ADMIN") || code.includes("CONSULTA") || code.includes("OPERADOR");
+  });
+
+  const saveRoleEdit = async () => {
+    if (!editingUser) return;
+    if (!canManageRoles) {
+      setActionError("Solo super administracion o administradores de empresa pueden editar roles.");
+      return;
+    }
+    setActionError("");
+    try {
+      await actualizarRolUsuario(editingUser, { ...roleEdit, rol_id: roleEdit.rol_id || roleOptionsForEdit[0]?.id || "" }, actor);
+      setEditingUser(null);
+      await load();
+    } catch (err) {
+      setActionError(err?.message || "No se pudo actualizar el rol del usuario.");
+    }
+  };
+
   return (
     <div className="admin-page">
       <style>{adminCss}</style>
@@ -276,8 +340,8 @@ export default function AdminAccess({ view = "usuarios" }) {
         <div>
           <span>Control multiempresa</span>
           <h1>Usuarios, roles y accesos</h1>
-          <p>{actor.esSuperAdmin ? "Vista global de super administración." : "Vista limitada a la empresa asignada."}</p>
-          <p>Administra solicitudes, licencias por usuario y permisos por pilar sin usuarios quemados en código.</p>
+          <p>{actor.esSuperAdmin ? "Vista global de super administraci?n." : "Vista limitada a la empresa asignada."}</p>
+          <p>Administra solicitudes, licencias por usuario y permisos por pilar sin usuarios quemados en c?digo.</p>
         </div>
         <button type="button" onClick={load}>Actualizar</button>
       </header>
@@ -292,18 +356,18 @@ export default function AdminAccess({ view = "usuarios" }) {
       {error && (
         <div className="admin-error">
           {error}
-          <small>Si ves una tabla inexistente, aplica la migración `20260524093000_access_control_multiempresa.sql` en Supabase.</small>
+          <small>Si ves una tabla inexistente, aplica la migraci?n `20260524093000_access_control_multiempresa.sql` en Supabase.</small>
         </div>
       )}
 
       {!error && data.missingTables?.length ? (
         <div className="admin-error">
           Faltan tablas en Supabase: {data.missingTables.join(", ")}.
-          <small>Aplica la migración `20260524093000_access_control_multiempresa.sql` para activar solicitudes, roles, permisos, planes y licencias.</small>
+          <small>Aplica la migraci?n `20260524093000_access_control_multiempresa.sql` para activar solicitudes, roles, permisos, planes y licencias.</small>
         </div>
       ) : null}
 
-      {loading ? <EmptyState>Cargando información desde Supabase...</EmptyState> : null}
+      {loading ? <EmptyState>Cargando informaci?n desde Supabase...</EmptyState> : null}
 
       {actionError ? <div className="admin-error">{actionError}</div> : null}
 
@@ -311,7 +375,7 @@ export default function AdminAccess({ view = "usuarios" }) {
         <>
           <AdminSection
             title="Crear usuario de empresa"
-            helper="El administrador de empresa crea usuarios según el cupo del plan, sin permisos de super administración."
+            helper="El administrador de empresa crea usuarios seg?n el cupo del plan, sin permisos de super administraci?n."
           >
             <form className="admin-create-user" onSubmit={createDirectUser}>
               <label>Empresa
@@ -320,9 +384,9 @@ export default function AdminAccess({ view = "usuarios" }) {
                 </select>
               </label>
               <label>Nombre completo<input required value={userForm.nombre} onChange={(event) => setUserForm((prev) => ({ ...prev, nombre: event.target.value }))} /></label>
-              <label>Cédula / documento<input required value={userForm.documento} onChange={(event) => setUserForm((prev) => ({ ...prev, documento: event.target.value }))} /></label>
-              <label>Correo electrónico<input required type="email" value={userForm.email} onChange={(event) => setUserForm((prev) => ({ ...prev, email: event.target.value }))} /></label>
-              <label>Teléfono<input value={userForm.telefono} onChange={(event) => setUserForm((prev) => ({ ...prev, telefono: event.target.value }))} /></label>
+              <label>C?dula / documento<input required value={userForm.documento} onChange={(event) => setUserForm((prev) => ({ ...prev, documento: event.target.value }))} /></label>
+              <label>Correo electr?nico<input required type="email" value={userForm.email} onChange={(event) => setUserForm((prev) => ({ ...prev, email: event.target.value }))} /></label>
+              <label>Tel?fono<input value={userForm.telefono} onChange={(event) => setUserForm((prev) => ({ ...prev, telefono: event.target.value }))} /></label>
               <label>Cargo<input value={userForm.cargo} onChange={(event) => setUserForm((prev) => ({ ...prev, cargo: event.target.value }))} /></label>
               <label>Pilar
                 <select value={userForm.pilar} onChange={(event) => setUserForm((prev) => ({ ...prev, pilar: event.target.value, rol_id: "" }))}>
@@ -346,13 +410,13 @@ export default function AdminAccess({ view = "usuarios" }) {
               </label>
               <label>Clave temporal
                 <div className="admin-inline-field">
-                  <input value={userForm.clave_acceso} placeholder="Se genera automáticamente" onChange={(event) => setUserForm((prev) => ({ ...prev, clave_acceso: event.target.value }))} />
+                  <input value={userForm.clave_acceso} placeholder="Se genera autom?ticamente" onChange={(event) => setUserForm((prev) => ({ ...prev, clave_acceso: event.target.value }))} />
                   <button type="button" onClick={() => setUserForm((prev) => ({ ...prev, clave_acceso: generarClaveTemporal() }))}>Generar</button>
                 </div>
               </label>
               <div className="admin-plan-box">
-                <strong>{activeUsersForCreate} / {planForCreate?.max_usuarios || "sin límite"}</strong>
-                <span>{planForCreate?.nombre_plan || "Plan sin límite configurado"}</span>
+                <strong>{activeUsersForCreate} / {planForCreate?.max_usuarios || "sin l?mite"}</strong>
+                <span>{planForCreate?.nombre_plan || "Plan sin l?mite configurado"}</span>
               </div>
               <button type="submit" className="primary"><KeyRound size={15} /> Crear usuario</button>
             </form>
@@ -360,9 +424,8 @@ export default function AdminAccess({ view = "usuarios" }) {
               <div className="admin-approval-result">
                 <strong>Usuario creado</strong>
                 <span>Usuario: {userCreateResult.user.email}</span>
-                <span>Contraseña temporal: {userCreateResult.claveTemporal}</span>
-                <small>Al ingresar deberá cambiarla.</small>
-                <a href={userCreateResult.mailto}>Abrir correo de aprobación</a>
+                <span>Contrasena temporal: {userCreateResult.claveTemporal}</span>
+                <small>{userCreateResult.emailSent ? "Correo automatico enviado." : "Correo pendiente por configuracion de Supabase/Resend."}</small>
               </div>
             ) : null}
           </AdminSection>
@@ -379,10 +442,10 @@ export default function AdminAccess({ view = "usuarios" }) {
                   <td>{fmtDate(item.fecha_solicitud)}</td>
                   <td>
                     <strong>{item.nombre_completo}</strong>
-                    <small>{item.documento} · {item.email}</small>
+                    <small>{item.documento} ? {item.email}</small>
                   </td>
                   <td>{item.empresa_nombre}</td>
-                  <td>{PILLAR_LABELS[item.pilar] || item.pilar}{item.eto_nivel ? ` · Nivel ${item.eto_nivel}` : ""}</td>
+                  <td>{PILLAR_LABELS[item.pilar] || item.pilar}{item.eto_nivel ? ` ? Nivel ${item.eto_nivel}` : ""}</td>
                   <td><StatusBadge estado={item.estado} /></td>
                   <td>
                     {item.estado === "PENDIENTE" ? (
@@ -398,22 +461,25 @@ export default function AdminAccess({ view = "usuarios" }) {
           </AdminSection>
 
           <AdminSection title="Usuarios registrados" helper="Usuarios de Supabase con estado, empresa y accesos por pilar.">
-            <Table headers={["Usuario", "Empresa", "Rol", "Estado", "Último acceso", "Acciones"]} empty="No hay usuarios.">
+            <Table headers={["Usuario", "Empresa", "Rol", "Estado", "?ltimo acceso", "Acciones"]} empty="No hay usuarios.">
               {visibleUsuarios.map((user) => (
                 <tr key={user.id}>
                   <td>
                     <strong>{user.nombre}</strong>
-                    <small>{user.documento || "Sin documento"} · {user.email || user.usuario}</small>
+                    <small>{user.documento || "Sin documento"} ? {user.email || user.usuario}</small>
                   </td>
                   <td>{empresaById.get(String(user.empresa_id))?.nombre || user.empresa_id}</td>
                   <td>{user.rol}</td>
                   <td><StatusBadge estado={user.estado} /></td>
                   <td>{fmtDate(user.ultimo_acceso)}</td>
                   <td>
-                    <button type="button" onClick={() => toggleUser(user)}>
-                      {user.estado === "ACTIVO" ? <UserX size={15} /> : <UserCheck size={15} />}
-                      {user.estado === "ACTIVO" ? "Inactivar" : "Activar"}
-                    </button>
+                    <div className="admin-actions">
+                      {canManageRoles ? <button type="button" onClick={() => openRoleEdit(user)}><ShieldCheck size={15} /> Editar rol</button> : null}
+                      <button type="button" onClick={() => toggleUser(user)}>
+                        {user.estado === "ACTIVO" ? <UserX size={15} /> : <UserCheck size={15} />}
+                        {user.estado === "ACTIVO" ? "Inactivar" : "Activar"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -434,7 +500,7 @@ export default function AdminAccess({ view = "usuarios" }) {
                 <td>{empresaById.get(String(role.empresa_id))?.nombre || "Global"}</td>
                 <td>{role.alcance}</td>
                 <td><StatusBadge estado={role.estado} /></td>
-                <td>{role.es_sistema ? "Sí" : "No"}</td>
+                <td>{role.es_sistema ? "S?" : "No"}</td>
               </tr>
             ))}
           </Table>
@@ -442,7 +508,7 @@ export default function AdminAccess({ view = "usuarios" }) {
       )}
 
       {!loading && view === "empresas" && (
-        <AdminSection title="Editar plan de usuarios" helper="Define cuántos usuarios puede tener cada empresa y qué pilares incluye el paquete.">
+        <AdminSection title="Editar plan de usuarios" helper="Define cu?ntos usuarios puede tener cada empresa y qu? pilares incluye el paquete.">
           <form className="admin-plan-form" onSubmit={savePlan}>
             <label>Empresa
               <select value={planForm.empresa_id} disabled={!actor.esSuperAdmin} onChange={(event) => changePlanEmpresa(event.target.value)}>
@@ -481,7 +547,7 @@ export default function AdminAccess({ view = "usuarios" }) {
 
       {!loading && view === "empresas" && (
         <AdminSection title="Empresas y planes" helper="Control comercial para vender paquetes por usuario.">
-          <Table headers={["Empresa", "Plan", "Estado", "Usuarios activos", "Límite plan"]} empty="No hay empresas.">
+          <Table headers={["Empresa", "Plan", "Estado", "Usuarios activos", "L?mite plan"]} empty="No hay empresas.">
             {visibleEmpresas.map((empresa) => {
               const plan = data.planes.find((item) => String(item.empresa_id) === String(empresa.id));
               const users = visibleUsuarios.filter((item) => String(item.empresa_id) === String(empresa.id) && item.estado === "ACTIVO").length;
@@ -503,8 +569,8 @@ export default function AdminAccess({ view = "usuarios" }) {
       )}
 
       {!loading && view === "auditoria" && (
-        <AdminSection title="Auditoría" helper="Base lista para registrar eventos administrativos.">
-          <EmptyState>La tabla `auditoria_admin` quedó preparada para registrar aprobaciones, cambios de rol y cambios de licencias.</EmptyState>
+        <AdminSection title="Auditor?a" helper="Base lista para registrar eventos administrativos.">
+          <EmptyState>La tabla `auditoria_admin` qued? preparada para registrar aprobaciones, cambios de rol y cambios de licencias.</EmptyState>
         </AdminSection>
       )}
 
@@ -512,7 +578,7 @@ export default function AdminAccess({ view = "usuarios" }) {
         <div className="admin-modal-backdrop">
           <div className="admin-modal">
             <h2>Aprobar solicitud</h2>
-            <p>{selectedRequest.nombre_completo} · {PILLAR_LABELS[selectedRequest.pilar]}</p>
+            <p>{selectedRequest.nombre_completo} ? {PILLAR_LABELS[selectedRequest.pilar]}</p>
             <label>
               Empresa
               <select value={approval.empresa_id} onChange={(event) => setApproval((prev) => ({ ...prev, empresa_id: event.target.value }))}>
@@ -543,13 +609,18 @@ export default function AdminAccess({ view = "usuarios" }) {
                 <button type="button" onClick={() => setApproval((prev) => ({ ...prev, clave_acceso: generarClaveTemporal() }))}>Generar</button>
               </div>
             </label>
+            {approvalPreviewPayload ? (
+              <div className="admin-email-preview">
+                <strong>Vista previa del correo</strong>
+                <iframe title="Vista previa correo aprobado" srcDoc={buildApprovalEmailHtml(approvalPreviewPayload)} />
+              </div>
+            ) : null}
             {approvalResult ? (
               <div className="admin-approval-result">
                 <strong>Acceso aprobado</strong>
                 <span>Usuario: {selectedRequest.email}</span>
-                <span>Contraseña temporal: {approvalResult.claveTemporal}</span>
-                <small>El usuario deberá cambiarla al iniciar sesión.</small>
-                <a href={approvalResult.mailto}>Abrir correo de aprobación</a>
+                <span>Contrasena temporal: {approvalResult.claveTemporal}</span>
+                <small>{approvalResult.emailSent ? "Correo automatico enviado." : "Correo pendiente por configuracion de Supabase/Resend."}</small>
               </div>
             ) : null}
             <div className="admin-modal-actions">
@@ -559,6 +630,59 @@ export default function AdminAccess({ view = "usuarios" }) {
               ) : (
                 <button type="button" className="primary" onClick={confirmApproval}><KeyRound size={15} /> Aprobar y generar clave</button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingUser && (
+        <div className="admin-modal-backdrop">
+          <div className="admin-modal">
+            <h2>Editar rol y acceso</h2>
+            <p>{editingUser.nombre} ? {editingUser.email || editingUser.usuario}</p>
+            <label>
+              Empresa
+              <select
+                value={roleEdit.empresa_id}
+                disabled={!actor.esSuperAdmin}
+                onChange={(event) => setRoleEdit((prev) => ({ ...prev, empresa_id: event.target.value, rol_id: "" }))}
+              >
+                {visibleEmpresas.map((empresa) => <option key={empresa.id} value={empresa.id}>{empresa.nombre}</option>)}
+              </select>
+            </label>
+            <label>
+              Pilar
+              <select value={roleEdit.pilar} onChange={(event) => setRoleEdit((prev) => ({ ...prev, pilar: event.target.value, rol_id: "" }))}>
+                <option value="wms">WMS</option>
+                <option value="5s">5S</option>
+                <option value="eto">ETO</option>
+              </select>
+            </label>
+            {roleEdit.pilar === "eto" && (
+              <label>
+                Nivel ETO
+                <select value={roleEdit.eto_nivel} onChange={(event) => setRoleEdit((prev) => ({ ...prev, eto_nivel: event.target.value }))}>
+                  <option value="1">Nivel 1</option>
+                  <option value="2">Nivel 2</option>
+                </select>
+              </label>
+            )}
+            <label>
+              Rol
+              <select value={roleEdit.rol_id || roleOptionsForEdit[0]?.id || ""} onChange={(event) => setRoleEdit((prev) => ({ ...prev, rol_id: event.target.value }))}>
+                {roleOptionsForEdit.map((role) => <option key={role.id} value={role.id}>{role.nombre}</option>)}
+              </select>
+            </label>
+            <label>
+              Estado del acceso
+              <select value={roleEdit.estado} onChange={(event) => setRoleEdit((prev) => ({ ...prev, estado: event.target.value }))}>
+                <option value="ACTIVO">Activo</option>
+                <option value="INACTIVO">Inactivo</option>
+              </select>
+            </label>
+            <div className="admin-modal-actions">
+              <button type="button" onClick={() => setEditingUser(null)}>Cancelar</button>
+              <button type="button" className="primary" onClick={saveRoleEdit}><ShieldCheck size={15} /> Guardar rol</button>
             </div>
           </div>
         </div>
@@ -643,6 +767,9 @@ button.danger { color: #dc2626; border-color: #fecaca; background: #fff5f5; }
 .admin-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
 .admin-inline-field { display: flex; gap: 8px; }
 .admin-inline-field input { flex: 1; }
+.admin-email-preview { display: grid; gap: 8px; border: 1px solid #dbe5f2; background: #f8fafc; border-radius: 14px; padding: 12px; }
+.admin-email-preview strong { color: #17213b; }
+.admin-email-preview iframe { width: 100%; height: 520px; border: 1px solid #e3e9f4; border-radius: 12px; background: #f3f6fb; }
 .admin-approval-result { display: grid; gap: 5px; border: 1px solid #bbf7d0; background: #f0fdf4; color: #14532d; border-radius: 12px; padding: 12px; }
 .admin-approval-result a { color: #047857; font-weight: 900; text-decoration: underline; }
 .admin-create-user { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 18px 20px 20px; }

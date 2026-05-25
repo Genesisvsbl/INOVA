@@ -7,6 +7,7 @@ import {
   supabaseUrl,
   updateById,
 } from "./supabaseRest";
+import { buildApprovalPayload } from "./approvalEmailTemplate";
 
 const LEGACY_ADMIN_PERMISSIONS = [
   "usuarios.ver",
@@ -79,28 +80,15 @@ export function generarClaveTemporal(length = 10) {
   }).join("");
 }
 
-export function buildApprovalEmail({ solicitud, claveTemporal, empresa, rol }) {
-  const subject = encodeURIComponent("Acceso aprobado - INOVA");
-  const body = [
-    `Hola ${solicitud.nombre_completo},`,
-    "",
-    "Tu acceso a INOVA fue aprobado.",
-    "",
-    `Empresa: ${empresa?.nombre || solicitud.empresa_nombre || ""}`,
-    `Pilar: ${String(solicitud.pilar || "").toUpperCase()}${solicitud.eto_nivel ? ` - Nivel ${solicitud.eto_nivel}` : ""}`,
-    `Rol: ${rol?.nombre || rol?.codigo || ""}`,
-    `Usuario: ${solicitud.email}`,
-    `Contraseña temporal: ${claveTemporal}`,
-    "",
-    "Por seguridad, al ingresar por primera vez el sistema te pedirá cambiar esta contraseña.",
-    "",
-    "INOVA",
-  ].join("\n");
-  return `mailto:${encodeURIComponent(solicitud.email)}?subject=${subject}&body=${encodeURIComponent(body)}`;
-}
-
 export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa, rol }) {
   if (!supabaseUrl || !supabaseKey) throw new Error("Supabase no está configurado.");
+  const payload = buildApprovalPayload({
+    solicitud,
+    claveTemporal,
+    empresa,
+    rol,
+    loginUrl: `${window.location.origin}/login`,
+  });
   const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/functions/v1/send-approval-email`, {
     method: "POST",
     headers: {
@@ -108,16 +96,7 @@ export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa
       apikey: supabaseKey,
       Authorization: `Bearer ${supabaseKey}`,
     },
-    body: JSON.stringify({
-      nombre: solicitud.nombre_completo,
-      email: solicitud.email,
-      empresa: empresa?.nombre || solicitud.empresa_nombre || "",
-      pilar: solicitud.pilar,
-      etoNivel: solicitud.eto_nivel || null,
-      rol: rol?.nombre || rol?.codigo || "",
-      claveTemporal,
-      loginUrl: `${window.location.origin}/login`,
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
@@ -127,7 +106,6 @@ export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa
 
   return response.json().catch(() => ({ ok: true }));
 }
-
 function roleToPermissions(role, pilar, etoNivel) {
   const rol = String(role || "").toUpperCase();
   if (rol === "SUPER_ADMIN") return LEGACY_ADMIN_PERMISSIONS;
@@ -314,20 +292,21 @@ export async function aprobarSolicitud(solicitud, { empresa_id, rol_id, clave_ac
     fecha_respuesta: new Date().toISOString(),
   });
 
-  const mailto = buildApprovalEmail({ solicitud, claveTemporal, empresa, rol });
   let emailSent = false;
+  let emailError = "";
   try {
     await enviarCorreoAprobacion({ solicitud, claveTemporal, empresa, rol });
     emailSent = true;
   } catch (error) {
     console.warn("No se pudo enviar el correo HTML de aprobación:", error);
+    emailError = error?.message || "No se pudo enviar el correo automatico.";
   }
 
   return {
     user,
     claveTemporal,
-    mailto,
     emailSent,
+    emailError,
   };
 }
 
@@ -438,21 +417,88 @@ export async function crearUsuarioEmpresa(payload, actor = {}) {
     eto_nivel: accessPayload.eto_nivel,
   };
 
-  const mailto = buildApprovalEmail({ solicitud, claveTemporal, empresa, rol });
   let emailSent = false;
+  let emailError = "";
   try {
     await enviarCorreoAprobacion({ solicitud, claveTemporal, empresa, rol });
     emailSent = true;
   } catch (error) {
     console.warn("No se pudo enviar el correo HTML de aprobación:", error);
+    emailError = error?.message || "No se pudo enviar el correo automatico.";
   }
 
   return {
     user,
     claveTemporal,
-    mailto,
     emailSent,
+    emailError,
   };
+}
+
+export async function actualizarRolUsuario(user, payload, actor = {}) {
+  const actorRol = String(actor.rol || "").toUpperCase();
+  const actorIsSuperAdmin = actor.esSuperAdmin || actorRol === "SUPER_ADMIN";
+  const actorIsAdmin = actorIsSuperAdmin || actorRol.includes("ADMIN");
+  if (!actorIsAdmin) throw new Error("Solo super administracion o administradores de empresa pueden editar roles.");
+  const empresaIdFinal = Number(actorIsSuperAdmin ? payload.empresa_id || user.empresa_id : actor.empresaId);
+  if (!empresaIdFinal) throw new Error("Debes asignar una empresa.");
+  if (!actorIsSuperAdmin && String(user.empresa_id) !== String(actor.empresaId)) {
+    throw new Error("No puedes editar usuarios de otra empresa.");
+  }
+
+  const rolRows = payload.rol_id
+    ? await safeSelect("public", "roles", { select: "*", id: eq(payload.rol_id), limit: "1" })
+    : [];
+  const rol = rolRows?.[0];
+  const rolCodigo = String(rol?.codigo || "").toUpperCase();
+  if (!rol || !rolCodigo) throw new Error("Debes seleccionar un rol.");
+  if (rolCodigo === "SUPER_ADMIN") throw new Error("El rol SUPER_ADMIN no se asigna desde este panel.");
+  if (String(rol.empresa_id) !== String(empresaIdFinal)) {
+    throw new Error("El rol seleccionado no pertenece a la empresa.");
+  }
+
+  const pilar = payload.pilar || "wms";
+  const accessPayload = {
+    usuario_id: user.id,
+    empresa_id: empresaIdFinal,
+    pilar,
+    rol_id: rol.id,
+    eto_nivel: pilar === "eto" ? Number(payload.eto_nivel || 1) : null,
+    estado: payload.estado || "ACTIVO",
+  };
+
+  const updatedUser = await saveUsuario({
+    empresa_id: empresaIdFinal,
+    rol: rolCodigo,
+    estado: payload.usuario_estado || user.estado || "ACTIVO",
+    fecha_actualizacion: new Date().toISOString(),
+  }, user.id);
+
+  const existingAccess = await safeSelect("public", "usuario_pilares", {
+    select: "*",
+    usuario_id: eq(user.id),
+    empresa_id: eq(empresaIdFinal),
+    pilar: eq(pilar),
+    ...(accessPayload.eto_nivel ? { eto_nivel: eq(accessPayload.eto_nivel) } : { eto_nivel: "is.null" }),
+    limit: "1",
+  });
+
+  if (existingAccess?.[0]) {
+    await updateById("public", "usuario_pilares", existingAccess[0].id, accessPayload);
+  } else {
+    await insertRow("public", "usuario_pilares", accessPayload);
+  }
+
+  await insertRow("public", "auditoria_admin", {
+    usuario_id: actor.userId || null,
+    empresa_id: empresaIdFinal,
+    accion: "CAMBIO_ROL_USUARIO",
+    entidad: "usuarios",
+    entidad_id: String(user.id),
+    detalle: { usuario: user.email || user.usuario, rol: rolCodigo, pilar, eto_nivel: accessPayload.eto_nivel },
+  }).catch(() => {});
+
+  return updatedUser;
 }
 
 export function rechazarSolicitud(id, observacion_admin = "") {
@@ -508,3 +554,4 @@ export function cambiarClaveObligatoria(userId, nuevaClave) {
     fecha_actualizacion: new Date().toISOString(),
   }, userId);
 }
+
