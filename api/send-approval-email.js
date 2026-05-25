@@ -436,8 +436,16 @@ export default async function handler(req, res) {
     });
 
     const text = await resendResponse.text();
-    if (!resendResponse.ok) return res.status(resendResponse.status).send(text);
-    return res.status(200).send(text);
+    if (resendResponse.ok) return res.status(200).send(text);
+    if (!SMTP_PASS) {
+      return res.status(resendResponse.status).json({
+        error: "Resend rechazo el envio. Para enviar a cualquier correo configura un dominio verificado en Resend o SMTP_PASS de Outlook.",
+        provider: "resend",
+        status: resendResponse.status,
+        details: text || "Sin detalle del proveedor.",
+      });
+    }
+    console.warn("Resend rechazo el envio; usando fallback SMTP.", resendResponse.status, text);
   }
 
   if (SMTP_PASS) {
