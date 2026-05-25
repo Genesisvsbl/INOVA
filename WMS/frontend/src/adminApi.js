@@ -7,7 +7,7 @@
   supabaseUrl,
   updateById,
 } from "./supabaseRest";
-import { APPROVAL_LOGIN_URL, buildApprovalPayload } from "./approvalEmailTemplate";
+import { APPROVAL_LOGIN_URL, buildApprovalEmailHtml, buildApprovalPayload } from "./approvalEmailTemplate";
 
 const LEGACY_ADMIN_PERMISSIONS = [
   "usuarios.ver",
@@ -107,6 +107,52 @@ function abrirOutlookLocal(payload) {
   return true;
 }
 
+async function generarTarjetaAprobacionPng(payload) {
+  if (typeof window === "undefined" || typeof document === "undefined") return "";
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.position = "fixed";
+  iframe.style.left = "-10000px";
+  iframe.style.top = "0";
+  iframe.style.width = "640px";
+  iframe.style.height = "920px";
+  iframe.style.border = "0";
+  iframe.srcdoc = buildApprovalEmailHtml(payload);
+  document.body.appendChild(iframe);
+
+  try {
+    await new Promise((resolve) => {
+      iframe.onload = resolve;
+      setTimeout(resolve, 900);
+    });
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc?.body) return "";
+    await Promise.all(
+      Array.from(doc.images || []).map((img) =>
+        img.complete ? Promise.resolve() : new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve;
+          setTimeout(resolve, 900);
+        })
+      )
+    );
+    const { default: html2canvas } = await import("html2canvas");
+    const target = doc.body.querySelector("table") || doc.body;
+    const canvas = await html2canvas(target, {
+      backgroundColor: "#f4f6fb",
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    });
+    return canvas.toDataURL("image/png").split(",")[1] || "";
+  } catch (error) {
+    console.warn("No se pudo generar PNG de aprobacion:", error);
+    return "";
+  } finally {
+    iframe.remove();
+  }
+}
+
 export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa, rol }) {
   if (!supabaseUrl || !supabaseKey) throw new Error("Supabase no estÃ¡ configurado.");
   const payload = buildApprovalPayload({
@@ -116,6 +162,7 @@ export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa
     rol,
     loginUrl: APPROVAL_LOGIN_URL,
   });
+  payload.cardPngBase64 = await generarTarjetaAprobacionPng(payload);
   const endpoints = [
     {
       url: `${supabaseUrl.replace(/\/$/, "")}/functions/v1/send-approval-email`,

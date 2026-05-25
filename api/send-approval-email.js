@@ -259,7 +259,7 @@ function buildApprovalCardSvg(payload) {
 </svg>`;
 }
 
-function approvalTemplate(payload) {
+function approvalTemplate(payload, imageSource = "cid:approval-card") {
   const pilarKey = String(payload.pilar || "wms").toLowerCase();
   const theme = THEMES[pilarKey] || THEMES.wms;
   const loginUrl = String(payload.loginUrl || "https://inova-delta.vercel.app/login");
@@ -274,7 +274,7 @@ function approvalTemplate(payload) {
             <tr>
               <td style="padding:20px;text-align:center;">
                 <a href="${escapeHtml(loginUrl)}" style="display:inline-block;text-decoration:none;border:0;">
-                  <img src="cid:approval-card" width="560" alt="Acceso aprobado INOVA" style="display:block;width:100%;max-width:560px;height:auto;border:0;border-radius:18px;" />
+                  <img src="${escapeHtml(imageSource)}" width="560" alt="Acceso aprobado INOVA" style="display:block;width:100%;max-width:560px;height:auto;border:0;border-radius:18px;" />
                 </a>
               </td>
             </tr>
@@ -307,8 +307,12 @@ export default async function handler(req, res) {
   const theme = THEMES[pilar] || THEMES.wms;
   const cardSvg = buildApprovalCardSvg(payload);
   const cardPdf = buildApprovalCardPdf(payload);
+  const cardPng = payload.cardPngBase64 ? Buffer.from(String(payload.cardPngBase64).replace(/^data:image\/png;base64,/, ""), "base64") : null;
   const attachmentBase = `acceso-aprobado-${cleanFilename(payload.nombre || payload.email)}`;
-  const html = approvalTemplate(payload);
+  const html = approvalTemplate(
+    payload,
+    cardPng ? `data:image/png;base64,${cardPng.toString("base64")}` : "cid:approval-card"
+  );
 
   if (RESEND_API_KEY) {
     const resendResponse = await fetch("https://api.resend.com/emails", {
@@ -323,10 +327,13 @@ export default async function handler(req, res) {
         subject: `Acceso aprobado a INOVA ${theme.label}`,
         html,
         attachments: [
-          {
+          ...(cardPng ? [{
+            filename: `${attachmentBase}.png`,
+            content: cardPng.toString("base64"),
+          }] : [{
             filename: `${attachmentBase}.svg`,
             content: Buffer.from(cardSvg).toString("base64"),
-          },
+          }]),
           {
             filename: `${attachmentBase}.pdf`,
             content: cardPdf.toString("base64"),
@@ -356,14 +363,19 @@ export default async function handler(req, res) {
       from: FROM_EMAIL,
       to: payload.email,
       subject: `Acceso aprobado a INOVA ${theme.label}`,
-      html,
+      html: approvalTemplate(payload, cardPng ? "cid:approval-card-png" : "cid:approval-card"),
       attachments: [
-        {
+        ...(cardPng ? [{
+          filename: `${attachmentBase}.png`,
+          content: cardPng,
+          contentType: "image/png",
+          cid: "approval-card-png",
+        }] : [{
           filename: `${attachmentBase}.svg`,
           content: Buffer.from(cardSvg),
           contentType: "image/svg+xml",
           cid: "approval-card",
-        },
+        }]),
         {
           filename: `${attachmentBase}.pdf`,
           content: cardPdf,
