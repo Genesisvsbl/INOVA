@@ -89,22 +89,38 @@ export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa
     rol,
     loginUrl: `${window.location.origin}/login`,
   });
-  const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/functions/v1/send-approval-email`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: supabaseKey,
-      Authorization: `Bearer ${supabaseKey}`,
+  const endpoints = [
+    {
+      url: `${supabaseUrl.replace(/\/$/, "")}/functions/v1/send-approval-email`,
+      headers: {
+        "Content-Type": "application/json",
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+      },
     },
-    body: JSON.stringify(payload),
-  });
+    {
+      url: `${window.location.origin}/api/send-approval-email`,
+      headers: { "Content-Type": "application/json" },
+    },
+  ];
 
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || `No se pudo enviar correo (${response.status}).`);
+  const errors = [];
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint.url, {
+        method: "POST",
+        headers: endpoint.headers,
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) return response.json().catch(() => ({ ok: true }));
+      errors.push(await response.text());
+    } catch (error) {
+      errors.push(error?.message || String(error));
+    }
   }
 
-  return response.json().catch(() => ({ ok: true }));
+  throw new Error(errors.filter(Boolean).join(" | ") || "No se pudo enviar correo automatico.");
 }
 
 function normalizeEmailError(error) {

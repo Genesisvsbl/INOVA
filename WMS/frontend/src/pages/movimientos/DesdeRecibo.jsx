@@ -144,8 +144,8 @@ function Chip({ label, tone = "neutral" }) {
 }
 
 function esMaterialAuto(linea) {
-  const texto = [linea?.familia || "", linea?.descripcion || "", linea?.codigo || ""]
-    .join(" ")
+  const texto = stripAccents([linea?.familia || "", linea?.descripcion || "", linea?.codigo || ""]
+    .join(" "))
     .toLowerCase();
 
   return (
@@ -157,8 +157,8 @@ function esMaterialAuto(linea) {
 }
 
 function tipoSugerenciaMaterial(linea) {
-  const texto = [linea?.familia || "", linea?.descripcion || "", linea?.codigo || ""]
-    .join(" ")
+  const texto = stripAccents([linea?.familia || "", linea?.descripcion || "", linea?.codigo || ""]
+    .join(" "))
     .toLowerCase();
 
   if (texto.includes("preforma")) return "preforma";

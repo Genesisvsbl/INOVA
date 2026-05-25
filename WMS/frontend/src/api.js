@@ -973,7 +973,9 @@ export function getMotorPorUbicacion(ubicacionCodigo) {
 export function sugerirUbicaciones(payload = {}) {
   const base = normalizeText(payload.ubicacion_base || payload.base || payload.ubicacion);
   const cantidad = Math.max(1, Number(payload.cantidad_pallets || payload.cantidad || 1));
-  const tipoMaterial = normalizeText(payload.tipo_material || payload.material_tipo || "");
+  const tipoMaterial = normalizeText(stripAccents(payload.tipo_material || payload.material_tipo || "").toLowerCase());
+  const usaZonasLataAzucar = tipoMaterial === "lata" || tipoMaterial === "azucar";
+  const zonasLataAzucar = ["400", "600"];
 
   const parsePosicion = (value) => {
     const raw = String(value || "");
@@ -985,13 +987,30 @@ export function sugerirUbicaciones(payload = {}) {
     };
   };
 
+  const baseNumero = (item) => String(item?.ubicacion_base || item?.ubicacion || "").replace(/\D/g, "");
+  const estaEnZonaLataAzucar = (u) => {
+    const baseValue = normalizeText(u.ubicacion_base || "");
+    const ubicacionValue = normalizeText(u.ubicacion || "");
+    const zonaValue = normalizeText(u.zona || "");
+    return zonasLataAzucar.some(
+      (zona) => baseValue.startsWith(zona) || ubicacionValue.startsWith(zona) || zonaValue.includes(zona)
+    );
+  };
+
+  const coincideBase = (u) => {
+    if (!base) return true;
+    const baseValue = normalizeText(u.ubicacion_base || "");
+    const ubicacionValue = normalizeText(u.ubicacion || "");
+    return baseValue.startsWith(base) || ubicacionValue.startsWith(base);
+  };
+
   const sortUbicaciones = (a, b) => {
     const pa = parsePosicion(a.posicion || a.ubicacion);
     const pb = parsePosicion(b.posicion || b.ubicacion);
-    const baseA = Number(String(a.ubicacion_base || "").replace(/\D/g, "")) || 0;
-    const baseB = Number(String(b.ubicacion_base || "").replace(/\D/g, "")) || 0;
+    const baseA = Number(baseNumero(a)) || 0;
+    const baseB = Number(baseNumero(b)) || 0;
 
-    if (tipoMaterial === "lata" || tipoMaterial === "azucar") {
+    if (usaZonasLataAzucar) {
       return (
         pa.columnaNum - pb.columnaNum ||
         pa.pasilloNum - pb.pasilloNum ||
@@ -1010,9 +1029,14 @@ export function sugerirUbicaciones(payload = {}) {
 
   return Promise.all([getUbicaciones(), getAllStockRows()]).then(([ubicaciones, stockRows]) => {
     const ocupadas = new Set(stockRows.map((row) => normalizeText(row.ubicacion)));
-    const candidatas = (ubicaciones || [])
-      .filter((u) => !base || normalizeText(u.ubicacion_base).startsWith(base) || normalizeText(u.ubicacion).startsWith(base))
-      .filter((u) => !ocupadas.has(normalizeText(u.ubicacion)))
+    const libres = (ubicaciones || []).filter((u) => !ocupadas.has(normalizeText(u.ubicacion)));
+    const candidatasBase = libres.filter(coincideBase);
+    const candidatasZona = usaZonasLataAzucar ? candidatasBase.filter(estaEnZonaLataAzucar) : candidatasBase;
+    const candidatasFinales = usaZonasLataAzucar && candidatasZona.length === 0
+      ? libres.filter(estaEnZonaLataAzucar)
+      : candidatasZona;
+
+    const candidatas = candidatasFinales
       .sort(sortUbicaciones)
       .slice(0, cantidad)
       .map((u) => ({
@@ -1023,7 +1047,6 @@ export function sugerirUbicaciones(payload = {}) {
     return { ubicaciones: candidatas, sugerencias: candidatas };
   });
 }
-
 export function registrarAjusteInterno(payload) {
   const tipo = normalizeText(payload.tipo || "TRASLADO");
   const cantidad = Math.abs(toNumber(payload.cantidad));
