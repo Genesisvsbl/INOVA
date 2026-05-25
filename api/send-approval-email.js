@@ -309,10 +309,7 @@ export default async function handler(req, res) {
   const cardPdf = buildApprovalCardPdf(payload);
   const cardPng = payload.cardPngBase64 ? Buffer.from(String(payload.cardPngBase64).replace(/^data:image\/png;base64,/, ""), "base64") : null;
   const attachmentBase = `acceso-aprobado-${cleanFilename(payload.nombre || payload.email)}`;
-  const html = approvalTemplate(
-    payload,
-    cardPng ? `data:image/png;base64,${cardPng.toString("base64")}` : "cid:approval-card"
-  );
+  const html = approvalTemplate(payload, "cid:approval-card");
 
   if (RESEND_API_KEY) {
     const resendResponse = await fetch("https://api.resend.com/emails", {
@@ -330,10 +327,11 @@ export default async function handler(req, res) {
           ...(cardPng ? [{
             filename: `${attachmentBase}.png`,
             content: cardPng.toString("base64"),
-          }] : [{
+          }]),
+          {
             filename: `${attachmentBase}.svg`,
             content: Buffer.from(cardSvg).toString("base64"),
-          }]),
+          },
           {
             filename: `${attachmentBase}.pdf`,
             content: cardPdf.toString("base64"),
