@@ -314,7 +314,7 @@ function approvalSummaryTemplate(payload) {
                 <p><strong>Usuario:</strong> ${escapeHtml(payload.email)}</p>
                 <p><strong>Contrase&ntilde;a temporal:</strong> ${escapeHtml(payload.claveTemporal)}</p>
               </div>
-              <p style="color:#526179;">La tarjeta visual de bienvenida va adjunta en PNG y PDF.</p>
+              <p style="color:#526179;">La tarjeta visual de bienvenida va adjunta en PNG.</p>
               <a href="${escapeHtml(loginUrl)}" style="display:inline-block;color:#ffffff;background:${theme.primary};padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:800;">Ingresar a INOVA</a>
             </td></tr>
           </table>
@@ -365,10 +365,6 @@ export default async function handler(req, res) {
             filename: `${attachmentBase}.svg`,
             content: Buffer.from(cardSvg).toString("base64"),
           }]),
-          {
-            filename: `${attachmentBase}.pdf`,
-            content: cardPdf.toString("base64"),
-          },
         ],
       }),
     });
@@ -407,11 +403,6 @@ export default async function handler(req, res) {
           contentType: "image/svg+xml",
           cid: "approval-card",
         }]),
-        {
-          filename: `${attachmentBase}.pdf`,
-          content: cardPdf,
-          contentType: "application/pdf",
-        },
       ],
     });
 
