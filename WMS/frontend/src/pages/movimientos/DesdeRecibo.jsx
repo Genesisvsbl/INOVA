@@ -156,6 +156,17 @@ function esMaterialAuto(linea) {
   );
 }
 
+function tipoSugerenciaMaterial(linea) {
+  const texto = [linea?.familia || "", linea?.descripcion || "", linea?.codigo || ""]
+    .join(" ")
+    .toLowerCase();
+
+  if (texto.includes("preforma")) return "preforma";
+  if (texto.includes("lata")) return "lata";
+  if (texto.includes("azucar") || texto.includes("azucar")) return "azucar";
+  return "normal";
+}
+
 function buildLineaExpandida({
   lineaOriginal,
   idxLineaOriginal,
@@ -1039,6 +1050,7 @@ export default function DesdeRecibo() {
       const payload = {
         ubicacion_base: base,
         cantidad_pallets: cantidad,
+        tipo_material: tipoSugerenciaMaterial(draft?.lineas?.[idx]),
       };
 
       const data = await sugerirUbicaciones(payload);
@@ -1095,6 +1107,7 @@ export default function DesdeRecibo() {
       const payload = {
         ubicacion_base: baseSecundaria,
         cantidad_pallets: faltante,
+        tipo_material: tipoSugerenciaMaterial(draft?.lineas?.[idx]),
       };
 
       const data = await sugerirUbicaciones(payload);

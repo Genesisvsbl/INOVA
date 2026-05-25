@@ -1,30 +1,9 @@
-export const APPROVAL_EMAIL_FROM = "INOVA <no-reply@inova.app>";
+﻿export const APPROVAL_EMAIL_FROM = "INOVA <no-reply@inova.app>";
 
 export const APPROVAL_THEMES = {
-  wms: {
-    label: "WMS",
-    primary: "#5b4ee6",
-    secondary: "#7c3aed",
-    soft: "#f1efff",
-    line: "#dcd7ff",
-    icon: "W",
-  },
-  "5s": {
-    label: "5S",
-    primary: "#2563eb",
-    secondary: "#38bdf8",
-    soft: "#eef6ff",
-    line: "#cfe0ff",
-    icon: "5S",
-  },
-  eto: {
-    label: "ETO",
-    primary: "#16a34a",
-    secondary: "#22c55e",
-    soft: "#eefdf4",
-    line: "#bdf7d1",
-    icon: "E",
-  },
+  wms: { label: "WMS", primary: "#5b4ee6", secondary: "#7c3aed", soft: "#f1efff", line: "#dcd7ff" },
+  "5s": { label: "5S", primary: "#2563eb", secondary: "#38bdf8", soft: "#eef6ff", line: "#cfe0ff" },
+  eto: { label: "ETO", primary: "#16a34a", secondary: "#22c55e", soft: "#eefdf4", line: "#bdf7d1" },
 };
 
 export function getApprovalTheme(pilar = "wms") {
@@ -32,6 +11,7 @@ export function getApprovalTheme(pilar = "wms") {
 }
 
 export function buildApprovalPayload({ solicitud, claveTemporal, empresa, rol, loginUrl }) {
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://inova-delta.vercel.app";
   return {
     nombre: solicitud?.nombre_completo || solicitud?.nombre || "",
     email: solicitud?.email || "",
@@ -40,7 +20,8 @@ export function buildApprovalPayload({ solicitud, claveTemporal, empresa, rol, l
     etoNivel: solicitud?.eto_nivel || null,
     rol: rol?.nombre || rol?.codigo || "",
     claveTemporal,
-    loginUrl,
+    loginUrl: loginUrl || `${origin}/login`,
+    logoUrl: `${origin}/INOVA2026.png`,
   };
 }
 
@@ -48,61 +29,65 @@ export function buildApprovalEmailHtml(payload = {}) {
   const theme = getApprovalTheme(payload.pilar);
   const pilarLabel = `${theme.label}${payload.etoNivel ? ` - Nivel ${payload.etoNivel}` : ""}`;
   const safe = (value) => String(value ?? "");
+  const logoUrl = safe(payload.logoUrl || "https://inova-delta.vercel.app/INOVA2026.png");
+  const loginUrl = safe(payload.loginUrl || "https://inova-delta.vercel.app/login");
   const row = (icon, label, value) => `
     <tr>
-      <td style="width:46px;padding:13px 0;border-bottom:1px solid #e8eef7;">
-        <span style="display:inline-grid;place-items:center;width:32px;height:32px;border-radius:999px;background:${theme.soft};color:${theme.primary};font-size:15px;font-weight:900;">${icon}</span>
+      <td style="width:48px;padding:12px 0;border-bottom:1px solid #e8eef7;">
+        <span style="display:inline-block;width:34px;height:34px;line-height:34px;text-align:center;border-radius:999px;background:${theme.soft};color:${theme.primary};font-size:16px;font-weight:900;">${icon}</span>
       </td>
-      <td style="padding:13px 0;border-bottom:1px solid #e8eef7;color:#526179;font-size:15px;">${label}:</td>
-      <td style="padding:13px 0;border-bottom:1px solid #e8eef7;color:#071226;font-size:15px;font-weight:850;text-align:right;">${safe(value)}</td>
+      <td style="padding:12px 0;border-bottom:1px solid #e8eef7;color:#526179;font-size:16px;">${label}:</td>
+      <td style="padding:12px 0;border-bottom:1px solid #e8eef7;color:#071226;font-size:16px;font-weight:900;text-align:right;">${safe(value)}</td>
     </tr>`;
 
   return `<!doctype html>
 <html>
-  <body style="margin:0;padding:0;background:#f3f6fb;font-family:Inter,Segoe UI,Arial,sans-serif;color:#071226;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f6fb;padding:28px 12px;">
+  <body style="margin:0;padding:0;background:#f4f6fb;font-family:Inter,Segoe UI,Arial,sans-serif;color:#071226;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6fb;padding:24px 10px;">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(15,23,42,.16);border:1px solid #e6edf7;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 24px 70px rgba(15,23,42,.18);border:1px solid #e6edf7;">
             <tr>
-              <td style="padding:28px 42px 0;text-align:center;background:linear-gradient(180deg,#ffffff 0%,${theme.soft} 100%);">
-                <div style="font-size:58px;line-height:1;font-weight:950;letter-spacing:-.06em;color:#071226;">INOVA</div>
-                <div style="height:70px;margin:20px -42px 0;border-bottom:1px solid ${theme.line};border-radius:0 0 50% 50%;position:relative;">
-                  <div style="margin:0 auto;width:70px;height:70px;border-radius:999px;background:#ffffff;box-shadow:0 10px 28px rgba(15,23,42,.14);display:grid;place-items:center;border:1px solid #dbeafe;transform:translateY(34px);">
-                    <span style="color:${theme.primary};font-size:38px;font-weight:900;">✓</span>
+              <td style="padding:28px 42px 0;text-align:center;background:#ffffff;background-image:radial-gradient(circle at 12% 20%,${theme.soft} 0 2px,transparent 3px),radial-gradient(circle at 88% 18%,${theme.soft} 0 2px,transparent 3px);">
+                <img src="${logoUrl}" width="270" alt="INOVA" style="display:block;margin:0 auto;max-width:270px;width:70%;height:auto;border:0;" />
+                <div style="height:72px;margin:20px -42px 0;border-bottom:1px solid ${theme.line};border-radius:0 0 52% 52%;position:relative;">
+                  <div style="margin:0 auto;width:74px;height:74px;border-radius:999px;background:#ffffff;box-shadow:0 10px 28px rgba(15,23,42,.16);border:1px solid #dbeafe;transform:translateY(35px);text-align:center;line-height:74px;">
+                    <span style="color:${theme.primary};font-size:40px;font-weight:900;">&#10003;</span>
                   </div>
                 </div>
               </td>
             </tr>
             <tr>
-              <td style="padding:52px 42px 12px;text-align:center;">
-                <h1 style="margin:0;color:#071226;font-size:32px;line-height:1.1;font-weight:950;">¡Acceso aprobado!</h1>
-                <div style="width:54px;height:3px;border-radius:999px;background:${theme.primary};margin:18px auto 0;"></div>
+              <td style="padding:54px 42px 12px;text-align:center;">
+                <h1 style="margin:0;color:#071226;font-size:34px;line-height:1.1;font-weight:950;">&iexcl;Acceso aprobado!</h1>
+                <div style="width:56px;height:3px;border-radius:999px;background:${theme.primary};margin:18px auto 0;"></div>
               </td>
             </tr>
             <tr>
               <td style="padding:10px 42px 0;">
                 <p style="margin:0 0 18px;color:#17213b;font-size:17px;line-height:1.45;">Hola ${safe(payload.nombre)},<br/>Tu acceso a INOVA fue aprobado.</p>
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid ${theme.line};border-radius:14px;padding:0 18px;background:#ffffff;">
-                  ${row("🏢", "Empresa", payload.empresa)}
-                  ${row(theme.icon, "Pilar", pilarLabel)}
-                  ${row("👤", "Rol", payload.rol)}
-                  ${row("✉", "Usuario", payload.email)}
-                  ${row("🔒", "Contraseña temporal", payload.claveTemporal)}
+                  ${row("&#127970;", "Empresa", payload.empresa)}
+                  ${row("&#9670;", "Pilar", pilarLabel)}
+                  ${row("&#128100;", "Rol", payload.rol)}
+                  ${row("&#9993;", "Usuario", payload.email)}
+                  ${row("&#128274;", "Contrase&ntilde;a temporal", payload.claveTemporal)}
                 </table>
-                <div style="margin-top:14px;display:flex;gap:12px;align-items:center;background:#eef4ff;border-radius:12px;padding:14px 16px;color:#1f2a44;">
-                  <span style="display:inline-grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#ffffff;color:${theme.primary};font-weight:900;">🛡</span>
-                  <span style="font-size:14px;line-height:1.4;">Por seguridad, al ingresar por primera vez el sistema te pedirá cambiar esta contraseña.</span>
-                </div>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:14px;background:#eef4ff;border-radius:12px;">
+                  <tr>
+                    <td style="width:54px;padding:14px 0 14px 16px;color:${theme.primary};font-size:24px;">&#128737;</td>
+                    <td style="padding:14px 16px 14px 0;color:#1f2a44;font-size:14px;line-height:1.4;">Por seguridad, al ingresar por primera vez el sistema te pedir&aacute; cambiar esta contrase&ntilde;a.</td>
+                  </tr>
+                </table>
                 <div style="text-align:center;margin:22px 0 12px;">
-                  <a href="${safe(payload.loginUrl || "https://inova-delta.vercel.app/login")}" style="display:inline-block;text-decoration:none;color:#ffffff;background:linear-gradient(135deg,${theme.primary},${theme.secondary});padding:15px 34px;border-radius:12px;font-size:16px;font-weight:900;box-shadow:0 12px 30px ${theme.primary}55;">Ingresar a INOVA →</a>
+                  <a href="${loginUrl}" style="display:inline-block;text-decoration:none;color:#ffffff;background:linear-gradient(135deg,#001b4f,${theme.primary});padding:15px 38px;border-radius:12px;font-size:16px;font-weight:900;box-shadow:0 12px 30px ${theme.primary}55;">Ingresar a INOVA&nbsp;&nbsp;&#8594;</a>
                 </div>
               </td>
             </tr>
             <tr>
-              <td style="padding:18px 42px 30px;text-align:center;color:#64748b;font-size:14px;">
+              <td style="padding:18px 42px 30px;text-align:center;color:#2563eb;font-size:18px;">
                 <div style="height:1px;background:#e8eef7;margin-bottom:14px;"></div>
-                Bienvenido a <strong style="color:#071226;letter-spacing:.08em;">INOVA</strong>
+                Bienvenido a&nbsp; <strong style="color:#071226;letter-spacing:.04em;">INOVA</strong>
               </td>
             </tr>
           </table>

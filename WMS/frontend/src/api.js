@@ -766,12 +766,47 @@ export function getMotorPorUbicacion(ubicacionCodigo) {
 export function sugerirUbicaciones(payload = {}) {
   const base = normalizeText(payload.ubicacion_base || payload.base || payload.ubicacion);
   const cantidad = Math.max(1, Number(payload.cantidad_pallets || payload.cantidad || 1));
+  const tipoMaterial = normalizeText(payload.tipo_material || payload.material_tipo || "");
+
+  const parsePosicion = (value) => {
+    const raw = String(value || "");
+    const [pasillo = "", columna = ""] = raw.split("'");
+    return {
+      pasilloNum: Number(pasillo.replace(/\D/g, "")) || 0,
+      columnaNum: Number(columna.replace(/\D/g, "")) || 0,
+      raw,
+    };
+  };
+
+  const sortUbicaciones = (a, b) => {
+    const pa = parsePosicion(a.posicion || a.ubicacion);
+    const pb = parsePosicion(b.posicion || b.ubicacion);
+    const baseA = Number(String(a.ubicacion_base || "").replace(/\D/g, "")) || 0;
+    const baseB = Number(String(b.ubicacion_base || "").replace(/\D/g, "")) || 0;
+
+    if (tipoMaterial === "lata" || tipoMaterial === "azucar") {
+      return (
+        pa.columnaNum - pb.columnaNum ||
+        pa.pasilloNum - pb.pasilloNum ||
+        baseA - baseB ||
+        String(a.ubicacion || "").localeCompare(String(b.ubicacion || ""))
+      );
+    }
+
+    return (
+      pa.pasilloNum - pb.pasilloNum ||
+      pa.columnaNum - pb.columnaNum ||
+      baseA - baseB ||
+      String(a.ubicacion || "").localeCompare(String(b.ubicacion || ""))
+    );
+  };
 
   return Promise.all([getUbicaciones(), getAllStockRows()]).then(([ubicaciones, stockRows]) => {
     const ocupadas = new Set(stockRows.map((row) => normalizeText(row.ubicacion)));
     const candidatas = (ubicaciones || [])
       .filter((u) => !base || normalizeText(u.ubicacion_base).startsWith(base) || normalizeText(u.ubicacion).startsWith(base))
       .filter((u) => !ocupadas.has(normalizeText(u.ubicacion)))
+      .sort(sortUbicaciones)
       .slice(0, cantidad)
       .map((u) => ({
         ...u,
