@@ -190,6 +190,9 @@ export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa
     loginUrl: APPROVAL_LOGIN_URL,
   });
   payload.cardPngBase64 = await generarTarjetaAprobacionPng(payload);
+  if (!payload.cardPngBase64 || payload.cardPngBase64.length < 1200) {
+    throw new Error("No se pudo generar la tarjeta PNG de aprobacion. Abre la vista previa y vuelve a intentar.");
+  }
   const endpoints = [
     {
       url: `${supabaseUrl.replace(/\/$/, "")}/functions/v1/send-approval-email`,
@@ -235,6 +238,9 @@ function normalizeEmailError(error) {
   }
   if (message.includes("RESEND_API_KEY")) {
     return "Correo automatico pendiente: falta configurar RESEND_API_KEY o SMTP_PASS en Vercel para enviar desde INOVA.";
+  }
+  if (message.includes("tarjeta PNG")) {
+    return message;
   }
   if (message.includes("domain is not verified") || message.includes("verify a domain")) {
     return "Correo automatico pendiente: el dominio remitente no esta verificado para envio automatico.";

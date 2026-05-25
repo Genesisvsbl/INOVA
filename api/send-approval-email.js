@@ -339,11 +339,13 @@ export default async function handler(req, res) {
 
   const pilar = String(payload.pilar || "wms").toLowerCase();
   const theme = THEMES[pilar] || THEMES.wms;
-  const cardSvg = buildApprovalCardSvg(payload);
-  const cardPdf = buildApprovalCardPdf(payload);
   const cardPng = payload.cardPngBase64 ? Buffer.from(String(payload.cardPngBase64).replace(/^data:image\/png;base64,/, ""), "base64") : null;
   const attachmentBase = `acceso-aprobado-${cleanFilename(payload.nombre || payload.email)}`;
-  const html = approvalTemplate(payload, "cid:approval-card");
+  if (!cardPng || cardPng.length < 1024) {
+    return res.status(400).json({
+      error: "No se recibio la tarjeta PNG de aprobacion. Abre la vista previa y vuelve a enviar.",
+    });
+  }
 
   if (RESEND_API_KEY) {
     const resendResponse = await fetch("https://api.resend.com/emails", {
@@ -356,15 +358,14 @@ export default async function handler(req, res) {
         from: RESEND_FROM_EMAIL,
         to: [payload.email],
         subject: `Acceso aprobado a INOVA ${theme.label}`,
-        html: approvalSummaryTemplate(payload),
+        html: approvalTemplate(payload, "cid:approval-card-png"),
         attachments: [
-          ...(cardPng ? [{
+          {
             filename: `${attachmentBase}.png`,
             content: cardPng.toString("base64"),
-          }] : [{
-            filename: `${attachmentBase}.svg`,
-            content: Buffer.from(cardSvg).toString("base64"),
-          }]),
+            content_type: "image/png",
+            content_id: "approval-card-png",
+          },
         ],
       }),
     });
@@ -390,19 +391,14 @@ export default async function handler(req, res) {
       from: FROM_EMAIL,
       to: payload.email,
       subject: `Acceso aprobado a INOVA ${theme.label}`,
-      html: approvalTemplate(payload, cardPng ? "cid:approval-card-png" : "cid:approval-card"),
+      html: approvalTemplate(payload, "cid:approval-card-png"),
       attachments: [
-        ...(cardPng ? [{
+        {
           filename: `${attachmentBase}.png`,
           content: cardPng,
           contentType: "image/png",
           cid: "approval-card-png",
-        }] : [{
-          filename: `${attachmentBase}.svg`,
-          content: Buffer.from(cardSvg),
-          contentType: "image/svg+xml",
-          cid: "approval-card",
-        }]),
+        },
       ],
     });
 
