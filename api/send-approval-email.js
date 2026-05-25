@@ -327,7 +327,7 @@ export default async function handler(req, res) {
           ...(cardPng ? [{
             filename: `${attachmentBase}.png`,
             content: cardPng.toString("base64"),
-          }]),
+          }] : []),
           {
             filename: `${attachmentBase}.svg`,
             content: Buffer.from(cardSvg).toString("base64"),
