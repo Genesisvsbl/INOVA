@@ -1,4 +1,5 @@
 const FROM_EMAIL = process.env.APPROVAL_FROM_EMAIL || "INOVA <inova-2025@outlook.com>";
+const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || process.env.APPROVAL_FROM_EMAIL || "INOVA <onboarding@resend.dev>";
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.office365.com";
 const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
@@ -309,6 +310,36 @@ export default async function handler(req, res) {
   const attachmentBase = `acceso-aprobado-${cleanFilename(payload.nombre || payload.email)}`;
   const html = approvalTemplate(payload);
 
+  if (RESEND_API_KEY) {
+    const resendResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: RESEND_FROM_EMAIL,
+        to: [payload.email],
+        subject: `Acceso aprobado a INOVA ${theme.label}`,
+        html,
+        attachments: [
+          {
+            filename: `${attachmentBase}.svg`,
+            content: Buffer.from(cardSvg).toString("base64"),
+          },
+          {
+            filename: `${attachmentBase}.pdf`,
+            content: cardPdf.toString("base64"),
+          },
+        ],
+      }),
+    });
+
+    const text = await resendResponse.text();
+    if (!resendResponse.ok) return res.status(resendResponse.status).send(text);
+    return res.status(200).send(text);
+  }
+
   if (SMTP_PASS) {
     const nodemailer = await import("nodemailer");
     const transporter = nodemailer.default.createTransport({
@@ -344,37 +375,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, provider: "outlook-smtp", messageId: result.messageId });
   }
 
-  if (!RESEND_API_KEY) {
-    return res.status(500).json({
-      error: "Falta SMTP_PASS para enviar desde Outlook o RESEND_API_KEY para enviar por Resend.",
-    });
-  }
-
-  const resendResponse = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: FROM_EMAIL,
-      to: [payload.email],
-      subject: `Acceso aprobado a INOVA ${theme.label}`,
-      html,
-      attachments: [
-        {
-          filename: `${attachmentBase}.svg`,
-          content: Buffer.from(cardSvg).toString("base64"),
-        },
-        {
-          filename: `${attachmentBase}.pdf`,
-          content: cardPdf.toString("base64"),
-        },
-      ],
-    }),
+  return res.status(500).json({
+    error: "Falta RESEND_API_KEY para enviar con adjuntos automaticos o SMTP_PASS para Outlook.",
   });
-
-  const text = await resendResponse.text();
-  if (!resendResponse.ok) return res.status(resendResponse.status).send(text);
-  return res.status(200).send(text);
 }
