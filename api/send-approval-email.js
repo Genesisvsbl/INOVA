@@ -99,15 +99,16 @@ function buildApprovalCardPdf(payload) {
   const rowCommands = rows
     .map(([label, value], index) => {
       const y = 455 - index * 40;
+      const valueFont = String(value || "").length > 24 ? 11 : 13;
       return `
 0.965 0.973 0.992 rg
 58 ${y - 14} 28 28 re f
 ${primary} rg
 BT /F2 13 Tf 67 ${y - 3} Td (${index + 1}) Tj ET
 0.318 0.380 0.475 rg
-BT /F1 13 Tf 106 ${y} Td (${pdfEscape(label)}:) Tj ET
+BT /F2 12 Tf 106 ${y} Td (${pdfEscape(label)}:) Tj ET
 0.027 0.071 0.149 rg
-BT /F2 13 Tf 220 ${y} Td (${pdfEscape(value)}) Tj ET`;
+BT /F1 ${valueFont} Tf 270 ${y} Td (${pdfEscape(value)}) Tj ET`;
     })
     .join("\n");
 

@@ -65,11 +65,13 @@ export function buildApprovalEmailHtml(payload = {}) {
   const loginUrl = safe(payload.loginUrl || APPROVAL_LOGIN_URL);
   const row = (icon, label, value) => `
     <tr>
-      <td style="width:48px;padding:12px 0;border-bottom:1px solid #e8eef7;">
+      <td style="width:48px;padding:12px 0;border-bottom:1px solid #e8eef7;vertical-align:middle;">
         <span style="display:inline-block;width:34px;height:34px;line-height:34px;text-align:center;border-radius:999px;background:${theme.soft};color:${theme.primary};font-size:16px;font-weight:900;">${icon}</span>
       </td>
-      <td style="padding:12px 0;border-bottom:1px solid #e8eef7;color:#526179;font-size:16px;">${label}:</td>
-      <td style="padding:12px 0;border-bottom:1px solid #e8eef7;color:#071226;font-size:16px;font-weight:900;text-align:right;">${safe(value)}</td>
+      <td style="padding:12px 0;border-bottom:1px solid #e8eef7;color:#071226;font-size:15px;line-height:1.35;vertical-align:middle;word-break:break-word;">
+        <strong style="font-weight:900;color:#17213b;">${label}:</strong>
+        <span style="font-weight:850;color:#071226;">${safe(value)}</span>
+      </td>
     </tr>`;
 
   return `<!doctype html>
@@ -98,7 +100,7 @@ export function buildApprovalEmailHtml(payload = {}) {
             <tr>
               <td style="padding:10px 42px 0;">
                 <p style="margin:0 0 18px;color:#17213b;font-size:17px;line-height:1.45;">Hola ${safe(payload.nombre)},<br/>Tu acceso a INOVA fue aprobado.</p>
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid ${theme.line};border-radius:14px;padding:0 18px;background:#ffffff;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid ${theme.line};border-radius:14px;padding:0 18px;background:#ffffff;table-layout:fixed;">
                   ${row("&#127970;", "Empresa", payload.empresa)}
                   ${row("&#9670;", "Pilar", pilarLabel)}
                   ${row("&#128100;", "Rol", payload.rol)}
