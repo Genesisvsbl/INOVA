@@ -218,7 +218,7 @@ function getCurrentUserId() {
 }
 
 function isAdminRole(role) {
-  return /SUPER|ADMIN|COORD|LIDER|LEADER/i.test(String(role || ""));
+  return /SUPER_ADMIN|ADMIN|ADMINISTRADOR/i.test(String(role || ""));
 }
 
 function closeSession() {
@@ -679,7 +679,7 @@ async function exportElementAsPng(element, filename) {
   URL.revokeObjectURL(imageUrl);
 }
 
-function PortalView({ setTab }) {
+function PortalView({ setTab, canAdmin = false }) {
   const [bodegasPortal, setBodegasPortal] = useState([]);
   const [dashboard, setDashboard] = useState(null);
   const [config5S, setConfig5S] = useState({ meta_general: 90 });
@@ -733,6 +733,7 @@ function PortalView({ setTab }) {
       icon: Users,
       meta: "Equipo 5S",
       tone: "sky",
+      requiresAdmin: true,
     },
     {
       key: "dashboard",
@@ -749,6 +750,7 @@ function PortalView({ setTab }) {
       icon: Settings,
       meta: "Administración",
       tone: "slate",
+      requiresAdmin: true,
     },
   ];
 
@@ -876,12 +878,18 @@ function PortalView({ setTab }) {
           <div className="portal-shortcuts-grid">
             {shortcuts.map((item) => {
               const Icon = item.icon;
+              const locked = item.requiresAdmin && !canAdmin;
               return (
                 <button
                   key={item.key}
                   type="button"
                   className={`portal-shortcut-card tone-${item.tone}`}
-                  onClick={() => setTab(item.key)}
+                  disabled={locked}
+                  title={locked ? "Solo administradores" : item.title}
+                  onClick={() => {
+                    if (locked) return;
+                    setTab(item.key);
+                  }}
                 >
                   <div className="portal-shortcut-top">
                     <div className="portal-shortcut-icon">
@@ -896,7 +904,7 @@ function PortalView({ setTab }) {
                   </div>
 
                   <div className="portal-shortcut-link">
-                    <span>Abrir módulo</span>
+                    <span>{locked ? "Solo administradores" : "Abrir módulo"}</span>
                     <ArrowRight size={16} />
                   </div>
                 </button>
@@ -6205,7 +6213,7 @@ export default function Calidad5S() {
   };
 
   function renderContent() {
-    if (tab === "portal") return <PortalView setTab={setTab} />;
+    if (tab === "portal") return <PortalView setTab={setTab} canAdmin={canAdmin} />;
 
     if (tab === "cronograma") {
       return <CronogramaView />;
@@ -6216,7 +6224,7 @@ export default function Calidad5S() {
     }
 
     if (tab === "responsables") {
-      return <ResponsablesView />;
+      return canAdmin ? <ResponsablesView /> : <DashboardView />;
     }
 
     if (tab === "dashboard") {
@@ -6467,7 +6475,7 @@ export default function Calidad5S() {
                 const Icon = item.icon || Activity;
                 const active = tab === item.key;
 
-                const locked = item.key === "configuracion" && !canAdmin;
+                const locked = (item.key === "configuracion" || item.key === "responsables") && !canAdmin;
 
                 return (
                   <button
