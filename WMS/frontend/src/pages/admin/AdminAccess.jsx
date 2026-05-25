@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   Building2,
   CheckCircle2,
   Clock3,
+  Eye,
   KeyRound,
   ShieldCheck,
   UserCheck,
@@ -20,7 +21,7 @@ import {
   guardarPlanEmpresa,
   rechazarSolicitud,
 } from "../../adminApi";
-import { buildApprovalEmailHtml, buildApprovalPayload } from "../../approvalEmailTemplate";
+import { APPROVAL_LOGIN_URL, buildApprovalEmailHtml, buildApprovalPayload } from "../../approvalEmailTemplate";
 
 const PILLAR_LABELS = { wms: "WMS", "5s": "5S", eto: "ETO" };
 const EMPTY_USER_FORM = {
@@ -80,6 +81,7 @@ export default function AdminAccess({ view = "usuarios" }) {
   const [actionError, setActionError] = useState("");
   const [editingUser, setEditingUser] = useState(null);
   const [roleEdit, setRoleEdit] = useState({ empresa_id: "", pilar: "wms", rol_id: "", eto_nivel: "1", estado: "ACTIVO" });
+  const [previewPayload, setPreviewPayload] = useState(null);
 
   const actor = useMemo(() => {
     const rol = sessionStorage.getItem("rol") || "";
@@ -179,7 +181,7 @@ export default function AdminAccess({ view = "usuarios" }) {
         claveTemporal: approval.clave_acceso,
         empresa: selectedApprovalEmpresa,
         rol: selectedApprovalRole,
-        loginUrl: typeof window !== "undefined" ? `${window.location.origin}/login` : "https://inova-delta.vercel.app/login",
+        loginUrl: APPROVAL_LOGIN_URL,
       })
     : null;
 
@@ -223,6 +225,19 @@ export default function AdminAccess({ view = "usuarios" }) {
   });
   const planForCreate = data.planes.find((item) => String(item.empresa_id) === String(selectedCreateEmpresa) && String(item.estado || "ACTIVO") === "ACTIVO");
   const activeUsersForCreate = visibleUsuarios.filter((item) => String(item.empresa_id) === String(selectedCreateEmpresa) && item.estado === "ACTIVO").length;
+  const selectedCreateRole = roleById.get(String(userForm.rol_id || roleOptionsForCreate[0]?.id || ""));
+  const createPreviewPayload = buildApprovalPayload({
+    solicitud: {
+      nombre: userForm.nombre || "Nombre del usuario",
+      email: userForm.email || "correo@empresa.com",
+      pilar: userForm.pilar,
+      eto_nivel: userForm.pilar === "eto" ? userForm.eto_nivel : null,
+    },
+    claveTemporal: userForm.clave_acceso || "CLAVE12345",
+    empresa: empresaById.get(String(selectedCreateEmpresa)),
+    rol: selectedCreateRole || { nombre: "Rol asignado" },
+    loginUrl: APPROVAL_LOGIN_URL,
+  });
 
   const createDirectUser = async (event) => {
     event.preventDefault();
@@ -418,7 +433,10 @@ export default function AdminAccess({ view = "usuarios" }) {
                 <strong>{activeUsersForCreate} / {planForCreate?.max_usuarios || "sin limite"}</strong>
                 <span>{planForCreate?.nombre_plan || "Plan sin limite configurado"}</span>
               </div>
-              <button type="submit" className="primary"><KeyRound size={15} /> Crear usuario</button>
+              <div className="admin-form-actions">
+                <button type="button" className="preview" onClick={() => setPreviewPayload(createPreviewPayload)}><Eye size={15} /> Vista previa</button>
+                <button type="submit" className="primary"><KeyRound size={15} /> Crear usuario</button>
+              </div>
             </form>
             {userCreateResult ? (
               <div className="admin-approval-result">
@@ -609,12 +627,6 @@ export default function AdminAccess({ view = "usuarios" }) {
                 <button type="button" onClick={() => setApproval((prev) => ({ ...prev, clave_acceso: generarClaveTemporal() }))}>Generar</button>
               </div>
             </label>
-            {approvalPreviewPayload ? (
-              <div className="admin-email-preview">
-                <strong>Vista previa del correo</strong>
-                <iframe title="Vista previa correo aprobado" srcDoc={buildApprovalEmailHtml(approvalPreviewPayload)} />
-              </div>
-            ) : null}
             {approvalResult ? (
               <div className="admin-approval-result">
                 <strong>Acceso aprobado</strong>
@@ -625,6 +637,9 @@ export default function AdminAccess({ view = "usuarios" }) {
             ) : null}
             <div className="admin-modal-actions">
               <button type="button" onClick={() => setSelectedRequest(null)}>Cancelar</button>
+              {!approvalResult && approvalPreviewPayload ? (
+                <button type="button" className="preview" onClick={() => setPreviewPayload(approvalPreviewPayload)}><Eye size={15} /> Vista previa</button>
+              ) : null}
               {approvalResult ? (
                 <button type="button" className="primary" onClick={() => setSelectedRequest(null)}>Finalizar</button>
               ) : (
@@ -635,6 +650,21 @@ export default function AdminAccess({ view = "usuarios" }) {
         </div>
       )}
 
+
+      {previewPayload && (
+        <div className="admin-modal-backdrop">
+          <div className="admin-modal admin-preview-modal">
+            <div className="admin-preview-head">
+              <div>
+                <h2>Vista previa del correo</h2>
+                <p>Esto es exactamente lo que se enviara al usuario.</p>
+              </div>
+              <button type="button" onClick={() => setPreviewPayload(null)}>Cerrar</button>
+            </div>
+            <iframe title="Vista previa correo aprobado" srcDoc={buildApprovalEmailHtml(previewPayload)} />
+          </div>
+        </div>
+      )}
       {editingUser && (
         <div className="admin-modal-backdrop">
           <div className="admin-modal">
@@ -737,6 +767,7 @@ const adminCss = `
 button { border: 1px solid #d8e1ef; background: #fff; border-radius: 10px; padding: 9px 12px; font-weight: 850; cursor: pointer; color: #13213a; display: inline-flex; gap: 7px; align-items: center; justify-content: center; }
 button.primary, .admin-actions button:first-child { background: #5b4ee6; border-color: #5b4ee6; color: #fff; }
 button.danger { color: #dc2626; border-color: #fecaca; background: #fff5f5; }
+button.preview { color: #5b4ee6; border-color: #ddd6fe; background: #f5f3ff; }
 .admin-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 18px 0; }
 .admin-metrics article { padding: 16px; display: grid; gap: 6px; }
 .admin-metrics svg { color: #5b4ee6; }
@@ -770,6 +801,9 @@ button.danger { color: #dc2626; border-color: #fecaca; background: #fff5f5; }
 .admin-email-preview { display: grid; gap: 8px; border: 1px solid #dbe5f2; background: #f8fafc; border-radius: 14px; padding: 12px; }
 .admin-email-preview strong { color: #17213b; }
 .admin-email-preview iframe { width: 100%; height: 520px; border: 1px solid #e3e9f4; border-radius: 12px; background: #f3f6fb; }
+.admin-preview-modal { width: min(640px, calc(100vw - 28px)); max-height: calc(100vh - 32px); padding: 16px; }
+.admin-preview-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.admin-preview-modal iframe { width: 100%; height: min(760px, calc(100vh - 140px)); border: 1px solid #e3e9f4; border-radius: 14px; background: #f3f6fb; }
 .admin-approval-result { display: grid; gap: 5px; border: 1px solid #bbf7d0; background: #f0fdf4; color: #14532d; border-radius: 12px; padding: 12px; }
 .admin-approval-result a { color: #047857; font-weight: 900; text-decoration: underline; }
 .admin-create-user { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 18px 20px 20px; }
@@ -779,6 +813,10 @@ button.danger { color: #dc2626; border-color: #fecaca; background: #fff5f5; }
 .admin-plan-box { border: 1px solid #dbeafe; background: #eff6ff; color: #1d4ed8; border-radius: 12px; padding: 10px 12px; display: grid; gap: 3px; align-content: center; }
 .admin-plan-box strong { font-size: 16px; }
 .admin-plan-box span { color: #64748b; font-size: 12px; font-weight: 800; }
+.admin-form-actions { align-self: end; display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 8px; }
+.admin-form-actions button { height: 40px; white-space: nowrap; }
+.admin-form-actions button.preview { width: 42px; padding: 0; color: #5b4ee6; background: #f5f3ff; border-color: #ddd6fe; font-size: 0; }
+.admin-form-actions button.preview svg { margin: 0; }
 .admin-create-user > button.primary { align-self: end; height: 40px; }
 .admin-plan-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 18px 20px 20px; }
 .admin-plan-form label { display: grid; gap: 6px; color: #475569; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
@@ -791,3 +829,7 @@ button.danger { color: #dc2626; border-color: #fecaca; background: #fff5f5; }
 .admin-success { margin: 0 20px 20px; border: 1px solid #bbf7d0; background: #f0fdf4; color: #14532d; border-radius: 12px; padding: 12px; font-weight: 900; }
 @media (max-width: 900px) { .admin-page { padding: 14px; } .admin-hero, .admin-metrics { grid-template-columns: 1fr; } .admin-metrics { display: grid; } }
 `;
+
+
+
+
