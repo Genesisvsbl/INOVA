@@ -87,17 +87,23 @@ export default function AdminAccess({ view = "usuarios" }) {
     const rol = sessionStorage.getItem("rol") || "";
     const permisos = JSON.parse(sessionStorage.getItem("permisos") || "[]");
     const roleKey = String(rol || "").toUpperCase();
+    const esPlatformAdmin =
+      sessionStorage.getItem("esPlatformAdmin") === "true" ||
+      ["ADMIN_INOVA", "INOVA_ADMIN", "ADMIN_PLATAFORMA", "PLATFORM_ADMIN"].includes(roleKey);
+    const esTenantSuperAdmin = !esPlatformAdmin && (sessionStorage.getItem("esSuperAdmin") === "true" || roleKey === "SUPER_ADMIN");
     return {
       userId: sessionStorage.getItem("userId") || "",
       empresaId: sessionStorage.getItem("empresaId") || "",
       pilar: sessionStorage.getItem("pilarSeleccionado") || "",
       permisos,
       rol,
-      esSuperAdmin: sessionStorage.getItem("esSuperAdmin") === "true" || roleKey === "SUPER_ADMIN",
-      esAdmin: roleKey.includes("ADMIN") || permisos.includes("admin.usuarios.gestionar") || permisos.includes("admin.roles.gestionar"),
+      esPlatformAdmin,
+      esSuperAdmin: esTenantSuperAdmin,
+      esAdmin: esPlatformAdmin || esTenantSuperAdmin || roleKey.includes("ADMIN") || permisos.includes("admin.usuarios.gestionar") || permisos.includes("admin.roles.gestionar"),
     };
   }, []);
   const canManageRoles = actor.esSuperAdmin || actor.esAdmin;
+  const canManageCommercial = actor.esPlatformAdmin;
 
   if (!canManageRoles) {
     return (
@@ -128,7 +134,7 @@ export default function AdminAccess({ view = "usuarios" }) {
   }, []);
 
   useEffect(() => {
-    const defaultEmpresa = actor.esSuperAdmin ? data.empresas[0]?.id || "" : actor.empresaId;
+    const defaultEmpresa = canManageCommercial ? data.empresas[0]?.id || "" : actor.empresaId;
     if (!defaultEmpresa || planForm.empresa_id) return;
     const plan = data.planes.find((item) => String(item.empresa_id) === String(defaultEmpresa));
     setPlanForm({
@@ -139,30 +145,31 @@ export default function AdminAccess({ view = "usuarios" }) {
       precio_mensual: plan?.precio_mensual ?? "",
       estado: plan?.estado || "ACTIVO",
     });
-  }, [data.empresas, data.planes, actor.esSuperAdmin, actor.empresaId, planForm.empresa_id]);
+  }, [data.empresas, data.planes, canManageCommercial, actor.empresaId, planForm.empresa_id]);
 
   const pendingRequests = useMemo(
-    () => data.solicitudes.filter((item) => item.estado === "PENDIENTE" && (actor.esSuperAdmin || String(item.empresa_id) === String(actor.empresaId))),
-    [data.solicitudes, actor.esSuperAdmin, actor.empresaId]
+    () => data.solicitudes.filter((item) => item.estado === "PENDIENTE" && (canManageCommercial || String(item.empresa_id) === String(actor.empresaId))),
+    [data.solicitudes, canManageCommercial, actor.empresaId]
   );
 
   const visibleEmpresas = useMemo(
-    () => actor.esSuperAdmin ? data.empresas : data.empresas.filter((item) => String(item.id) === String(actor.empresaId)),
-    [data.empresas, actor.esSuperAdmin, actor.empresaId]
+    () => canManageCommercial ? data.empresas : data.empresas.filter((item) => String(item.id) === String(actor.empresaId)),
+    [data.empresas, canManageCommercial, actor.empresaId]
   );
 
   const visibleUsuarios = useMemo(
-    () => actor.esSuperAdmin ? data.usuarios : data.usuarios.filter((item) => String(item.empresa_id) === String(actor.empresaId)),
-    [data.usuarios, actor.esSuperAdmin, actor.empresaId]
+    () => canManageCommercial ? data.usuarios : data.usuarios.filter((item) => String(item.empresa_id) === String(actor.empresaId)),
+    [data.usuarios, canManageCommercial, actor.empresaId]
   );
 
   const visibleRoles = useMemo(
     () => data.roles.filter((role) => {
       const code = String(role.codigo || "").toUpperCase();
-      if (code === "SUPER_ADMIN") return false;
-      return actor.esSuperAdmin || String(role.empresa_id) === String(actor.empresaId);
+      if (code === "ADMIN_INOVA") return canManageCommercial;
+      if (code === "SUPER_ADMIN") return canManageCommercial;
+      return canManageCommercial || String(role.empresa_id) === String(actor.empresaId);
     }),
-    [data.roles, actor.esSuperAdmin, actor.empresaId]
+    [data.roles, canManageCommercial, actor.empresaId]
   );
 
   const activeLicenses = useMemo(
@@ -203,7 +210,7 @@ export default function AdminAccess({ view = "usuarios" }) {
     : null;
 
   const openApproval = (solicitud) => {
-    const defaultEmpresa = actor.esSuperAdmin ? (solicitud.empresa_id || visibleEmpresas[0]?.id || "") : actor.empresaId;
+    const defaultEmpresa = canManageCommercial ? (solicitud.empresa_id || visibleEmpresas[0]?.id || "") : actor.empresaId;
     const defaultRole =
       visibleRoles.find((rol) => String(rol.empresa_id) === String(defaultEmpresa) && rol.codigo.includes(String(solicitud.pilar).toUpperCase())) ||
       visibleRoles.find((rol) => String(rol.empresa_id) === String(defaultEmpresa)) ||
@@ -222,7 +229,7 @@ export default function AdminAccess({ view = "usuarios" }) {
     if (!selectedRequest) return;
     setActionError("");
     try {
-      const result = await aprobarSolicitud(selectedRequest, approval);
+      const result = await aprobarSolicitud(selectedRequest, approval, actor);
       await load();
       setSelectedRequest(null);
       setApprovalResult(result);
@@ -232,11 +239,13 @@ export default function AdminAccess({ view = "usuarios" }) {
     }
   };
 
-  const defaultEmpresaId = actor.esSuperAdmin ? visibleEmpresas[0]?.id || "" : actor.empresaId;
+  const defaultEmpresaId = canManageCommercial ? visibleEmpresas[0]?.id || "" : actor.empresaId;
   const selectedCreateEmpresa = userForm.empresa_id || defaultEmpresaId;
   const roleOptionsForCreate = visibleRoles.filter((role) => {
     if (String(role.empresa_id) !== String(selectedCreateEmpresa)) return false;
     const code = String(role.codigo || "").toUpperCase();
+    if (code === "ADMIN_INOVA") return false;
+    if (code === "SUPER_ADMIN") return canManageCommercial;
     const pilar = String(userForm.pilar || "").toUpperCase();
     return code.includes(pilar) || code.includes("ADMIN") || code.includes("CONSULTA") || code.includes("OPERADOR");
   });
@@ -302,6 +311,10 @@ export default function AdminAccess({ view = "usuarios" }) {
     event.preventDefault();
     setActionError("");
     setPlanMessage("");
+    if (!canManageCommercial) {
+      setActionError("Solo la administracion comercial INOVA puede modificar planes y licencias.");
+      return;
+    }
     try {
       await guardarPlanEmpresa(planForm);
       setPlanMessage("Plan actualizado correctamente.");
@@ -327,7 +340,7 @@ export default function AdminAccess({ view = "usuarios" }) {
   const openRoleEdit = (user) => {
     const accesses = accessByUserId.get(String(user.id)) || [];
     const firstAccess = accesses[0];
-    const empresaId = actor.esSuperAdmin ? (firstAccess?.empresa_id || user.empresa_id || visibleEmpresas[0]?.id || "") : actor.empresaId;
+    const empresaId = canManageCommercial ? (firstAccess?.empresa_id || user.empresa_id || visibleEmpresas[0]?.id || "") : actor.empresaId;
     const role =
       visibleRoles.find((item) => String(item.id) === String(firstAccess?.rol_id)) ||
       visibleRoles.find((item) => String(item.empresa_id) === String(empresaId) && String(item.codigo).toUpperCase() === String(user.rol).toUpperCase()) ||
@@ -345,6 +358,8 @@ export default function AdminAccess({ view = "usuarios" }) {
   const roleOptionsForEdit = visibleRoles.filter((role) => {
     if (String(role.empresa_id) !== String(roleEdit.empresa_id)) return false;
     const code = String(role.codigo || "").toUpperCase();
+    if (code === "ADMIN_INOVA") return false;
+    if (code === "SUPER_ADMIN") return canManageCommercial;
     const pilar = String(roleEdit.pilar || "").toUpperCase();
     return code.includes(pilar) || code.includes("ADMIN") || code.includes("CONSULTA") || code.includes("OPERADOR");
   });
@@ -372,7 +387,7 @@ export default function AdminAccess({ view = "usuarios" }) {
         <div>
           <span>Control multiempresa</span>
           <h1>Usuarios, roles y accesos</h1>
-          <p>{actor.esSuperAdmin ? "Vista global de super administracion." : "Vista limitada a la empresa asignada."}</p>
+          <p>{canManageCommercial ? "Vista comercial INOVA: ventas, planes, empresas y usuarios sin acceso operativo a las bases del cliente." : "Vista limitada a la empresa asignada."}</p>
           <p>Administra solicitudes, licencias por usuario y permisos por pilar sin usuarios quemados en codigo.</p>
         </div>
         <button type="button" onClick={load}>Actualizar</button>
@@ -411,7 +426,7 @@ export default function AdminAccess({ view = "usuarios" }) {
           >
             <form className="admin-create-user" onSubmit={createDirectUser}>
               <label>Empresa
-                <select value={selectedCreateEmpresa} disabled={!actor.esSuperAdmin} onChange={(event) => setUserForm((prev) => ({ ...prev, empresa_id: event.target.value, rol_id: "" }))}>
+                <select value={selectedCreateEmpresa} disabled={!canManageCommercial} onChange={(event) => setUserForm((prev) => ({ ...prev, empresa_id: event.target.value, rol_id: "" }))}>
                   {visibleEmpresas.map((empresa) => <option key={empresa.id} value={empresa.id}>{empresa.nombre}</option>)}
                 </select>
               </label>
@@ -471,7 +486,7 @@ export default function AdminAccess({ view = "usuarios" }) {
               empty="No hay solicitudes registradas."
             >
               {data.solicitudes
-                .filter((item) => actor.esSuperAdmin || String(item.empresa_id) === String(actor.empresaId))
+                .filter((item) => canManageCommercial || String(item.empresa_id) === String(actor.empresaId))
                 .map((item) => (
                 <tr key={item.id}>
                   <td>{fmtDate(item.fecha_solicitud)}</td>
@@ -546,7 +561,7 @@ export default function AdminAccess({ view = "usuarios" }) {
         <AdminSection title="Editar plan de usuarios" helper="Define cuantos usuarios puede tener cada empresa y que pilares incluye el paquete.">
           <form className="admin-plan-form" onSubmit={savePlan}>
             <label>Empresa
-              <select value={planForm.empresa_id} disabled={!actor.esSuperAdmin} onChange={(event) => changePlanEmpresa(event.target.value)}>
+              <select value={planForm.empresa_id} disabled={!canManageCommercial} onChange={(event) => changePlanEmpresa(event.target.value)}>
                 {visibleEmpresas.map((empresa) => <option key={empresa.id} value={empresa.id}>{empresa.nombre}</option>)}
               </select>
             </label>
@@ -574,7 +589,7 @@ export default function AdminAccess({ view = "usuarios" }) {
                 <option value="INACTIVO">Inactivo</option>
               </select>
             </label>
-            <button type="submit" className="primary">Guardar plan</button>
+            <button type="submit" className="primary" disabled={!canManageCommercial}>Guardar plan</button>
           </form>
           {planMessage ? <div className="admin-success">{planMessage}</div> : null}
         </AdminSection>
@@ -691,7 +706,7 @@ export default function AdminAccess({ view = "usuarios" }) {
               Empresa
               <select
                 value={roleEdit.empresa_id}
-                disabled={!actor.esSuperAdmin}
+                disabled={!canManageCommercial}
                 onChange={(event) => setRoleEdit((prev) => ({ ...prev, empresa_id: event.target.value, rol_id: "" }))}
               >
                 {visibleEmpresas.map((empresa) => <option key={empresa.id} value={empresa.id}>{empresa.nombre}</option>)}

@@ -392,7 +392,8 @@ export default function LoginPage() {
       sessionStorage.setItem("auth", usuarioEncontrado.auth);
       sessionStorage.setItem("userId", usuarioEncontrado.userId);
       sessionStorage.setItem("empresaId", usuarioEncontrado.empresaId || "");
-      sessionStorage.setItem("esSuperAdmin", String(Boolean(usuarioEncontrado.esSuperAdmin || usuarioEncontrado.rol === "SUPER_ADMIN")));
+      sessionStorage.setItem("esPlatformAdmin", String(Boolean(usuarioEncontrado.esPlatformAdmin)));
+      sessionStorage.setItem("esSuperAdmin", String(Boolean(usuarioEncontrado.esSuperAdmin)));
       sessionStorage.setItem("nombre", usuarioEncontrado.nombre);
       sessionStorage.setItem("usuario", usuarioEncontrado.usuario);
       sessionStorage.setItem("rol", usuarioEncontrado.rol);
@@ -426,6 +427,11 @@ export default function LoginPage() {
       if (usuarioEncontrado.debeCambiarClave) {
         setPasswordChangeUser(usuarioEncontrado);
         setLoading(false);
+        return;
+      }
+
+      if (usuarioEncontrado.esPlatformAdmin) {
+        window.location.href = "/admin/configuracion";
         return;
       }
 

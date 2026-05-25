@@ -222,11 +222,20 @@ function isAdminSession() {
   const role = String(sessionStorage.getItem("rol") || "").toUpperCase();
   const permisos = JSON.parse(sessionStorage.getItem("permisos") || "[]");
   return (
+    sessionStorage.getItem("esPlatformAdmin") === "true" ||
     sessionStorage.getItem("esSuperAdmin") === "true" ||
-    role === "SUPER_ADMIN" ||
+    ["SUPER_ADMIN", "ADMIN_INOVA", "INOVA_ADMIN", "ADMIN_PLATAFORMA", "PLATFORM_ADMIN"].includes(role) ||
     role.includes("ADMIN") ||
     permisos.includes("admin.usuarios.gestionar") ||
     permisos.includes("admin.roles.gestionar")
+  );
+}
+
+function isPlatformAdminSession() {
+  const role = String(sessionStorage.getItem("rol") || "").toUpperCase();
+  return (
+    sessionStorage.getItem("esPlatformAdmin") === "true" ||
+    ["ADMIN_INOVA", "INOVA_ADMIN", "ADMIN_PLATAFORMA", "PLATFORM_ADMIN"].includes(role)
   );
 }
 
@@ -234,6 +243,10 @@ function AdminRoute({ children }) {
   const isAuth = sessionStorage.getItem("auth") === "true";
   const selectedPillar = sessionStorage.getItem("pilarSeleccionado");
   return isAuth && selectedPillar === "wms" && isAdminSession() ? children : <Navigate to="/" replace />;
+}
+
+function OperationalRoute({ children }) {
+  return isPlatformAdminSession() ? <Navigate to="/admin/configuracion" replace /> : children;
 }
 
 function AppRoutes() {
@@ -269,9 +282,9 @@ function AppRoutes() {
             </PrivateRoute>
           }
         >
-          <Route index element={<Inicio />} />
+          <Route index element={<OperationalRoute><Inicio /></OperationalRoute>} />
 
-          <Route path="datos-maestros" element={<DatosMaestros />}>
+          <Route path="datos-maestros" element={<OperationalRoute><DatosMaestros /></OperationalRoute>}>
             <Route index element={<Navigate to="materiales" replace />} />
             <Route path="materiales" element={<Materiales />} />
             <Route path="proveedores" element={<Proveedores />} />
@@ -281,7 +294,7 @@ function AppRoutes() {
             <Route path="en-transito" element={<EnTransito />} />
           </Route>
 
-          <Route path="movimientos" element={<Movimientos />}>
+          <Route path="movimientos" element={<OperationalRoute><Movimientos /></OperationalRoute>}>
             <Route index element={<Navigate to="recibo" replace />} />
             <Route path="recibo" element={<Recibo />} />
             <Route path="despacho" element={<Despacho />} />
@@ -290,7 +303,7 @@ function AppRoutes() {
             <Route path="reasignacion" element={<Reasignacion />} />
           </Route>
 
-          <Route path="inventarios" element={<Inventarios />}>
+          <Route path="inventarios" element={<OperationalRoute><Inventarios /></OperationalRoute>}>
             <Route index element={<Navigate to="crear-tarea" replace />} />
             <Route path="crear-tarea" element={<CrearTarea />} />
             <Route path="mis-conteos" element={<MisConteos />} />
@@ -300,7 +313,7 @@ function AppRoutes() {
             <Route path="informe" element={<InformeInventario />} />
           </Route>
 
-          <Route path="stock" element={<Stock />} />
+          <Route path="stock" element={<OperationalRoute><Stock /></OperationalRoute>} />
           <Route path="admin/usuarios" element={<AdminRoute><AdminAccess view="usuarios" /></AdminRoute>} />
           <Route path="admin/roles" element={<AdminRoute><AdminAccess view="roles" /></AdminRoute>} />
           <Route path="admin/auditoria" element={<AdminRoute><AdminAccess view="auditoria" /></AdminRoute>} />

@@ -78,8 +78,12 @@ export default function Layout() {
   const rol = sessionStorage.getItem("rol") || "SUPER_ADMIN";
   const permisos = JSON.parse(sessionStorage.getItem("permisos") || "[]");
   const roleKey = String(rol || "").toUpperCase();
+  const esPlatformAdmin =
+    sessionStorage.getItem("esPlatformAdmin") === "true" ||
+    ["ADMIN_INOVA", "INOVA_ADMIN", "ADMIN_PLATAFORMA", "PLATFORM_ADMIN"].includes(roleKey);
 
   const puedeVerAdmin =
+    esPlatformAdmin ||
     sessionStorage.getItem("esSuperAdmin") === "true" ||
     roleKey === "SUPER_ADMIN" ||
     roleKey.includes("ADMIN") ||
@@ -247,98 +251,102 @@ export default function Layout() {
             </div>
 
             <nav className="sidebar-nav" onClick={handleSidebarNavClick}>
-              {sidebarExpanded && <SectionTitle>Operaciones</SectionTitle>}
+              {!esPlatformAdmin && (
+                <>
+                  {sidebarExpanded && <SectionTitle>Operaciones</SectionTitle>}
 
-              <NavLink to="/" style={(state) => navStyle(state, sidebarExpanded)} title="Inicio">
-                <Home size={18} />
-                {sidebarExpanded && <span>Inicio</span>}
-              </NavLink>
+                  <NavLink to="/" style={(state) => navStyle(state, sidebarExpanded)} title="Inicio">
+                    <Home size={18} />
+                    {sidebarExpanded && <span>Inicio</span>}
+                  </NavLink>
 
-              <button
-                type="button"
-                style={menuStyle(isDatosActive, sidebarExpanded)}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  toggleMenu("datosMaestros");
-                }}
-                onMouseEnter={() => {}}
-                title="Datos maestros"
-              >
-                <span className="menu-left">
-                  <Database size={18} />
-                  {sidebarExpanded && <span>Datos maestros</span>}
-                </span>
-                {sidebarExpanded && (visibleOpenMenu === "datosMaestros" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
-              </button>
+                  <button
+                    type="button"
+                    style={menuStyle(isDatosActive, sidebarExpanded)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleMenu("datosMaestros");
+                    }}
+                    onMouseEnter={() => {}}
+                    title="Datos maestros"
+                  >
+                    <span className="menu-left">
+                      <Database size={18} />
+                      {sidebarExpanded && <span>Datos maestros</span>}
+                    </span>
+                    {sidebarExpanded && (visibleOpenMenu === "datosMaestros" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
+                  </button>
 
-              {sidebarExpanded && visibleOpenMenu === "datosMaestros" && (
-                <SubNav>
-                  <NavLink to="/datos-maestros/materiales" style={childNavStyle}>Materiales</NavLink>
-                  <NavLink to="/datos-maestros/proveedores" style={childNavStyle}>Proveedores</NavLink>
-                  <NavLink to="/datos-maestros/ubicaciones" style={childNavStyle}>Ubicaciones</NavLink>
-                  <NavLink to="/datos-maestros/motor" style={childNavStyle}>Motor principal</NavLink>
-                  <NavLink to="/datos-maestros/rotulos" style={childNavStyle}>Historial de rótulos</NavLink>
-                  <NavLink to="/datos-maestros/en-transito" style={childNavStyle}>En tránsito</NavLink>
-                </SubNav>
-              )}
+                  {sidebarExpanded && visibleOpenMenu === "datosMaestros" && (
+                    <SubNav>
+                      <NavLink to="/datos-maestros/materiales" style={childNavStyle}>Materiales</NavLink>
+                      <NavLink to="/datos-maestros/proveedores" style={childNavStyle}>Proveedores</NavLink>
+                      <NavLink to="/datos-maestros/ubicaciones" style={childNavStyle}>Ubicaciones</NavLink>
+                      <NavLink to="/datos-maestros/motor" style={childNavStyle}>Motor principal</NavLink>
+                      <NavLink to="/datos-maestros/rotulos" style={childNavStyle}>Historial de rótulos</NavLink>
+                      <NavLink to="/datos-maestros/en-transito" style={childNavStyle}>En tránsito</NavLink>
+                    </SubNav>
+                  )}
 
-              <button
-                type="button"
-                style={menuStyle(isMovimientosActive, sidebarExpanded)}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  toggleMenu("movimientos");
-                }}
-                onMouseEnter={() => {}}
-                title="Movimientos"
-              >
-                <span className="menu-left">
-                  <ArrowRightLeft size={18} />
-                  {sidebarExpanded && <span>Movimientos</span>}
-                </span>
-                {sidebarExpanded && (visibleOpenMenu === "movimientos" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
-              </button>
+                  <button
+                    type="button"
+                    style={menuStyle(isMovimientosActive, sidebarExpanded)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleMenu("movimientos");
+                    }}
+                    onMouseEnter={() => {}}
+                    title="Movimientos"
+                  >
+                    <span className="menu-left">
+                      <ArrowRightLeft size={18} />
+                      {sidebarExpanded && <span>Movimientos</span>}
+                    </span>
+                    {sidebarExpanded && (visibleOpenMenu === "movimientos" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
+                  </button>
 
-              {sidebarExpanded && visibleOpenMenu === "movimientos" && (
-                <SubNav>
-                  <NavLink to="/movimientos/recibo" style={childNavStyle}>Recibo</NavLink>
-                  <NavLink to="/movimientos/despacho" style={childNavStyle}>Despacho</NavLink>
-                  <NavLink to="/movimientos/reasignacion" style={childNavStyle}>Reasignación</NavLink>
-                </SubNav>
-              )}
+                  {sidebarExpanded && visibleOpenMenu === "movimientos" && (
+                    <SubNav>
+                      <NavLink to="/movimientos/recibo" style={childNavStyle}>Recibo</NavLink>
+                      <NavLink to="/movimientos/despacho" style={childNavStyle}>Despacho</NavLink>
+                      <NavLink to="/movimientos/reasignacion" style={childNavStyle}>Reasignación</NavLink>
+                    </SubNav>
+                  )}
 
-              <NavLink to="/stock" style={(state) => navStyle(state, sidebarExpanded)} title="Stock">
-                <Boxes size={18} />
-                {sidebarExpanded && <span>Stock</span>}
-              </NavLink>
+                  <NavLink to="/stock" style={(state) => navStyle(state, sidebarExpanded)} title="Stock">
+                    <Boxes size={18} />
+                    {sidebarExpanded && <span>Stock</span>}
+                  </NavLink>
 
-              <button
-                type="button"
-                style={menuStyle(isInventariosActive, sidebarExpanded)}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  toggleMenu("inventarios");
-                }}
-                onMouseEnter={() => {}}
-                title="Inventarios"
-              >
-                <span className="menu-left">
-                  <ClipboardCheck size={18} />
-                  {sidebarExpanded && <span>Inventarios</span>}
-                </span>
-                {sidebarExpanded && (visibleOpenMenu === "inventarios" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
-              </button>
+                  <button
+                    type="button"
+                    style={menuStyle(isInventariosActive, sidebarExpanded)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleMenu("inventarios");
+                    }}
+                    onMouseEnter={() => {}}
+                    title="Inventarios"
+                  >
+                    <span className="menu-left">
+                      <ClipboardCheck size={18} />
+                      {sidebarExpanded && <span>Inventarios</span>}
+                    </span>
+                    {sidebarExpanded && (visibleOpenMenu === "inventarios" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
+                  </button>
 
-              {sidebarExpanded && visibleOpenMenu === "inventarios" && (
-                <SubNav>
-                  <NavLink to="/inventarios" style={childNavStyle}>Panel inventarios</NavLink>
-                  <NavLink to="/inventarios/crear-tarea" style={childNavStyle}>Crear tarea</NavLink>
-                  <NavLink to="/inventarios/mis-conteos" style={childNavStyle}>Mis conteos</NavLink>
-                  <NavLink to="/inventarios/conteo-fisico" style={childNavStyle}>Conteo físico</NavLink>
-                  <NavLink to="/inventarios/conciliacion" style={childNavStyle}>Conciliación</NavLink>
-                  <NavLink to="/inventarios/reconteos" style={childNavStyle}>Reconteos</NavLink>
-                  <NavLink to="/inventarios/informe" style={childNavStyle}>Informe inventario</NavLink>
-                </SubNav>
+                  {sidebarExpanded && visibleOpenMenu === "inventarios" && (
+                    <SubNav>
+                      <NavLink to="/inventarios" style={childNavStyle}>Panel inventarios</NavLink>
+                      <NavLink to="/inventarios/crear-tarea" style={childNavStyle}>Crear tarea</NavLink>
+                      <NavLink to="/inventarios/mis-conteos" style={childNavStyle}>Mis conteos</NavLink>
+                      <NavLink to="/inventarios/conteo-fisico" style={childNavStyle}>Conteo físico</NavLink>
+                      <NavLink to="/inventarios/conciliacion" style={childNavStyle}>Conciliación</NavLink>
+                      <NavLink to="/inventarios/reconteos" style={childNavStyle}>Reconteos</NavLink>
+                      <NavLink to="/inventarios/informe" style={childNavStyle}>Informe inventario</NavLink>
+                    </SubNav>
+                  )}
+                </>
               )}
 
               {puedeVerAdmin && sidebarExpanded && <SectionTitle>Administración</SectionTitle>}

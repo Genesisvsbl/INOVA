@@ -33,6 +33,28 @@ const LEGACY_ADMIN_PERMISSIONS = [
   "eto.nivel2",
 ];
 
+const PLATFORM_ADMIN_PERMISSIONS = [
+  "admin.usuarios.ver",
+  "admin.usuarios.gestionar",
+  "admin.roles.gestionar",
+  "admin.solicitudes.gestionar",
+  "admin.empresas.gestionar",
+  "admin.planes.gestionar",
+  "auditoria.ver",
+];
+
+function roleKey(value) {
+  return String(value || "").toUpperCase().trim();
+}
+
+function isPlatformAdminRole(role) {
+  return ["ADMIN_INOVA", "INOVA_ADMIN", "ADMIN_PLATAFORMA", "PLATFORM_ADMIN"].includes(roleKey(role));
+}
+
+function isTenantSuperAdminRole(role) {
+  return roleKey(role) === "SUPER_ADMIN";
+}
+
 function eq(value) {
   return `eq.${value}`;
 }
@@ -429,9 +451,9 @@ export async function restablecerClaveConToken({ email, token, nuevaClave, pilar
   return { ok: true };
 }
 
-function roleToPermissions(role, pilar, etoNivel) {
-  const rol = String(role || "").toUpperCase();
-  if (rol === "SUPER_ADMIN") return LEGACY_ADMIN_PERMISSIONS;
+function roleToPermissions(role, pilar, etoNivel, options = {}) {
+  const rol = roleKey(role);
+  if (options.platformAdmin || isPlatformAdminRole(rol)) return PLATFORM_ADMIN_PERMISSIONS;
   const base = [];
   if (pilar === "wms") base.push("wms.ver", "wms.operar");
   if (pilar === "5s") base.push("5s.ver", "5s.operar");
@@ -440,7 +462,7 @@ function roleToPermissions(role, pilar, etoNivel) {
     if (String(etoNivel) === "1") base.push("eto.nivel1");
     if (String(etoNivel) === "2") base.push("eto.nivel2");
   }
-  if (rol.includes("ADMIN")) base.push("admin.usuarios.ver", "admin.usuarios.gestionar", "roles.ver");
+  if (rol.includes("ADMIN")) base.push("admin.usuarios.ver", "admin.usuarios.gestionar", "roles.ver", "admin.roles.gestionar");
   return base;
 }
 
@@ -509,7 +531,10 @@ export async function autenticarUsuario({ usuario, password, pilar }) {
   }
 
   if (!user || clean(user.clave_acceso) !== clave) {
-    if (!user?.id) registerLocalLoginFailure(login);
+    if (!user?.id) {
+      registerLocalLoginFailure(login);
+      throw new Error("Credenciales incorrectas. Intentos restantes: 3.");
+    }
 
     const attempts = Number(user.login_intentos_fallidos || 0) + 1;
     if (attempts >= 4) {
@@ -537,9 +562,13 @@ export async function autenticarUsuario({ usuario, password, pilar }) {
     estado: eq("ACTIVO"),
   });
 
-  const superAdmin = user.es_super_admin || String(user.rol).toUpperCase() === "SUPER_ADMIN";
-  const acceso = superAdmin
-    ? accesos.find((item) => item.pilar === pilar) || { pilar, eto_nivel: pilar === "eto" ? 1 : null }
+  const platformAdmin =
+    Boolean(user.es_admin_inova) ||
+    isPlatformAdminRole(user.rol) ||
+    (Boolean(user.es_super_admin) && ["gvisbal", "genesisvsbl@outlook.com", "admin@inova.local"].includes(String(user.usuario || user.email || "").toLowerCase()));
+  const tenantSuperAdmin = !platformAdmin && (Boolean(user.es_super_admin) || isTenantSuperAdminRole(user.rol));
+  const acceso = platformAdmin
+    ? (accesos.find((item) => item.pilar === "wms") || { pilar: "wms", empresa_id: user.empresa_id || empresaId, eto_nivel: null })
     : accesos.find((item) => item.pilar === pilar);
 
   if (!acceso) throw new Error(`Este usuario no tiene acceso activo al pilar ${pilar.toUpperCase()}.`);
@@ -556,7 +585,8 @@ export async function autenticarUsuario({ usuario, password, pilar }) {
     auth: "true",
     userId: String(user.id),
     empresaId: String(acceso.empresa_id || user.empresa_id || empresaId),
-    esSuperAdmin: Boolean(superAdmin),
+    esSuperAdmin: Boolean(tenantSuperAdmin),
+    esPlatformAdmin: Boolean(platformAdmin),
     nombre: user.nombre,
     usuario: user.usuario || user.email,
     email: user.email,
@@ -566,18 +596,23 @@ export async function autenticarUsuario({ usuario, password, pilar }) {
     accessLevel: etoNivel ? String(etoNivel) : "",
     accessCode: etoNivel ? `N${etoNivel}-ETO` : "",
     debeCambiarClave: Boolean(user.debe_cambiar_clave),
-    permisos: roleToPermissions(user.rol, pilar, etoNivel),
+    permisos: roleToPermissions(user.rol, platformAdmin ? "wms" : pilar, etoNivel, { platformAdmin }),
   };
 }
 
-export async function aprobarSolicitud(solicitud, { empresa_id, rol_id, clave_acceso, eto_nivel }) {
+export async function aprobarSolicitud(solicitud, { empresa_id, rol_id, clave_acceso, eto_nivel }, actor = {}) {
   const empresaIdFinal = Number(empresa_id || solicitud.empresa_id);
   if (!empresaIdFinal) throw new Error("Debes asignar empresa.");
+  const actorIsPlatformAdmin = Boolean(actor.esPlatformAdmin) || isPlatformAdminRole(actor.rol);
 
   const rolRows = rol_id
     ? await safeSelect("public", "roles", { select: "*", id: eq(rol_id), limit: "1" })
     : [];
   const rol = rolRows?.[0];
+  const rolCodigo = roleKey(rol?.codigo || "CONSULTA");
+  if (rolCodigo === "SUPER_ADMIN" && !actorIsPlatformAdmin) {
+    throw new Error("Solo la administracion comercial INOVA puede asignar el super administrador de una empresa.");
+  }
   const empresaRows = await safeSelect("public", "empresas", { select: "*", id: eq(empresaIdFinal), limit: "1" });
   const empresa = empresaRows?.[0];
   const claveTemporal = clean(clave_acceso) || generarClaveTemporal();
@@ -597,10 +632,11 @@ export async function aprobarSolicitud(solicitud, { empresa_id, rol_id, clave_ac
     documento: solicitud.documento,
     telefono: solicitud.telefono,
     cargo: solicitud.cargo,
-    rol: rol?.codigo || "CONSULTA",
+    rol: rolCodigo || "CONSULTA",
     clave_acceso: claveTemporal,
     debe_cambiar_clave: true,
     clave_temporal_generada_en: new Date().toISOString(),
+    es_super_admin: rolCodigo === "SUPER_ADMIN",
     estado: "ACTIVO",
     fecha_actualizacion: new Date().toISOString(),
   };
@@ -663,20 +699,26 @@ export async function aprobarSolicitud(solicitud, { empresa_id, rol_id, clave_ac
 }
 
 export async function crearUsuarioEmpresa(payload, actor = {}) {
-  const actorRol = String(actor.rol || "").toUpperCase();
-  const actorIsSuperAdmin = actor.esSuperAdmin || actorRol === "SUPER_ADMIN";
-  const empresaIdFinal = Number(actorIsSuperAdmin ? payload.empresa_id : actor.empresaId);
+  const actorRol = roleKey(actor.rol);
+  const actorIsPlatformAdmin = Boolean(actor.esPlatformAdmin) || isPlatformAdminRole(actorRol);
+  const actorIsTenantSuperAdmin = !actorIsPlatformAdmin && (actor.esSuperAdmin || actorRol === "SUPER_ADMIN");
+  const empresaIdFinal = Number(actorIsPlatformAdmin ? payload.empresa_id : actor.empresaId);
   if (!empresaIdFinal) throw new Error("Debes asignar una empresa.");
 
   const rolRows = payload.rol_id
     ? await safeSelect("public", "roles", { select: "*", id: eq(payload.rol_id), limit: "1" })
     : [];
   const rol = rolRows?.[0];
-  const rolCodigo = String(rol?.codigo || payload.rol || "").toUpperCase();
+  const rolCodigo = roleKey(rol?.codigo || payload.rol || "");
 
   if (!rol || !rolCodigo) throw new Error("Debes seleccionar un rol.");
-  if (rolCodigo === "SUPER_ADMIN") throw new Error("El rol SUPER_ADMIN solo puede administrarse fuera de este flujo.");
-  if (!actorIsSuperAdmin && String(rol.empresa_id) !== String(empresaIdFinal)) {
+  if (rolCodigo === "SUPER_ADMIN" && !actorIsPlatformAdmin) {
+    throw new Error("Solo la administracion comercial INOVA puede crear o reasignar el super administrador de una empresa.");
+  }
+  if (!actorIsPlatformAdmin && !actorIsTenantSuperAdmin) {
+    throw new Error("Solo administradores de empresa o administracion comercial INOVA pueden crear usuarios.");
+  }
+  if (!actorIsPlatformAdmin && String(rol.empresa_id) !== String(empresaIdFinal)) {
     throw new Error("No puedes asignar roles de otra empresa.");
   }
 
@@ -721,7 +763,7 @@ export async function crearUsuarioEmpresa(payload, actor = {}) {
     clave_acceso: claveTemporal,
     debe_cambiar_clave: true,
     clave_temporal_generada_en: new Date().toISOString(),
-    es_super_admin: false,
+    es_super_admin: rolCodigo === "SUPER_ADMIN",
     estado: "ACTIVO",
     fecha_actualizacion: new Date().toISOString(),
   };
@@ -788,13 +830,14 @@ export async function crearUsuarioEmpresa(payload, actor = {}) {
 }
 
 export async function actualizarRolUsuario(user, payload, actor = {}) {
-  const actorRol = String(actor.rol || "").toUpperCase();
-  const actorIsSuperAdmin = actor.esSuperAdmin || actorRol === "SUPER_ADMIN";
-  const actorIsAdmin = actorIsSuperAdmin || actorRol.includes("ADMIN");
+  const actorRol = roleKey(actor.rol);
+  const actorIsPlatformAdmin = Boolean(actor.esPlatformAdmin) || isPlatformAdminRole(actorRol);
+  const actorIsTenantSuperAdmin = !actorIsPlatformAdmin && (actor.esSuperAdmin || actorRol === "SUPER_ADMIN");
+  const actorIsAdmin = actorIsPlatformAdmin || actorIsTenantSuperAdmin || actorRol.includes("ADMIN");
   if (!actorIsAdmin) throw new Error("Solo super administracion o administradores de empresa pueden editar roles.");
-  const empresaIdFinal = Number(actorIsSuperAdmin ? payload.empresa_id || user.empresa_id : actor.empresaId);
+  const empresaIdFinal = Number(actorIsPlatformAdmin ? payload.empresa_id || user.empresa_id : actor.empresaId);
   if (!empresaIdFinal) throw new Error("Debes asignar una empresa.");
-  if (!actorIsSuperAdmin && String(user.empresa_id) !== String(actor.empresaId)) {
+  if (!actorIsPlatformAdmin && String(user.empresa_id) !== String(actor.empresaId)) {
     throw new Error("No puedes editar usuarios de otra empresa.");
   }
 
@@ -802,9 +845,11 @@ export async function actualizarRolUsuario(user, payload, actor = {}) {
     ? await safeSelect("public", "roles", { select: "*", id: eq(payload.rol_id), limit: "1" })
     : [];
   const rol = rolRows?.[0];
-  const rolCodigo = String(rol?.codigo || "").toUpperCase();
+  const rolCodigo = roleKey(rol?.codigo || "");
   if (!rol || !rolCodigo) throw new Error("Debes seleccionar un rol.");
-  if (rolCodigo === "SUPER_ADMIN") throw new Error("El rol SUPER_ADMIN no se asigna desde este panel.");
+  if (rolCodigo === "SUPER_ADMIN" && !actorIsPlatformAdmin) {
+    throw new Error("Solo la administracion comercial INOVA puede asignar el super administrador de una empresa.");
+  }
   if (String(rol.empresa_id) !== String(empresaIdFinal)) {
     throw new Error("El rol seleccionado no pertenece a la empresa.");
   }
@@ -822,6 +867,7 @@ export async function actualizarRolUsuario(user, payload, actor = {}) {
   const updatedUser = await saveUsuario({
     empresa_id: empresaIdFinal,
     rol: rolCodigo,
+    es_super_admin: rolCodigo === "SUPER_ADMIN",
     estado: payload.usuario_estado || user.estado || "ACTIVO",
     fecha_actualizacion: new Date().toISOString(),
   }, user.id);
