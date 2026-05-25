@@ -19,7 +19,7 @@ function buildUrl(schema, table, params = {}) {
   return url;
 }
 
-async function request(schema, table, { method = "GET", params, body } = {}) {
+async function request(schema, table, { method = "GET", params, body, prefer = "return=representation" } = {}) {
   if (!supabaseEnabled) {
     throw new Error("Supabase no esta configurado en VITE_SUPABASE_URL/VITE_SUPABASE_PUBLISHABLE_KEY.");
   }
@@ -30,7 +30,7 @@ async function request(schema, table, { method = "GET", params, body } = {}) {
       apikey: SUPABASE_KEY,
       Authorization: `Bearer ${SUPABASE_KEY}`,
       "Content-Type": "application/json",
-      Prefer: "return=representation",
+      Prefer: prefer,
       ...(method === "GET" ? { "Accept-Profile": schema } : { "Content-Profile": schema }),
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -75,6 +75,15 @@ export function selectRows(schema, table, params = {}) {
 
 export function insertRow(schema, table, row) {
   return request(schema, table, { method: "POST", body: row });
+}
+
+export function upsertRows(schema, table, rows, onConflict) {
+  return request(schema, table, {
+    method: "POST",
+    params: onConflict ? { on_conflict: onConflict } : {},
+    body: rows,
+    prefer: "resolution=merge-duplicates,return=representation",
+  });
 }
 
 export function updateById(schema, table, id, payload) {

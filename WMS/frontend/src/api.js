@@ -6,6 +6,103 @@
   supabaseEnabled,
   updateById,
 } from "./supabaseRest";
+
+const HEADER_ALIASES = {
+  codigo: ["codigo", "cod", "sku", "material", "codigo material", "codigo_material", "item"],
+  descripcion: ["descripcion", "description", "texto breve material", "texto_breve", "texto breve", "nombre"],
+  unidad: ["unidad", "und", "cantidad unidad"],
+  unidad_medida: ["unidad medida", "unidad_medida", "um", "umb", "medida"],
+  familia: ["familia", "family", "grupo"],
+  vigencia_meses: ["vigencia meses", "vigencia_meses", "vigencia", "meses"],
+  empaque: ["empaque", "packing", "embalaje"],
+  acreedor: ["acreedor", "nit", "codigo proveedor", "codigo_proveedor", "proveedor codigo"],
+  ubicacion: ["ubicacion", "ubicacion final", "ubicacion_final", "ubicacion completa"],
+  ubicacion_base: ["ubicacion base", "ubicacion_base", "base"],
+  posicion: ["posicion", "posiciones", "position"],
+  zona: ["zona", "zone"],
+  bodega: ["bodega", "warehouse"],
+  familias: ["familias", "familia permitida", "familias permitidas"],
+  reserva: ["reserva", "pedido", "documento reserva"],
+  fecha_necesidad: ["fecha necesidad", "fecha_necesidad", "fecha", "fecha entrega"],
+  cantidad: ["cantidad", "cant", "requerido", "cantidad requerida", "total requerido"],
+};
+
+function stripAccents(value) {
+  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function normalizeHeader(value) {
+  return stripAccents(value).toLowerCase().replace(/[_\-./()#]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function getImportValue(row, key) {
+  const aliases = HEADER_ALIASES[key] || [key];
+  for (const alias of aliases) {
+    const normalized = normalizeHeader(alias);
+    if (row[normalized] !== undefined && row[normalized] !== null && row[normalized] !== "") return row[normalized];
+  }
+  return "";
+}
+
+function excelDateToISO(value) {
+  if (!value) return null;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const date = new Date(Date.UTC(1899, 11, 30 + Math.floor(value)));
+    return date.toISOString().slice(0, 10);
+  }
+  const text = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10);
+  const match = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+  if (match) {
+    const [, d, m, yRaw] = match;
+    const y = yRaw.length === 2 ? `20${yRaw}` : yRaw;
+    return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  }
+  return text.slice(0, 10) || null;
+}
+
+async function readSpreadsheetRows(file) {
+  const XLSX = await import("xlsx");
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+  return rows
+    .map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeHeader(key), value])))
+    .filter((row) => Object.values(row).some((value) => String(value || "").trim()));
+}
+
+function importResult(inserted, skipped = 0) {
+  return { mensaje: `Importacion completada: ${inserted} registros cargados${skipped ? `, ${skipped} omitidos` : ""}.`, inserted, skipped };
+}
+
+async function saveImportedRows(table, rows, keyField) {
+  const saved = [];
+
+  for (const row of rows) {
+    const keyValue = row?.[keyField];
+    const existing = keyValue
+      ? await findOne(table, {
+          empresa_id: `eq.${empresaId}`,
+          [keyField]: `eq.${keyValue}`,
+          select: "id",
+        }).catch(() => null)
+      : null;
+
+    if (existing?.id) {
+      const [updated] = await updateById(table === "usuarios" ? "public" : "wms", table, existing.id, row);
+      saved.push(updated || { ...row, id: existing.id });
+    } else {
+      const created = await insertRow("wms", table, row);
+      saved.push(...(Array.isArray(created) ? created : [created]));
+    }
+  }
+
+  return saved;
+}
+
 async function handle(res) {
   if (!res.ok) {
     const text = await res.text();
@@ -297,9 +394,29 @@ export function eliminarMaterial(id) {
 }
 
 export function importarMaterialesExcel(file) {
-  return Promise.reject(
-    new Error("Importacion Excel legacy deshabilitada. Carga los datos desde Supabase o CSV frontend.")
-  );
+  if (!supabaseEnabled) return Promise.reject(new Error("Supabase no esta configurado."));
+  return readSpreadsheetRows(file).then((rows) => {
+    const mapped = rows
+      .map((row) => {
+        const codigo = String(getImportValue(row, "codigo") || "").trim();
+        const descripcion = String(getImportValue(row, "descripcion") || "").trim();
+        if (!codigo || !descripcion) return null;
+        return compactObject({
+          empresa_id: empresaId,
+          codigo,
+          descripcion,
+          unidad: toNumber(getImportValue(row, "unidad")) || 1,
+          unidad_medida: String(getImportValue(row, "unidad_medida") || "KG").trim(),
+          familia: String(getImportValue(row, "familia") || "").trim(),
+          vigencia_meses: Number(getImportValue(row, "vigencia_meses") || 0) || null,
+          empaque: String(getImportValue(row, "empaque") || "").trim(),
+        });
+      })
+      .filter(Boolean);
+
+    if (!mapped.length) throw new Error("El archivo no tiene materiales validos. Requiere codigo y descripcion.");
+    return saveImportedRows("materiales", mapped, "codigo").then(() => importResult(mapped.length, rows.length - mapped.length));
+  });
 }
 
 export function crearMovimiento(payload) {
@@ -434,9 +551,20 @@ export function eliminarProveedor(id) {
 }
 
 export function importarProveedoresExcel(file) {
-  return Promise.reject(
-    new Error("Importacion Excel legacy deshabilitada. Carga los proveedores desde Supabase o CSV frontend.")
-  );
+  if (!supabaseEnabled) return Promise.reject(new Error("Supabase no esta configurado."));
+  return readSpreadsheetRows(file).then((rows) => {
+    const mapped = rows
+      .map((row) => {
+        const nombre = String(getImportValue(row, "descripcion") || getImportValue(row, "nombre") || "").trim();
+        const acreedor = String(getImportValue(row, "acreedor") || nombre).trim();
+        if (!nombre) return null;
+        return compactObject({ empresa_id: empresaId, nombre, acreedor });
+      })
+      .filter(Boolean);
+
+    if (!mapped.length) throw new Error("El archivo no tiene proveedores validos. Requiere nombre.");
+    return saveImportedRows("proveedores", mapped, "acreedor").then(() => importResult(mapped.length, rows.length - mapped.length));
+  });
 }
 
 export function getUbicaciones(search = "") {
@@ -507,9 +635,29 @@ export function eliminarUbicacion(id) {
 }
 
 export function importarUbicacionesExcel(file) {
-  return Promise.reject(
-    new Error("Importacion Excel legacy deshabilitada. Carga las ubicaciones desde Supabase o CSV frontend.")
-  );
+  if (!supabaseEnabled) return Promise.reject(new Error("Supabase no esta configurado."));
+  return readSpreadsheetRows(file).then((rows) => {
+    const mapped = rows
+      .map((row) => {
+        const ubicacionBase = String(getImportValue(row, "ubicacion_base") || "").trim();
+        const posicion = String(getImportValue(row, "posicion") || "").trim();
+        const ubicacion = String(getImportValue(row, "ubicacion") || `${ubicacionBase}${posicion}`).trim();
+        if (!ubicacion) return null;
+        return compactObject({
+          empresa_id: empresaId,
+          ubicacion,
+          ubicacion_base: ubicacionBase || null,
+          posicion: posicion || null,
+          zona: String(getImportValue(row, "zona") || "").trim(),
+          familias: String(getImportValue(row, "familias") || "").trim(),
+          bodega: String(getImportValue(row, "bodega") || "").trim(),
+        });
+      })
+      .filter(Boolean);
+
+    if (!mapped.length) throw new Error("El archivo no tiene ubicaciones validas.");
+    return saveImportedRows("ubicaciones", mapped, "ubicacion").then(() => importResult(mapped.length, rows.length - mapped.length));
+  });
 }
 
 export function getMotor() {
@@ -571,15 +719,74 @@ export function imprimirRotulo(rotuloId, copias = 1) {
 }
 
 export function importarInventarioInicial(file) {
-  return Promise.reject(
-    new Error("Importacion inicial legacy deshabilitada. Registra movimientos contra Supabase.")
-  );
+  if (!supabaseEnabled) return Promise.reject(new Error("Supabase no esta configurado."));
+  return readSpreadsheetRows(file).then(async (rows) => {
+    const items = rows.map((row) => ({
+      usuario: "IMPORTACION",
+      documento: "INVENTARIO_INICIAL",
+      codigo_material: getImportValue(row, "codigo"),
+      ubicacion: getImportValue(row, "ubicacion"),
+      estado: "ALMACENADO",
+      cantidad_r: toNumber(getImportValue(row, "cantidad")),
+    })).filter((row) => row.codigo_material && row.ubicacion && row.cantidad_r);
+    if (!items.length) throw new Error("El archivo no tiene inventario valido. Requiere codigo, ubicacion y cantidad.");
+    await crearMovimientosBulk({ items });
+    return importResult(items.length, rows.length - items.length);
+  });
 }
 
 export function importarDespachos(file) {
-  return Promise.reject(
-    new Error("Importacion Excel de despachos requiere parser frontend. La conexion legacy quedo deshabilitada para proteger trazabilidad.")
-  );
+  if (!supabaseEnabled) return Promise.reject(new Error("Supabase no esta configurado."));
+  return readSpreadsheetRows(file).then(async (rows) => {
+    const cargaRows = await insertRow("wms", "despacho_cargas", {
+      empresa_id: empresaId,
+      archivo_nombre: file?.name || "despachos.xlsx",
+    });
+    const carga = Array.isArray(cargaRows) ? cargaRows[0] : cargaRows;
+    const materiales = await getMateriales();
+    const materialByCodigo = new Map(materiales.map((m) => [normalizeText(m.codigo), m]));
+    const mapped = rows
+      .map((row) => {
+        const reserva = String(getImportValue(row, "reserva") || "").trim();
+        const sku = String(getImportValue(row, "codigo") || "").trim();
+        const cantidad = toNumber(getImportValue(row, "cantidad"));
+        if (!reserva || !sku || !cantidad) return null;
+        const material = materialByCodigo.get(normalizeText(sku));
+        return compactObject({
+          empresa_id: empresaId,
+          carga_id: carga?.id,
+          material_id: material?.id || null,
+          fecha_necesidad: excelDateToISO(getImportValue(row, "fecha_necesidad")),
+          reserva,
+          sku,
+          texto_breve: String(getImportValue(row, "descripcion") || material?.descripcion || "").trim(),
+          cantidad,
+          cantidad_retirada: 0,
+          diferencia: cantidad,
+          lineas_usadas: 0,
+          pct_cumplimiento_sku: 0,
+          pct_cumplimiento_reserva: 0,
+          clasificacion_sku: "NO CUMPLIDA",
+          clasificacion_final: "NO CUMPLIDA",
+          estado_operativo: "ABIERTA",
+          cerrada: false,
+        });
+      })
+      .filter(Boolean);
+
+    if (!mapped.length) throw new Error("El archivo no tiene reservas validas. Requiere reserva, SKU/codigo y cantidad.");
+
+    const reservas = Array.from(new Set(mapped.map((row) => row.reserva).filter(Boolean)));
+    await Promise.all(
+      reservas.map(async (reserva) => {
+        const existentes = await getDespachos({ reserva }).catch(() => []);
+        await Promise.all((existentes || []).map((row) => deleteById("wms", "despacho_detalles", row.id)));
+      })
+    );
+
+    await insertRow("wms", "despacho_detalles", mapped);
+    return importResult(mapped.length, rows.length - mapped.length);
+  });
 }
 
 export function getDespachos(params = {}) {
