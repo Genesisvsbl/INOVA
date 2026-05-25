@@ -168,6 +168,10 @@ export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa
   }
   const endpoints = [
     {
+      url: "/api/send-approval-email",
+      headers: { "Content-Type": "application/json" },
+    },
+    {
       url: "https://inova-delta.vercel.app/api/send-approval-email",
       headers: { "Content-Type": "application/json" },
     },

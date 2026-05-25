@@ -20,5 +20,12 @@ export default defineConfig({
     fs: {
       allow: [fileURLToPath(new URL('../..', import.meta.url))],
     },
+    proxy: {
+      '/api/send-approval-email': {
+        target: 'https://inova-delta.vercel.app',
+        changeOrigin: true,
+        secure: true,
+      },
+    },
   },
 })
