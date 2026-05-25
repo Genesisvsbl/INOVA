@@ -80,6 +80,33 @@ export function generarClaveTemporal(length = 10) {
   }).join("");
 }
 
+function abrirOutlookLocal(payload) {
+  if (typeof window === "undefined" || !payload?.email) return false;
+  const pilar = String(payload.pilar || "wms").toUpperCase();
+  const nivel = payload.etoNivel ? ` - Nivel ${payload.etoNivel}` : "";
+  const subject = `INOVA - Acceso aprobado ${pilar}`;
+  const body = [
+    `Hola ${payload.nombre || ""},`,
+    "",
+    "Tu acceso a INOVA fue aprobado.",
+    "",
+    `Empresa: ${payload.empresa || ""}`,
+    `Pilar: ${pilar}${nivel}`,
+    `Rol: ${payload.rol || ""}`,
+    `Usuario: ${payload.email || ""}`,
+    `Contrasena temporal: ${payload.claveTemporal || ""}`,
+    "",
+    "Por seguridad, al ingresar por primera vez el sistema te pedira cambiar esta contrasena.",
+    "",
+    `Ingresar a INOVA: ${payload.loginUrl || APPROVAL_LOGIN_URL}`,
+    "",
+    "Bienvenido a INOVA",
+  ].join("\n");
+  const mailto = `mailto:${encodeURIComponent(payload.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = mailto;
+  return true;
+}
+
 export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa, rol }) {
   if (!supabaseUrl || !supabaseKey) throw new Error("Supabase no estÃ¡ configurado.");
   const payload = buildApprovalPayload({
@@ -120,6 +147,7 @@ export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa
     }
   }
 
+  if (abrirOutlookLocal(payload)) return { ok: true, provider: "outlook-local" };
   throw new Error(errors.filter(Boolean).join(" | ") || "No se pudo enviar correo automatico.");
 }
 
