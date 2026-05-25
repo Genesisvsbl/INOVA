@@ -392,8 +392,6 @@ export default async function handler(req, res) {
           {
             filename: `${attachmentBase}.png`,
             content: cardPng.toString("base64"),
-            content_type: "image/png",
-            content_id: "approval-card-png",
           },
         ],
       }),
@@ -426,7 +424,6 @@ export default async function handler(req, res) {
           filename: `${attachmentBase}.png`,
           content: cardPng,
           contentType: "image/png",
-          cid: "approval-card-png",
         },
       ],
     });
