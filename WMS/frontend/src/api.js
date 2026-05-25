@@ -23,7 +23,7 @@ const HEADER_ALIASES = {
   bodega: ["bodega", "warehouse"],
   familias: ["familias", "familia permitida", "familias permitidas"],
   reserva: ["reserva", "pedido", "documento reserva"],
-  fecha_necesidad: ["fecha necesidad", "fecha_necesidad", "fecha", "fecha entrega"],
+  fecha_necesidad: ["fecha necesidad", "fecha de necesidad", "fecha_necesidad", "fecha necesidad entrega", "fecha requerida", "fecha despacho", "fecha entrega", "fecha de entrega", "fecha", "fechanecesidad", "necesidad"],
   cantidad: ["cantidad", "cant", "requerido", "cantidad requerida", "total requerido"],
 };
 
@@ -1013,8 +1013,8 @@ export function sugerirUbicaciones(payload = {}) {
     if (usaZonasLataAzucar) {
       return (
         pa.columnaNum - pb.columnaNum ||
-        pa.pasilloNum - pb.pasilloNum ||
         baseA - baseB ||
+        pa.pasilloNum - pb.pasilloNum ||
         String(a.ubicacion || "").localeCompare(String(b.ubicacion || ""))
       );
     }

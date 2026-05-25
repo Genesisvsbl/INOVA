@@ -1,5 +1,9 @@
-const FROM_EMAIL = process.env.APPROVAL_FROM_EMAIL || "INOVA <no-reply@inova.app>";
+const FROM_EMAIL = process.env.APPROVAL_FROM_EMAIL || "INOVA <inova-2025@outlook.com>";
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+const SMTP_HOST = process.env.SMTP_HOST || "smtp.office365.com";
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+const SMTP_USER = process.env.SMTP_USER || "inova-2025@outlook.com";
+const SMTP_PASS = process.env.SMTP_PASS || "";
 
 const THEMES = {
   wms: { label: "WMS", primary: "#5b4ee6", soft: "#f1efff", line: "#dcd7ff" },
@@ -96,8 +100,6 @@ export default async function handler(req, res) {
 
   if (req.method === "OPTIONS") return res.status(200).send("ok");
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
-  if (!RESEND_API_KEY) return res.status(500).json({ error: "RESEND_API_KEY no esta configurada en Vercel." });
-
   const payload = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
   if (!payload.email || !payload.claveTemporal) {
     return res.status(400).json({ error: "Faltan email o contrasena temporal." });
@@ -105,6 +107,36 @@ export default async function handler(req, res) {
 
   const pilar = String(payload.pilar || "wms").toLowerCase();
   const theme = THEMES[pilar] || THEMES.wms;
+  const html = approvalTemplate(payload);
+
+  if (SMTP_PASS) {
+    const nodemailer = await import("nodemailer");
+    const transporter = nodemailer.default.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_PORT === 465,
+      auth: {
+        user: SMTP_USER,
+        pass: SMTP_PASS,
+      },
+    });
+
+    const result = await transporter.sendMail({
+      from: FROM_EMAIL,
+      to: payload.email,
+      subject: `Acceso aprobado a INOVA ${theme.label}`,
+      html,
+    });
+
+    return res.status(200).json({ ok: true, provider: "outlook-smtp", messageId: result.messageId });
+  }
+
+  if (!RESEND_API_KEY) {
+    return res.status(500).json({
+      error: "Falta SMTP_PASS para enviar desde Outlook o RESEND_API_KEY para enviar por Resend.",
+    });
+  }
+
   const resendResponse = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -115,7 +147,7 @@ export default async function handler(req, res) {
       from: FROM_EMAIL,
       to: [payload.email],
       subject: `Acceso aprobado a INOVA ${theme.label}`,
-      html: approvalTemplate(payload),
+      html,
     }),
   });
 

@@ -1,5 +1,5 @@
 ﻿const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
-const FROM_EMAIL = Deno.env.get("APPROVAL_FROM_EMAIL") || "INOVA <no-reply@inova.app>";
+const FROM_EMAIL = Deno.env.get("APPROVAL_FROM_EMAIL") || "INOVA <inova-2025@outlook.com>";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",

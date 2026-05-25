@@ -46,6 +46,10 @@ function loteProveedorFromLoteAlmacen(lote15) {
   return s.length >= 10 ? s.slice(0, 10) : "";
 }
 
+function stripAccents(value) {
+  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 function normalizeISODate(v) {
   const s = (v ?? "").toString().trim();
   if (!s) return "";
@@ -348,6 +352,7 @@ export default function DesdeRecibo() {
   const controlsZXingRef = useRef(null);
 
   const [draft, setDraft] = useState(null);
+  const [loadError, setLoadError] = useState("");
   const [ubicaciones, setUbicaciones] = useState([]);
   const [ubicacionesError, setUbicacionesError] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -365,13 +370,16 @@ export default function DesdeRecibo() {
     const raw = localStorage.getItem(DRAFT_KEY);
 
     if (!raw) {
-      alert("No hay recibo en proceso.");
-      navigate("/movimientos/recibo");
+      setLoadError("No hay recibo en proceso. Vuelve a Recibo y confirma nuevamente.");
       return;
     }
 
     try {
       const d = JSON.parse(raw);
+      if (!d || !Array.isArray(d.lineas)) {
+        throw new Error("El recibo guardado no tiene lineas validas.");
+      }
+      setLoadError("");
       setDraft(d);
 
       const init = {};
@@ -389,9 +397,9 @@ export default function DesdeRecibo() {
         };
       });
       setUbicPorLinea(init);
-    } catch {
-      alert("Error leyendo el recibo.");
-      navigate("/movimientos/recibo");
+    } catch (error) {
+      setDraft(null);
+      setLoadError(`Error leyendo el recibo: ${error?.message || error}`);
     }
   }, [navigate]);
 
@@ -607,7 +615,55 @@ export default function DesdeRecibo() {
     return filas;
   }, [draft, ubicPorLinea]);
 
-  if (!draft) return <div>Cargando...</div>;
+  if (!draft) {
+    return (
+      <div
+        style={{
+          minHeight: "calc(100vh - 140px)",
+          display: "grid",
+          placeItems: "center",
+          padding: 24,
+        }}
+      >
+        <div
+          style={{
+            width: "min(560px, 100%)",
+            border: `1px solid ${loadError ? "rgba(220,38,38,.24)" : colors.border}`,
+            borderRadius: 18,
+            background: colors.card,
+            boxShadow: "0 18px 45px rgba(15,23,42,.12)",
+            padding: 24,
+            color: colors.text,
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: colors.muted }}>
+            MOVIMIENTOS DESDE RECIBO
+          </div>
+          <h2 style={{ margin: "8px 0 10px", color: colors.navy }}>Recibo no disponible</h2>
+          <p style={{ margin: 0, color: loadError ? colors.bad : colors.muted, fontWeight: 800 }}>
+            {loadError || "Cargando recibo..."}
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/movimientos/recibo")}
+            style={{
+              marginTop: 18,
+              height: 40,
+              padding: "0 14px",
+              borderRadius: 12,
+              border: "none",
+              background: colors.blue,
+              color: "#fff",
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+          >
+            Volver a Recibo
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const createReaderZXing = () => {
     if (!readerZXingRef.current) {
