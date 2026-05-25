@@ -971,6 +971,10 @@ export default function DesdeRecibo() {
 
       return { ...prev, [idx]: next };
     });
+
+    if ((ubicPorLinea[idx] || {}).auto && value) {
+      setTimeout(() => sugerirLinea(idx, draft?.lineas?.[idx]?.cantidad, value), 0);
+    }
   };
 
   const onChangePosicion = (idx, value) => {
@@ -1014,9 +1018,9 @@ export default function DesdeRecibo() {
     });
   };
 
-  const sugerirLinea = async (idx, cantidadRaw) => {
+  const sugerirLinea = async (idx, cantidadRaw, baseOverride = "") => {
     const conf = ubicPorLinea[idx] || {};
-    const base = (conf.base || "").trim();
+    const base = (baseOverride || conf.base || "").trim();
 
     if (!base) {
       alert(`Selecciona ubicacion base en la linea #${idx + 1}.`);
@@ -1041,7 +1045,7 @@ export default function DesdeRecibo() {
       const posiciones = Array.isArray(data?.posiciones)
         ? data.posiciones
         : Array.isArray(data?.ubicaciones)
-        ? data.ubicaciones.map((u) => u.ubicacion)
+        ? data.ubicaciones
         : [];
       const faltante = Math.max(0, cantidad - posiciones.length);
 
@@ -1049,6 +1053,7 @@ export default function DesdeRecibo() {
         ...prev,
         [idx]: {
           ...(prev[idx] || {}),
+          base,
           sugeridas: posiciones,
           sugeridasSecundarias: [],
           baseSecundaria: "",
@@ -1096,7 +1101,7 @@ export default function DesdeRecibo() {
       const posiciones = Array.isArray(data?.posiciones)
         ? data.posiciones
         : Array.isArray(data?.ubicaciones)
-        ? data.ubicaciones.map((u) => u.ubicacion)
+        ? data.ubicaciones
         : [];
       const nuevoFaltante = Math.max(0, faltante - posiciones.length);
 
