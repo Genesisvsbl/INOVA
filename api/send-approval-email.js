@@ -297,26 +297,55 @@ function approvalSummaryTemplate(payload) {
   const theme = THEMES[pilarKey] || THEMES.wms;
   const pilarLabel = `${theme.label}${payload.etoNivel ? ` - Nivel ${escapeHtml(payload.etoNivel)}` : ""}`;
   const loginUrl = String(payload.loginUrl || "https://inova-delta.vercel.app/login");
+  const rows = [
+    ["Empresa", payload.empresa],
+    ["Pilar", pilarLabel],
+    ["Rol", payload.rol],
+    ["Usuario", payload.email],
+    ["Contrase&ntilde;a temporal", payload.claveTemporal],
+  ].map(([label, value]) => `
+    <tr>
+      <td style="padding:11px 0;border-bottom:1px solid #edf2f8;color:#071226;font-size:14px;line-height:1.35;">
+        <strong style="display:inline-block;min-width:168px;font-weight:900;color:#071226;">${label}:</strong>
+        <span style="font-weight:700;color:#17213b;word-break:break-word;">${escapeHtml(value)}</span>
+      </td>
+    </tr>
+  `).join("");
+
   return `<!doctype html>
 <html>
-  <body style="margin:0;padding:0;background:#f4f6fb;font-family:Segoe UI,Arial,sans-serif;color:#071226;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6fb;padding:24px 10px;">
+  <body style="margin:0;padding:0;background:#f3f6fc;font-family:Segoe UI,Arial,sans-serif;color:#071226;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f6fc;padding:24px 10px;">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:18px;border:1px solid #e6edf7;box-shadow:0 18px 45px rgba(15,23,42,.12);">
-            <tr><td style="padding:28px 34px;text-align:center;">
-              <h1 style="margin:0;color:#071226;font-size:30px;">&iexcl;Acceso aprobado!</h1>
-              <p style="margin:14px 0 0;color:#526179;font-size:16px;">Hola ${escapeHtml(payload.nombre)}, tu acceso a INOVA fue aprobado.</p>
-              <div style="margin:22px 0;padding:16px;border:1px solid ${theme.line};border-radius:14px;text-align:left;">
-                <p><strong>Empresa:</strong> ${escapeHtml(payload.empresa)}</p>
-                <p><strong>Pilar:</strong> ${pilarLabel}</p>
-                <p><strong>Rol:</strong> ${escapeHtml(payload.rol)}</p>
-                <p><strong>Usuario:</strong> ${escapeHtml(payload.email)}</p>
-                <p><strong>Contrase&ntilde;a temporal:</strong> ${escapeHtml(payload.claveTemporal)}</p>
-              </div>
-              <p style="color:#526179;">La tarjeta visual de bienvenida va adjunta en PNG.</p>
-              <a href="${escapeHtml(loginUrl)}" style="display:inline-block;color:#ffffff;background:${theme.primary};padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:800;">Ingresar a INOVA</a>
-            </td></tr>
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:18px;border:1px solid #e4ebf5;box-shadow:0 18px 48px rgba(15,23,42,.10);overflow:hidden;">
+            <tr>
+              <td style="height:7px;background:${theme.primary};font-size:0;line-height:0;">&nbsp;</td>
+            </tr>
+            <tr>
+              <td style="padding:34px 34px 22px;text-align:center;">
+                <h1 style="margin:0;color:#071226;font-size:30px;line-height:1.15;font-weight:950;">&iexcl;Acceso aprobado!</h1>
+                <div style="width:54px;height:3px;background:${theme.primary};border-radius:999px;margin:14px auto 0;"></div>
+                <p style="margin:20px 0 0;color:#334155;font-size:16px;line-height:1.45;">Hola ${escapeHtml(payload.nombre)}, tu acceso a INOVA fue aprobado.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 34px 0;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid ${theme.line};border-radius:14px;padding:14px 18px;background:#ffffff;">
+                  ${rows}
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:18px 34px 0;text-align:center;">
+                <p style="margin:0;color:#526179;font-size:13px;line-height:1.45;">La tarjeta visual de bienvenida va adjunta en PNG.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 34px 34px;text-align:center;">
+                <a href="${escapeHtml(loginUrl)}" style="display:inline-block;color:#ffffff;background:${theme.primary};padding:14px 34px;border-radius:12px;text-decoration:none;font-weight:900;box-shadow:0 10px 24px rgba(37,99,235,.20);">Ingresar a INOVA</a>
+              </td>
+            </tr>
           </table>
         </td>
       </tr>
