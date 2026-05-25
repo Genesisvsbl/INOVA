@@ -162,10 +162,6 @@ export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa
     rol,
     loginUrl: APPROVAL_LOGIN_URL,
   });
-  payload.cardPngBase64 = await generarTarjetaAprobacionPng(payload);
-  if (!payload.cardPngBase64 || payload.cardPngBase64.length < 1200) {
-    throw new Error("No se pudo generar la tarjeta PNG de aprobacion. Abre la vista previa y vuelve a intentar.");
-  }
   const endpoints = [
     {
       url: "/api/send-approval-email",

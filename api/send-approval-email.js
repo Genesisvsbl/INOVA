@@ -1,3 +1,5 @@
+import { Resvg } from "@resvg/resvg-js";
+
 const FROM_EMAIL = process.env.APPROVAL_FROM_EMAIL || "INOVA <inova-2025@outlook.com>";
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || process.env.APPROVAL_FROM_EMAIL || "INOVA <onboarding@resend.dev>";
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
@@ -260,6 +262,37 @@ function buildApprovalCardSvg(payload) {
 </svg>`;
 }
 
+async function renderApprovalCardPng(payload) {
+  const pilarKey = String(payload.pilar || "wms").toLowerCase();
+  const theme = THEMES[pilarKey] || THEMES.wms;
+  let renderPayload = payload;
+  const logoUrl = String(payload.logoUrl || theme.logoUrl || "");
+  if (logoUrl.startsWith("http")) {
+    try {
+      const logoResponse = await fetch(logoUrl);
+      if (logoResponse.ok) {
+        const logoBytes = Buffer.from(await logoResponse.arrayBuffer());
+        renderPayload = {
+          ...payload,
+          logoUrl: `data:image/png;base64,${logoBytes.toString("base64")}`,
+        };
+      }
+    } catch {
+      renderPayload = payload;
+    }
+  }
+  const svg = buildApprovalCardSvg(renderPayload);
+  return new Resvg(svg, {
+    fitTo: {
+      mode: "width",
+      value: 1120,
+    },
+    font: {
+      loadSystemFonts: true,
+    },
+  }).render().asPng();
+}
+
 function approvalTemplate(payload, imageSource = "cid:approval-card") {
   const pilarKey = String(payload.pilar || "wms").toLowerCase();
   const theme = THEMES[pilarKey] || THEMES.wms;
@@ -368,12 +401,17 @@ export default async function handler(req, res) {
 
   const pilar = String(payload.pilar || "wms").toLowerCase();
   const theme = THEMES[pilar] || THEMES.wms;
-  const cardPng = payload.cardPngBase64 ? Buffer.from(String(payload.cardPngBase64).replace(/^data:image\/png;base64,/, ""), "base64") : null;
+  let cardPng = payload.cardPngBase64 ? Buffer.from(String(payload.cardPngBase64).replace(/^data:image\/png;base64,/, ""), "base64") : null;
   const attachmentBase = `acceso-aprobado-${cleanFilename(payload.nombre || payload.email)}`;
   if (!cardPng || cardPng.length < 1024) {
-    return res.status(400).json({
-      error: "No se recibio la tarjeta PNG de aprobacion. Abre la vista previa y vuelve a enviar.",
-    });
+    try {
+      cardPng = await renderApprovalCardPng(payload);
+    } catch (error) {
+      return res.status(500).json({
+        error: "No se pudo generar la tarjeta PNG de aprobacion en Vercel.",
+        details: error?.message || String(error),
+      });
+    }
   }
 
   if (RESEND_API_KEY) {
@@ -432,6 +470,6 @@ export default async function handler(req, res) {
   }
 
   return res.status(500).json({
-    error: "Falta RESEND_API_KEY para enviar con adjuntos automaticos o SMTP_PASS para Outlook.",
+    error: "Falta RESEND_API_KEY para enviar correos automaticos por Resend.",
   });
 }
