@@ -107,6 +107,53 @@ export function generarClaveTemporal(length = 10) {
   }).join("");
 }
 
+function normalizeLookup(value) {
+  return clean(value).toLowerCase();
+}
+
+export function generarCodigoSolicitud(solicitud) {
+  const id = String(solicitud?.id || "").padStart(4, "0");
+  const documento = String(solicitud?.documento || "").replace(/\D/g, "");
+  const tail = documento.slice(-4).padStart(4, "0");
+  return id ? `INOVA-${id}-${tail}` : "";
+}
+
+function normalizeCodigoSolicitud(value) {
+  return clean(value).toUpperCase().replace(/\s+/g, "");
+}
+
+function requestLookupKey(email, documento, pilar) {
+  return `inova_request_lookup_${normalizeLookup(email)}_${String(documento || "").replace(/\D/g, "")}_${pilar || "wms"}`;
+}
+
+function checkRequestLookupLock(email, documento, pilar) {
+  if (typeof localStorage === "undefined") return;
+  const key = requestLookupKey(email, documento, pilar);
+  const data = JSON.parse(localStorage.getItem(key) || "{}");
+  if (data.blockedUntil && Number(data.blockedUntil) > Date.now()) {
+    const minutes = Math.ceil((Number(data.blockedUntil) - Date.now()) / 60000);
+    throw new Error(`Consulta bloqueada temporalmente. Intenta nuevamente en ${minutes} minutos.`);
+  }
+}
+
+function registerRequestLookupFailure(email, documento, pilar) {
+  if (typeof localStorage === "undefined") return;
+  const key = requestLookupKey(email, documento, pilar);
+  const current = JSON.parse(localStorage.getItem(key) || "{}");
+  const attempts = Number(current.attempts || 0) + 1;
+  if (attempts >= 4) {
+    localStorage.setItem(key, JSON.stringify({ attempts: 0, blockedUntil: Date.now() + 30 * 60 * 1000 }));
+    throw new Error("Consulta bloqueada por 30 minutos por 4 intentos fallidos.");
+  }
+  localStorage.setItem(key, JSON.stringify({ attempts }));
+  throw new Error(`Datos incorrectos. Intentos restantes: ${4 - attempts}.`);
+}
+
+function clearRequestLookupFailures(email, documento, pilar) {
+  if (typeof localStorage === "undefined") return;
+  localStorage.removeItem(requestLookupKey(email, documento, pilar));
+}
+
 async function generarTarjetaAprobacionPng(payload) {
   if (typeof window === "undefined" || typeof document === "undefined") return "";
   const iframe = document.createElement("iframe");
@@ -476,7 +523,7 @@ export async function getAccessCatalogs() {
 }
 
 export async function solicitarAcceso(payload) {
-  return insertRow("public", "solicitudes_acceso", {
+  const rows = await insertRow("public", "solicitudes_acceso", {
     nombre_completo: clean(payload.nombre_completo),
     documento: clean(payload.documento),
     email: clean(payload.email).toLowerCase(),
@@ -488,6 +535,115 @@ export async function solicitarAcceso(payload) {
     motivo: clean(payload.motivo),
     estado: "PENDIENTE",
   });
+  const solicitud = rows?.[0];
+  return {
+    solicitud,
+    codigo: generarCodigoSolicitud(solicitud),
+  };
+}
+
+export async function consultarSolicitudAcceso({ email, documento, codigo, pilar }) {
+  const cleanEmail = normalizeLookup(email);
+  const cleanDocumento = clean(documento);
+  const cleanPilar = clean(pilar || "wms");
+  const cleanCodigo = normalizeCodigoSolicitud(codigo);
+
+  if (!cleanEmail || !cleanDocumento || !cleanCodigo) {
+    throw new Error("Ingresa correo, documento y codigo de solicitud.");
+  }
+
+  checkRequestLookupLock(cleanEmail, cleanDocumento, cleanPilar);
+
+  const solicitudes = await safeSelect("public", "solicitudes_acceso", {
+    select: "*",
+    email: `ilike.${cleanEmail}`,
+    documento: eq(cleanDocumento),
+    pilar: eq(cleanPilar),
+    order: "fecha_solicitud.desc",
+    limit: "20",
+  }).catch(() => []);
+
+  const solicitud = solicitudes.find((item) => normalizeCodigoSolicitud(generarCodigoSolicitud(item)) === cleanCodigo);
+  if (!solicitud) registerRequestLookupFailure(cleanEmail, cleanDocumento, cleanPilar);
+  clearRequestLookupFailures(cleanEmail, cleanDocumento, cleanPilar);
+
+  if (String(solicitud.estado || "").toUpperCase() !== "APROBADA") {
+    return {
+      estado: solicitud.estado || "PENDIENTE",
+      codigo: generarCodigoSolicitud(solicitud),
+      mensaje: "Tu solicitud aun esta pendiente de aprobacion.",
+      solicitud,
+    };
+  }
+
+  const userRows = solicitud.usuario_creado_id
+    ? await safeSelect("public", "usuarios", { select: "*", id: eq(solicitud.usuario_creado_id), limit: "1" }).catch(() => [])
+    : [];
+  const fallbackUsers = userRows?.[0]
+    ? []
+    : await safeSelect("public", "usuarios", {
+        select: "*",
+        email: `ilike.${cleanEmail}`,
+        documento: eq(cleanDocumento),
+        limit: "1",
+      }).catch(() => []);
+  const user = userRows?.[0] || fallbackUsers?.[0];
+  if (!user?.id) {
+    return {
+      estado: "APROBADA",
+      codigo: generarCodigoSolicitud(solicitud),
+      mensaje: "Tu solicitud fue aprobada, pero el usuario aun no esta disponible. Contacta al administrador.",
+      solicitud,
+    };
+  }
+
+  const empresaRows = user.empresa_id
+    ? await safeSelect("public", "empresas", { select: "*", id: eq(user.empresa_id), limit: "1" }).catch(() => [])
+    : [];
+  const accesoRows = await safeSelect("public", "usuario_pilares", {
+    select: "*",
+    usuario_id: eq(user.id),
+    pilar: eq(cleanPilar),
+    estado: eq("ACTIVO"),
+    limit: "1",
+  }).catch(() => []);
+  const acceso = accesoRows?.[0];
+  const rolRows = acceso?.rol_id
+    ? await safeSelect("public", "roles", { select: "*", id: eq(acceso.rol_id), limit: "1" }).catch(() => [])
+    : [];
+  const rol = rolRows?.[0];
+  const claveVisible = Boolean(user.debe_cambiar_clave);
+  const payload = buildApprovalPayload({
+    solicitud: {
+      nombre_completo: user.nombre || solicitud.nombre_completo,
+      email: user.email || solicitud.email,
+      empresa_nombre: empresaRows?.[0]?.nombre || solicitud.empresa_nombre,
+      pilar: cleanPilar,
+      eto_nivel: acceso?.eto_nivel || solicitud.eto_nivel,
+    },
+    claveTemporal: claveVisible ? user.clave_acceso : "Ya fue entregada",
+    empresa: empresaRows?.[0] || { nombre: solicitud.empresa_nombre },
+    rol: rol || { nombre: user.rol || "Usuario" },
+    loginUrl: APPROVAL_LOGIN_URL,
+  });
+
+  return {
+    estado: "APROBADA",
+    codigo: generarCodigoSolicitud(solicitud),
+    solicitud,
+    user: {
+      id: user.id,
+      nombre: user.nombre,
+      email: user.email,
+      usuario: user.usuario || user.email,
+      debeCambiarClave: Boolean(user.debe_cambiar_clave),
+    },
+    claveTemporal: claveVisible ? user.clave_acceso : "",
+    payload,
+    mensaje: claveVisible
+      ? "Tu acceso fue aprobado. Usa esta clave temporal y cambiala al ingresar."
+      : "Tu acceso ya fue aprobado y la clave temporal ya fue usada o entregada.",
+  };
 }
 
 export async function autenticarUsuario({ usuario, password, pilar }) {

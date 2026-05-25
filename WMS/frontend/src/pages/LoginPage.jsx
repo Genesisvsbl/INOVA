@@ -18,10 +18,12 @@ import {
 import {
   autenticarUsuario,
   cambiarClaveObligatoria,
+  consultarSolicitudAcceso,
   restablecerClaveConToken,
   solicitarAcceso,
   solicitarRecuperacionClave,
 } from "../adminApi";
+import { buildApprovalEmailHtml } from "../approvalEmailTemplate";
 const fiveSImage = "/5S.png";
 const etoImage = "/ETO.png";
 const ALLOW_LEGACY_LOGIN = import.meta.env.VITE_ALLOW_LEGACY_LOGIN === "true";
@@ -245,6 +247,7 @@ export default function LoginPage() {
   const [passwordChangeUser, setPasswordChangeUser] = useState(null);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [recoveryToken, setRecoveryToken] = useState(null);
+  const [lookupOpen, setLookupOpen] = useState(false);
 
   const selectedPillar = useMemo(
     () => PILLARS.find((pillar) => pillar.id === selectedPillarId) || PILLARS[0],
@@ -444,10 +447,10 @@ export default function LoginPage() {
 
   const submitAccessRequest = async (payload) => {
     setRequestStatus("");
-    await solicitarAcceso(payload);
+    const result = await solicitarAcceso(payload);
     setRequestOpen(false);
     setShowLogin(true);
-    setLoginNotice("Solicitud enviada. Tu acceso queda pendiente de aprobación.");
+    setLoginNotice(`Solicitud enviada. Guarda este codigo para consultar tu aprobacion: ${result.codigo}`);
   };
 
   return (
@@ -544,6 +547,7 @@ export default function LoginPage() {
               login={login}
               back={() => setShowLogin(false)}
               requestAccess={() => setRequestOpen(true)}
+              lookupAccess={() => setLookupOpen(true)}
               recoverPassword={() => {
                 setRecoveryToken(null);
                 setRecoveryOpen(true);
@@ -562,6 +566,14 @@ export default function LoginPage() {
             setRequestStatus("");
           }}
           onSubmit={submitAccessRequest}
+        />
+      )}
+
+      {lookupOpen && (
+        <AccessLookupModal
+          pillar={selectedPillar}
+          onClose={() => setLookupOpen(false)}
+          onLookup={(payload) => consultarSolicitudAcceso({ ...payload, pilar: selectedPillar.id })}
         />
       )}
 
@@ -698,6 +710,7 @@ function LoginCard({
   login,
   back,
   requestAccess,
+  lookupAccess,
   recoverPassword,
 }) {
   const usuarioRef = useRef(null);
@@ -819,6 +832,8 @@ function LoginCard({
 
         <small className="login-note">
           ¿No tienes acceso? <button type="button" className="request-link" onClick={requestAccess}>Solicitar acceso</button>
+          <span className="login-note-separator">·</span>
+          <button type="button" className="request-link" onClick={lookupAccess}>Consultar solicitud</button>
         </small>
       </div>
     </div>
@@ -909,6 +924,114 @@ function PasswordRecoveryModal({ pillar, defaultUser, tokenData, onClose, onRequ
         <button type="button" className="login-submit" onClick={confirmMode ? submitReset : submitRequest} disabled={sending}>
           {sending ? "Procesando..." : confirmMode ? "Guardar nueva contraseña" : "Enviar enlace de recuperación"}
         </button>
+      </section>
+    </div>
+  );
+}
+
+function AccessLookupModal({ pillar, onClose, onLookup }) {
+  const [form, setForm] = useState({
+    email: "",
+    documento: "",
+    codigo: "",
+  });
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+  const [checking, setChecking] = useState(false);
+
+  const setValue = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  const submit = async () => {
+    setError("");
+    setResult(null);
+    if (!form.email.trim() || !form.documento.trim() || !form.codigo.trim()) {
+      setError("Ingresa correo, documento y código de consulta.");
+      return;
+    }
+
+    setChecking(true);
+    try {
+      const response = await onLookup(form);
+      setResult(response);
+    } catch (err) {
+      setError(err?.message || "No se pudo consultar la solicitud.");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const approved = result?.estado === "APROBADA";
+
+  return (
+    <div className="access-modal-backdrop">
+      <section
+        className="access-modal access-lookup-modal"
+        style={{ "--accent": pillar.accent, "--accent2": pillar.accent2, "--glow": pillar.glow }}
+      >
+        <button type="button" className="access-close" onClick={onClose} aria-label="Cerrar consulta">
+          <X size={18} />
+        </button>
+        <span>Consulta de solicitud</span>
+        <h2>{pillar.title}</h2>
+        <p>Valida tu solicitud con el correo, documento y código que recibiste al registrarte.</p>
+
+        {error ? <div className="error-box">{error}</div> : null}
+        {result?.mensaje ? (
+          <div className={approved ? "success-box" : "lookup-pending-box"}>
+            <strong>{approved ? "Acceso aprobado" : "Solicitud en revisión"}</strong>
+            <span>{result.mensaje}</span>
+          </div>
+        ) : null}
+
+        <div className="access-form-grid">
+          <label>Correo electrónico<input value={form.email} onChange={(event) => setValue("email", event.target.value)} autoComplete="email" /></label>
+          <label>Cédula / documento<input value={form.documento} onChange={(event) => setValue("documento", event.target.value)} /></label>
+          <label className="full">Código de consulta<input value={form.codigo} onChange={(event) => setValue("codigo", event.target.value)} placeholder="Ej: INOVA-0001-1234" /></label>
+        </div>
+
+        <button type="button" className="login-submit" onClick={submit} disabled={checking}>
+          {checking ? "Consultando..." : "Consultar estado"}
+        </button>
+
+        {result ? (
+          <div className="lookup-result">
+            <div className="lookup-meta">
+              <div>
+                <span>Código</span>
+                <strong>{result.codigo}</strong>
+              </div>
+              <div>
+                <span>Estado</span>
+                <strong>{result.estado}</strong>
+              </div>
+              {result.user?.usuario ? (
+                <div>
+                  <span>Usuario</span>
+                  <strong>{result.user.usuario}</strong>
+                </div>
+              ) : null}
+              {result.claveTemporal ? (
+                <div>
+                  <span>Clave temporal</span>
+                  <strong>{result.claveTemporal}</strong>
+                </div>
+              ) : null}
+            </div>
+
+            {approved && result.payload ? (
+              <>
+                <div className="lookup-security-note">
+                  La clave temporal solo se muestra mientras la cuenta aún debe cambiar contraseña.
+                </div>
+                <iframe
+                  className="lookup-preview"
+                  title="Vista de aprobación INOVA"
+                  srcDoc={buildApprovalEmailHtml(result.payload)}
+                />
+              </>
+            ) : null}
+          </div>
+        ) : null}
       </section>
     </div>
   );
@@ -1554,6 +1677,15 @@ button { -webkit-tap-highlight-color: transparent; }
 .access-form-grid input, .access-form-grid select, .access-form-grid textarea { width: 100%; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.08); color: #fff; border-radius: 14px; padding: 11px 12px; outline: none; }
 .access-form-grid textarea { min-height: 86px; resize: vertical; }
 .access-form-grid option { color: #111827; }
+.access-lookup-modal { width: min(920px, 100%); }
+.lookup-pending-box { display: grid; gap: 4px; margin-bottom: 16px; padding: 12px 14px; border-radius: 16px; color: #92400e; background: #fef3c7; border: 1px solid #fbbf24; font-weight: 850; }
+.lookup-result { margin-top: 18px; display: grid; gap: 14px; }
+.lookup-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.lookup-meta div { min-width: 0; padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.07); }
+.lookup-meta span { display: block; margin-bottom: 4px; color: rgba(255,255,255,.58); font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: .08em; }
+.lookup-meta strong { display: block; color: #fff; font-size: 14px; word-break: break-word; }
+.lookup-security-note { padding: 12px 14px; border-radius: 16px; color: color-mix(in srgb, var(--accent2) 70%, #fff); border: 1px solid color-mix(in srgb, var(--accent2) 42%, transparent); background: color-mix(in srgb, var(--accent) 16%, rgba(255,255,255,.05)); font-weight: 850; }
+.lookup-preview { width: 100%; height: min(72vh, 760px); border: 1px solid rgba(255,255,255,.14); border-radius: 18px; background: #f4f6fb; }
 
 .mobile-login-back {
   display: none;

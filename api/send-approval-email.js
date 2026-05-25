@@ -1,6 +1,9 @@
 import { Resvg } from "@resvg/resvg-js";
 
 const FROM_EMAIL = process.env.APPROVAL_FROM_EMAIL || "INOVA <inova-2025@outlook.com>";
+const BREVO_API_KEY = process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY || "";
+const BREVO_FROM_EMAIL = process.env.BREVO_FROM_EMAIL || process.env.APPROVAL_FROM_EMAIL_ADDRESS || "inova-2025@outlook.com";
+const BREVO_FROM_NAME = process.env.BREVO_FROM_NAME || "INOVA";
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || process.env.APPROVAL_FROM_EMAIL || "INOVA <onboarding@resend.dev>";
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.office365.com";
@@ -449,32 +452,40 @@ export default async function handler(req, res) {
   }
 
   if (SMTP_PASS) {
-    const nodemailer = await import("nodemailer");
-    const transporter = nodemailer.default.createTransport({
-      host: SMTP_HOST,
-      port: SMTP_PORT,
-      secure: SMTP_PORT === 465,
-      auth: {
-        user: SMTP_USER,
-        pass: SMTP_PASS,
-      },
-    });
-
-    const result = await transporter.sendMail({
-      from: FROM_EMAIL,
-      to: payload.email,
-      subject: `Acceso aprobado a INOVA ${theme.label}`,
-      html: approvalSummaryTemplate(payload),
-      attachments: [
-        {
-          filename: `${attachmentBase}.png`,
-          content: cardPng,
-          contentType: "image/png",
+    try {
+      const nodemailer = await import("nodemailer");
+      const transporter = nodemailer.default.createTransport({
+        host: SMTP_HOST,
+        port: SMTP_PORT,
+        secure: SMTP_PORT === 465,
+        auth: {
+          user: SMTP_USER,
+          pass: SMTP_PASS,
         },
-      ],
-    });
+      });
 
-    return res.status(200).json({ ok: true, provider: "outlook-smtp", messageId: result.messageId });
+      const result = await transporter.sendMail({
+        from: FROM_EMAIL,
+        to: payload.email,
+        subject: `Acceso aprobado a INOVA ${theme.label}`,
+        html: approvalSummaryTemplate(payload),
+        attachments: [
+          {
+            filename: `${attachmentBase}.png`,
+            content: cardPng,
+            contentType: "image/png",
+          },
+        ],
+      });
+
+      return res.status(200).json({ ok: true, provider: "outlook-smtp", messageId: result.messageId });
+    } catch (error) {
+      return res.status(502).json({
+        error: "No se pudo enviar por Outlook SMTP. Microsoft bloqueo el acceso por autenticacion basica. Verifica un dominio en Resend para enviar a cualquier correo.",
+        provider: "outlook-smtp",
+        details: error?.response || error?.message || String(error),
+      });
+    }
   }
 
   return res.status(500).json({
