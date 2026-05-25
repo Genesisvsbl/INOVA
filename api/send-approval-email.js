@@ -358,7 +358,7 @@ export default async function handler(req, res) {
         from: RESEND_FROM_EMAIL,
         to: [payload.email],
         subject: `Acceso aprobado a INOVA ${theme.label}`,
-        html: approvalTemplate(payload, "cid:approval-card-png"),
+        html: approvalSummaryTemplate(payload),
         attachments: [
           {
             filename: `${attachmentBase}.png`,
@@ -391,7 +391,7 @@ export default async function handler(req, res) {
       from: FROM_EMAIL,
       to: payload.email,
       subject: `Acceso aprobado a INOVA ${theme.label}`,
-      html: approvalTemplate(payload, "cid:approval-card-png"),
+      html: approvalSummaryTemplate(payload),
       attachments: [
         {
           filename: `${attachmentBase}.png`,

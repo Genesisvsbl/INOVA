@@ -195,16 +195,16 @@ export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa
   }
   const endpoints = [
     {
+      url: "https://inova-delta.vercel.app/api/send-approval-email",
+      headers: { "Content-Type": "application/json" },
+    },
+    {
       url: `${supabaseUrl.replace(/\/$/, "")}/functions/v1/send-approval-email`,
       headers: {
         "Content-Type": "application/json",
         apikey: supabaseKey,
         Authorization: `Bearer ${supabaseKey}`,
       },
-    },
-    {
-      url: "https://inova-delta.vercel.app/api/send-approval-email",
-      headers: { "Content-Type": "application/json" },
     },
   ];
 
