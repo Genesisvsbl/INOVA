@@ -51,6 +51,11 @@ function withoutPasswordFlags(payload) {
   delete next.debe_cambiar_clave;
   delete next.fecha_cambio_clave;
   delete next.clave_temporal_generada_en;
+  delete next.login_intentos_fallidos;
+  delete next.login_bloqueado_hasta;
+  delete next.reset_token;
+  delete next.reset_token_expira_en;
+  delete next.reset_solicitado_en;
   return next;
 }
 
@@ -214,6 +219,216 @@ function normalizeEmailError(error) {
   }
   return message || "No se pudo enviar el correo automatico.";
 }
+
+const PASSWORD_SECURITY_MIGRATION_MESSAGE =
+  "Falta aplicar la migracion 20260525093000_password_recovery_security.sql en Supabase para activar recuperacion y bloqueo de contrasenas.";
+
+function addMinutes(date, minutes) {
+  return new Date(date.getTime() + minutes * 60 * 1000);
+}
+
+function minutesUntil(dateValue) {
+  const diff = new Date(dateValue).getTime() - Date.now();
+  return Math.max(1, Math.ceil(diff / 60000));
+}
+
+function localLoginKey(login) {
+  return `inova_login_security_${String(login || "").toLowerCase()}`;
+}
+
+function getLocalLoginState(login) {
+  if (typeof localStorage === "undefined") return { attempts: 0, blockedUntil: "" };
+  try {
+    return JSON.parse(localStorage.getItem(localLoginKey(login)) || "{}") || { attempts: 0, blockedUntil: "" };
+  } catch {
+    return { attempts: 0, blockedUntil: "" };
+  }
+}
+
+function setLocalLoginState(login, value) {
+  if (typeof localStorage === "undefined") return;
+  localStorage.setItem(localLoginKey(login), JSON.stringify(value || {}));
+}
+
+function clearLocalLoginState(login) {
+  if (typeof localStorage === "undefined") return;
+  localStorage.removeItem(localLoginKey(login));
+}
+
+function ensureLocalLoginAllowed(login) {
+  const state = getLocalLoginState(login);
+  if (state.blockedUntil && new Date(state.blockedUntil).getTime() > Date.now()) {
+    throw new Error(`Cuenta bloqueada temporalmente. Intenta nuevamente en ${minutesUntil(state.blockedUntil)} minutos.`);
+  }
+}
+
+function registerLocalLoginFailure(login) {
+  const state = getLocalLoginState(login);
+  const attempts = Number(state.attempts || 0) + 1;
+  if (attempts >= 4) {
+    const blockedUntil = addMinutes(new Date(), 30).toISOString();
+    setLocalLoginState(login, { attempts: 0, blockedUntil });
+    throw new Error("Cuenta bloqueada por 30 minutos por 4 intentos fallidos.");
+  }
+  setLocalLoginState(login, { attempts, blockedUntil: "" });
+  throw new Error(`Credenciales incorrectas. Intentos restantes: ${4 - attempts}.`);
+}
+
+async function updateUsuarioSecurity(userId, payload, { required = false } = {}) {
+  try {
+    return await updateById("public", "usuarios", userId, payload);
+  } catch (error) {
+    if (isMissingColumnError(error)) {
+      if (required) throw new Error(PASSWORD_SECURITY_MIGRATION_MESSAGE);
+      return null;
+    }
+    throw error;
+  }
+}
+
+async function sendPasswordSecurityEmail(payload) {
+  const endpoints = [
+    {
+      url: supabaseUrl ? `${supabaseUrl.replace(/\/$/, "")}/functions/v1/send-password-email` : "",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+      },
+    },
+    {
+      url: "https://inova-delta.vercel.app/api/send-password-email",
+      headers: { "Content-Type": "application/json" },
+    },
+  ].filter((endpoint) => endpoint.url);
+
+  const errors = [];
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint.url, {
+        method: "POST",
+        headers: endpoint.headers,
+        body: JSON.stringify(payload),
+      });
+      if (response.ok) return response.json().catch(() => ({ ok: true }));
+      errors.push(await response.text());
+    } catch (error) {
+      errors.push(error?.message || String(error));
+    }
+  }
+  throw new Error(errors.filter(Boolean).join(" | ") || "No se pudo enviar el correo de seguridad.");
+}
+
+async function findActiveUserByLogin(login) {
+  const value = clean(login);
+  if (!value) return null;
+  const rows = await safeSelect("public", "usuarios", {
+    select: "*",
+    or: `(usuario.ilike.${value},email.ilike.${value})`,
+    estado: eq("ACTIVO"),
+    limit: "1",
+  });
+  return rows?.[0] || null;
+}
+
+export async function solicitarRecuperacionClave({ usuario, pilar }) {
+  const login = clean(usuario).toLowerCase();
+  if (!login) throw new Error("Ingresa tu correo o usuario para recuperar la contraseña.");
+
+  const user = await findActiveUserByLogin(login);
+  const generic = {
+    ok: true,
+    message: "Si el usuario existe y está activo, enviaremos un correo con el enlace de recuperación.",
+  };
+  if (!user?.id || !user.email) return generic;
+
+  const token = generarClaveTemporal(36);
+  const resetUrl = `${APPROVAL_LOGIN_URL}?resetPasswordToken=${encodeURIComponent(token)}&email=${encodeURIComponent(user.email)}&pilar=${encodeURIComponent(pilar || "wms")}`;
+  const now = new Date();
+
+  try {
+    await updateUsuarioSecurity(user.id, {
+      reset_token: token,
+      reset_token_expira_en: addMinutes(now, 30).toISOString(),
+      reset_solicitado_en: now.toISOString(),
+      fecha_actualizacion: now.toISOString(),
+    }, { required: true });
+
+    await sendPasswordSecurityEmail({
+      type: "reset",
+      email: user.email,
+      nombre: user.nombre || user.usuario || user.email,
+      pilar: pilar || "wms",
+      resetUrl,
+      expiresMinutes: 30,
+    });
+  } catch (error) {
+    if (!String(error?.message || "").includes("20260525093000_password_recovery_security")) throw error;
+    const claveTemporal = generarClaveTemporal();
+    await saveUsuario({
+      clave_acceso: claveTemporal,
+      debe_cambiar_clave: true,
+      clave_temporal_generada_en: now.toISOString(),
+      fecha_actualizacion: now.toISOString(),
+    }, user.id);
+    await sendPasswordSecurityEmail({
+      type: "temporary",
+      email: user.email,
+      nombre: user.nombre || user.usuario || user.email,
+      pilar: pilar || "wms",
+      claveTemporal,
+      loginUrl: APPROVAL_LOGIN_URL,
+    });
+  }
+
+  return generic;
+}
+
+export async function restablecerClaveConToken({ email, token, nuevaClave, pilar }) {
+  const correo = clean(email).toLowerCase();
+  const resetToken = clean(token);
+  const clave = clean(nuevaClave);
+  if (!correo || !resetToken) throw new Error("El enlace de recuperación no es válido.");
+  if (clave.length < 8) throw new Error("La nueva contraseña debe tener mínimo 8 caracteres.");
+
+  const rows = await safeSelect("public", "usuarios", {
+    select: "*",
+    email: `ilike.${correo}`,
+    estado: eq("ACTIVO"),
+    limit: "1",
+  });
+  const user = rows?.[0];
+  if (!user || clean(user.reset_token) !== resetToken) {
+    throw new Error("El enlace de recuperación no es válido o ya fue usado.");
+  }
+  if (!user.reset_token_expira_en || new Date(user.reset_token_expira_en).getTime() < Date.now()) {
+    throw new Error("El enlace de recuperación expiró. Solicita uno nuevo.");
+  }
+
+  await updateUsuarioSecurity(user.id, {
+    clave_acceso: clave,
+    debe_cambiar_clave: false,
+    login_intentos_fallidos: 0,
+    login_bloqueado_hasta: null,
+    reset_token: null,
+    reset_token_expira_en: null,
+    reset_solicitado_en: null,
+    fecha_cambio_clave: new Date().toISOString(),
+    fecha_actualizacion: new Date().toISOString(),
+  }, { required: true });
+  clearLocalLoginState(correo);
+
+  await sendPasswordSecurityEmail({
+    type: "changed",
+    email: user.email,
+    nombre: user.nombre || user.usuario || user.email,
+    pilar: pilar || "wms",
+    loginUrl: APPROVAL_LOGIN_URL,
+  }).catch((error) => console.warn("No se pudo enviar aviso de cambio de clave:", error));
+
+  return { ok: true };
+}
+
 function roleToPermissions(role, pilar, etoNivel) {
   const rol = String(role || "").toUpperCase();
   if (rol === "SUPER_ADMIN") return LEGACY_ADMIN_PERMISSIONS;
@@ -279,6 +494,7 @@ export async function autenticarUsuario({ usuario, password, pilar }) {
   const login = clean(usuario);
   const clave = clean(password);
   if (!login || !clave) throw new Error("Debes ingresar usuario y contraseÃ±a.");
+  ensureLocalLoginAllowed(login);
 
   const usuarios = await safeSelect("public", "usuarios", {
     select: "*",
@@ -288,8 +504,31 @@ export async function autenticarUsuario({ usuario, password, pilar }) {
   });
 
   const user = usuarios?.[0];
+  if (user?.login_bloqueado_hasta && new Date(user.login_bloqueado_hasta).getTime() > Date.now()) {
+    throw new Error(`Cuenta bloqueada temporalmente. Intenta nuevamente en ${minutesUntil(user.login_bloqueado_hasta)} minutos.`);
+  }
+
   if (!user || clean(user.clave_acceso) !== clave) {
-    throw new Error("Credenciales incorrectas.");
+    if (!user?.id) registerLocalLoginFailure(login);
+
+    const attempts = Number(user.login_intentos_fallidos || 0) + 1;
+    if (attempts >= 4) {
+      const blockedUntil = addMinutes(new Date(), 30).toISOString();
+      const updated = await updateUsuarioSecurity(user.id, {
+        login_intentos_fallidos: 0,
+        login_bloqueado_hasta: blockedUntil,
+        fecha_actualizacion: new Date().toISOString(),
+      });
+      if (!updated) registerLocalLoginFailure(login);
+      throw new Error("Cuenta bloqueada por 30 minutos por 4 intentos fallidos.");
+    }
+
+    const updated = await updateUsuarioSecurity(user.id, {
+      login_intentos_fallidos: attempts,
+      fecha_actualizacion: new Date().toISOString(),
+    });
+    if (!updated) registerLocalLoginFailure(login);
+    throw new Error(`Credenciales incorrectas. Intentos restantes: ${4 - attempts}.`);
   }
 
   const accesos = await safeSelect("public", "usuario_pilares", {
@@ -305,7 +544,12 @@ export async function autenticarUsuario({ usuario, password, pilar }) {
 
   if (!acceso) throw new Error(`Este usuario no tiene acceso activo al pilar ${pilar.toUpperCase()}.`);
 
-  await updateById("public", "usuarios", user.id, { ultimo_acceso: new Date().toISOString() }).catch(() => {});
+  clearLocalLoginState(login);
+  await updateUsuarioSecurity(user.id, {
+    ultimo_acceso: new Date().toISOString(),
+    login_intentos_fallidos: 0,
+    login_bloqueado_hasta: null,
+  }).catch(() => {});
 
   const etoNivel = acceso.eto_nivel || (pilar === "eto" ? 1 : null);
   return {
@@ -652,15 +896,32 @@ export async function guardarPlanEmpresa(payload) {
     : insertRow("public", "planes_empresa", row);
 }
 
-export function cambiarClaveObligatoria(userId, nuevaClave) {
+export async function cambiarClaveObligatoria(userId, nuevaClave) {
   const clave = clean(nuevaClave);
   if (clave.length < 8) throw new Error("La nueva contraseÃ±a debe tener mÃ­nimo 8 caracteres.");
-  return saveUsuario({
+  const existing = await safeSelect("public", "usuarios", { select: "*", id: eq(userId), limit: "1" }).catch(() => []);
+  const user = existing?.[0];
+  const saved = await saveUsuario({
     clave_acceso: clave,
     debe_cambiar_clave: false,
+    login_intentos_fallidos: 0,
+    login_bloqueado_hasta: null,
+    reset_token: null,
+    reset_token_expira_en: null,
+    reset_solicitado_en: null,
     fecha_cambio_clave: new Date().toISOString(),
     fecha_actualizacion: new Date().toISOString(),
   }, userId);
+  if (user?.email) {
+    await sendPasswordSecurityEmail({
+      type: "changed",
+      email: user.email,
+      nombre: user.nombre || user.usuario || user.email,
+      pilar: "wms",
+      loginUrl: APPROVAL_LOGIN_URL,
+    }).catch((error) => console.warn("No se pudo enviar aviso de cambio de clave:", error));
+  }
+  return saved;
 }
 
 

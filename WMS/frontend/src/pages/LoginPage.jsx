@@ -15,7 +15,13 @@ import {
   User,
   X,
 } from "lucide-react";
-import { autenticarUsuario, cambiarClaveObligatoria, solicitarAcceso } from "../adminApi";
+import {
+  autenticarUsuario,
+  cambiarClaveObligatoria,
+  restablecerClaveConToken,
+  solicitarAcceso,
+  solicitarRecuperacionClave,
+} from "../adminApi";
 const fiveSImage = "/5S.png";
 const etoImage = "/ETO.png";
 const ALLOW_LEGACY_LOGIN = import.meta.env.VITE_ALLOW_LEGACY_LOGIN === "true";
@@ -237,6 +243,8 @@ export default function LoginPage() {
   const [requestStatus, setRequestStatus] = useState("");
   const [loginNotice, setLoginNotice] = useState("");
   const [passwordChangeUser, setPasswordChangeUser] = useState(null);
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [recoveryToken, setRecoveryToken] = useState(null);
 
   const selectedPillar = useMemo(
     () => PILLARS.find((pillar) => pillar.id === selectedPillarId) || PILLARS[0],
@@ -295,6 +303,22 @@ export default function LoginPage() {
     sessionStorage.removeItem("etoAccessCode");
     sessionStorage.removeItem("etoUser");
     sessionStorage.removeItem("etoRole");
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const resetToken = params.get("resetPasswordToken");
+    const resetEmail = params.get("email");
+    const resetPilar = params.get("pilar");
+    if (!resetToken || !resetEmail) return;
+
+    if (resetPilar && PILLARS.some((pillar) => pillar.id === resetPilar)) {
+      setSelectedPillarId(resetPilar);
+    }
+    setShowLogin(true);
+    setRecoveryToken({ token: resetToken, email: resetEmail });
+    setRecoveryOpen(true);
+    window.history.replaceState({}, "", "/login");
   }, []);
 
   const selectPillar = (pillarId) => {
@@ -514,6 +538,10 @@ export default function LoginPage() {
               login={login}
               back={() => setShowLogin(false)}
               requestAccess={() => setRequestOpen(true)}
+              recoverPassword={() => {
+                setRecoveryToken(null);
+                setRecoveryOpen(true);
+              }}
             />
           </section>
         </main>
@@ -539,6 +567,28 @@ export default function LoginPage() {
             await cambiarClaveObligatoria(passwordChangeUser.userId, newPassword);
             setPasswordChangeUser(null);
             window.location.href = selectedPillar.route;
+          }}
+        />
+      )}
+
+      {recoveryOpen && (
+        <PasswordRecoveryModal
+          pillar={selectedPillar}
+          defaultUser={recoveryToken?.email || usuario}
+          tokenData={recoveryToken}
+          onClose={() => {
+            setRecoveryOpen(false);
+            setRecoveryToken(null);
+          }}
+          onRequest={async (value) => {
+            const result = await solicitarRecuperacionClave({ usuario: value, pilar: selectedPillar.id });
+            setLoginNotice(result.message);
+          }}
+          onReset={async ({ email, token, password: newPassword }) => {
+            await restablecerClaveConToken({ email, token, nuevaClave: newPassword, pilar: selectedPillar.id });
+            setRecoveryOpen(false);
+            setRecoveryToken(null);
+            setLoginNotice("Contraseña actualizada. Ya puedes iniciar sesión.");
           }}
         />
       )}
@@ -642,6 +692,7 @@ function LoginCard({
   login,
   back,
   requestAccess,
+  recoverPassword,
 }) {
   const usuarioRef = useRef(null);
   const passwordRef = useRef(null);
@@ -746,7 +797,7 @@ function LoginCard({
             <input type="checkbox" checked={recordarme} onChange={(event) => setRecordarme(event.target.checked)} />
             <span>Recordarme</span>
           </label>
-          <button type="button">¿Olvidaste tu contraseña?</button>
+          <button type="button" onClick={recoverPassword}>¿Olvidaste tu contraseña?</button>
         </div>
 
         <button className="login-submit" onClick={login} disabled={loading}>
@@ -764,6 +815,95 @@ function LoginCard({
           ¿No tienes acceso? <button type="button" className="request-link" onClick={requestAccess}>Solicitar acceso</button>
         </small>
       </div>
+    </div>
+  );
+}
+
+function PasswordRecoveryModal({ pillar, defaultUser, tokenData, onClose, onRequest, onReset }) {
+  const [identifier, setIdentifier] = useState(defaultUser || "");
+  const [passwordOne, setPasswordOne] = useState("");
+  const [passwordTwo, setPasswordTwo] = useState("");
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
+  const confirmMode = Boolean(tokenData?.token && tokenData?.email);
+
+  const submitRequest = async () => {
+    setError("");
+    setStatus("");
+    if (!identifier.trim()) {
+      setError("Ingresa tu correo o usuario.");
+      return;
+    }
+    setSending(true);
+    try {
+      await onRequest(identifier.trim());
+      setStatus("Si el usuario existe y está activo, enviaremos el enlace de recuperación a su correo.");
+    } catch (err) {
+      setError(err?.message || "No se pudo enviar la recuperación.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const submitReset = async () => {
+    setError("");
+    setStatus("");
+    if (passwordOne.length < 8) {
+      setError("La nueva contraseña debe tener mínimo 8 caracteres.");
+      return;
+    }
+    if (passwordOne !== passwordTwo) {
+      setError("Las contraseñas no coinciden.");
+      return;
+    }
+    setSending(true);
+    try {
+      await onReset({ email: tokenData.email, token: tokenData.token, password: passwordOne });
+      setStatus("Contraseña actualizada correctamente.");
+    } catch (err) {
+      setError(err?.message || "No se pudo actualizar la contraseña.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="access-modal-backdrop">
+      <section
+        className="access-modal password-change-modal"
+        style={{ "--accent": pillar.accent, "--accent2": pillar.accent2, "--glow": pillar.glow }}
+      >
+        <button type="button" className="access-close" onClick={onClose} aria-label="Cerrar recuperación">
+          <X size={18} />
+        </button>
+        <span>Seguridad de acceso</span>
+        <h2>{confirmMode ? "Crear nueva contraseña" : "Recuperar contraseña"}</h2>
+        <p>
+          {confirmMode
+            ? "Escribe una contraseña nueva para tu cuenta INOVA."
+            : "Te enviaremos un enlace seguro al correo registrado. El enlace vence en 30 minutos."}
+        </p>
+
+        {error ? <div className="error-box">{error}</div> : null}
+        {status ? <div className="success-box">{status}</div> : null}
+
+        <div className="access-form-grid">
+          {!confirmMode ? (
+            <label className="full">Correo o usuario<input value={identifier} onChange={(event) => setIdentifier(event.target.value)} autoComplete="username" /></label>
+          ) : (
+            <>
+              <label className="full">Correo<input value={tokenData.email} readOnly /></label>
+              <label>Nueva contraseña<input type="password" value={passwordOne} onChange={(event) => setPasswordOne(event.target.value)} autoComplete="new-password" /></label>
+              <label>Confirmar contraseña<input type="password" value={passwordTwo} onChange={(event) => setPasswordTwo(event.target.value)} autoComplete="new-password" /></label>
+            </>
+          )}
+        </div>
+
+        <button type="button" className="login-submit" onClick={confirmMode ? submitReset : submitRequest} disabled={sending}>
+          {sending ? "Procesando..." : confirmMode ? "Guardar nueva contraseña" : "Enviar enlace de recuperación"}
+        </button>
+      </section>
     </div>
   );
 }
