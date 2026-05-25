@@ -1,4 +1,4 @@
-import {
+﻿import {
   empresaId,
   insertRow,
   selectRows,
@@ -7,7 +7,7 @@ import {
   supabaseUrl,
   updateById,
 } from "./supabaseRest";
-import { buildApprovalPayload } from "./approvalEmailTemplate";
+import { APPROVAL_LOGIN_URL, buildApprovalPayload } from "./approvalEmailTemplate";
 
 const LEGACY_ADMIN_PERMISSIONS = [
   "usuarios.ver",
@@ -80,40 +80,14 @@ export function generarClaveTemporal(length = 10) {
   }).join("");
 }
 
-function abrirOutlookLocal(payload = {}) {
-  if (typeof window === "undefined" || !payload.email) return false;
-  const themeLabel = String(payload.pilar || "WMS").toUpperCase();
-  const pilarLabel = `${themeLabel}${payload.etoNivel ? ` - Nivel ${payload.etoNivel}` : ""}`;
-  const subject = `INOVA - Acceso aprobado ${pilarLabel}`;
-  const body = [
-    `Hola ${payload.nombre || ""},`,
-    "",
-    "Tu acceso a INOVA fue aprobado.",
-    "",
-    `Empresa: ${payload.empresa || ""}`,
-    `Pilar: ${pilarLabel}`,
-    `Rol: ${payload.rol || ""}`,
-    `Usuario: ${payload.email || ""}`,
-    `Contrasena temporal: ${payload.claveTemporal || ""}`,
-    "",
-    "Por seguridad, al ingresar por primera vez el sistema te pedira cambiar esta contrasena.",
-    "",
-    `Ingresar a INOVA: ${payload.loginUrl || `${window.location.origin}/login`}`,
-    "",
-    "Bienvenido a INOVA",
-  ].join("\r\n");
-  window.location.href = `mailto:${encodeURIComponent(payload.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  return true;
-}
-
 export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa, rol }) {
-  if (!supabaseUrl || !supabaseKey) throw new Error("Supabase no está configurado.");
+  if (!supabaseUrl || !supabaseKey) throw new Error("Supabase no estÃ¡ configurado.");
   const payload = buildApprovalPayload({
     solicitud,
     claveTemporal,
     empresa,
     rol,
-    loginUrl: `${window.location.origin}/login`,
+    loginUrl: APPROVAL_LOGIN_URL,
   });
   const endpoints = [
     {
@@ -125,7 +99,7 @@ export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa
       },
     },
     {
-      url: `${window.location.origin}/api/send-approval-email`,
+      url: "https://inova-delta.vercel.app/api/send-approval-email",
       headers: { "Content-Type": "application/json" },
     },
   ];
@@ -144,10 +118,6 @@ export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa
     } catch (error) {
       errors.push(error?.message || String(error));
     }
-  }
-
-  if (abrirOutlookLocal(payload)) {
-    return { ok: true, fallback: "outlook_local" };
   }
 
   throw new Error(errors.filter(Boolean).join(" | ") || "No se pudo enviar correo automatico.");
@@ -233,7 +203,7 @@ export async function solicitarAcceso(payload) {
 export async function autenticarUsuario({ usuario, password, pilar }) {
   const login = clean(usuario);
   const clave = clean(password);
-  if (!login || !clave) throw new Error("Debes ingresar usuario y contraseña.");
+  if (!login || !clave) throw new Error("Debes ingresar usuario y contraseÃ±a.");
 
   const usuarios = await safeSelect("public", "usuarios", {
     select: "*",
@@ -361,7 +331,7 @@ export async function aprobarSolicitud(solicitud, { empresa_id, rol_id, clave_ac
     await enviarCorreoAprobacion({ solicitud, claveTemporal, empresa, rol });
     emailSent = true;
   } catch (error) {
-    console.warn("No se pudo enviar el correo HTML de aprobación:", error);
+    console.warn("No se pudo enviar el correo HTML de aprobaciÃ³n:", error);
     emailError = normalizeEmailError(error);
   }
 
@@ -416,7 +386,7 @@ export async function crearUsuarioEmpresa(payload, actor = {}) {
   });
 
   if (!existing?.[0] && maxUsuarios && usuariosActivos.length >= maxUsuarios) {
-    throw new Error(`La empresa ya alcanzó el límite del plan (${maxUsuarios} usuarios).`);
+    throw new Error(`La empresa ya alcanzÃ³ el lÃ­mite del plan (${maxUsuarios} usuarios).`);
   }
 
   const claveTemporal = clean(payload.clave_acceso) || generarClaveTemporal();
@@ -486,7 +456,7 @@ export async function crearUsuarioEmpresa(payload, actor = {}) {
     await enviarCorreoAprobacion({ solicitud, claveTemporal, empresa, rol });
     emailSent = true;
   } catch (error) {
-    console.warn("No se pudo enviar el correo HTML de aprobación:", error);
+    console.warn("No se pudo enviar el correo HTML de aprobaciÃ³n:", error);
     emailError = normalizeEmailError(error);
   }
 
@@ -584,7 +554,7 @@ export async function guardarPlanEmpresa(payload) {
   if (!empresaIdFinal) throw new Error("Debes seleccionar empresa.");
   const maxUsuarios = Number(payload.max_usuarios || 1);
   if (!Number.isFinite(maxUsuarios) || maxUsuarios < 1) {
-    throw new Error("El plan debe permitir mínimo 1 usuario.");
+    throw new Error("El plan debe permitir mÃ­nimo 1 usuario.");
   }
 
   const row = {
@@ -609,7 +579,7 @@ export async function guardarPlanEmpresa(payload) {
 
 export function cambiarClaveObligatoria(userId, nuevaClave) {
   const clave = clean(nuevaClave);
-  if (clave.length < 8) throw new Error("La nueva contraseña debe tener mínimo 8 caracteres.");
+  if (clave.length < 8) throw new Error("La nueva contraseÃ±a debe tener mÃ­nimo 8 caracteres.");
   return saveUsuario({
     clave_acceso: clave,
     debe_cambiar_clave: false,
@@ -617,4 +587,6 @@ export function cambiarClaveObligatoria(userId, nuevaClave) {
     fecha_actualizacion: new Date().toISOString(),
   }, userId);
 }
+
+
 
