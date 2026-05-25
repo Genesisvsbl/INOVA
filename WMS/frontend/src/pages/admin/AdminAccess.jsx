@@ -85,14 +85,31 @@ export default function AdminAccess({ view = "usuarios" }) {
 
   const actor = useMemo(() => {
     const rol = sessionStorage.getItem("rol") || "";
+    const permisos = JSON.parse(sessionStorage.getItem("permisos") || "[]");
+    const roleKey = String(rol || "").toUpperCase();
     return {
       userId: sessionStorage.getItem("userId") || "",
       empresaId: sessionStorage.getItem("empresaId") || "",
+      pilar: sessionStorage.getItem("pilarSeleccionado") || "",
+      permisos,
       rol,
-      esSuperAdmin: sessionStorage.getItem("esSuperAdmin") === "true" || rol === "SUPER_ADMIN",
+      esSuperAdmin: sessionStorage.getItem("esSuperAdmin") === "true" || roleKey === "SUPER_ADMIN",
+      esAdmin: roleKey.includes("ADMIN") || permisos.includes("admin.usuarios.gestionar") || permisos.includes("admin.roles.gestionar"),
     };
   }, []);
-  const canManageRoles = actor.esSuperAdmin || String(actor.rol || "").toUpperCase().includes("ADMIN");
+  const canManageRoles = actor.esSuperAdmin || actor.esAdmin;
+
+  if (!canManageRoles) {
+    return (
+      <div className="admin-shell">
+        <header className="admin-hero">
+          <span>Acceso restringido</span>
+          <h1>Administración protegida</h1>
+          <p>Solo administradores y super administradores pueden gestionar usuarios, roles, responsables o configuración.</p>
+        </header>
+      </div>
+    );
+  }
 
   async function load() {
     setLoading(true);

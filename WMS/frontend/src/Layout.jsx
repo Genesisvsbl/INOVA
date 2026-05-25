@@ -77,12 +77,14 @@ export default function Layout() {
   const usuario = sessionStorage.getItem("usuario") || "Gvisbal";
   const rol = sessionStorage.getItem("rol") || "SUPER_ADMIN";
   const permisos = JSON.parse(sessionStorage.getItem("permisos") || "[]");
+  const roleKey = String(rol || "").toUpperCase();
 
   const puedeVerAdmin =
-    rol === "SUPER_ADMIN" ||
-    permisos.includes("usuarios.ver") ||
-    permisos.includes("roles.ver") ||
-    permisos.includes("auditoria.ver");
+    sessionStorage.getItem("esSuperAdmin") === "true" ||
+    roleKey === "SUPER_ADMIN" ||
+    roleKey.includes("ADMIN") ||
+    permisos.includes("admin.usuarios.gestionar") ||
+    permisos.includes("admin.roles.gestionar");
 
   const sidebarExpanded = config.isMobile ? sidebarPinned : sidebarPinned || sidebarHover;
 

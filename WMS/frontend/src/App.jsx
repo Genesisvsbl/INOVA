@@ -218,6 +218,24 @@ function PillarRoute({ pillar, children }) {
   return isAuth && selectedPillar === pillar ? children : <Navigate to="/login" replace />;
 }
 
+function isAdminSession() {
+  const role = String(sessionStorage.getItem("rol") || "").toUpperCase();
+  const permisos = JSON.parse(sessionStorage.getItem("permisos") || "[]");
+  return (
+    sessionStorage.getItem("esSuperAdmin") === "true" ||
+    role === "SUPER_ADMIN" ||
+    role.includes("ADMIN") ||
+    permisos.includes("admin.usuarios.gestionar") ||
+    permisos.includes("admin.roles.gestionar")
+  );
+}
+
+function AdminRoute({ children }) {
+  const isAuth = sessionStorage.getItem("auth") === "true";
+  const selectedPillar = sessionStorage.getItem("pilarSeleccionado");
+  return isAuth && selectedPillar === "wms" && isAdminSession() ? children : <Navigate to="/" replace />;
+}
+
 function AppRoutes() {
   useGlobalTableTools();
 
@@ -283,10 +301,10 @@ function AppRoutes() {
           </Route>
 
           <Route path="stock" element={<Stock />} />
-          <Route path="admin/usuarios" element={<AdminAccess view="usuarios" />} />
-          <Route path="admin/roles" element={<AdminAccess view="roles" />} />
-          <Route path="admin/auditoria" element={<AdminAccess view="auditoria" />} />
-          <Route path="admin/configuracion" element={<AdminAccess view="empresas" />} />
+          <Route path="admin/usuarios" element={<AdminRoute><AdminAccess view="usuarios" /></AdminRoute>} />
+          <Route path="admin/roles" element={<AdminRoute><AdminAccess view="roles" /></AdminRoute>} />
+          <Route path="admin/auditoria" element={<AdminRoute><AdminAccess view="auditoria" /></AdminRoute>} />
+          <Route path="admin/configuracion" element={<AdminRoute><AdminAccess view="empresas" /></AdminRoute>} />
           <Route path="*" element={<div>Ruta no encontrada</div>} />
         </Route>
       </Routes>
