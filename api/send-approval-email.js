@@ -291,6 +291,39 @@ function approvalTemplate(payload, imageSource = "cid:approval-card") {
 </html>`;
 }
 
+function approvalSummaryTemplate(payload) {
+  const pilarKey = String(payload.pilar || "wms").toLowerCase();
+  const theme = THEMES[pilarKey] || THEMES.wms;
+  const pilarLabel = `${theme.label}${payload.etoNivel ? ` - Nivel ${escapeHtml(payload.etoNivel)}` : ""}`;
+  const loginUrl = String(payload.loginUrl || "https://inova-delta.vercel.app/login");
+  return `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f4f6fb;font-family:Segoe UI,Arial,sans-serif;color:#071226;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6fb;padding:24px 10px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:18px;border:1px solid #e6edf7;box-shadow:0 18px 45px rgba(15,23,42,.12);">
+            <tr><td style="padding:28px 34px;text-align:center;">
+              <h1 style="margin:0;color:#071226;font-size:30px;">&iexcl;Acceso aprobado!</h1>
+              <p style="margin:14px 0 0;color:#526179;font-size:16px;">Hola ${escapeHtml(payload.nombre)}, tu acceso a INOVA fue aprobado.</p>
+              <div style="margin:22px 0;padding:16px;border:1px solid ${theme.line};border-radius:14px;text-align:left;">
+                <p><strong>Empresa:</strong> ${escapeHtml(payload.empresa)}</p>
+                <p><strong>Pilar:</strong> ${pilarLabel}</p>
+                <p><strong>Rol:</strong> ${escapeHtml(payload.rol)}</p>
+                <p><strong>Usuario:</strong> ${escapeHtml(payload.email)}</p>
+                <p><strong>Contrase&ntilde;a temporal:</strong> ${escapeHtml(payload.claveTemporal)}</p>
+              </div>
+              <p style="color:#526179;">La tarjeta visual de bienvenida va adjunta en PNG y PDF.</p>
+              <a href="${escapeHtml(loginUrl)}" style="display:inline-block;color:#ffffff;background:${theme.primary};padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:800;">Ingresar a INOVA</a>
+            </td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -322,7 +355,7 @@ export default async function handler(req, res) {
         from: RESEND_FROM_EMAIL,
         to: [payload.email],
         subject: `Acceso aprobado a INOVA ${theme.label}`,
-        html,
+        html: approvalSummaryTemplate(payload),
         attachments: [
           ...(cardPng ? [{
             filename: `${attachmentBase}.png`,
