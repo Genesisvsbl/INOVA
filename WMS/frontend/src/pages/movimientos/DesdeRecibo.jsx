@@ -784,7 +784,7 @@ export default function DesdeRecibo() {
     cerrarScanner();
   };
 
-  const cerrarScanner = () => {
+  function cerrarScanner() {
     try {
       if (controlsZXingRef.current) {
         controlsZXingRef.current.stop();
@@ -806,7 +806,7 @@ export default function DesdeRecibo() {
     setScannerOpen(false);
     setScannerLineaIdx(null);
     setScannerBusy(false);
-  };
+  }
 
   const decodeFromCanvasZXing = async (canvas) => {
     const reader = createReaderZXing();

@@ -80,6 +80,32 @@ export function generarClaveTemporal(length = 10) {
   }).join("");
 }
 
+function abrirOutlookLocal(payload = {}) {
+  if (typeof window === "undefined" || !payload.email) return false;
+  const themeLabel = String(payload.pilar || "WMS").toUpperCase();
+  const pilarLabel = `${themeLabel}${payload.etoNivel ? ` - Nivel ${payload.etoNivel}` : ""}`;
+  const subject = `INOVA - Acceso aprobado ${pilarLabel}`;
+  const body = [
+    `Hola ${payload.nombre || ""},`,
+    "",
+    "Tu acceso a INOVA fue aprobado.",
+    "",
+    `Empresa: ${payload.empresa || ""}`,
+    `Pilar: ${pilarLabel}`,
+    `Rol: ${payload.rol || ""}`,
+    `Usuario: ${payload.email || ""}`,
+    `Contrasena temporal: ${payload.claveTemporal || ""}`,
+    "",
+    "Por seguridad, al ingresar por primera vez el sistema te pedira cambiar esta contrasena.",
+    "",
+    `Ingresar a INOVA: ${payload.loginUrl || `${window.location.origin}/login`}`,
+    "",
+    "Bienvenido a INOVA",
+  ].join("\r\n");
+  window.location.href = `mailto:${encodeURIComponent(payload.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  return true;
+}
+
 export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa, rol }) {
   if (!supabaseUrl || !supabaseKey) throw new Error("Supabase no está configurado.");
   const payload = buildApprovalPayload({
@@ -120,19 +146,26 @@ export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa
     }
   }
 
+  if (abrirOutlookLocal(payload)) {
+    return { ok: true, fallback: "outlook_local" };
+  }
+
   throw new Error(errors.filter(Boolean).join(" | ") || "No se pudo enviar correo automatico.");
 }
 
 function normalizeEmailError(error) {
   const message = String(error?.message || error || "");
+  if (message.includes("SMTP_PASS") || message.includes("SMTP_USER") || message.includes("SMTP_HOST")) {
+    return "Correo automatico pendiente: falta configurar la clave SMTP del buzon inova-2025@outlook.com en Vercel para que Outlook permita el envio automatico.";
+  }
   if (message === "Failed to fetch" || message.includes("Failed to fetch")) {
-    return "Correo automatico no disponible: la funcion send-approval-email no esta desplegada o no responde en Supabase.";
+    return "Correo automatico no disponible: no respondio el endpoint de correo de INOVA. El sistema ya intenta enviar por Vercel/Outlook.";
   }
   if (message.includes("RESEND_API_KEY")) {
-    return "Correo automatico no disponible: falta configurar RESEND_API_KEY en Supabase.";
+    return "Correo automatico pendiente: falta configurar RESEND_API_KEY o SMTP_PASS en Vercel para enviar desde INOVA.";
   }
   if (message.includes("domain is not verified") || message.includes("verify a domain")) {
-    return "Correo automatico no disponible: falta verificar el dominio inova.app para usar no-reply@inova.app.";
+    return "Correo automatico pendiente: el dominio remitente no esta verificado para envio automatico.";
   }
   return message || "No se pudo enviar el correo automatico.";
 }

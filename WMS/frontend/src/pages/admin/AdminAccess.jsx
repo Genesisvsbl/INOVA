@@ -207,7 +207,7 @@ export default function AdminAccess({ view = "usuarios" }) {
       await load();
       setSelectedRequest(null);
       setApprovalResult(result);
-      if (!result?.emailSent) setActionError(result?.emailError || "El acceso se aprobo, pero el correo automatico no salio. Revisa la funcion de correo en Supabase y las variables RESEND_API_KEY / APPROVAL_FROM_EMAIL.");
+      if (!result?.emailSent) setActionError(result?.emailError || "El acceso se aprobo, pero el correo automatico no salio. Revisa la configuracion SMTP de inova-2025@outlook.com en Vercel.");
     } catch (err) {
       setActionError(err?.message || "No se pudo aprobar la solicitud.");
     }
@@ -239,7 +239,7 @@ export default function AdminAccess({ view = "usuarios" }) {
       setUserCreateResult(result);
       setUserForm({ ...EMPTY_USER_FORM, empresa_id: selectedCreateEmpresa, clave_acceso: generarClaveTemporal() });
       await load();
-      if (!result?.emailSent) setActionError(result?.emailError || "El usuario se creo, pero el correo automatico no salio. Revisa la funcion de correo en Supabase y las variables RESEND_API_KEY / APPROVAL_FROM_EMAIL.");
+      if (!result?.emailSent) setActionError(result?.emailError || "El usuario se creo, pero el correo automatico no salio. Revisa la configuracion SMTP de inova-2025@outlook.com en Vercel.");
     } catch (err) {
       setActionError(err?.message || "No se pudo crear el usuario.");
     }
@@ -425,7 +425,7 @@ export default function AdminAccess({ view = "usuarios" }) {
                 <strong>Usuario creado</strong>
                 <span>Usuario: {userCreateResult.user.email}</span>
                 <span>Contrasena temporal: {userCreateResult.claveTemporal}</span>
-                <small>{userCreateResult.emailSent ? "Correo automatico enviado." : "Correo pendiente por configuracion de Supabase/Resend."}</small>
+                <small>{userCreateResult.emailSent ? "Correo automatico enviado." : "Correo pendiente por configuracion SMTP de Outlook/Vercel."}</small>
               </div>
             ) : null}
           </AdminSection>
@@ -620,7 +620,7 @@ export default function AdminAccess({ view = "usuarios" }) {
                 <strong>Acceso aprobado</strong>
                 <span>Usuario: {selectedRequest.email}</span>
                 <span>Contrasena temporal: {approvalResult.claveTemporal}</span>
-                <small>{approvalResult.emailSent ? "Correo automatico enviado." : "Correo pendiente por configuracion de Supabase/Resend."}</small>
+                <small>{approvalResult.emailSent ? "Correo automatico enviado." : "Correo pendiente por configuracion SMTP de Outlook/Vercel."}</small>
               </div>
             ) : null}
             <div className="admin-modal-actions">

@@ -974,7 +974,8 @@ export function sugerirUbicaciones(payload = {}) {
   const base = normalizeText(payload.ubicacion_base || payload.base || payload.ubicacion);
   const cantidad = Math.max(1, Number(payload.cantidad_pallets || payload.cantidad || 1));
   const tipoMaterial = normalizeText(stripAccents(payload.tipo_material || payload.material_tipo || "").toLowerCase());
-  const usaZonasLataAzucar = tipoMaterial === "lata" || tipoMaterial === "azucar";
+  const usaZonasLataAzucar = tipoMaterial === "lata" || tipoMaterial === "azucar" || base.startsWith("400") || base.startsWith("600");
+  const usaZonaPreforma = tipoMaterial === "preforma" || base.startsWith("200");
   const zonasLataAzucar = ["400", "600"];
 
   const parsePosicion = (value) => {
@@ -1012,9 +1013,18 @@ export function sugerirUbicaciones(payload = {}) {
 
     if (usaZonasLataAzucar) {
       return (
-        pa.columnaNum - pb.columnaNum ||
+        pb.pasilloNum - pa.pasilloNum ||
+        pb.columnaNum - pa.columnaNum ||
+        baseB - baseA ||
+        String(a.ubicacion || "").localeCompare(String(b.ubicacion || ""))
+      );
+    }
+
+    if (usaZonaPreforma) {
+      return (
         baseA - baseB ||
         pa.pasilloNum - pb.pasilloNum ||
+        pa.columnaNum - pb.columnaNum ||
         String(a.ubicacion || "").localeCompare(String(b.ubicacion || ""))
       );
     }
@@ -1232,3 +1242,4 @@ export function getInventarioConciliacion(tareaId) {
 export function finalizarInventarioTarea(tareaId) {
   return recalcularTareaInventario(tareaId, "CERRADA");
 }
+
