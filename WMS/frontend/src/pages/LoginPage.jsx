@@ -447,10 +447,10 @@ export default function LoginPage() {
 
   const submitAccessRequest = async (payload) => {
     setRequestStatus("");
-    const result = await solicitarAcceso(payload);
+    await solicitarAcceso(payload);
     setRequestOpen(false);
     setShowLogin(true);
-    setLoginNotice(`Solicitud enviada. Guarda este codigo para consultar tu aprobacion: ${result.codigo}`);
+    setLoginNotice("Solicitud enviada. Consulta el estado con tu correo, documento y la clave que elegiste.");
   };
 
   return (
@@ -933,7 +933,7 @@ function AccessLookupModal({ pillar, onClose, onLookup }) {
   const [form, setForm] = useState({
     email: "",
     documento: "",
-    codigo: "",
+    claveConsulta: "",
   });
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
@@ -944,8 +944,8 @@ function AccessLookupModal({ pillar, onClose, onLookup }) {
   const submit = async () => {
     setError("");
     setResult(null);
-    if (!form.email.trim() || !form.documento.trim() || !form.codigo.trim()) {
-      setError("Ingresa correo, documento y código de consulta.");
+    if (!form.email.trim() || !form.documento.trim() || !form.claveConsulta.trim()) {
+      setError("Ingresa correo, documento y clave de consulta.");
       return;
     }
 
@@ -973,7 +973,7 @@ function AccessLookupModal({ pillar, onClose, onLookup }) {
         </button>
         <span>Consulta de solicitud</span>
         <h2>{pillar.title}</h2>
-        <p>Valida tu solicitud con el correo, documento y código que recibiste al registrarte.</p>
+        <p>Valida tu solicitud con el correo, documento y la clave que elegiste al registrarte.</p>
 
         {error ? <div className="error-box">{error}</div> : null}
         {result?.mensaje ? (
@@ -986,7 +986,7 @@ function AccessLookupModal({ pillar, onClose, onLookup }) {
         <div className="access-form-grid">
           <label>Correo electrónico<input value={form.email} onChange={(event) => setValue("email", event.target.value)} autoComplete="email" /></label>
           <label>Cédula / documento<input value={form.documento} onChange={(event) => setValue("documento", event.target.value)} /></label>
-          <label className="full">Código de consulta<input value={form.codigo} onChange={(event) => setValue("codigo", event.target.value)} placeholder="Ej: INOVA-0001-1234" /></label>
+          <label className="full">Clave de consulta<input type="password" value={form.claveConsulta} onChange={(event) => setValue("claveConsulta", event.target.value)} placeholder="La clave que elegiste al solicitar acceso" /></label>
         </div>
 
         <button type="button" className="login-submit" onClick={submit} disabled={checking}>
@@ -997,8 +997,8 @@ function AccessLookupModal({ pillar, onClose, onLookup }) {
           <div className="lookup-result">
             <div className="lookup-meta">
               <div>
-                <span>Código</span>
-                <strong>{result.codigo}</strong>
+                <span>Consulta</span>
+                <strong>Validada</strong>
               </div>
               <div>
                 <span>Estado</span>
@@ -1047,6 +1047,8 @@ function AccessRequestModal({ pillar, status, onClose, onSubmit }) {
     cargo: "",
     pilar: pillar.id,
     eto_nivel: "1",
+    clave_consulta: "",
+    clave_consulta_confirm: "",
     motivo: "",
   });
   const [sending, setSending] = useState(false);
@@ -1062,6 +1064,14 @@ function AccessRequestModal({ pillar, status, onClose, onSubmit }) {
     setError("");
     if (!form.nombre_completo.trim() || !form.documento.trim() || !form.email.trim() || !form.empresa_nombre.trim()) {
       setError("Completa nombre, documento, correo y empresa.");
+      return;
+    }
+    if (form.clave_consulta.trim().length < 6) {
+      setError("Crea una clave de consulta de mínimo 6 caracteres.");
+      return;
+    }
+    if (form.clave_consulta !== form.clave_consulta_confirm) {
+      setError("Las claves de consulta no coinciden.");
       return;
     }
 
@@ -1098,6 +1108,8 @@ function AccessRequestModal({ pillar, status, onClose, onSubmit }) {
           <label>Teléfono<input value={form.telefono} onChange={(event) => setValue("telefono", event.target.value)} /></label>
           <label>Empresa<input value={form.empresa_nombre} onChange={(event) => setValue("empresa_nombre", event.target.value)} /></label>
           <label>Cargo<input value={form.cargo} onChange={(event) => setValue("cargo", event.target.value)} /></label>
+          <label>Clave de consulta<input type="password" value={form.clave_consulta} onChange={(event) => setValue("clave_consulta", event.target.value)} placeholder="Crea una clave para consultar" /></label>
+          <label>Confirmar clave<input type="password" value={form.clave_consulta_confirm} onChange={(event) => setValue("clave_consulta_confirm", event.target.value)} placeholder="Repite tu clave" /></label>
           {pillar.id === "eto" && (
             <label>Nivel ETO<select value={form.eto_nivel} onChange={(event) => setValue("eto_nivel", event.target.value)}><option value="1">Nivel 1</option><option value="2">Nivel 2</option></select></label>
           )}

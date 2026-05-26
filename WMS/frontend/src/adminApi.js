@@ -7,7 +7,7 @@
   supabaseUrl,
   updateById,
 } from "./supabaseRest";
-import { APPROVAL_LOGIN_URL, buildApprovalEmailHtml, buildApprovalPayload } from "./approvalEmailTemplate";
+import { APPROVAL_LOGIN_URL, buildApprovalPayload } from "./approvalEmailTemplate";
 
 const LEGACY_ADMIN_PERMISSIONS = [
   "usuarios.ver",
@@ -118,8 +118,14 @@ export function generarCodigoSolicitud(solicitud) {
   return id ? `INOVA-${id}-${tail}` : "";
 }
 
-function normalizeCodigoSolicitud(value) {
+function normalizeConsultaSolicitud(value) {
   return clean(value).toUpperCase().replace(/\s+/g, "");
+}
+
+function claveConsultaSolicitud(solicitud) {
+  if (solicitud?.clave_consulta) return solicitud.clave_consulta;
+  const match = String(solicitud?.motivo || "").match(/\[CLAVE_CONSULTA:([^\]]+)\]/i);
+  return match?.[1] || "";
 }
 
 function requestLookupKey(email, documento, pilar) {
@@ -152,119 +158,6 @@ function registerRequestLookupFailure(email, documento, pilar) {
 function clearRequestLookupFailures(email, documento, pilar) {
   if (typeof localStorage === "undefined") return;
   localStorage.removeItem(requestLookupKey(email, documento, pilar));
-}
-
-async function generarTarjetaAprobacionPng(payload) {
-  if (typeof window === "undefined" || typeof document === "undefined") return "";
-  const iframe = document.createElement("iframe");
-  iframe.setAttribute("aria-hidden", "true");
-  iframe.style.position = "fixed";
-  iframe.style.left = "-10000px";
-  iframe.style.top = "0";
-  iframe.style.width = "640px";
-  iframe.style.height = "920px";
-  iframe.style.border = "0";
-  iframe.srcdoc = buildApprovalEmailHtml(payload);
-  document.body.appendChild(iframe);
-
-  try {
-    await new Promise((resolve) => {
-      iframe.onload = resolve;
-      setTimeout(resolve, 900);
-    });
-    const doc = iframe.contentDocument || iframe.contentWindow?.document;
-    if (!doc?.body) return "";
-    await Promise.all(
-      Array.from(doc.images || []).map((img) =>
-        img.complete ? Promise.resolve() : new Promise((resolve) => {
-          img.onload = resolve;
-          img.onerror = resolve;
-          setTimeout(resolve, 900);
-        })
-      )
-    );
-    const { default: html2canvas } = await import("html2canvas");
-    const target = doc.body.querySelector("table") || doc.body;
-    const canvas = await html2canvas(target, {
-      backgroundColor: "#f4f6fb",
-      scale: 2,
-      useCORS: true,
-      logging: false,
-    });
-    return canvas.toDataURL("image/png").split(",")[1] || "";
-  } catch (error) {
-    console.warn("No se pudo generar PNG de aprobacion:", error);
-    return "";
-  } finally {
-    iframe.remove();
-  }
-}
-
-export async function enviarCorreoAprobacion({ solicitud, claveTemporal, empresa, rol }) {
-  if (!supabaseUrl || !supabaseKey) throw new Error("Supabase no estÃ¡ configurado.");
-  const payload = buildApprovalPayload({
-    solicitud,
-    claveTemporal,
-    empresa,
-    rol,
-    loginUrl: APPROVAL_LOGIN_URL,
-  });
-  const endpoints = [
-    {
-      url: "/api/send-approval-email",
-      headers: { "Content-Type": "application/json" },
-    },
-    {
-      url: "https://inova-delta.vercel.app/api/send-approval-email",
-      headers: { "Content-Type": "application/json" },
-    },
-    {
-      url: `${supabaseUrl.replace(/\/$/, "")}/functions/v1/send-approval-email`,
-      headers: {
-        "Content-Type": "application/json",
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-      },
-    },
-  ];
-
-  const errors = [];
-  for (const endpoint of endpoints) {
-    try {
-      const response = await fetch(endpoint.url, {
-        method: "POST",
-        headers: endpoint.headers,
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) return response.json().catch(() => ({ ok: true }));
-      errors.push(await response.text());
-    } catch (error) {
-      errors.push(error?.message || String(error));
-    }
-  }
-
-  throw new Error(errors.filter(Boolean).join(" | ") || "No se pudo enviar correo automatico.");
-}
-
-function normalizeEmailError(error) {
-  const message = String(error?.message || error || "");
-  if (message.includes("SMTP_PASS") || message.includes("SMTP_USER") || message.includes("SMTP_HOST")) {
-    return "Correo automatico pendiente: el endpoint de Vercel necesita las variables de correo para enviar por Resend.";
-  }
-  if (message === "Failed to fetch" || message.includes("Failed to fetch")) {
-    return "Correo automatico no disponible: no respondio el endpoint de correo de INOVA en Vercel.";
-  }
-  if (message.includes("RESEND_API_KEY")) {
-    return "Correo automatico pendiente: falta configurar RESEND_API_KEY en Vercel para enviar desde INOVA.";
-  }
-  if (message.includes("tarjeta PNG")) {
-    return message;
-  }
-  if (message.includes("domain is not verified") || message.includes("verify a domain")) {
-    return "Correo automatico pendiente: el dominio remitente no esta verificado para envio automatico.";
-  }
-  return message || "No se pudo enviar el correo automatico.";
 }
 
 const PASSWORD_SECURITY_MIGRATION_MESSAGE =
@@ -523,7 +416,12 @@ export async function getAccessCatalogs() {
 }
 
 export async function solicitarAcceso(payload) {
-  const rows = await insertRow("public", "solicitudes_acceso", {
+  const claveConsulta = clean(payload.clave_consulta);
+  if (claveConsulta.length < 6) {
+    throw new Error("La clave de consulta debe tener minimo 6 caracteres.");
+  }
+
+  const basePayload = {
     nombre_completo: clean(payload.nombre_completo),
     documento: clean(payload.documento),
     email: clean(payload.email).toLowerCase(),
@@ -534,22 +432,36 @@ export async function solicitarAcceso(payload) {
     eto_nivel: payload.pilar === "eto" ? Number(payload.eto_nivel || 1) : null,
     motivo: clean(payload.motivo),
     estado: "PENDIENTE",
-  });
+  };
+
+  let rows;
+  try {
+    rows = await insertRow("public", "solicitudes_acceso", {
+      ...basePayload,
+      clave_consulta: claveConsulta,
+    });
+  } catch (error) {
+    const message = String(error?.message || "");
+    if (!message.includes("clave_consulta") && !message.includes("schema cache")) throw error;
+    rows = await insertRow("public", "solicitudes_acceso", {
+      ...basePayload,
+      motivo: `${basePayload.motivo ? `${basePayload.motivo}\n` : ""}[CLAVE_CONSULTA:${claveConsulta}]`,
+    });
+  }
   const solicitud = rows?.[0];
   return {
     solicitud,
-    codigo: generarCodigoSolicitud(solicitud),
   };
 }
 
-export async function consultarSolicitudAcceso({ email, documento, codigo, pilar }) {
+export async function consultarSolicitudAcceso({ email, documento, claveConsulta, codigo, pilar }) {
   const cleanEmail = normalizeLookup(email);
   const cleanDocumento = clean(documento);
   const cleanPilar = clean(pilar || "wms");
-  const cleanCodigo = normalizeCodigoSolicitud(codigo);
+  const cleanClave = normalizeConsultaSolicitud(claveConsulta || codigo);
 
-  if (!cleanEmail || !cleanDocumento || !cleanCodigo) {
-    throw new Error("Ingresa correo, documento y codigo de solicitud.");
+  if (!cleanEmail || !cleanDocumento || !cleanClave) {
+    throw new Error("Ingresa correo, documento y clave de consulta.");
   }
 
   checkRequestLookupLock(cleanEmail, cleanDocumento, cleanPilar);
@@ -563,7 +475,7 @@ export async function consultarSolicitudAcceso({ email, documento, codigo, pilar
     limit: "20",
   }).catch(() => []);
 
-  const solicitud = solicitudes.find((item) => normalizeCodigoSolicitud(generarCodigoSolicitud(item)) === cleanCodigo);
+  const solicitud = solicitudes.find((item) => normalizeConsultaSolicitud(claveConsultaSolicitud(item)) === cleanClave);
   if (!solicitud) registerRequestLookupFailure(cleanEmail, cleanDocumento, cleanPilar);
   clearRequestLookupFailures(cleanEmail, cleanDocumento, cleanPilar);
 
@@ -814,21 +726,9 @@ export async function aprobarSolicitud(solicitud, { empresa_id, rol_id, clave_ac
     fecha_respuesta: new Date().toISOString(),
   });
 
-  let emailSent = false;
-  let emailError = "";
-  try {
-    await enviarCorreoAprobacion({ solicitud, claveTemporal, empresa, rol });
-    emailSent = true;
-  } catch (error) {
-    console.warn("No se pudo enviar el correo HTML de aprobaciÃ³n:", error);
-    emailError = normalizeEmailError(error);
-  }
-
   return {
     user,
     claveTemporal,
-    emailSent,
-    emailError,
   };
 }
 
@@ -935,31 +835,9 @@ export async function crearUsuarioEmpresa(payload, actor = {}) {
     estado: "ACTIVA",
   }).catch(() => {});
 
-  const empresaRows = await safeSelect("public", "empresas", { select: "*", id: eq(empresaIdFinal), limit: "1" }).catch(() => []);
-  const empresa = empresaRows?.[0];
-  const solicitud = {
-    nombre_completo: user.nombre,
-    email: user.email,
-    empresa_nombre: empresa?.nombre,
-    pilar,
-    eto_nivel: accessPayload.eto_nivel,
-  };
-
-  let emailSent = false;
-  let emailError = "";
-  try {
-    await enviarCorreoAprobacion({ solicitud, claveTemporal, empresa, rol });
-    emailSent = true;
-  } catch (error) {
-    console.warn("No se pudo enviar el correo HTML de aprobaciÃ³n:", error);
-    emailError = normalizeEmailError(error);
-  }
-
   return {
     user,
     claveTemporal,
-    emailSent,
-    emailError,
   };
 }
 

@@ -233,7 +233,6 @@ export default function AdminAccess({ view = "usuarios" }) {
       await load();
       setSelectedRequest(null);
       setApprovalResult(result);
-      if (!result?.emailSent) setActionError(result?.emailError || "El acceso se aprobo, pero el correo automatico no salio por Resend/Vercel.");
     } catch (err) {
       setActionError(err?.message || "No se pudo aprobar la solicitud.");
     }
@@ -280,7 +279,6 @@ export default function AdminAccess({ view = "usuarios" }) {
       setUserCreateResult(result);
       setUserForm({ ...EMPTY_USER_FORM, empresa_id: selectedCreateEmpresa, clave_acceso: generarClaveTemporal() });
       await load();
-      if (!result?.emailSent) setActionError(result?.emailError || "El usuario se creo, pero el correo automatico no salio por Resend/Vercel.");
     } catch (err) {
       setActionError(err?.message || "No se pudo crear el usuario.");
     }
@@ -475,7 +473,7 @@ export default function AdminAccess({ view = "usuarios" }) {
                 <strong>Usuario creado</strong>
                 <span>Usuario: {userCreateResult.user.email}</span>
                 <span>Contrasena temporal: {userCreateResult.claveTemporal}</span>
-                <small>{userCreateResult.emailSent ? "Correo automatico enviado por Resend." : "Correo pendiente por Resend/Vercel."}</small>
+                <small>Entrega esta clave al usuario por el canal interno definido por la empresa.</small>
               </div>
             ) : null}
           </AdminSection>
@@ -664,7 +662,7 @@ export default function AdminAccess({ view = "usuarios" }) {
                 <strong>Acceso aprobado</strong>
                 <span>Usuario: {selectedRequest.email}</span>
                 <span>Contrasena temporal: {approvalResult.claveTemporal}</span>
-                <small>{approvalResult.emailSent ? "Correo automatico enviado por Resend." : "Correo pendiente por Resend/Vercel."}</small>
+                <small>El usuario puede consultar la aprobacion desde el login con su clave de consulta.</small>
               </div>
             ) : null}
             <div className="admin-modal-actions">
@@ -688,8 +686,8 @@ export default function AdminAccess({ view = "usuarios" }) {
           <div className="admin-modal admin-preview-modal">
             <div className="admin-preview-head">
               <div>
-                <h2>Vista previa del correo</h2>
-                <p>Esto es exactamente lo que se enviara al usuario.</p>
+                <h2>Vista previa de acceso</h2>
+                <p>Tarjeta informativa para revisar los datos antes de crear o aprobar el usuario.</p>
               </div>
               <button type="button" onClick={() => setPreviewPayload(null)}>Cerrar</button>
             </div>
