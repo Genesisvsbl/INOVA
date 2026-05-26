@@ -771,12 +771,15 @@ export async function crearUsuarioEmpresa(payload, actor = {}) {
     estado: eq("ACTIVO"),
   });
 
+  const usuarioLogin = clean(payload.nombre);
   const email = clean(payload.email).toLowerCase();
   const documento = clean(payload.documento);
+  if (!usuarioLogin) throw new Error("Debes ingresar el nombre completo.");
+  if (!documento) throw new Error("Debes ingresar la cedula o documento.");
   const existing = await safeSelect("public", "usuarios", {
     select: "*",
     empresa_id: eq(empresaIdFinal),
-    or: `(email.ilike.${email},documento.eq.${documento})`,
+    or: `(usuario.ilike.${usuarioLogin},documento.eq.${documento})`,
     limit: "1",
   });
 
@@ -784,12 +787,12 @@ export async function crearUsuarioEmpresa(payload, actor = {}) {
     throw new Error(`La empresa ya alcanzÃ³ el lÃ­mite del plan (${maxUsuarios} usuarios).`);
   }
 
-  const claveTemporal = clean(payload.clave_acceso) || generarClaveTemporal();
+  const claveTemporal = documento;
   const userPayload = {
     empresa_id: empresaIdFinal,
-    nombre: clean(payload.nombre),
+    nombre: usuarioLogin,
     email,
-    usuario: email,
+    usuario: usuarioLogin,
     documento,
     telefono: clean(payload.telefono),
     cargo: clean(payload.cargo),

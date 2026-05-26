@@ -27,7 +27,6 @@ const PILLAR_LABELS = { wms: "WMS", "5s": "5S", eto: "ETO" };
 const EMPTY_USER_FORM = {
   nombre: "",
   documento: "",
-  email: "",
   telefono: "",
   cargo: "",
   empresa_id: "",
@@ -246,7 +245,17 @@ export default function AdminAccess({ view = "usuarios" }) {
     if (code === "ADMIN_INOVA") return false;
     if (code === "SUPER_ADMIN") return canManageCommercial;
     const pilar = String(userForm.pilar || "").toUpperCase();
-    return code.includes(pilar) || code.includes("ADMIN") || code.includes("CONSULTA") || code.includes("OPERADOR");
+    if (pilar === "WMS") return code.includes("WMS") || code === "ADMIN_EMPRESA";
+    if (pilar === "5S") return code.includes("5S") || code === "ADMIN_EMPRESA";
+    if (pilar === "ETO") return code.includes("ETO") || code === "ADMIN_EMPRESA";
+    return false;
+  }).sort((a, b) => {
+    const pilar = String(userForm.pilar || "").toUpperCase();
+    const codeA = String(a.codigo || "").toUpperCase();
+    const codeB = String(b.codigo || "").toUpperCase();
+    const ownA = codeA.includes(pilar) ? 0 : 1;
+    const ownB = codeB.includes(pilar) ? 0 : 1;
+    return ownA - ownB || String(a.nombre || "").localeCompare(String(b.nombre || ""));
   });
   const planForCreate = data.planes.find((item) => String(item.empresa_id) === String(selectedCreateEmpresa) && String(item.estado || "ACTIVO") === "ACTIVO");
   const activeUsersForCreate = visibleUsuarios.filter((item) => String(item.empresa_id) === String(selectedCreateEmpresa) && item.estado === "ACTIVO").length;
@@ -254,11 +263,11 @@ export default function AdminAccess({ view = "usuarios" }) {
   const createPreviewPayload = buildApprovalPayload({
     solicitud: {
       nombre: userForm.nombre || "Nombre del usuario",
-      email: userForm.email || "correo@empresa.com",
+      email: userForm.nombre || "usuario",
       pilar: userForm.pilar,
       eto_nivel: userForm.pilar === "eto" ? userForm.eto_nivel : null,
     },
-    claveTemporal: userForm.clave_acceso || "CLAVE12345",
+    claveTemporal: userForm.documento || "CEDULA",
     empresa: empresaById.get(String(selectedCreateEmpresa)),
     rol: selectedCreateRole || { nombre: "Rol asignado" },
     loginUrl: APPROVAL_LOGIN_URL,
@@ -273,11 +282,11 @@ export default function AdminAccess({ view = "usuarios" }) {
         ...userForm,
         empresa_id: selectedCreateEmpresa,
         rol_id: userForm.rol_id || roleOptionsForCreate[0]?.id || "",
-        clave_acceso: userForm.clave_acceso || generarClaveTemporal(),
+        clave_acceso: userForm.documento,
       };
       const result = await crearUsuarioEmpresa(payload, actor);
       setUserCreateResult(result);
-      setUserForm({ ...EMPTY_USER_FORM, empresa_id: selectedCreateEmpresa, clave_acceso: generarClaveTemporal() });
+      setUserForm({ ...EMPTY_USER_FORM, empresa_id: selectedCreateEmpresa });
       await load();
     } catch (err) {
       setActionError(err?.message || "No se pudo crear el usuario.");
@@ -430,7 +439,6 @@ export default function AdminAccess({ view = "usuarios" }) {
               </label>
               <label>Nombre completo<input required value={userForm.nombre} onChange={(event) => setUserForm((prev) => ({ ...prev, nombre: event.target.value }))} /></label>
               <label>Cedula / documento<input required value={userForm.documento} onChange={(event) => setUserForm((prev) => ({ ...prev, documento: event.target.value }))} /></label>
-              <label>Correo electronico<input required type="email" value={userForm.email} onChange={(event) => setUserForm((prev) => ({ ...prev, email: event.target.value }))} /></label>
               <label>Telefono<input value={userForm.telefono} onChange={(event) => setUserForm((prev) => ({ ...prev, telefono: event.target.value }))} /></label>
               <label>Cargo<input value={userForm.cargo} onChange={(event) => setUserForm((prev) => ({ ...prev, cargo: event.target.value }))} /></label>
               <label>Pilar
@@ -455,8 +463,7 @@ export default function AdminAccess({ view = "usuarios" }) {
               </label>
               <label>Clave temporal
                 <div className="admin-inline-field">
-                  <input value={userForm.clave_acceso} placeholder="Se genera automaticamente" onChange={(event) => setUserForm((prev) => ({ ...prev, clave_acceso: event.target.value }))} />
-                  <button type="button" onClick={() => setUserForm((prev) => ({ ...prev, clave_acceso: generarClaveTemporal() }))}>Generar</button>
+                  <input value={userForm.documento} placeholder="Sera la cedula" readOnly />
                 </div>
               </label>
               <div className="admin-plan-box">
@@ -471,7 +478,7 @@ export default function AdminAccess({ view = "usuarios" }) {
             {userCreateResult ? (
               <div className="admin-approval-result">
                 <strong>Usuario creado</strong>
-                <span>Usuario: {userCreateResult.user.email}</span>
+                <span>Usuario: {userCreateResult.user.usuario || userCreateResult.user.nombre}</span>
                 <span>Contrasena temporal: {userCreateResult.claveTemporal}</span>
                 <small>Entrega esta clave al usuario por el canal interno definido por la empresa.</small>
               </div>
