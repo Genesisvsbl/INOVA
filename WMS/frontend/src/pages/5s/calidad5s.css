@@ -2325,10 +2325,13 @@ button {
 }
 
 .color-control input {
-  width: 58px;
+  width: 64px;
+  min-width: 64px;
   height: 46px;
-  padding: 4px;
+  padding: 3px;
   cursor: pointer;
+  appearance: none;
+  background: #ffffff;
 }
 
 .color-control span {

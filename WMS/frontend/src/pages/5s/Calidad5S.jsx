@@ -2427,13 +2427,14 @@ function ResponsablesView() {
               Color visual
               <div className="color-control">
                 <input
-                  value={form.color}
+                  type="color"
+                  value={form.color || "#0ea5e9"}
                   onChange={(event) =>
                     setForm({ ...form, color: event.target.value })
                   }
-                  placeholder="Color hex"
+                  aria-label="Seleccionar color del responsable"
                 />
-                <span>{form.color}</span>
+                <span>{form.color || "#0ea5e9"}</span>
               </div>
             </label>
 
