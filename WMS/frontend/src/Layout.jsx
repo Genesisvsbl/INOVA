@@ -11,6 +11,7 @@ import {
   FileText,
   Home,
   LogOut,
+  Map,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
@@ -316,6 +317,11 @@ export default function Layout() {
                   <NavLink to="/stock" style={(state) => navStyle(state, sidebarExpanded)} title="Stock">
                     <Boxes size={18} />
                     {sidebarExpanded && <span>Stock</span>}
+                  </NavLink>
+
+                  <NavLink to="/layout-zona" style={(state) => navStyle(state, sidebarExpanded)} title="Layout por zona">
+                    <Map size={18} />
+                    {sidebarExpanded && <span>Layout por zona</span>}
                   </NavLink>
 
                   <button

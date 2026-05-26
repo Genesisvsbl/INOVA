@@ -12,6 +12,7 @@ import Materiales from "./pages/Materiales";
 import Stock from "./pages/Stock";
 import Movimientos from "./pages/Movimientos";
 import Inventarios from "./pages/Inventarios";
+import LayoutZona from "./pages/LayoutZona";
 
 /* ================= MOVIMIENTOS ================= */
 import Recibo from "./pages/movimientos/Recibo";
@@ -314,6 +315,7 @@ function AppRoutes() {
           </Route>
 
           <Route path="stock" element={<OperationalRoute><Stock /></OperationalRoute>} />
+          <Route path="layout-zona" element={<OperationalRoute><LayoutZona /></OperationalRoute>} />
           <Route path="admin/usuarios" element={<AdminRoute><AdminAccess view="usuarios" /></AdminRoute>} />
           <Route path="admin/roles" element={<AdminRoute><AdminAccess view="roles" /></AdminRoute>} />
           <Route path="admin/auditoria" element={<AdminRoute><AdminAccess view="auditoria" /></AdminRoute>} />
