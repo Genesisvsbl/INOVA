@@ -970,13 +970,15 @@ function PortalView({ setTab, canAdmin = false }) {
   );
 }
 
-function CronogramaView() {
+function CronogramaView({ canAdmin = false }) {
   const [version, setVersion] = useState(0);
   const [cronograma, setCronograma] = useState([]);
   const [bodegas, setBodegas] = useState([]);
   const [subbodegas, setSubbodegas] = useState([]);
   const [responsables, setResponsables] = useState([]);
   const [config5S, setConfig5S] = useState(null);
+  const [editingCronogramaId, setEditingCronogramaId] = useState(null);
+  const [dragInfo, setDragInfo] = useState(null);
   const [loadingCatalogos, setLoadingCatalogos] = useState(true);
   const [cronogramaError, setCronogramaError] = useState("");
 
@@ -1194,6 +1196,38 @@ function CronogramaView() {
     });
   }
 
+  function resetCronogramaForm() {
+    setEditingCronogramaId(null);
+    setForm({
+      bodega: cronogramaScopes[0]?.nombre || form.bodega,
+      responsable: responsables[0]?.nombre || form.responsable,
+      fechaInicio: todayISO(),
+      fechaFin: addDays(todayISO(), 6),
+      estado: estadosCronograma[0] || "",
+      prioridad: prioridadesCronograma[0] || "",
+      actividad: "",
+      observacion: "",
+    });
+  }
+
+  function startEditCronograma(item) {
+    if (!canAdmin || !item) return;
+    setEditingCronogramaId(item.id);
+    setForm({
+      bodega: item.bodega || "",
+      responsable: item.responsable || "",
+      fechaInicio: item.fechaInicio || todayISO(),
+      fechaFin: item.fechaFin || item.fechaInicio || todayISO(),
+      estado: item.estado || estadosCronograma[0] || "",
+      prioridad: item.prioridad || prioridadesCronograma[0] || "",
+      actividad: item.actividad || "",
+      observacion: item.observacion || "",
+    });
+    setTimeout(() => {
+      document.querySelector(".cronograma-form-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+  }
+
   async function addCronograma(event) {
     event.preventDefault();
 
@@ -1235,20 +1269,14 @@ function CronogramaView() {
     setCronogramaError("");
 
     try {
-      await crearCronograma5S(payload);
+      if (editingCronogramaId) {
+        await editarCronograma5S(editingCronogramaId, payload);
+      } else {
+        await crearCronograma5S(payload);
+      }
       await refreshCatalogos();
       window.dispatchEvent(new Event("calidad5s:refresh-alerts"));
-
-      setForm({
-        bodega: cronogramaScopes[0]?.nombre || form.bodega,
-        responsable: responsables[0]?.nombre || form.responsable,
-        fechaInicio: todayISO(),
-        fechaFin: addDays(todayISO(), 6),
-        estado: estadosCronograma[0] || "",
-        prioridad: prioridadesCronograma[0] || "",
-        actividad: "",
-        observacion: "",
-      });
+      resetCronogramaForm();
     } catch (error) {
       console.error("No se pudo guardar el cronograma 5S:", error);
       setCronogramaError(error.message || "No se pudo guardar el cronograma en la base de datos.");
@@ -1269,6 +1297,61 @@ function CronogramaView() {
       console.error("No se pudo eliminar el cronograma 5S:", error);
       setCronogramaError(error.message || "No se pudo eliminar el cronograma de la base de datos.");
     }
+  }
+
+  async function moveCronogramaItem(item, dayDelta) {
+    if (!canAdmin || !item || !dayDelta) return;
+
+    const nextStart = addDays(item.fechaInicio, dayDelta);
+    const nextEnd = addDays(item.fechaFin || item.fechaInicio, dayDelta);
+
+    try {
+      await editarCronograma5S(item.id, {
+        fecha_inicio: nextStart,
+        fecha_fin: nextEnd,
+      });
+
+      setCronograma((prev) =>
+        prev.map((current) =>
+          current.id === item.id
+            ? { ...current, fechaInicio: nextStart, fechaFin: nextEnd }
+            : current
+        )
+      );
+      setVersion((value) => value + 1);
+      window.dispatchEvent(new Event("calidad5s:refresh-alerts"));
+    } catch (error) {
+      console.error("No se pudo mover el cronograma 5S:", error);
+      setCronogramaError(error.message || "No se pudo mover la auditoría en el Gantt.");
+    }
+  }
+
+  function startDragCronograma(event, item) {
+    if (!canAdmin || item.ejecutada) return;
+    const track = event.currentTarget.closest(".gantt-track");
+    if (!track) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    setDragInfo({
+      id: item.id,
+      startX: event.clientX,
+      currentX: event.clientX,
+      trackWidth: track.clientWidth || 1,
+      days: Math.max(1, timeline.length),
+    });
+  }
+
+  function updateDragCronograma(event) {
+    if (!dragInfo) return;
+    setDragInfo((prev) => (prev ? { ...prev, currentX: event.clientX } : prev));
+  }
+
+  function endDragCronograma(item) {
+    if (!dragInfo || dragInfo.id !== item.id) return;
+    const dayWidth = dragInfo.trackWidth / dragInfo.days;
+    const delta = Math.round((dragInfo.currentX - dragInfo.startX) / Math.max(dayWidth, 1));
+    setDragInfo(null);
+    if (delta) moveCronogramaItem(item, delta);
   }
 
   async function clearCronograma() {
@@ -1602,9 +1685,15 @@ function CronogramaView() {
             </label>
 
             <button className="cronograma-submit span-2" type="submit">
-              <Plus size={18} />
-              Guardar auditoría programada
+              {editingCronogramaId ? <Save size={18} /> : <Plus size={18} />}
+              {editingCronogramaId ? "Guardar cambios de auditoría" : "Guardar auditoría programada"}
             </button>
+            {editingCronogramaId && (
+              <button className="cronograma-submit ghost span-2" type="button" onClick={resetCronogramaForm}>
+                <X size={18} />
+                Cancelar edición
+              </button>
+            )}
           </form>
         </article>
 
@@ -1824,9 +1913,10 @@ function CronogramaView() {
                     ))}
 
                     <div
-                      className={`gantt-bar status-${statusClass(item.estado)} ${item.ejecutada ? (item.retrasoDias ? "is-delayed" : "is-executed") : ""}`}
+                      className={`gantt-bar status-${statusClass(item.estado)} ${canAdmin && !item.ejecutada ? "is-draggable" : ""} ${dragInfo?.id === item.id ? "is-dragging" : ""} ${item.ejecutada ? (item.retrasoDias ? "is-delayed" : "is-executed") : ""}`}
                       style={{
                         ...getBarStyle(item, timeline),
+                        transform: dragInfo?.id === item.id ? `translateX(${dragInfo.currentX - dragInfo.startX}px)` : undefined,
                         background: item.ejecutada
                           ? item.retrasoDias
                             ? "linear-gradient(135deg, #f97316, #fb923c)"
@@ -1834,6 +1924,10 @@ function CronogramaView() {
                           : `linear-gradient(135deg, ${statusColor(item.estado)}, ${statusColor(item.estado)}dd)`,
                       }}
                       title={`${item.actividad} · ${item.responsable}${item.ejecutada ? ` · Ejecutada ${formatShortDate(item.fechaEjecucion)}${item.retrasoDias ? ` · ${item.retrasoDias} días de retraso` : " · A tiempo"}` : ""}`}
+                      onPointerDown={(event) => startDragCronograma(event, item)}
+                      onPointerMove={updateDragCronograma}
+                      onPointerUp={() => endDragCronograma(item)}
+                      onPointerCancel={() => setDragInfo(null)}
                     >
                       <span>{item.bodega}</span>
                       <small>
@@ -1845,9 +1939,16 @@ function CronogramaView() {
                     </div>
                   </div>
 
-                  <button type="button" className="gantt-delete" onClick={() => deleteCronograma(item.id)}>
-                    <X size={14} />
-                  </button>
+                  <div className="gantt-row-actions">
+                    {canAdmin && (
+                      <button type="button" className="gantt-edit" onClick={() => startEditCronograma(item)} title="Editar auditoría">
+                        <Edit3 size={13} />
+                      </button>
+                    )}
+                    <button type="button" className="gantt-delete" onClick={() => deleteCronograma(item.id)} title="Eliminar auditoría">
+                      <X size={14} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -3877,7 +3978,7 @@ function InspeccionView({ canAdmin = false }) {
                 <input
                   value={pregunta}
                   onChange={(e) => updateQuestion(index, e.target.value)}
-                  onBlur={() => saveQuestion(checklistItems[index])}
+                  onBlur={(e) => saveQuestion({ ...checklistItems[index], pregunta: e.target.value })}
                 />
                 <input
                   type="number"
@@ -6232,7 +6333,7 @@ export default function Calidad5S() {
     if (tab === "portal") return <PortalView setTab={setTab} canAdmin={canAdmin} />;
 
     if (tab === "cronograma") {
-      return <CronogramaView />;
+      return <CronogramaView canAdmin={canAdmin} />;
     }
 
     if (tab === "inspeccion") {
