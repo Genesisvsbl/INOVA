@@ -450,7 +450,7 @@ export default function LoginPage() {
     await solicitarAcceso(payload);
     setRequestOpen(false);
     setShowLogin(true);
-    setLoginNotice("Solicitud enviada. Consulta el estado con tu correo, documento y la clave que elegiste.");
+    setLoginNotice("Solicitud enviada. Consulta tu aprobación dentro de las 24 horas con tu correo, documento y la clave que elegiste.");
   };
 
   return (

@@ -156,6 +156,7 @@ cross join (values
   ('ADMIN_EMPRESA', 'Administrador empresa', 'Administra usuarios y operación de su empresa.'),
   ('OPERADOR_WMS', 'Operador WMS', 'Opera procesos del WMS.'),
   ('SUPERVISOR_5S', 'Supervisor 5S', 'Administra operación 5S.'),
+  ('OPERADOR_5S', 'Operador 5S', 'Opera inspecciones 5S sin acceso a responsables ni configuración.'),
   ('ETO_NIVEL_1', 'ETO Nivel 1', 'Acceso exclusivo al portal ETO nivel 1.'),
   ('ETO_NIVEL_2', 'ETO Nivel 2', 'Acceso exclusivo al portal ETO nivel 2.'),
   ('CONSULTA', 'Consulta', 'Acceso de solo consulta.')

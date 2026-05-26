@@ -218,7 +218,7 @@ function getCurrentUserId() {
 }
 
 function isAdminRole(role) {
-  return /SUPER_ADMIN|ADMIN|ADMINISTRADOR/i.test(String(role || ""));
+  return /SUPER_ADMIN|ADMIN|ADMINISTRADOR|SUPERVISOR_5S/i.test(String(role || ""));
 }
 
 function closeSession() {
