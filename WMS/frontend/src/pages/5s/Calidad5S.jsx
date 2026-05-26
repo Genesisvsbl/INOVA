@@ -221,6 +221,16 @@ function isAdminRole(role) {
   return /SUPER_ADMIN|ADMIN|ADMINISTRADOR|SUPERVISOR_5S/i.test(String(role || ""));
 }
 
+function buildResponsableCode(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 48) || `RESP_${Date.now()}`;
+}
+
 function closeSession() {
   sessionStorage.removeItem("auth");
   sessionStorage.removeItem("userId");
@@ -1973,6 +1983,9 @@ function ResponsablesView() {
     }
 
     const payload = {
+      codigo: editingResponsableId
+        ? responsables.find((item) => item.id === editingResponsableId)?.codigo || buildResponsableCode(form.nombre)
+        : buildResponsableCode(form.nombre),
       nombre: form.nombre.trim(),
       cargo: form.cargo.trim() || null,
       area: form.area.trim() || null,
@@ -2871,7 +2884,7 @@ function ResponsablesView() {
 }
 
 
-function InspeccionView() {
+function InspeccionView({ canAdmin = false }) {
   const [bodegas, setBodegas] = useState([]);
   const [subbodegas, setSubbodegas] = useState([]);
   const [bodegaError, setBodegaError] = useState("");
@@ -3803,10 +3816,12 @@ function InspeccionView() {
         </div>
 
         <div className="inspeccion-actions-row">
-          <button type="button" className="portal-secondary-btn" onClick={() => setEditingChecklist((value) => !value)}>
-            <Edit3 size={17} />
-            {editingChecklist ? "Cerrar edición" : "Editar checklist de la bodega"}
-          </button>
+          {canAdmin && (
+            <button type="button" className="portal-secondary-btn" onClick={() => setEditingChecklist((value) => !value)}>
+              <Edit3 size={17} />
+              {editingChecklist ? "Cerrar edición" : "Editar checklist de la bodega"}
+            </button>
+          )}
 
           <button
             type="button"
@@ -3834,7 +3849,7 @@ function InspeccionView() {
         </div>
       </section>
 
-      {editingChecklist && (
+      {canAdmin && editingChecklist && (
         <section className="portal-panel checklist-editor-panel">
           <div className="portal-panel-head">
             <div>
@@ -6220,7 +6235,7 @@ export default function Calidad5S() {
     }
 
     if (tab === "inspeccion") {
-      return <InspeccionView />;
+      return <InspeccionView canAdmin={canAdmin} />;
     }
 
     if (tab === "responsables") {
