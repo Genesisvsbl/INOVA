@@ -19,6 +19,12 @@ const WMS_PURPLE = "#6d28d9";
 const WMS_DEEP = "#1f1148";
 const WMS_CYAN = "#22d3ee";
 
+const RACKS = 4;
+const MODULES_PER_RACK = 9;
+const LEVELS = 6;
+const FRONT_POSITIONS = 2;
+const DEPTHS = 2;
+const SLOT_CAPACITY = RACKS * MODULES_PER_RACK * LEVELS * FRONT_POSITIONS * DEPTHS;
 function normalize(value) {
   return String(value || "")
     .normalize("NFD")
@@ -98,17 +104,25 @@ function buildCells(ubicaciones, stockMap, zone) {
 }
 
 function enhanceRackData(cells) {
-  const modules = uniqueSorted(cells.map((cell) => String(cell.module || 0)));
-  const moduleRank = new Map(modules.map((module, index) => [Number(module), index]));
-  return cells.map((cell) => {
-    const rank = moduleRank.get(Number(cell.module || 0)) || 0;
-    const rack = Math.min(4, Math.floor(rank / 9) + 1);
-    const moduleInRack = (rank % 9) + 1;
+  return cells.map((cell, index) => {
+    const slot = index % SLOT_CAPACITY;
+    const perRack = MODULES_PER_RACK * LEVELS * FRONT_POSITIONS * DEPTHS;
+    const rack = Math.floor(slot / perRack) + 1;
+    const rackSlot = slot % perRack;
+    const moduleInRack = Math.floor(rackSlot / (LEVELS * FRONT_POSITIONS * DEPTHS)) + 1;
+    const moduleSlot = rackSlot % (LEVELS * FRONT_POSITIONS * DEPTHS);
+    const physicalLevel = Math.floor(moduleSlot / (FRONT_POSITIONS * DEPTHS)) + 1;
+    const faceSlot = moduleSlot % (FRONT_POSITIONS * DEPTHS);
+    const physicalPosition = (faceSlot % FRONT_POSITIONS) + 1;
+    const physicalDepth = Math.floor(faceSlot / FRONT_POSITIONS) + 1;
     return {
       ...cell,
       rack,
       pasillo: rack <= 2 ? 1 : 2,
       moduleInRack,
+      physicalLevel,
+      physicalPosition,
+      physicalDepth,
       rackLabel: `Rack ${rack}`,
       aisleLabel: rack <= 2 ? "Pasillo 1" : "Pasillo 2",
     };
@@ -118,9 +132,9 @@ function enhanceRackData(cells) {
 function groupByModule(cells) {
   const map = new Map();
   cells.forEach((cell) => {
-    const key = `${cell.rack || 1}-${cell.module || 0}`;
+    const key = `${cell.rack || 1}-${cell.moduleInRack || 1}`;
     if (!map.has(key)) {
-      map.set(key, { module: cell.module || 0, rack: cell.rack || 1, pasillo: cell.pasillo || 1, rows: [] });
+      map.set(key, { module: cell.moduleInRack || 1, rack: cell.rack || 1, pasillo: cell.pasillo || 1, rows: [] });
     }
     map.get(key).rows.push(cell);
   });
@@ -142,9 +156,10 @@ function applyLayoutFilters(cells, filters) {
       occupancyOk &&
       matchFilter(cell.pasillo, filters.pasillo) &&
       matchFilter(cell.rack, filters.rack) &&
-      matchFilter(cell.module, filters.modulo) &&
-      matchFilter(cell.level, filters.nivel) &&
-      matchFilter(cell.depth, filters.profundidad)
+      matchFilter(cell.moduleInRack, filters.modulo) &&
+      matchFilter(cell.physicalLevel, filters.nivel) &&
+      matchFilter(cell.physicalPosition, filters.posicion) &&
+      matchFilter(cell.physicalDepth, filters.profundidad)
     );
   });
 }
@@ -246,7 +261,8 @@ export default function LayoutZona() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null);
   const [view, setView] = useState("iso");
-  const [filters, setFilters] = useState({ ocupacion: "todas", pasillo: "todos", rack: "todos", modulo: "todos", nivel: "todos", profundidad: "todos" });
+  const [filters, setFilters] = useState({ ocupacion: "todas", pasillo: "todos", rack: "todos", modulo: "todos", nivel: "todos", posicion: "todos", profundidad: "todos" });
+  const [showAllStructure, setShowAllStructure] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -284,9 +300,10 @@ export default function LayoutZona() {
   const filterOptions = useMemo(() => ({
     pasillos: uniqueSorted(cells.map((cell) => String(cell.pasillo))),
     racks: uniqueSorted(cells.map((cell) => String(cell.rack))),
-    modulos: uniqueSorted(cells.map((cell) => String(cell.module))),
-    niveles: uniqueSorted(cells.map((cell) => String(cell.level))),
-    profundidades: uniqueSorted(cells.map((cell) => String(cell.depth))),
+    modulos: uniqueSorted(cells.map((cell) => String(cell.moduleInRack))),
+    niveles: uniqueSorted(cells.map((cell) => String(cell.physicalLevel))),
+    posiciones: uniqueSorted(cells.map((cell) => String(cell.physicalPosition))),
+    profundidades: uniqueSorted(cells.map((cell) => String(cell.physicalDepth))),
   }), [cells]);
 
   const filteredCells = useMemo(() => {
@@ -312,7 +329,7 @@ export default function LayoutZona() {
   const modules = useMemo(() => groupByModule(filteredCells), [filteredCells]);
   const occupied = cells.filter((cell) => cell.stock > 0).length;
   const available = Math.max(0, cells.length - occupied);
-  const maxLevel = Math.max(1, ...cells.map((cell) => Number(cell.level) || 1));
+  const maxLevel = Math.max(1, ...cells.map((cell) => Number(cell.physicalLevel) || 1));
   const occupancy = cells.length ? Math.round((occupied / cells.length) * 100) : 0;
 
   function updateFilter(name, value) {
@@ -323,7 +340,7 @@ export default function LayoutZona() {
   function clearFilters() {
     setQuery("");
     setSelected(null);
-    setFilters({ ocupacion: "todas", pasillo: "todos", rack: "todos", modulo: "todos", nivel: "todos", profundidad: "todos" });
+    setFilters({ ocupacion: "todas", pasillo: "todos", rack: "todos", modulo: "todos", nivel: "todos", posicion: "todos", profundidad: "todos" });
   }
 
   useEffect(() => {
@@ -404,7 +421,7 @@ export default function LayoutZona() {
     createAgv(scene, [14, 0.28, -4], mats.agv);
 
     meshMapRef.current.clear();
-    createRackCity(scene, modules.slice(0, 36), selected, setSelected, maxStock, meshMapRef.current, mats);
+    createRackCity(scene, cells, filteredCells, selected, setSelected, maxStock, meshMapRef.current, mats, showAllStructure);
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
@@ -466,7 +483,7 @@ export default function LayoutZona() {
       disposeObject(scene);
       renderer.dispose();
     };
-  }, [modules, selected, view, maxStock, zone]);
+  }, [cells, filteredCells, selected, view, maxStock, zone, showAllStructure]);
 
   return (
     <main className="layout3d-page">
@@ -509,7 +526,9 @@ export default function LayoutZona() {
         <FilterSelect label="Rack" value={filters.rack} onChange={(value) => updateFilter("rack", value)} options={filterOptions.racks} prefix="Rack " />
         <FilterSelect label="Modulo" value={filters.modulo} onChange={(value) => updateFilter("modulo", value)} options={filterOptions.modulos} prefix="M" />
         <FilterSelect label="Nivel" value={filters.nivel} onChange={(value) => updateFilter("nivel", value)} options={filterOptions.niveles} prefix="Nivel " />
+        <FilterSelect label="Posicion" value={filters.posicion} onChange={(value) => updateFilter("posicion", value)} options={filterOptions.posiciones} prefix="P" />
         <FilterSelect label="Profundidad" value={filters.profundidad} onChange={(value) => updateFilter("profundidad", value)} options={filterOptions.profundidades} prefix="D" />
+        <label className="layout3d-check"><span>Contexto</span><em><input type="checkbox" checked={showAllStructure} onChange={(event) => setShowAllStructure(event.target.checked)} /> Mostrar toda la estanteria</em></label>
         <button type="button" onClick={clearFilters}>Limpiar filtros</button>
       </section>
 
@@ -552,9 +571,10 @@ export default function LayoutZona() {
               <Detail label="Base" value={selected.base} />
               <Detail label="Pasillo" value={selected.pasillo} />
               <Detail label="Rack" value={selected.rack} />
-              <Detail label="Modulo" value={`M${String(selected.module).padStart(2, "0")}`} />
-              <Detail label="Nivel" value={selected.level} />
-              <Detail label="Profundidad" value={selected.depth} />
+              <Detail label="Modulo" value={`M${String(selected.moduleInRack).padStart(2, "0")}`} />
+              <Detail label="Nivel" value={selected.physicalLevel} />
+              <Detail label="Posicion" value={selected.physicalPosition} />
+              <Detail label="Profundidad" value={selected.physicalDepth} />
               <Detail label="Bodega" value={selected.bodega || selected.zona || "Sin bodega"} />
               <Detail label="Stock calculado" value={formatQty(selected.stock)} />
             </div>
@@ -637,31 +657,29 @@ function createRobotArm(scene, position, material) {
   scene.add(group);
 }
 
-function createRackCity(scene, modules, selected, setSelected, maxStock, meshMap, mats) {
+function createRackCity(scene, allCells, filteredCells, selected, setSelected, maxStock, meshMap, mats, showAllStructure) {
+  const filteredKeys = new Set(filteredCells.map((cell) => cell.code));
+  const visibleCells = showAllStructure ? allCells : filteredCells;
   const rows = [[], [], [], []];
-  modules.forEach((module) => rows[Math.max(0, Math.min(3, (module.rack || 1) - 1))].push(module));
+  visibleCells.forEach((cell) => rows[Math.max(0, Math.min(3, (cell.rack || 1) - 1))].push(cell));
   const rowZ = [-10.4, -4.2, 4.2, 10.4];
   const rowNames = ["Rack 1", "Rack 2", "Rack 3", "Rack 4"];
 
-  rows.forEach((rackModules, rowIndex) => {
-    if (!rackModules.length) return;
-    addText(scene, rowNames[rowIndex], [-5.8, 5.2, rowZ[rowIndex]], "#4c1d95", 42);
-    rackModules.slice(0, 9).forEach((group, moduleIndex) => {
-      createRackModule(scene, group, moduleIndex, rowIndex, rowZ[rowIndex], selected, setSelected, maxStock, meshMap, mats);
-    });
+  rows.forEach((rackCells, rowIndex) => {
+    if (!rackCells.length) return;
+    addText(scene, rowNames[rowIndex], [-8.2, 5.35, rowZ[rowIndex]], "#172554", 40);
+    for (let moduleIndex = 1; moduleIndex <= MODULES_PER_RACK; moduleIndex += 1) {
+      const moduleCells = rackCells.filter((cell) => Number(cell.moduleInRack) === moduleIndex);
+      createRackModule(scene, moduleCells, moduleIndex, rowIndex, rowZ[rowIndex], selected, setSelected, maxStock, meshMap, mats, filteredKeys, showAllStructure);
+    }
   });
 }
 
-function createRackModule(scene, group, moduleIndex, rowIndex, z, selected, setSelected, maxStock, meshMap, mats) {
-  const x = -7 + moduleIndex * 3.05;
-  const levels = uniqueSorted(group.rows.map((cell) => String(cell.level))).sort((a, b) => Number(a) - Number(b));
-  const depths = uniqueSorted(group.rows.map((cell) => String(cell.depth))).sort((a, b) => Number(a) - Number(b));
-  const levelCount = Math.max(6, levels.length || 1);
-  const depthCount = Math.max(2, depths.length || 1);
-  const width = 2.3;
-  const height = levelCount * 0.62 + 0.35;
-  const depthSize = depthCount * 0.62 + 0.45;
-
+function createRackModule(scene, moduleCells, moduleIndex, rowIndex, z, selected, setSelected, maxStock, meshMap, mats, filteredKeys, showAllStructure) {
+  const x = -10.8 + (moduleIndex - 1) * 2.72;
+  const width = 2.15;
+  const height = LEVELS * 0.72 + 0.45;
+  const depthSize = DEPTHS * 0.72 + 0.64;
   const moduleGroup = new THREE.Group();
   moduleGroup.position.set(x, 0, z);
   moduleGroup.rotation.y = rowIndex < 2 ? 0 : Math.PI;
@@ -674,41 +692,74 @@ function createRackModule(scene, group, moduleIndex, rowIndex, z, selected, setS
     [width / 2, height / 2, depthSize / 2],
   ];
   postPositions.forEach((pos) => {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.08, height, 0.08), mats.post);
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.09, height, 0.09), mats.post);
     post.position.set(...pos);
     post.castShadow = true;
     moduleGroup.add(post);
   });
 
-  for (let level = 0; level <= levelCount; level += 1) {
-    const y = 0.24 + level * 0.62;
-    [-depthSize / 2, depthSize / 2].forEach((dz) => {
-      const beam = new THREE.Mesh(new THREE.BoxGeometry(width + 0.18, 0.07, 0.07), mats.beam);
+  for (let level = 0; level <= LEVELS; level += 1) {
+    const y = 0.2 + level * 0.72;
+    [-depthSize / 2, 0, depthSize / 2].forEach((dz) => {
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(width + 0.28, 0.075, 0.075), mats.beam);
       beam.position.set(0, y, dz);
       beam.castShadow = true;
       moduleGroup.add(beam);
     });
+    [-width / 2, width / 2].forEach((dx) => {
+      const sideBeam = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.075, depthSize + 0.18), mats.beam);
+      sideBeam.position.set(dx, y, 0);
+      sideBeam.castShadow = true;
+      moduleGroup.add(sideBeam);
+    });
   }
 
-  addModuleLabel(moduleGroup, `M${String(group.module).padStart(2, "0")}`, [0, height + 0.52, 0]);
-
-  group.rows.slice(0, 24).forEach((cell) => {
-    const levelIndex = Math.max(0, Math.min(levelCount - 1, Number(cell.level || 1) - 1));
-    const depthIndex = Math.max(0, Math.min(depthCount - 1, (Number(cell.depth || 1) - 1) % depthCount));
-    const side = group.rows.indexOf(cell) % 2 === 0 ? -0.38 : 0.38;
-    const y = 0.55 + levelIndex * 0.62;
-    const dz = -depthSize / 2 + 0.42 + depthIndex * 0.58;
-    const active = selected?.code === cell.code;
-    const mat = active ? mats.selected : createMaterial(stockColor(cell, maxStock), { roughness: 0.52 });
-    const pallet = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.38, 0.48), mat);
-    pallet.position.set(side, y, dz);
-    pallet.castShadow = true;
-    pallet.receiveShadow = true;
-    pallet.userData.cellCode = cell.code;
-    pallet.userData.onPick = () => setSelected(cell);
-    moduleGroup.add(pallet);
-    meshMap.set(pallet, cell);
+  [-width / 2, width / 2].forEach((dx) => {
+    [-depthSize / 2, depthSize / 2].forEach((dz) => {
+      const foot = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.18, 0.34), createMaterial(0xffea00, { roughness: 0.35 }));
+      foot.position.set(dx, -0.02, dz);
+      foot.castShadow = true;
+      moduleGroup.add(foot);
+    });
   });
+
+  addModuleLabel(moduleGroup, `M${moduleIndex}`, [0, -0.32, depthSize / 2 + 0.75]);
+
+  const cellMap = new Map(moduleCells.map((cell) => [`${cell.physicalLevel}-${cell.physicalDepth}-${cell.physicalPosition}`, cell]));
+  for (let level = 1; level <= LEVELS; level += 1) {
+    for (let depth = 1; depth <= DEPTHS; depth += 1) {
+      for (let position = 1; position <= FRONT_POSITIONS; position += 1) {
+        const cell = cellMap.get(`${level}-${depth}-${position}`);
+        const xPos = position === 1 ? -0.42 : 0.42;
+        const y = 0.55 + (level - 1) * 0.72;
+        const dz = -depthSize / 2 + 0.44 + (depth - 1) * 0.72;
+        const isFiltered = cell ? filteredKeys.has(cell.code) : false;
+        const isActive = selected?.code && cell?.code === selected.code;
+        const hiddenByFilter = showAllStructure && cell && !isFiltered;
+        const emptyMaterial = createMaterial(0xe5e7eb, { opacity: hiddenByFilter ? 0.12 : 0.22, roughness: 0.62 });
+        const mat = isActive
+          ? mats.selected
+          : cell
+            ? createMaterial(stockColor(cell, maxStock), { opacity: hiddenByFilter ? 0.16 : cell.stock > 0 ? 0.86 : 0.32, roughness: 0.5 })
+            : emptyMaterial;
+        const slot = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.46, 0.56), mat);
+        slot.position.set(xPos, y, dz);
+        slot.castShadow = !hiddenByFilter;
+        slot.receiveShadow = true;
+        moduleGroup.add(slot);
+
+        if (cell) {
+          meshMap.set(slot, cell);
+          if ((isFiltered || isActive) && level % 2 === 0) {
+            const label = createTextSprite(cell.code, "#111827", 46);
+            label.scale.set(1.12, 0.34, 1);
+            label.position.set(xPos, y + 0.28, dz + 0.34);
+            moduleGroup.add(label);
+          }
+        }
+      }
+    }
+  }
 }
 
 function addModuleLabel(group, text, position) {
@@ -883,7 +934,7 @@ const layoutStyles = `
 
 .layout3d-filter-panel {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 10px;
   padding: 14px;
   border-radius: 18px;
@@ -1195,5 +1246,13 @@ const layoutStyles = `
   }
 }
 `;
+
+
+
+
+
+
+
+
 
 
