@@ -97,16 +97,56 @@ function buildCells(ubicaciones, stockMap, zone) {
     .sort((a, b) => a.module - b.module || b.level - a.level || a.depth - b.depth || a.code.localeCompare(b.code));
 }
 
+function enhanceRackData(cells) {
+  const modules = uniqueSorted(cells.map((cell) => String(cell.module || 0)));
+  const moduleRank = new Map(modules.map((module, index) => [Number(module), index]));
+  return cells.map((cell) => {
+    const rank = moduleRank.get(Number(cell.module || 0)) || 0;
+    const rack = Math.min(4, Math.floor(rank / 9) + 1);
+    const moduleInRack = (rank % 9) + 1;
+    return {
+      ...cell,
+      rack,
+      pasillo: rack <= 2 ? 1 : 2,
+      moduleInRack,
+      rackLabel: `Rack ${rack}`,
+      aisleLabel: rack <= 2 ? "Pasillo 1" : "Pasillo 2",
+    };
+  });
+}
+
 function groupByModule(cells) {
   const map = new Map();
   cells.forEach((cell) => {
-    const key = cell.module || 0;
-    if (!map.has(key)) map.set(key, []);
-    map.get(key).push(cell);
+    const key = `${cell.rack || 1}-${cell.module || 0}`;
+    if (!map.has(key)) {
+      map.set(key, { module: cell.module || 0, rack: cell.rack || 1, pasillo: cell.pasillo || 1, rows: [] });
+    }
+    map.get(key).rows.push(cell);
   });
-  return Array.from(map.entries())
-    .sort(([a], [b]) => a - b)
-    .map(([module, rows], index) => ({ module, rows, index }));
+  return Array.from(map.values())
+    .sort((a, b) => a.rack - b.rack || a.module - b.module)
+    .map((group, index) => ({ ...group, index }));
+}
+
+function matchFilter(value, filterValue) {
+  if (!filterValue || filterValue === "todos") return true;
+  return String(value) === String(filterValue);
+}
+
+function applyLayoutFilters(cells, filters) {
+  return cells.filter((cell) => {
+    const occupied = Number(cell.stock || 0) > 0;
+    const occupancyOk = filters.ocupacion === "todas" || (filters.ocupacion === "ocupadas" && occupied) || (filters.ocupacion === "libres" && !occupied);
+    return (
+      occupancyOk &&
+      matchFilter(cell.pasillo, filters.pasillo) &&
+      matchFilter(cell.rack, filters.rack) &&
+      matchFilter(cell.module, filters.modulo) &&
+      matchFilter(cell.level, filters.nivel) &&
+      matchFilter(cell.depth, filters.profundidad)
+    );
+  });
 }
 
 function uniqueSorted(values) {
@@ -206,6 +246,7 @@ export default function LayoutZona() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null);
   const [view, setView] = useState("iso");
+  const [filters, setFilters] = useState({ ocupacion: "todas", pasillo: "todos", rack: "todos", modulo: "todos", nivel: "todos", profundidad: "todos" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -237,23 +278,53 @@ export default function LayoutZona() {
     return uniqueSorted(values);
   }, [ubicaciones]);
 
-  const cells = useMemo(() => buildCells(ubicaciones, stockMap, zone), [ubicaciones, stockMap, zone]);
+  const rawCells = useMemo(() => buildCells(ubicaciones, stockMap, zone), [ubicaciones, stockMap, zone]);
+  const cells = useMemo(() => enhanceRackData(rawCells), [rawCells]);
   const maxStock = useMemo(() => Math.max(0, ...cells.map((cell) => cell.stock)), [cells]);
+  const filterOptions = useMemo(() => ({
+    pasillos: uniqueSorted(cells.map((cell) => String(cell.pasillo))),
+    racks: uniqueSorted(cells.map((cell) => String(cell.rack))),
+    modulos: uniqueSorted(cells.map((cell) => String(cell.module))),
+    niveles: uniqueSorted(cells.map((cell) => String(cell.level))),
+    profundidades: uniqueSorted(cells.map((cell) => String(cell.depth))),
+  }), [cells]);
+
   const filteredCells = useMemo(() => {
     const q = normalize(query);
-    if (!q) return cells;
-    return cells.filter((cell) =>
-      [cell.code, cell.position, cell.zona, cell.bodega, cell.familia, cell.familias]
+    const textFiltered = !q ? cells : cells.filter((cell) =>
+      [cell.code, cell.position, cell.zona, cell.bodega, cell.familia, cell.familias, cell.rackLabel, cell.aisleLabel]
         .map(normalize)
         .some((value) => value.includes(q))
     );
-  }, [cells, query]);
+    return applyLayoutFilters(textFiltered, filters);
+  }, [cells, query, filters]);
+
+  const visibleSummary = useMemo(() => {
+    const occupiedVisible = filteredCells.filter((cell) => cell.stock > 0).length;
+    return {
+      total: filteredCells.length,
+      occupied: occupiedVisible,
+      empty: Math.max(0, filteredCells.length - occupiedVisible),
+      pct: filteredCells.length ? Math.round((occupiedVisible / filteredCells.length) * 100) : 0,
+    };
+  }, [filteredCells]);
 
   const modules = useMemo(() => groupByModule(filteredCells), [filteredCells]);
   const occupied = cells.filter((cell) => cell.stock > 0).length;
   const available = Math.max(0, cells.length - occupied);
   const maxLevel = Math.max(1, ...cells.map((cell) => Number(cell.level) || 1));
   const occupancy = cells.length ? Math.round((occupied / cells.length) * 100) : 0;
+
+  function updateFilter(name, value) {
+    setSelected(null);
+    setFilters((current) => ({ ...current, [name]: value }));
+  }
+
+  function clearFilters() {
+    setQuery("");
+    setSelected(null);
+    setFilters({ ocupacion: "todas", pasillo: "todos", rack: "todos", modulo: "todos", nivel: "todos", profundidad: "todos" });
+  }
 
   useEffect(() => {
     if (!canvasRef.current || !wrapRef.current) return undefined;
@@ -423,7 +494,7 @@ export default function LayoutZona() {
         </label>
         <label className="layout3d-search">
           <Search size={18} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar ubicacion, modulo, bodega, material..." />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar ubicacion, modulo, rack, bodega, material..." />
         </label>
         <div className="layout3d-views">
           <button type="button" className={view === "iso" ? "active" : ""} onClick={() => setView("iso")}><Camera size={16} /> 3D</button>
@@ -432,19 +503,29 @@ export default function LayoutZona() {
         </div>
       </section>
 
+      <section className="layout3d-filter-panel">
+        <FilterSelect label="Ocupacion" value={filters.ocupacion} onChange={(value) => updateFilter("ocupacion", value)} options={["todas", "ocupadas", "libres"]} />
+        <FilterSelect label="Pasillo" value={filters.pasillo} onChange={(value) => updateFilter("pasillo", value)} options={filterOptions.pasillos} prefix="Pasillo " />
+        <FilterSelect label="Rack" value={filters.rack} onChange={(value) => updateFilter("rack", value)} options={filterOptions.racks} prefix="Rack " />
+        <FilterSelect label="Modulo" value={filters.modulo} onChange={(value) => updateFilter("modulo", value)} options={filterOptions.modulos} prefix="M" />
+        <FilterSelect label="Nivel" value={filters.nivel} onChange={(value) => updateFilter("nivel", value)} options={filterOptions.niveles} prefix="Nivel " />
+        <FilterSelect label="Profundidad" value={filters.profundidad} onChange={(value) => updateFilter("profundidad", value)} options={filterOptions.profundidades} prefix="D" />
+        <button type="button" onClick={clearFilters}>Limpiar filtros</button>
+      </section>
+
       <section className="layout3d-kpis">
         <Kpi icon={<MapPinned size={18} />} label="Zona activa" value={zone} />
         <Kpi icon={<Boxes size={18} />} label="Ubicaciones" value={cells.length} />
         <Kpi icon={<Warehouse size={18} />} label="Ocupadas" value={occupied} />
         <Kpi icon={<Layers3 size={18} />} label="Niveles" value={maxLevel} />
-        <Kpi icon={<Truck size={18} />} label="Ocupacion" value={`${occupancy}%`} />
+        <Kpi icon={<Truck size={18} />} label="Ocupacion global" value={`${occupancy}%`} />
       </section>
 
       <section className="layout3d-stage-card">
         <div className="layout3d-stage-head">
           <div>
             <span className="layout3d-kicker">Escenario de aplicacion</span>
-            <h2>Pallet Shuttle + AGV + trazabilidad por ubicacion</h2>
+            <h2>Pallet Shuttle + AGV + analisis real de estanteria</h2>
           </div>
           <div className="layout3d-legend">
             <span><i className="empty" /> Libre</span>
@@ -469,6 +550,8 @@ export default function LayoutZona() {
           {selected ? (
             <div className="layout3d-detail-list">
               <Detail label="Base" value={selected.base} />
+              <Detail label="Pasillo" value={selected.pasillo} />
+              <Detail label="Rack" value={selected.rack} />
               <Detail label="Modulo" value={`M${String(selected.module).padStart(2, "0")}`} />
               <Detail label="Nivel" value={selected.level} />
               <Detail label="Profundidad" value={selected.depth} />
@@ -556,11 +639,12 @@ function createRobotArm(scene, position, material) {
 
 function createRackCity(scene, modules, selected, setSelected, maxStock, meshMap, mats) {
   const rows = [[], [], [], []];
-  modules.forEach((module, index) => rows[index % 4].push(module));
+  modules.forEach((module) => rows[Math.max(0, Math.min(3, (module.rack || 1) - 1))].push(module));
   const rowZ = [-10.4, -4.2, 4.2, 10.4];
   const rowNames = ["Rack 1", "Rack 2", "Rack 3", "Rack 4"];
 
   rows.forEach((rackModules, rowIndex) => {
+    if (!rackModules.length) return;
     addText(scene, rowNames[rowIndex], [-5.8, 5.2, rowZ[rowIndex]], "#4c1d95", 42);
     rackModules.slice(0, 9).forEach((group, moduleIndex) => {
       createRackModule(scene, group, moduleIndex, rowIndex, rowZ[rowIndex], selected, setSelected, maxStock, meshMap, mats);
@@ -634,6 +718,20 @@ function addModuleLabel(group, text, position) {
   group.add(sprite);
 }
 
+function FilterSelect({ label, value, onChange, options, prefix = "" }) {
+  return (
+    <label>
+      <span>{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        <option value="todos">Todos</option>
+        {options.map((option) => (
+          <option key={option} value={option}>{prefix}{option}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function Kpi({ icon, label, value }) {
   return (
     <article className="layout3d-kpi">
@@ -663,6 +761,7 @@ const layoutStyles = `
 
 .layout3d-hero,
 .layout3d-toolbar,
+.layout3d-filter-panel,
 .layout3d-kpis,
 .layout3d-stage-card,
 .layout3d-detail {
@@ -782,6 +881,45 @@ const layoutStyles = `
   justify-content: flex-end;
 }
 
+.layout3d-filter-panel {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+}
+
+.layout3d-filter-panel label {
+  display: grid;
+  gap: 6px;
+}
+
+.layout3d-filter-panel span {
+  color: #697891;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.layout3d-filter-panel select,
+.layout3d-filter-panel button {
+  min-height: 40px;
+  border: 1px solid #d8e3f2;
+  border-radius: 12px;
+  background: #fff;
+  color: #17213b;
+  padding: 0 10px;
+  font-weight: 850;
+}
+
+.layout3d-filter-panel button {
+  align-self: end;
+  color: #fff;
+  background: linear-gradient(135deg, #4c1d95, #6d28d9);
+  cursor: pointer;
+}
+
 .layout3d-kpis {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -896,6 +1034,88 @@ const layoutStyles = `
   pointer-events: none;
 }
 
+.layout3d-analysis-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.layout3d-analysis-strip article {
+  border: 1px solid #dfe8f5;
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #ffffff, #f6f2ff);
+}
+
+.layout3d-analysis-strip span {
+  display: block;
+  color: #697891;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.layout3d-analysis-strip strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 26px;
+}
+
+.layout3d-table-card {
+  border: 1px solid #dfe8f5;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.layout3d-table-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.layout3d-table-wrap {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.layout3d-table-card table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.layout3d-table-card th,
+.layout3d-table-card td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #edf2f7;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.layout3d-table-card th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f3f6fb;
+  color: #17213b;
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.layout3d-table-card tr {
+  cursor: pointer;
+}
+
+.layout3d-table-card tr.active,
+.layout3d-table-card tr:hover {
+  background: #f4efff;
+}
+
 .layout3d-detail-grid {
   display: grid;
   grid-template-columns: 1.2fr .8fr;
@@ -946,6 +1166,7 @@ const layoutStyles = `
 }
 
 @media (max-width: 1200px) {
+  .layout3d-filter-panel { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .layout3d-toolbar {
     grid-template-columns: 180px minmax(220px, 1fr);
   }
@@ -962,7 +1183,9 @@ const layoutStyles = `
     align-items: stretch;
   }
   .layout3d-toolbar,
+  .layout3d-filter-panel,
   .layout3d-kpis,
+  .layout3d-analysis-strip,
   .layout3d-detail-grid,
   .layout3d-detail-list {
     grid-template-columns: 1fr;
@@ -972,3 +1195,5 @@ const layoutStyles = `
   }
 }
 `;
+
+
