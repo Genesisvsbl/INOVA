@@ -390,7 +390,11 @@ function normalizeChecklistItem5S(item) {
 }
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function addDays(date, days) {
@@ -449,6 +453,18 @@ function diffDays(start, end) {
   const a = new Date(`${start}T00:00:00`);
   const b = new Date(`${end}T00:00:00`);
   return Math.max(1, Math.round((b - a) / 86400000) + 1);
+}
+
+function calendarDayDiff(start, end) {
+  if (!start || !end) return 0;
+  const a = new Date(`${start}T00:00:00`);
+  const b = new Date(`${end}T00:00:00`);
+  return Math.round((b - a) / 86400000);
+}
+
+function overdueText(days) {
+  if (days <= 0) return "vence hoy";
+  return days === 1 ? "1 día" : `${days} días`;
 }
 
 function getTimelineDates(items) {
@@ -522,7 +538,7 @@ function attachCronogramaExecution(cronograma = [], inspecciones = []) {
     const execution = findCronogramaExecution(item, inspecciones);
     const fechaEjecucion = item.fecha_ejecucion || execution?.fecha || execution?.created_at?.slice(0, 10) || "";
     const fechaFin = item.fechaFin || item.fecha_fin || item.fechaInicio || item.fecha_inicio;
-    const retraso = fechaEjecucion && fechaFin ? Math.max(0, diffDays(fechaFin, fechaEjecucion) - 1) : 0;
+    const retraso = fechaEjecucion && fechaFin ? Math.max(0, calendarDayDiff(fechaFin, fechaEjecucion)) : 0;
 
     return {
       ...item,
@@ -551,7 +567,7 @@ function buildCronogramaAlerts(cronograma = [], inspecciones = []) {
         ...item,
         tipo: "cronograma",
         fechaLimite,
-        diasVencida: Math.max(1, diffDays(fechaLimite, hoy)),
+        diasVencida: Math.max(0, calendarDayDiff(fechaLimite, hoy)),
       };
     });
 }
@@ -571,7 +587,7 @@ function buildPlanAlerts(planes = []) {
       bodega: item.bodega,
       responsable: item.responsable,
       fechaLimite: item.fecha_compromiso,
-      diasVencida: Math.max(1, diffDays(item.fecha_compromiso, hoy)),
+      diasVencida: Math.max(0, calendarDayDiff(item.fecha_compromiso, hoy)),
     }));
 }
 
@@ -6509,7 +6525,7 @@ export default function Calidad5S() {
                           <strong>{item.tipo === "plan" ? "Plan de acción vencido" : "Inspección vencida"}</strong>
                           <p>{item.bodega}</p>
                           <small>
-                            {item.responsable || "Sin responsable"} · Venció {formatShortDate(item.fechaLimite)} · {item.diasVencida} días
+                            {item.responsable || "Sin responsable"} · Venció {formatShortDate(item.fechaLimite)} · {overdueText(item.diasVencida)}
                           </small>
                         </div>
                       </button>
