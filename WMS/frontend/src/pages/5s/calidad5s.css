@@ -3390,7 +3390,7 @@ button {
 .gantt-row {
   min-height: 52px;
   display: grid;
-  grid-template-columns: 260px minmax(1080px, 1fr) 82px;
+  grid-template-columns: 260px minmax(1080px, 1fr);
   align-items: stretch;
   border-bottom: 1px solid #eef3f8;
 }
@@ -3499,6 +3499,48 @@ button {
   font-weight: 950;
 }
 
+.gantt-bar-actions {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .16s ease;
+}
+
+.gantt-bar:hover .gantt-bar-actions,
+.gantt-bar:focus-within .gantt-bar-actions,
+.gantt-bar.is-dragging .gantt-bar-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.gantt-bar-action {
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(255,255,255,.42);
+  border-radius: 999px;
+  color: #ffffff;
+  background: rgba(15, 23, 42, .25);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+}
+
+.gantt-bar-action:hover {
+  background: rgba(255,255,255,.25);
+  transform: translateY(-1px);
+}
+
+.gantt-bar-action.danger:hover {
+  background: rgba(225, 29, 72, .86);
+}
+
 .gantt-bar.is-executed {
   box-shadow:
     0 12px 24px rgba(22, 163, 74, .22),
@@ -3522,7 +3564,7 @@ button {
 }
 
 .gantt-row-actions {
-  display: grid;
+  display: none;
   grid-template-columns: repeat(2, 1fr);
   border-left: 1px solid #eef3f8;
   background: #ffffff;
@@ -4322,6 +4364,16 @@ button {
 .report-preview-shell {
   display: grid;
   gap: 16px;
+}
+
+.report-preview-frame {
+  position: relative;
+  overflow: auto;
+}
+
+.report-mobile-eye-btn,
+.report-mobile-close {
+  display: none !important;
 }
 
 .report-preview-head {
@@ -7173,11 +7225,20 @@ button {
   }
 
   .s5-layout .gantt-row {
-    grid-template-columns: 148px minmax(calc(var(--days, 7) * 82px), 1fr) 64px !important;
+    grid-template-columns: 148px minmax(calc(var(--days, 7) * 82px), 1fr) !important;
   }
 
   .s5-layout .gantt-row-actions {
-    width: 64px !important;
+    display: none !important;
+  }
+
+  .s5-layout .gantt-bar {
+    padding-right: 64px !important;
+  }
+
+  .s5-layout .gantt-bar-actions {
+    opacity: 1 !important;
+    pointer-events: auto !important;
   }
 
   .s5-layout .gantt-empty {
@@ -7191,5 +7252,56 @@ button {
   .s5-layout .visual-report-cover {
     width: 100% !important;
     min-width: 0 !important;
+  }
+
+  .s5-layout .report-preview-head {
+    align-items: stretch !important;
+  }
+
+  .s5-layout .report-mobile-eye-btn {
+    display: inline-flex !important;
+  }
+
+  .s5-layout .report-preview-shell:not(.is-mobile-open) .report-preview-frame {
+    display: none !important;
+  }
+
+  .s5-layout .report-preview-shell.is-mobile-open .report-preview-frame {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 260 !important;
+    display: block !important;
+    overflow: auto !important;
+    padding: 72px 16px 24px !important;
+    background: rgba(6, 17, 31, .74) !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .s5-layout .report-preview-shell.is-mobile-open .report-mobile-close {
+    position: fixed !important;
+    top: 18px !important;
+    right: 18px !important;
+    z-index: 270 !important;
+    width: 42px !important;
+    height: 42px !important;
+    border: 1px solid rgba(255,255,255,.22) !important;
+    border-radius: 14px !important;
+    color: #ffffff !important;
+    background: rgba(6, 17, 31, .86) !important;
+    display: grid !important;
+    place-items: center !important;
+  }
+
+  .s5-layout .report-preview-shell.is-mobile-open #informe5s-preview,
+  .s5-layout .report-preview-shell.is-mobile-open .letter-report-page {
+    width: 8.5in !important;
+    min-width: 8.5in !important;
+    transform: none !important;
+    margin: 0 auto !important;
+  }
+
+  .s5-layout .report-preview-shell.is-mobile-open .report-sheet {
+    width: 8.5in !important;
+    min-width: 8.5in !important;
   }
 }

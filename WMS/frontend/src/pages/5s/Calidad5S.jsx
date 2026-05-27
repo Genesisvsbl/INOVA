@@ -1936,6 +1936,34 @@ function CronogramaView({ canAdmin = false }) {
                           : item.actividad}
                       </small>
                       <b>{item.ejecutada ? (item.retrasoDias ? "Retraso" : "OK") : item.prioridad}</b>
+                      <div className="gantt-bar-actions">
+                        {canAdmin && (
+                          <button
+                            type="button"
+                            className="gantt-bar-action"
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              startEditCronograma(item);
+                            }}
+                            title="Editar auditoría"
+                          >
+                            <Edit3 size={12} />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="gantt-bar-action danger"
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            deleteCronograma(item.id);
+                          }}
+                          title="Eliminar auditoría"
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -3010,6 +3038,7 @@ function InspeccionView({ canAdmin = false }) {
   const [historyReportItems, setHistoryReportItems] = useState([]);
   const [historyReportLoading, setHistoryReportLoading] = useState(false);
   const [historyDeletingId, setHistoryDeletingId] = useState(null);
+  const [mobileReportOpen, setMobileReportOpen] = useState(false);
 
   const [selectedBodega, setSelectedBodega] = useState("");
   const [fecha, setFecha] = useState(todayISO());
@@ -3308,6 +3337,11 @@ function InspeccionView({ canAdmin = false }) {
       setChecklistItems((prev) =>
         prev.map((current) =>
           current.id === item.id ? normalizeChecklistItem5S(updated) : current
+        )
+      );
+      setAnswers((prev) =>
+        prev.map((current) =>
+          current.id === item.id ? { ...current, ...normalizeChecklistItem5S(updated) } : current
         )
       );
     } catch (error) {
@@ -3962,13 +3996,13 @@ function InspeccionView({ canAdmin = false }) {
           </div>
 
           <div className="checklist-edit-list">
-            {checklist.map((pregunta, index) => (
-              <div key={checklistItems[index]?.id || `${pregunta}-${index}`} className="checklist-edit-row">
+            {checklistItems.map((item, index) => (
+              <div key={item.id || `${item.pregunta}-${index}`} className="checklist-edit-row">
                 <span>{index + 1}</span>
                 <select
-                  value={checklistItems[index]?.pilar || ""}
+                  value={item.pilar || ""}
                   onChange={(e) => updateChecklistMeta(index, "pilar", e.target.value)}
-                  onBlur={() => saveQuestion(checklistItems[index])}
+                  onBlur={() => saveQuestion({ ...item, pilar: checklistItems[index]?.pilar })}
                 >
                   <option value="">Sin pilar</option>
                   {pilares.map((pilar) => (
@@ -3976,25 +4010,32 @@ function InspeccionView({ canAdmin = false }) {
                   ))}
                 </select>
                 <input
-                  value={pregunta}
+                  value={item.pregunta || ""}
                   onChange={(e) => updateQuestion(index, e.target.value)}
                   onBlur={(e) => saveQuestion({ ...checklistItems[index], pregunta: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      saveQuestion({ ...checklistItems[index], pregunta: e.currentTarget.value });
+                    }
+                  }}
                 />
                 <input
                   type="number"
                   min="0"
                   step="0.1"
-                  value={checklistItems[index]?.peso || 1}
+                  value={item.peso || 1}
                   onChange={(e) => updateChecklistMeta(index, "peso", e.target.value)}
-                  onBlur={() => saveQuestion(checklistItems[index])}
+                  onBlur={() => saveQuestion({ ...item, peso: checklistItems[index]?.peso })}
                 />
                 <label className="checklist-requires-evidence">
                   <input
                     type="checkbox"
-                    checked={Boolean(checklistItems[index]?.requiere_evidencia)}
+                    checked={Boolean(item.requiere_evidencia)}
                     onChange={(e) => {
+                      const nextItem = { ...checklistItems[index], requiere_evidencia: e.target.checked };
                       updateChecklistMeta(index, "requiere_evidencia", e.target.checked);
-                      setTimeout(() => saveQuestion({ ...checklistItems[index], requiere_evidencia: e.target.checked }), 0);
+                      saveQuestion(nextItem);
                     }}
                   />
                   Evidencia
@@ -4314,7 +4355,7 @@ function InspeccionView({ canAdmin = false }) {
         </div>
       </section>
 
-      <section className="report-preview-shell">
+      <section className={`report-preview-shell ${mobileReportOpen ? "is-mobile-open" : ""}`}>
         <div className="report-preview-head">
           <div>
             <span className="portal-panel-kicker">INFORME EJECUTIVO 5S</span>
@@ -4322,11 +4363,21 @@ function InspeccionView({ canAdmin = false }) {
             <p>{reportPageCount} {reportPageCount === 1 ? "página estimada" : "páginas estimadas"} según checklist y evidencias.</p>
           </div>
 
+          <button type="button" className="portal-secondary-btn report-mobile-eye-btn" onClick={() => setMobileReportOpen(true)}>
+            <Eye size={17} />
+            Ver informe
+          </button>
+
           <button type="button" className="portal-secondary-btn" onClick={openPrintReport}>
             <Download size={17} />
             Imprimir / guardar PDF
           </button>
         </div>
+
+        <div className="report-preview-frame">
+          <button type="button" className="report-mobile-close" onClick={() => setMobileReportOpen(false)} aria-label="Cerrar vista previa">
+            <X size={18} />
+          </button>
 
         <div id="informe5s-preview" className="letter-report-page report-book report-theme-reference table-tools-skip">
           <article className="report-sheet report-sheet-main">
@@ -4547,6 +4598,7 @@ function InspeccionView({ canAdmin = false }) {
               </div>
             </article>
           ))}
+        </div>
         </div>
       </section>
 
