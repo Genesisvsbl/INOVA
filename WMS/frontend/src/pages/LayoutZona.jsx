@@ -25,6 +25,8 @@ const LEVELS = 6;
 const FRONT_POSITIONS = 2;
 const DEPTHS = 2;
 const SLOT_CAPACITY = RACKS * MODULES_PER_RACK * LEVELS * FRONT_POSITIONS * DEPTHS;
+const RACK_ROW_Z = [-6.58, -1.3, 1.13, 6.41];
+const AISLE_Z = [-3.94, 3.77];
 function normalize(value) {
   return String(value || "")
     .normalize("NFD")
@@ -401,14 +403,16 @@ export default function LayoutZona() {
 
     addBox(scene, [16, 0.08, 4.4], [-20, 0.01, 12], mats.dock, "Outbound Area");
     addBox(scene, [14, 0.08, 4.4], [-20, 0.02, -12], mats.dock, "Inbound Cache");
-    addBox(scene, [48, 0.06, 2.1], [7, 0.05, 0], mats.aisle, "Four-way Pallet Shuttle + AGV");
+    addBox(scene, [48, 0.06, 3.2], [7, 0.05, AISLE_Z[0]], mats.aisle, "Pasillo operativo 1 - Rack 1 / Rack 2");
+    addBox(scene, [48, 0.06, 3.2], [7, 0.05, AISLE_Z[1]], mats.aisle, "Pasillo operativo 2 - Rack 3 / Rack 4");
     addBox(scene, [2.2, 0.07, 28], [13, 0.08, 0], mats.aisle, "AGV Turned on the Ground Floor");
     addBox(scene, [9, 0.1, 10], [22, 0.1, 8], mats.zoneBlue, "Cold Storage Area");
 
     addText(scene, "OUTBOUND AREA", [-20, 1.1, 15.2], "#475569", 44);
     addText(scene, "INBOUND CACHE", [-20, 1.1, -15.2], "#475569", 44);
     addText(scene, `ZONA ${zone} - LAYOUT DIGITAL`, [6, 1.1, -17.2], WMS_PURPLE, 46);
-    addText(scene, "PALLET SHUTTLE + AGV", [3, 1.05, 1.9], "#0891b2", 40);
+    addText(scene, "PASILLO 1", [3, 1.05, AISLE_Z[0]], "#0891b2", 38);
+    addText(scene, "PASILLO 2", [3, 1.05, AISLE_Z[1]], "#0891b2", 38);
 
     createTruck(scene, [-29, 0.55, 13], mats);
     createTruck(scene, [-29, 0.55, 9.5], mats);
@@ -662,7 +666,7 @@ function createRackCity(scene, allCells, filteredCells, selected, setSelected, m
   const visibleCells = showAllStructure ? allCells : filteredCells;
   const rows = [[], [], [], []];
   visibleCells.forEach((cell) => rows[Math.max(0, Math.min(3, (cell.rack || 1) - 1))].push(cell));
-  const rowZ = [-10.4, -4.2, 4.2, 10.4];
+  const rowZ = RACK_ROW_Z;
   const rowNames = ["Rack 1", "Rack 2", "Rack 3", "Rack 4"];
 
   rows.forEach((rackCells, rowIndex) => {
@@ -1246,6 +1250,7 @@ const layoutStyles = `
   }
 }
 `;
+
 
 
 
