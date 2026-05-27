@@ -63,6 +63,28 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+function slugIdentity(value) {
+  return clean(value)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, ".")
+    .replace(/^\.+|\.+$/g, "")
+    .slice(0, 42);
+}
+
+function buildInternalUserEmail({ empresaId, documento, usuario, pilar }) {
+  const base = slugIdentity(documento) || slugIdentity(usuario) || `usuario.${Date.now()}`;
+  const scope = slugIdentity(pilar) || "wms";
+  return `${base}.${scope}@empresa-${empresaId}.inova.local`;
+}
+
+function isDuplicateKeyError(error) {
+  const message = String(error?.message || "");
+  const code = String(error?.code || "");
+  return code === "23505" || message.includes("duplicate key value") || message.includes("already exists");
+}
+
 function isMissingColumnError(error) {
   const message = String(error?.message || "");
   return message.includes("PGRST204") || message.includes("42703") || message.includes("schema cache");
@@ -772,18 +794,33 @@ export async function crearUsuarioEmpresa(payload, actor = {}) {
   });
 
   const usuarioLogin = clean(payload.nombre);
-  const email = clean(payload.email).toLowerCase();
   const documento = clean(payload.documento);
   if (!usuarioLogin) throw new Error("Debes ingresar el nombre completo.");
   if (!documento) throw new Error("Debes ingresar la cedula o documento.");
-  const existing = await safeSelect("public", "usuarios", {
+  const internalEmail = buildInternalUserEmail({
+    empresaId: empresaIdFinal,
+    documento,
+    usuario: usuarioLogin,
+    pilar: payload.pilar,
+  });
+  const email = clean(payload.email).includes("@") ? clean(payload.email).toLowerCase() : internalEmail;
+  const existingByDocumentOrUser = await safeSelect("public", "usuarios", {
     select: "*",
     empresa_id: eq(empresaIdFinal),
     or: `(usuario.ilike.${usuarioLogin},documento.eq.${documento})`,
     limit: "1",
   });
+  const existingByEmail = existingByDocumentOrUser?.[0]
+    ? []
+    : await safeSelect("public", "usuarios", {
+        select: "*",
+        empresa_id: eq(empresaIdFinal),
+        email: eq(email),
+        limit: "1",
+      }).catch(() => []);
+  const existing = existingByDocumentOrUser?.[0] || existingByEmail?.[0] || null;
 
-  if (!existing?.[0] && maxUsuarios && usuariosActivos.length >= maxUsuarios) {
+  if (!existing && maxUsuarios && usuariosActivos.length >= maxUsuarios) {
     throw new Error(`La empresa ya alcanzÃ³ el lÃ­mite del plan (${maxUsuarios} usuarios).`);
   }
 
@@ -805,7 +842,13 @@ export async function crearUsuarioEmpresa(payload, actor = {}) {
     fecha_actualizacion: new Date().toISOString(),
   };
 
-  const user = await saveUsuario(userPayload, existing?.[0]?.id || null);
+  let user;
+  try {
+    user = await saveUsuario(userPayload, existing?.id || null);
+  } catch (error) {
+    if (!isDuplicateKeyError(error)) throw error;
+    throw new Error("Ese usuario ya existe en esta empresa. Revisa la lista de usuarios y edita el rol o el pilar desde Acciones.");
+  }
 
   const pilar = payload.pilar;
   const accessPayload = {
