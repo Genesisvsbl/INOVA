@@ -1,23 +1,23 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Boxes,
-  ChevronDown,
-  Compass,
+  Camera,
   Eye,
   Layers3,
   MapPinned,
   Maximize2,
-  Move3D,
-  RotateCcw,
+  RefreshCcw,
   Search,
   Truck,
   Warehouse,
-  ZoomIn,
-  ZoomOut,
 } from "lucide-react";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { getMovimientos, getUbicaciones } from "../api";
 
 const WMS_PURPLE = "#6d28d9";
+const WMS_DEEP = "#1f1148";
+const WMS_CYAN = "#22d3ee";
 
 function normalize(value) {
   return String(value || "")
@@ -109,36 +109,105 @@ function groupByModule(cells) {
     .map(([module, rows], index) => ({ module, rows, index }));
 }
 
-function slotTone(cell, maxStock) {
-  if (cell.stock <= 0) return "empty";
-  const pct = maxStock > 0 ? cell.stock / maxStock : 0;
-  if (pct <= 0.25) return "low";
-  if (pct <= 0.55) return "mid";
-  if (pct <= 0.85) return "good";
-  return "full";
+function uniqueSorted(values) {
+  return Array.from(new Set(values.filter(Boolean))).sort((a, b) => Number(a) - Number(b));
 }
 
 function formatQty(value) {
   return Number(value || 0).toLocaleString("es-CO", { maximumFractionDigits: 2 });
 }
 
-function uniqueSorted(values) {
-  return Array.from(new Set(values.filter(Boolean))).sort((a, b) => Number(a) - Number(b));
+function stockColor(cell, maxStock) {
+  if (!cell || cell.stock <= 0) return 0xe8eef8;
+  const pct = maxStock > 0 ? cell.stock / maxStock : 0;
+  if (pct <= 0.25) return 0xef4444;
+  if (pct <= 0.55) return 0xf59e0b;
+  if (pct <= 0.85) return 0x22c55e;
+  return 0x2563eb;
+}
+
+function createMaterial(color, options = {}) {
+  return new THREE.MeshStandardMaterial({
+    color,
+    roughness: options.roughness ?? 0.55,
+    metalness: options.metalness ?? 0.08,
+    transparent: options.opacity !== undefined,
+    opacity: options.opacity ?? 1,
+  });
+}
+
+function createTextSprite(text, color = "#13213b", size = 64) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 160;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.font = `800 ${size}px Arial`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "rgba(255,255,255,0.82)";
+  roundRect(ctx, 18, 28, 476, 104, 22);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(109,40,217,0.26)";
+  ctx.lineWidth = 4;
+  roundRect(ctx, 18, 28, 476, 104, 22);
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.fillText(text, 256, 82);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(5.8, 1.8, 1);
+  return sprite;
+}
+
+function roundRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, radius);
+  ctx.arcTo(x + width, y + height, x, y + height, radius);
+  ctx.arcTo(x, y + height, x, y, radius);
+  ctx.arcTo(x, y, x + width, y, radius);
+  ctx.closePath();
+}
+
+function addBox(scene, size, position, material, name = "") {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+  mesh.position.set(...position);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.name = name;
+  scene.add(mesh);
+  return mesh;
+}
+
+function disposeObject(object) {
+  object.traverse((node) => {
+    if (node.geometry) node.geometry.dispose();
+    if (node.material) {
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      materials.forEach((material) => {
+        if (material.map) material.map.dispose();
+        material.dispose();
+      });
+    }
+  });
 }
 
 export default function LayoutZona() {
+  const canvasRef = useRef(null);
+  const wrapRef = useRef(null);
+  const meshMapRef = useRef(new Map());
   const [ubicaciones, setUbicaciones] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
   const [zone, setZone] = useState("300");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null);
   const [view, setView] = useState("iso");
-  const [zoom, setZoom] = useState(1);
-  const [rotation, setRotation] = useState({ x: 58, z: -10 });
-  const [drag, setDrag] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const stageRef = useRef(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -181,179 +250,224 @@ export default function LayoutZona() {
   }, [cells, query]);
 
   const modules = useMemo(() => groupByModule(filteredCells), [filteredCells]);
-  const visibleModules = modules.slice(0, 42);
   const occupied = cells.filter((cell) => cell.stock > 0).length;
-  const maxLevel = Math.max(1, ...cells.map((cell) => Number(cell.level) || 1));
   const available = Math.max(0, cells.length - occupied);
+  const maxLevel = Math.max(1, ...cells.map((cell) => Number(cell.level) || 1));
   const occupancy = cells.length ? Math.round((occupied / cells.length) * 100) : 0;
 
-  function applyView(nextView) {
-    setView(nextView);
-    if (nextView === "iso") setRotation({ x: 58, z: -10 });
-    if (nextView === "top") setRotation({ x: 72, z: 0 });
-    if (nextView === "front") setRotation({ x: 18, z: 0 });
-  }
+  useEffect(() => {
+    if (!canvasRef.current || !wrapRef.current) return undefined;
 
-  function startDrag(event) {
-    if (event.button !== 0) return;
-    setDrag({
-      x: event.clientX,
-      y: event.clientY,
-      start: rotation,
-    });
-    stageRef.current?.setPointerCapture?.(event.pointerId);
-  }
+    const canvas = canvasRef.current;
+    const container = wrapRef.current;
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf4f7fc);
+    scene.fog = new THREE.Fog(0xf4f7fc, 42, 92);
 
-  function moveDrag(event) {
-    if (!drag) return;
-    const dx = event.clientX - drag.x;
-    const dy = event.clientY - drag.y;
-    setRotation({
-      x: Math.max(18, Math.min(76, drag.start.x - dy * 0.12)),
-      z: Math.max(-34, Math.min(34, drag.start.z + dx * 0.12)),
-    });
-  }
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  function endDrag() {
-    setDrag(null);
-  }
+    const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 180);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.07;
+    controls.minDistance = 18;
+    controls.maxDistance = 90;
+    controls.target.set(8, 2.5, 0);
 
-  const stageStyle = {
-    "--rx": `${rotation.x}deg`,
-    "--rz": `${rotation.z}deg`,
-    "--zoom": zoom,
-  };
+    const ambient = new THREE.HemisphereLight(0xffffff, 0x52617b, 2.6);
+    scene.add(ambient);
+    const key = new THREE.DirectionalLight(0xffffff, 3.2);
+    key.position.set(-18, 32, 28);
+    key.castShadow = true;
+    key.shadow.mapSize.width = 2048;
+    key.shadow.mapSize.height = 2048;
+    scene.add(key);
+    const purpleLight = new THREE.PointLight(0x7c3aed, 16, 54);
+    purpleLight.position.set(15, 8, -12);
+    scene.add(purpleLight);
+    const cyanLight = new THREE.PointLight(0x22d3ee, 9, 42);
+    cyanLight.position.set(-14, 7, 15);
+    scene.add(cyanLight);
+
+    const mats = {
+      floor: createMaterial(0xe8edf7, { roughness: 0.8 }),
+      dock: createMaterial(0xdbeafe, { roughness: 0.72 }),
+      aisle: createMaterial(0x7dd3fc, { opacity: 0.34, roughness: 0.35 }),
+      post: createMaterial(0x08112c, { roughness: 0.44, metalness: 0.22 }),
+      beam: createMaterial(0xf59e0b, { roughness: 0.5, metalness: 0.12 }),
+      pallet: createMaterial(0xf8fafc, { roughness: 0.62 }),
+      selected: createMaterial(0xd946ef, { roughness: 0.35, metalness: 0.12 }),
+      truck: createMaterial(0xcbd5e1, { roughness: 0.58 }),
+      truckCab: createMaterial(0x0f172a, { roughness: 0.42 }),
+      agv: createMaterial(0x111827, { roughness: 0.5 }),
+      robot: createMaterial(0xf97316, { roughness: 0.38, metalness: 0.18 }),
+      zoneBlue: createMaterial(0x38bdf8, { opacity: 0.24, roughness: 0.3 }),
+    };
+
+    const floor = addBox(scene, [62, 0.45, 36], [4, -0.28, 0], mats.floor, "Piso operativo");
+    floor.receiveShadow = true;
+
+    addBox(scene, [16, 0.08, 4.4], [-20, 0.01, 12], mats.dock, "Outbound Area");
+    addBox(scene, [14, 0.08, 4.4], [-20, 0.02, -12], mats.dock, "Inbound Cache");
+    addBox(scene, [48, 0.06, 2.1], [7, 0.05, 0], mats.aisle, "Four-way Pallet Shuttle + AGV");
+    addBox(scene, [2.2, 0.07, 28], [13, 0.08, 0], mats.aisle, "AGV Turned on the Ground Floor");
+    addBox(scene, [9, 0.1, 10], [22, 0.1, 8], mats.zoneBlue, "Cold Storage Area");
+
+    addText(scene, "OUTBOUND AREA", [-20, 1.1, 15.2], "#475569", 44);
+    addText(scene, "INBOUND CACHE", [-20, 1.1, -15.2], "#475569", 44);
+    addText(scene, `ZONA ${zone} - LAYOUT DIGITAL`, [6, 1.1, -17.2], WMS_PURPLE, 46);
+    addText(scene, "PALLET SHUTTLE + AGV", [3, 1.05, 1.9], "#0891b2", 40);
+
+    createTruck(scene, [-29, 0.55, 13], mats);
+    createTruck(scene, [-29, 0.55, 9.5], mats);
+    createTruck(scene, [-29, 0.55, -12], mats);
+    createPalletBlock(scene, [-18, 0.35, 7], 5, 3, mats.pallet);
+    createPalletBlock(scene, [-12, 0.35, -10], 4, 3, mats.pallet);
+    createRobotArm(scene, [19, 0.45, 11.5], mats.robot);
+    createRobotArm(scene, [20, 0.45, -8.5], mats.robot);
+    createAgv(scene, [-6, 0.28, 0], mats.agv);
+    createAgv(scene, [14, 0.28, -4], mats.agv);
+
+    meshMapRef.current.clear();
+    createRackCity(scene, modules.slice(0, 36), selected, setSelected, maxStock, meshMapRef.current, mats);
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+
+    function onClick(event) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects(Array.from(meshMapRef.current.keys()), false);
+      if (hits.length) {
+        const cell = meshMapRef.current.get(hits[0].object);
+        if (cell) setSelected(cell);
+      }
+    }
+
+    renderer.domElement.addEventListener("click", onClick);
+
+    function setCamera(nextView) {
+      if (nextView === "top") {
+        camera.position.set(1, 58, 0.5);
+        controls.target.set(6, 0, 0);
+      } else if (nextView === "front") {
+        camera.position.set(4, 18, 42);
+        controls.target.set(5, 3.4, 0);
+      } else {
+        camera.position.set(-28, 26, 32);
+        controls.target.set(6, 3.2, 0);
+      }
+      controls.update();
+    }
+
+    setCamera(view);
+
+    const resize = () => {
+      const width = container.clientWidth || 1200;
+      const height = container.clientHeight || 660;
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+    };
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(container);
+
+    let raf = 0;
+    function animate() {
+      controls.update();
+      renderer.render(scene, camera);
+      raf = requestAnimationFrame(animate);
+    }
+    animate();
+
+    return () => {
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+      renderer.domElement.removeEventListener("click", onClick);
+      controls.dispose();
+      disposeObject(scene);
+      renderer.dispose();
+    };
+  }, [modules, selected, view, maxStock, zone]);
 
   return (
-    <main className="layout-zone-page">
+    <main className="layout3d-page">
       <style>{layoutStyles}</style>
 
-      <section className="layout-hero">
+      <section className="layout3d-hero">
         <div>
-          <span className="layout-kicker">WMS VISUAL TWIN</span>
-          <h1>Layout 3D por zona</h1>
-          <p>
-            Render operativo conectado a Supabase: racks, modulos, niveles, ocupacion y seleccion por ubicacion real.
-          </p>
+          <span className="layout3d-kicker">WMS DIGITAL TWIN</span>
+          <h1>Layout 3D de bodega</h1>
+          <p>Maqueta operacional por zona con racks, pasillos, recibo, despacho, AGV y ubicaciones reales desde Supabase.</p>
         </div>
-        <button type="button" className="layout-refresh" onClick={loadData}>
-          <RotateCcw size={17} />
-          Actualizar datos
+        <button type="button" onClick={loadData} className="layout3d-primary">
+          <RefreshCcw size={17} /> Actualizar
         </button>
       </section>
 
-      {error && <div className="layout-error">{error}</div>}
+      {error && <div className="layout3d-error">{error}</div>}
 
-      <section className="layout-toolbar">
-        <label className="layout-select">
+      <section className="layout3d-toolbar">
+        <label>
           <span>Zona</span>
           <select value={zone} onChange={(event) => { setZone(event.target.value); setSelected(null); }}>
             {zones.map((item) => <option key={item} value={item}>Zona {item}</option>)}
           </select>
-          <ChevronDown size={16} />
         </label>
-
-        <label className="layout-search">
+        <label className="layout3d-search">
           <Search size={18} />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Buscar ubicacion, modulo, bodega, material..."
-          />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar ubicacion, modulo, bodega, material..." />
         </label>
-
-        <div className="layout-view-controls">
-          <button type="button" className={view === "iso" ? "active" : ""} onClick={() => applyView("iso")}><Move3D size={16} /> 3D</button>
-          <button type="button" className={view === "top" ? "active" : ""} onClick={() => applyView("top")}><Compass size={16} /> Superior</button>
-          <button type="button" className={view === "front" ? "active" : ""} onClick={() => applyView("front")}><Eye size={16} /> Frontal</button>
-          <button type="button" onClick={() => setZoom((value) => Math.max(0.74, value - 0.08))}><ZoomOut size={16} /></button>
-          <button type="button" onClick={() => setZoom((value) => Math.min(1.24, value + 0.08))}><ZoomIn size={16} /></button>
+        <div className="layout3d-views">
+          <button type="button" className={view === "iso" ? "active" : ""} onClick={() => setView("iso")}><Camera size={16} /> 3D</button>
+          <button type="button" className={view === "top" ? "active" : ""} onClick={() => setView("top")}><Eye size={16} /> Superior</button>
+          <button type="button" className={view === "front" ? "active" : ""} onClick={() => setView("front")}><Maximize2 size={16} /> Frontal</button>
         </div>
       </section>
 
-      <section className="layout-kpis">
+      <section className="layout3d-kpis">
         <Kpi icon={<MapPinned size={18} />} label="Zona activa" value={zone} />
         <Kpi icon={<Boxes size={18} />} label="Ubicaciones" value={cells.length} />
         <Kpi icon={<Warehouse size={18} />} label="Ocupadas" value={occupied} />
         <Kpi icon={<Layers3 size={18} />} label="Niveles" value={maxLevel} />
-        <Kpi icon={<Maximize2 size={18} />} label="Ocupacion" value={`${occupancy}%`} />
+        <Kpi icon={<Truck size={18} />} label="Ocupacion" value={`${occupancy}%`} />
       </section>
 
-      <section className="warehouse-shell">
-        <div className="warehouse-head">
+      <section className="layout3d-stage-card">
+        <div className="layout3d-stage-head">
           <div>
-            <span>Escena operativa zona {zone}</span>
-            <h2>Bodega selectiva doble profundidad</h2>
+            <span className="layout3d-kicker">Escenario de aplicacion</span>
+            <h2>Pallet Shuttle + AGV + trazabilidad por ubicacion</h2>
           </div>
-          <div className="warehouse-legend">
-            <span><i className="legend-empty" /> Libre</span>
-            <span><i className="legend-low" /> Bajo</span>
-            <span><i className="legend-mid" /> Medio</span>
-            <span><i className="legend-good" /> Normal</span>
-            <span><i className="legend-full" /> Alto</span>
-            <span><i className="legend-selected" /> Seleccionada</span>
+          <div className="layout3d-legend">
+            <span><i className="empty" /> Libre</span>
+            <span><i className="low" /> Bajo</span>
+            <span><i className="mid" /> Medio</span>
+            <span><i className="good" /> Normal</span>
+            <span><i className="full" /> Alto</span>
+            <span><i className="selected" /> Seleccionada</span>
           </div>
         </div>
-
-        <div
-          ref={stageRef}
-          className={`warehouse-viewport view-${view} ${drag ? "is-dragging" : ""}`}
-          style={stageStyle}
-          onPointerDown={startDrag}
-          onPointerMove={moveDrag}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-        >
-          <div className="warehouse-scene">
-            <div className="warehouse-floor">
-              <div className="floor-grid" />
-              <div className="receiving-zone">
-                <Truck size={24} />
-                <b>Recibo / despacho</b>
-                <small>Flujo operacional</small>
-              </div>
-              <div className="agv-route route-a" />
-              <div className="agv-route route-b" />
-              <div className="agv-dot dot-a" />
-              <div className="agv-dot dot-b" />
-
-              {loading ? (
-                <div className="layout-empty-state">Cargando layout desde Supabase...</div>
-              ) : visibleModules.length ? (
-                <div className="rack-banks">
-                  <RackBank
-                    title="Rack A"
-                    modules={visibleModules.filter((_, index) => index % 2 === 0)}
-                    selected={selected}
-                    setSelected={setSelected}
-                    maxStock={maxStock}
-                  />
-                  <div className="central-aisle">
-                    <span>Pasillo operativo zona {zone}</span>
-                  </div>
-                  <RackBank
-                    title="Rack B"
-                    modules={visibleModules.filter((_, index) => index % 2 === 1)}
-                    selected={selected}
-                    setSelected={setSelected}
-                    maxStock={maxStock}
-                    mirrored
-                  />
-                </div>
-              ) : (
-                <div className="layout-empty-state">No hay ubicaciones creadas para la zona {zone}.</div>
-              )}
-            </div>
-          </div>
+        <div ref={wrapRef} className="layout3d-canvas-wrap">
+          {loading && <div className="layout3d-loading">Cargando ubicaciones desde Supabase...</div>}
+          {!loading && !filteredCells.length && <div className="layout3d-loading">No hay ubicaciones para zona {zone}.</div>}
+          <canvas ref={canvasRef} className="layout3d-canvas" />
         </div>
       </section>
 
-      <section className="layout-detail-grid">
-        <article className="layout-detail-card">
-          <span className="layout-kicker">Seleccion actual</span>
-          <h3>{selected ? selected.code : "Ubicacion no seleccionada"}</h3>
+      <section className="layout3d-detail-grid">
+        <article className="layout3d-detail">
+          <span className="layout3d-kicker">Ubicacion seleccionada</span>
+          <h3>{selected ? selected.code : "Selecciona una celda del rack"}</h3>
           {selected ? (
-            <div className="detail-list">
+            <div className="layout3d-detail-list">
               <Detail label="Base" value={selected.base} />
               <Detail label="Modulo" value={`M${String(selected.module).padStart(2, "0")}`} />
               <Detail label="Nivel" value={selected.level} />
@@ -362,85 +476,167 @@ export default function LayoutZona() {
               <Detail label="Stock calculado" value={formatQty(selected.stock)} />
             </div>
           ) : (
-            <p>Selecciona una celda del rack para consultar el detalle operativo de la ubicacion.</p>
+            <p>Haz clic sobre cualquier pallet o celda del rack para ver su informacion operativa.</p>
           )}
         </article>
-
-        <article className="layout-detail-card">
-          <span className="layout-kicker">Resumen visual</span>
+        <article className="layout3d-detail">
+          <span className="layout3d-kicker">Capacidad visual</span>
           <h3>{available} libres / {occupied} ocupadas</h3>
-          <p>
-            Esta vista ya queda lista para evolucionar a recorridos, calor por ocupacion, rutas AGV y trazabilidad por SKU/reserva.
-          </p>
+          <p>Esta base ya permite evolucionar a rutas por reserva, calor por ocupacion, simulacion AGV y control por SKU.</p>
         </article>
       </section>
     </main>
   );
 }
 
-function RackBank({ title, modules, selected, setSelected, maxStock, mirrored = false }) {
-  return (
-    <div className={`rack-bank ${mirrored ? "is-mirrored" : ""}`}>
-      <div className="rack-bank-label">{title}</div>
-      {modules.map((group) => (
-        <RackModule
-          key={group.module}
-          group={group}
-          selected={selected}
-          setSelected={setSelected}
-          maxStock={maxStock}
-        />
-      ))}
-    </div>
-  );
+function addText(scene, text, position, color, size) {
+  const label = createTextSprite(text, color, size);
+  label.position.set(...position);
+  scene.add(label);
+  return label;
 }
 
-function RackModule({ group, selected, setSelected, maxStock }) {
-  const levels = uniqueSorted(group.rows.map((item) => String(item.level))).sort((a, b) => Number(b) - Number(a));
-  const depthGroups = uniqueSorted(group.rows.map((item) => String(item.depth))).sort((a, b) => Number(a) - Number(b));
+function createTruck(scene, position, mats) {
+  const group = new THREE.Group();
+  group.position.set(...position);
+  group.rotation.y = Math.PI / 2;
+  group.add(new THREE.Mesh(new THREE.BoxGeometry(5.8, 1.2, 1.9), mats.truck));
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.35, 1.9), mats.truckCab);
+  cab.position.x = -3.45;
+  group.add(cab);
+  for (let x of [-2.2, 2.2]) {
+    for (let z of [-1.05, 1.05]) {
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.22, 18), createMaterial(0x111827));
+      wheel.rotation.x = Math.PI / 2;
+      wheel.position.set(x, -0.72, z);
+      group.add(wheel);
+    }
+  }
+  scene.add(group);
+}
 
-  return (
-    <div className="rack-module">
-      <div className="rack-frame">
-        <div className="rack-post post-left" />
-        <div className="rack-post post-right" />
-        <div className="rack-beam beam-top" />
-        <div className="rack-beam beam-bottom" />
-        <div className="module-slots" style={{ "--levels": levels.length || 1, "--depths": depthGroups.length || 1 }}>
-          {levels.map((level) =>
-            depthGroups.map((depth) => {
-              const cell = group.rows.find((item) => String(item.level) === String(level) && String(item.depth) === String(depth));
-              if (!cell) {
-                return <span key={`${level}-${depth}`} className="slot-placeholder" />;
-              }
-              const active = selected?.code === cell.code;
-              return (
-                <button
-                  key={cell.code}
-                  type="button"
-                  className={`slot-cube tone-${slotTone(cell, maxStock)} ${active ? "is-active" : ""}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setSelected(cell);
-                  }}
-                  title={`${cell.code} | stock ${formatQty(cell.stock)}`}
-                >
-                  <span>{cell.level}</span>
-                </button>
-              );
-            })
-          )}
-        </div>
-      </div>
-      <strong>M{String(group.module).padStart(2, "0")}</strong>
-      <small>{group.rows.length} posiciones</small>
-    </div>
-  );
+function createPalletBlock(scene, origin, cols, rows, material) {
+  for (let x = 0; x < cols; x += 1) {
+    for (let z = 0; z < rows; z += 1) {
+      const stack = 1 + ((x + z) % 3);
+      for (let y = 0; y < stack; y += 1) {
+        addBox(scene, [0.72, 0.38, 0.72], [origin[0] + x * 0.86, origin[1] + y * 0.4, origin[2] + z * 0.86], material, "Pallet cache");
+      }
+    }
+  }
+}
+
+function createAgv(scene, position, material) {
+  const group = new THREE.Group();
+  group.position.set(...position);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.34, 0.95), material);
+  base.castShadow = true;
+  group.add(base);
+  const light = new THREE.PointLight(0x22d3ee, 3, 4);
+  light.position.set(0, 0.35, 0);
+  group.add(light);
+  scene.add(group);
+}
+
+function createRobotArm(scene, position, material) {
+  const group = new THREE.Group();
+  group.position.set(...position);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.46, 0.28, 20), material);
+  group.add(base);
+  const arm1 = new THREE.Mesh(new THREE.BoxGeometry(0.32, 2.2, 0.32), material);
+  arm1.position.set(0, 1.1, 0);
+  arm1.rotation.z = -0.25;
+  group.add(arm1);
+  const arm2 = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.7, 0.28), material);
+  arm2.position.set(0.62, 2.08, 0);
+  arm2.rotation.z = 0.85;
+  group.add(arm2);
+  scene.add(group);
+}
+
+function createRackCity(scene, modules, selected, setSelected, maxStock, meshMap, mats) {
+  const rows = [[], [], [], []];
+  modules.forEach((module, index) => rows[index % 4].push(module));
+  const rowZ = [-10.4, -4.2, 4.2, 10.4];
+  const rowNames = ["Rack 1", "Rack 2", "Rack 3", "Rack 4"];
+
+  rows.forEach((rackModules, rowIndex) => {
+    addText(scene, rowNames[rowIndex], [-5.8, 5.2, rowZ[rowIndex]], "#4c1d95", 42);
+    rackModules.slice(0, 9).forEach((group, moduleIndex) => {
+      createRackModule(scene, group, moduleIndex, rowIndex, rowZ[rowIndex], selected, setSelected, maxStock, meshMap, mats);
+    });
+  });
+}
+
+function createRackModule(scene, group, moduleIndex, rowIndex, z, selected, setSelected, maxStock, meshMap, mats) {
+  const x = -7 + moduleIndex * 3.05;
+  const levels = uniqueSorted(group.rows.map((cell) => String(cell.level))).sort((a, b) => Number(a) - Number(b));
+  const depths = uniqueSorted(group.rows.map((cell) => String(cell.depth))).sort((a, b) => Number(a) - Number(b));
+  const levelCount = Math.max(6, levels.length || 1);
+  const depthCount = Math.max(2, depths.length || 1);
+  const width = 2.3;
+  const height = levelCount * 0.62 + 0.35;
+  const depthSize = depthCount * 0.62 + 0.45;
+
+  const moduleGroup = new THREE.Group();
+  moduleGroup.position.set(x, 0, z);
+  moduleGroup.rotation.y = rowIndex < 2 ? 0 : Math.PI;
+  scene.add(moduleGroup);
+
+  const postPositions = [
+    [-width / 2, height / 2, -depthSize / 2],
+    [width / 2, height / 2, -depthSize / 2],
+    [-width / 2, height / 2, depthSize / 2],
+    [width / 2, height / 2, depthSize / 2],
+  ];
+  postPositions.forEach((pos) => {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.08, height, 0.08), mats.post);
+    post.position.set(...pos);
+    post.castShadow = true;
+    moduleGroup.add(post);
+  });
+
+  for (let level = 0; level <= levelCount; level += 1) {
+    const y = 0.24 + level * 0.62;
+    [-depthSize / 2, depthSize / 2].forEach((dz) => {
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(width + 0.18, 0.07, 0.07), mats.beam);
+      beam.position.set(0, y, dz);
+      beam.castShadow = true;
+      moduleGroup.add(beam);
+    });
+  }
+
+  addModuleLabel(moduleGroup, `M${String(group.module).padStart(2, "0")}`, [0, height + 0.52, 0]);
+
+  group.rows.slice(0, 24).forEach((cell) => {
+    const levelIndex = Math.max(0, Math.min(levelCount - 1, Number(cell.level || 1) - 1));
+    const depthIndex = Math.max(0, Math.min(depthCount - 1, (Number(cell.depth || 1) - 1) % depthCount));
+    const side = group.rows.indexOf(cell) % 2 === 0 ? -0.38 : 0.38;
+    const y = 0.55 + levelIndex * 0.62;
+    const dz = -depthSize / 2 + 0.42 + depthIndex * 0.58;
+    const active = selected?.code === cell.code;
+    const mat = active ? mats.selected : createMaterial(stockColor(cell, maxStock), { roughness: 0.52 });
+    const pallet = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.38, 0.48), mat);
+    pallet.position.set(side, y, dz);
+    pallet.castShadow = true;
+    pallet.receiveShadow = true;
+    pallet.userData.cellCode = cell.code;
+    pallet.userData.onPick = () => setSelected(cell);
+    moduleGroup.add(pallet);
+    meshMap.set(pallet, cell);
+  });
+}
+
+function addModuleLabel(group, text, position) {
+  const sprite = createTextSprite(text, "#111827", 58);
+  sprite.scale.set(1.6, 0.5, 1);
+  sprite.position.set(...position);
+  group.add(sprite);
 }
 
 function Kpi({ icon, label, value }) {
   return (
-    <article className="layout-kpi">
+    <article className="layout3d-kpi">
       <span>{icon}</span>
       <small>{label}</small>
       <strong>{value}</strong>
@@ -450,7 +646,7 @@ function Kpi({ icon, label, value }) {
 
 function Detail({ label, value }) {
   return (
-    <div className="detail-row">
+    <div className="layout3d-detail-row">
       <span>{label}</span>
       <strong>{value || "Sin dato"}</strong>
     </div>
@@ -458,33 +654,33 @@ function Detail({ label, value }) {
 }
 
 const layoutStyles = `
-.layout-zone-page {
+.layout3d-page {
   display: grid;
   gap: 16px;
-  color: #131a2f;
+  color: #10172f;
   min-width: 0;
 }
 
-.layout-hero,
-.layout-toolbar,
-.layout-kpis,
-.warehouse-shell,
-.layout-detail-card {
+.layout3d-hero,
+.layout3d-toolbar,
+.layout3d-kpis,
+.layout3d-stage-card,
+.layout3d-detail {
   border: 1px solid #dfe8f5;
   background: linear-gradient(180deg, #ffffff, #f8fbff);
   box-shadow: 0 18px 44px rgba(17, 24, 39, .07);
 }
 
-.layout-hero {
+.layout3d-hero {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   gap: 18px;
   padding: 20px 22px;
   border-radius: 20px;
 }
 
-.layout-kicker {
+.layout3d-kicker {
   color: ${WMS_PURPLE};
   font-size: 11px;
   font-weight: 950;
@@ -492,50 +688,44 @@ const layoutStyles = `
   text-transform: uppercase;
 }
 
-.layout-hero h1 {
-  margin: 6px 0 6px;
+.layout3d-hero h1 {
+  margin: 6px 0;
   font-size: 34px;
   line-height: 1;
-  letter-spacing: 0;
 }
 
-.layout-hero p,
-.layout-detail-card p {
+.layout3d-hero p,
+.layout3d-detail p {
   margin: 0;
   color: #5f6f8a;
   font-weight: 650;
 }
 
-.layout-refresh,
-.layout-view-controls button,
-.layout-select,
-.layout-search {
-  border: 1px solid #d8e3f2;
-  background: #fff;
-  color: #17213b;
-  border-radius: 14px;
-}
-
-.layout-refresh,
-.layout-view-controls button {
+.layout3d-primary,
+.layout3d-views button {
   min-height: 42px;
+  border: 1px solid #d8e3f2;
+  border-radius: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   padding: 0 14px;
+  background: #fff;
+  color: #17213b;
   font-weight: 900;
   cursor: pointer;
 }
 
-.layout-refresh {
+.layout3d-primary,
+.layout3d-views button.active {
   color: #fff;
-  border: 0;
+  border-color: transparent;
   background: linear-gradient(135deg, #4c1d95, ${WMS_PURPLE});
   box-shadow: 0 18px 32px rgba(109, 40, 217, .22);
 }
 
-.layout-error {
+.layout3d-error {
   padding: 14px 16px;
   border: 1px solid #fecaca;
   border-radius: 14px;
@@ -544,24 +734,26 @@ const layoutStyles = `
   font-weight: 800;
 }
 
-.layout-toolbar {
+.layout3d-toolbar {
   display: grid;
-  grid-template-columns: 190px minmax(260px, 1fr) auto;
+  grid-template-columns: 190px minmax(280px, 1fr) auto;
   gap: 12px;
   padding: 14px;
   border-radius: 18px;
 }
 
-.layout-select,
-.layout-search {
+.layout3d-toolbar label {
   min-height: 48px;
+  border: 1px solid #d8e3f2;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 0 14px;
+  background: #fff;
 }
 
-.layout-select span {
+.layout3d-toolbar label span {
   color: #697891;
   font-size: 11px;
   font-weight: 950;
@@ -569,30 +761,28 @@ const layoutStyles = `
   text-transform: uppercase;
 }
 
-.layout-select select,
-.layout-search input {
+.layout3d-toolbar select,
+.layout3d-toolbar input {
   width: 100%;
   border: 0;
   outline: 0;
-  color: #17213b;
   background: transparent;
+  color: #17213b;
   font-weight: 850;
 }
 
-.layout-view-controls {
+.layout3d-search {
+  color: #64748b;
+}
+
+.layout3d-views {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 
-.layout-view-controls button.active {
-  color: #fff;
-  border-color: ${WMS_PURPLE};
-  background: linear-gradient(135deg, #4c1d95, #7c3aed);
-}
-
-.layout-kpis {
+.layout3d-kpis {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 1px;
@@ -600,7 +790,7 @@ const layoutStyles = `
   border-radius: 18px;
 }
 
-.layout-kpi {
+.layout3d-kpi {
   min-height: 92px;
   display: grid;
   align-content: center;
@@ -609,7 +799,7 @@ const layoutStyles = `
   background: #fff;
 }
 
-.layout-kpi > span {
+.layout3d-kpi > span {
   width: 38px;
   height: 38px;
   display: grid;
@@ -619,23 +809,23 @@ const layoutStyles = `
   background: #f1edff;
 }
 
-.layout-kpi small {
+.layout3d-kpi small {
   color: #687792;
   font-size: 12px;
   font-weight: 850;
 }
 
-.layout-kpi strong {
+.layout3d-kpi strong {
   font-size: 27px;
   line-height: 1;
 }
 
-.warehouse-shell {
+.layout3d-stage-card {
   overflow: hidden;
   border-radius: 22px;
 }
 
-.warehouse-head {
+.layout3d-stage-head {
   display: flex;
   justify-content: space-between;
   gap: 14px;
@@ -643,402 +833,105 @@ const layoutStyles = `
   border-bottom: 1px solid #dfe8f5;
 }
 
-.warehouse-head span {
-  color: ${WMS_PURPLE};
-  font-size: 11px;
-  font-weight: 950;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
-
-.warehouse-head h2 {
+.layout3d-stage-head h2 {
   margin: 5px 0 0;
   font-size: 24px;
 }
 
-.warehouse-legend {
+.layout3d-legend {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
-  justify-content: flex-end;
 }
 
-.warehouse-legend span {
+.layout3d-legend span {
   color: #66758e;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  letter-spacing: 0;
-  text-transform: none;
+  font-weight: 850;
 }
 
-.warehouse-legend i {
+.layout3d-legend i {
   width: 12px;
   height: 12px;
   border-radius: 4px;
   display: inline-block;
 }
 
-.legend-empty { background: #e6edf7; }
-.legend-low { background: #ef4444; }
-.legend-mid { background: #f59e0b; }
-.legend-good { background: #22c55e; }
-.legend-full { background: #2563eb; }
-.legend-selected { background: #d946ef; }
+.layout3d-legend .empty { background: #e8eef8; }
+.layout3d-legend .low { background: #ef4444; }
+.layout3d-legend .mid { background: #f59e0b; }
+.layout3d-legend .good { background: #22c55e; }
+.layout3d-legend .full { background: #2563eb; }
+.layout3d-legend .selected { background: #d946ef; }
 
-.warehouse-viewport {
-  height: min(68vh, 720px);
-  min-height: 560px;
-  overflow: auto;
-  background:
-    radial-gradient(circle at 78% 12%, rgba(124, 58, 237, .22), transparent 28%),
-    radial-gradient(circle at 12% 72%, rgba(14, 165, 233, .14), transparent 30%),
-    linear-gradient(180deg, #f7fbff 0%, #eaf2fb 100%);
-  cursor: grab;
-  perspective: 1400px;
-}
-
-.warehouse-viewport.is-dragging {
-  cursor: grabbing;
-}
-
-.warehouse-scene {
-  min-width: 1460px;
-  min-height: 660px;
-  padding: 80px 80px 40px;
-  transform-style: preserve-3d;
-}
-
-.warehouse-floor {
+.layout3d-canvas-wrap {
   position: relative;
-  width: 1320px;
-  height: 520px;
-  margin: 0 auto;
-  border-radius: 28px;
-  background:
-    linear-gradient(135deg, rgba(255,255,255,.78), rgba(239,245,255,.88)),
-    linear-gradient(90deg, rgba(148,163,184,.2) 1px, transparent 1px),
-    linear-gradient(0deg, rgba(148,163,184,.2) 1px, transparent 1px);
-  background-size: auto, 64px 64px, 64px 64px;
-  border: 1px solid rgba(203, 213, 225, .86);
-  box-shadow:
-    0 44px 70px rgba(15, 23, 42, .16),
-    inset 0 0 0 1px rgba(255,255,255,.62);
-  transform:
-    scale(var(--zoom))
-    rotateX(var(--rx))
-    rotateZ(var(--rz));
-  transform-origin: center center;
-  transform-style: preserve-3d;
-  transition: transform .18s ease;
+  height: min(72vh, 760px);
+  min-height: 620px;
+  background: radial-gradient(circle at 80% 15%, rgba(109,40,217,.13), transparent 30%), linear-gradient(180deg, #f6f8fc, #edf3fb);
 }
 
-.floor-grid {
-  position: absolute;
-  inset: 18px;
-  border-radius: 22px;
-  border: 1px dashed rgba(109, 40, 217, .18);
+.layout3d-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
-.receiving-zone {
+.layout3d-loading {
   position: absolute;
-  left: 38px;
-  bottom: 34px;
-  width: 180px;
-  height: 92px;
+  inset: 24px;
+  z-index: 2;
   display: grid;
-  align-content: center;
-  justify-items: center;
-  gap: 4px;
-  color: #17213b;
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(240,245,255,.9));
-  border: 1px solid rgba(203, 213, 225, .9);
-  box-shadow: 0 18px 28px rgba(15, 23, 42, .10);
-  transform: translateZ(18px);
-}
-
-.receiving-zone svg {
+  place-items: center;
+  border: 1px dashed rgba(109, 40, 217, .35);
+  border-radius: 20px;
+  background: rgba(255,255,255,.62);
   color: ${WMS_PURPLE};
-}
-
-.receiving-zone b {
-  font-size: 13px;
-}
-
-.receiving-zone small {
-  color: #66758e;
-  font-weight: 750;
-}
-
-.agv-route {
-  position: absolute;
-  height: 5px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent, rgba(14, 165, 233, .72), transparent);
-  transform: translateZ(9px);
-}
-
-.route-a {
-  left: 250px;
-  right: 120px;
-  top: 250px;
-}
-
-.route-b {
-  width: 500px;
-  left: 600px;
-  top: 350px;
-  transform: translateZ(9px) rotate(90deg);
-  transform-origin: left center;
-}
-
-.agv-dot {
-  position: absolute;
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  background: radial-gradient(circle, #fff 0 20%, #22d3ee 22% 55%, #0891b2 56%);
-  box-shadow: 0 0 0 7px rgba(34, 211, 238, .15), 0 14px 20px rgba(8, 145, 178, .22);
-  transform: translateZ(22px);
-}
-
-.dot-a { left: 420px; top: 241px; }
-.dot-b { left: 900px; top: 341px; }
-
-.rack-banks {
-  position: absolute;
-  inset: 58px 250px 80px 250px;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) 72px minmax(0, 1fr);
-  gap: 18px;
-  transform-style: preserve-3d;
-}
-
-.rack-bank {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(12, 76px);
-  gap: 12px;
-  align-content: center;
-  transform-style: preserve-3d;
-}
-
-.rack-bank.is-mirrored {
-  align-content: start;
-}
-
-.rack-bank-label {
-  position: absolute;
-  left: -86px;
-  top: 50%;
-  transform: translateY(-50%) translateZ(18px);
-  color: #4c1d95;
   font-weight: 950;
-  letter-spacing: .1em;
-  text-transform: uppercase;
+  pointer-events: none;
 }
 
-.central-aisle {
-  position: relative;
-  border-radius: 18px;
-  background:
-    repeating-linear-gradient(90deg, rgba(255,255,255,.8) 0 28px, rgba(191,219,254,.7) 28px 56px),
-    linear-gradient(180deg, rgba(125, 211, 252, .35), rgba(59, 130, 246, .24));
-  border: 1px solid rgba(96, 165, 250, .38);
-  box-shadow: inset 0 0 28px rgba(14, 165, 233, .18);
-  transform: translateZ(6px);
-}
-
-.central-aisle span {
-  position: absolute;
-  right: 22px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #1d4ed8;
-  font-size: 13px;
-  font-weight: 950;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-
-.rack-module {
-  position: relative;
-  height: 142px;
-  transform-style: preserve-3d;
-}
-
-.rack-frame {
-  position: relative;
-  height: 116px;
-  border-radius: 10px;
-  transform-style: preserve-3d;
-  background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(240,245,255,.78));
-  border: 1px solid rgba(203, 213, 225, .85);
-  box-shadow: 0 18px 24px rgba(15, 23, 42, .10);
-}
-
-.rack-frame::after {
-  content: "";
-  position: absolute;
-  inset: auto 6px -10px 6px;
-  height: 18px;
-  border-radius: 50%;
-  background: rgba(15, 23, 42, .15);
-  filter: blur(8px);
-}
-
-.rack-post {
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  width: 5px;
-  border-radius: 5px;
-  background: linear-gradient(180deg, #06111f, #172554);
-  z-index: 4;
-}
-
-.post-left { left: 6px; }
-.post-right { right: 6px; }
-
-.rack-beam {
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  height: 5px;
-  border-radius: 5px;
-  background: linear-gradient(90deg, #fb923c, #f97316);
-  z-index: 5;
-}
-
-.beam-top { top: 10px; }
-.beam-bottom { bottom: 10px; }
-
-.module-slots {
-  position: absolute;
-  inset: 18px 13px 17px;
-  display: grid;
-  grid-template-columns: repeat(var(--depths), minmax(0, 1fr));
-  grid-template-rows: repeat(var(--levels), minmax(0, 1fr));
-  gap: 3px;
-  z-index: 6;
-}
-
-.slot-cube,
-.slot-placeholder {
-  min-width: 0;
-  min-height: 0;
-  border-radius: 4px;
-}
-
-.slot-cube {
-  border: 1px solid rgba(100, 116, 139, .32);
-  color: #0f172a;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  font-size: 10px;
-  font-weight: 950;
-  cursor: pointer;
-  box-shadow:
-    inset -2px -3px 4px rgba(15, 23, 42, .16),
-    inset 2px 2px 3px rgba(255,255,255,.85),
-    0 5px 8px rgba(15, 23, 42, .08);
-  transition: transform .14s ease, box-shadow .14s ease, filter .14s ease;
-}
-
-.slot-cube:hover,
-.slot-cube.is-active {
-  transform: translateZ(22px) scale(1.18);
-  box-shadow: 0 18px 24px rgba(109, 40, 217, .25), inset 0 0 0 1px rgba(255,255,255,.7);
-  filter: saturate(1.15);
-  z-index: 20;
-}
-
-.slot-cube.is-active {
-  color: #fff;
-  border-color: #d946ef;
-  background: linear-gradient(135deg, #a21caf, #d946ef) !important;
-}
-
-.tone-empty { background: linear-gradient(135deg, #f8fafc, #dbe4f0); }
-.tone-low { color: #fff; background: linear-gradient(135deg, #991b1b, #ef4444); }
-.tone-mid { background: linear-gradient(135deg, #f59e0b, #facc15); }
-.tone-good { color: #fff; background: linear-gradient(135deg, #047857, #22c55e); }
-.tone-full { color: #fff; background: linear-gradient(135deg, #1d4ed8, #60a5fa); }
-
-.rack-module > strong,
-.rack-module > small {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%) translateZ(16px);
-  white-space: nowrap;
-}
-
-.rack-module > strong {
-  bottom: 8px;
-  font-size: 11px;
-  color: #111827;
-}
-
-.rack-module > small {
-  bottom: -8px;
-  color: #6b7280;
-  font-size: 9px;
-  font-weight: 800;
-}
-
-.layout-empty-state {
-  position: absolute;
-  inset: 120px 260px;
-  display: grid;
-  place-items: center;
-  color: #4c1d95;
-  border: 1px dashed rgba(109, 40, 217, .36);
-  border-radius: 24px;
-  background: rgba(255,255,255,.72);
-  font-weight: 950;
-  transform: translateZ(30px);
-}
-
-.layout-detail-grid {
+.layout3d-detail-grid {
   display: grid;
   grid-template-columns: 1.2fr .8fr;
   gap: 14px;
 }
 
-.layout-detail-card {
+.layout3d-detail {
   min-height: 160px;
   padding: 20px;
   border-radius: 18px;
 }
 
-.layout-detail-card h3 {
+.layout3d-detail h3 {
   margin: 8px 0 14px;
   font-size: 24px;
 }
 
-.detail-list {
+.layout3d-detail-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
-.detail-row {
+.layout3d-detail-row {
   padding: 12px;
   border-radius: 12px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
 }
 
-.detail-row span,
-.detail-row strong {
+.layout3d-detail-row span,
+.layout3d-detail-row strong {
   display: block;
 }
 
-.detail-row span {
+.layout3d-detail-row span {
   color: #64748b;
   font-size: 11px;
   font-weight: 900;
@@ -1046,43 +939,35 @@ const layoutStyles = `
   text-transform: uppercase;
 }
 
-.detail-row strong {
+.layout3d-detail-row strong {
   margin-top: 5px;
   color: #17213b;
   font-size: 15px;
 }
 
-@media (max-width: 1400px) {
-  .layout-toolbar {
+@media (max-width: 1200px) {
+  .layout3d-toolbar {
     grid-template-columns: 180px minmax(220px, 1fr);
   }
-
-  .layout-view-controls {
+  .layout3d-views {
     grid-column: 1 / -1;
     justify-content: flex-start;
   }
 }
 
-@media (max-width: 900px) {
-  .layout-hero,
-  .warehouse-head {
-    align-items: stretch;
+@media (max-width: 820px) {
+  .layout3d-hero,
+  .layout3d-stage-head {
     flex-direction: column;
+    align-items: stretch;
   }
-
-  .layout-toolbar,
-  .layout-kpis,
-  .layout-detail-grid,
-  .detail-list {
+  .layout3d-toolbar,
+  .layout3d-kpis,
+  .layout3d-detail-grid,
+  .layout3d-detail-list {
     grid-template-columns: 1fr;
   }
-
-  .layout-view-controls button,
-  .layout-refresh {
-    flex: 1 1 130px;
-  }
-
-  .warehouse-viewport {
+  .layout3d-canvas-wrap {
     min-height: 520px;
   }
 }
