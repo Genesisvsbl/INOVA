@@ -25,8 +25,21 @@ const LEVELS = 6;
 const FRONT_POSITIONS = 2;
 const DEPTHS = 2;
 const SLOT_CAPACITY = RACKS * MODULES_PER_RACK * LEVELS * FRONT_POSITIONS * DEPTHS;
-const RACK_ROW_Z = [-6.58, -1.3, 1.13, 6.41];
-const AISLE_Z = [-3.94, 3.77];
+const POSITION_WIDTH = 1.15;
+const DEPTH_WIDTH = 1;
+const LEVEL_HEIGHT = 0.85;
+const POSITION_STEP = 1.3;
+const MODULE_WIDTH = FRONT_POSITIONS * POSITION_STEP;
+const AISLE_WIDTH = 3.2;
+const CENTRAL_RACK_GAP = 0.35;
+const RACK_DEPTH = DEPTHS * DEPTH_WIDTH + 0.35;
+const BASE_Y = 0.25;
+const TOTAL_X = MODULES_PER_RACK * MODULE_WIDTH;
+const TOTAL_Z = 4 * RACK_DEPTH + 2 * AISLE_WIDTH + CENTRAL_RACK_GAP;
+const CENTER_X = TOTAL_X / 2;
+const CENTER_Z = TOTAL_Z / 2;
+const RACK_ROW_Z = [-6.725, -1.175, 1.175, 6.725];
+const AISLE_Z = [-3.95, 3.95];
 function normalize(value) {
   return String(value || "")
     .normalize("NFD")
@@ -366,7 +379,7 @@ export default function LayoutZona() {
     controls.dampingFactor = 0.07;
     controls.minDistance = 18;
     controls.maxDistance = 90;
-    controls.target.set(8, 2.5, 0);
+    controls.target.set(0, 2.8, 0);
 
     const ambient = new THREE.HemisphereLight(0xffffff, 0x52617b, 2.6);
     scene.add(ambient);
@@ -398,13 +411,13 @@ export default function LayoutZona() {
       zoneBlue: createMaterial(0x38bdf8, { opacity: 0.24, roughness: 0.3 }),
     };
 
-    const floor = addBox(scene, [62, 0.45, 36], [4, -0.28, 0], mats.floor, "Piso operativo");
+    const floor = addBox(scene, [TOTAL_X + 20, 0.45, TOTAL_Z + 10], [0, -0.28, 0], mats.floor, "Piso operativo");
     floor.receiveShadow = true;
 
     addBox(scene, [16, 0.08, 4.4], [-20, 0.01, 12], mats.dock, "Outbound Area");
     addBox(scene, [14, 0.08, 4.4], [-20, 0.02, -12], mats.dock, "Inbound Cache");
-    addBox(scene, [48, 0.06, 3.2], [7, 0.05, AISLE_Z[0]], mats.aisle, "Pasillo operativo 1 - Rack 1 / Rack 2");
-    addBox(scene, [48, 0.06, 3.2], [7, 0.05, AISLE_Z[1]], mats.aisle, "Pasillo operativo 2 - Rack 3 / Rack 4");
+    addBox(scene, [TOTAL_X + 1.2, 0.06, AISLE_WIDTH], [0, 0.05, AISLE_Z[0]], mats.aisle, "Pasillo operativo 1 - Rack 1 / Rack 2");
+    addBox(scene, [TOTAL_X + 1.2, 0.06, AISLE_WIDTH], [0, 0.05, AISLE_Z[1]], mats.aisle, "Pasillo operativo 2 - Rack 3 / Rack 4");
     addBox(scene, [2.2, 0.07, 28], [13, 0.08, 0], mats.aisle, "AGV Turned on the Ground Floor");
     addBox(scene, [9, 0.1, 10], [22, 0.1, 8], mats.zoneBlue, "Cold Storage Area");
 
@@ -446,14 +459,14 @@ export default function LayoutZona() {
 
     function setCamera(nextView) {
       if (nextView === "top") {
-        camera.position.set(1, 58, 0.5);
-        controls.target.set(6, 0, 0);
+        camera.position.set(0, 44, 0.1);
+        controls.target.set(0, 0, 0);
       } else if (nextView === "front") {
-        camera.position.set(4, 18, 42);
-        controls.target.set(5, 3.4, 0);
+        camera.position.set(0, 8.5, 18);
+        controls.target.set(0, 2.6, 0);
       } else {
-        camera.position.set(-28, 26, 32);
-        controls.target.set(6, 3.2, 0);
+        camera.position.set(-19, 17, 22);
+        controls.target.set(0, 2.8, 0);
       }
       controls.update();
     }
@@ -661,104 +674,111 @@ function createRobotArm(scene, position, material) {
   scene.add(group);
 }
 
+function rackZStart(rack) {
+  if (rack === 1) return -CENTER_Z;
+  if (rack === 2) return -CENTER_Z + RACK_DEPTH + AISLE_WIDTH;
+  if (rack === 3) return -CENTER_Z + RACK_DEPTH + AISLE_WIDTH + RACK_DEPTH + CENTRAL_RACK_GAP;
+  return -CENTER_Z + RACK_DEPTH + AISLE_WIDTH + RACK_DEPTH + CENTRAL_RACK_GAP + RACK_DEPTH + AISLE_WIDTH;
+}
+
+function moduleXStart(moduleIndex) {
+  return (moduleIndex - 1) * MODULE_WIDTH - CENTER_X;
+}
+
+function slotCenter(rack, moduleIndex, level, position, depth) {
+  const x0 = moduleXStart(moduleIndex) + (position - 1) * POSITION_STEP;
+  const z0 = rackZStart(rack) + (depth - 1) * DEPTH_WIDTH;
+  return [
+    x0 + POSITION_WIDTH / 2,
+    BASE_Y + (level - 1) * LEVEL_HEIGHT + LEVEL_HEIGHT / 2,
+    z0 + DEPTH_WIDTH / 2,
+  ];
+}
+
 function createRackCity(scene, allCells, filteredCells, selected, setSelected, maxStock, meshMap, mats, showAllStructure) {
   const filteredKeys = new Set(filteredCells.map((cell) => cell.code));
   const visibleCells = showAllStructure ? allCells : filteredCells;
   const rows = [[], [], [], []];
   visibleCells.forEach((cell) => rows[Math.max(0, Math.min(3, (cell.rack || 1) - 1))].push(cell));
-  const rowZ = RACK_ROW_Z;
-  const rowNames = ["Rack 1", "Rack 2", "Rack 3", "Rack 4"];
 
-  rows.forEach((rackCells, rowIndex) => {
-    if (!rackCells.length) return;
-    addText(scene, rowNames[rowIndex], [-8.2, 5.35, rowZ[rowIndex]], "#172554", 40);
+  for (let rack = 1; rack <= RACKS; rack += 1) {
+    const rackCells = rows[rack - 1];
+    if (!rackCells.length && !showAllStructure) continue;
+    const zCenter = rackZStart(rack) + RACK_DEPTH / 2;
+    addText(scene, `Rack ${rack}`, [-CENTER_X - 1.2, 0.5, zCenter], "#0b1f4d", 38);
     for (let moduleIndex = 1; moduleIndex <= MODULES_PER_RACK; moduleIndex += 1) {
       const moduleCells = rackCells.filter((cell) => Number(cell.moduleInRack) === moduleIndex);
-      createRackModule(scene, moduleCells, moduleIndex, rowIndex, rowZ[rowIndex], selected, setSelected, maxStock, meshMap, mats, filteredKeys, showAllStructure);
+      createRackModule(scene, moduleCells, rack, moduleIndex, selected, setSelected, maxStock, meshMap, mats, filteredKeys, showAllStructure, filteredCells.length);
     }
-  });
+  }
 }
 
-function createRackModule(scene, moduleCells, moduleIndex, rowIndex, z, selected, setSelected, maxStock, meshMap, mats, filteredKeys, showAllStructure) {
-  const x = -10.8 + (moduleIndex - 1) * 2.72;
-  const width = 2.15;
-  const height = LEVELS * 0.72 + 0.45;
-  const depthSize = DEPTHS * 0.72 + 0.64;
-  const moduleGroup = new THREE.Group();
-  moduleGroup.position.set(x, 0, z);
-  moduleGroup.rotation.y = rowIndex < 2 ? 0 : Math.PI;
-  scene.add(moduleGroup);
+function createRackModule(scene, moduleCells, rack, moduleIndex, selected, setSelected, maxStock, meshMap, mats, filteredKeys, showAllStructure, visibleCount) {
+  const x0 = moduleXStart(moduleIndex);
+  const x1 = x0 + MODULE_WIDTH;
+  const xMid = x0 + POSITION_STEP;
+  const zFront = rackZStart(rack);
+  const zMid = zFront + DEPTH_WIDTH;
+  const zBack = zFront + RACK_DEPTH;
+  const height = BASE_Y + LEVELS * LEVEL_HEIGHT + 0.55;
 
-  const postPositions = [
-    [-width / 2, height / 2, -depthSize / 2],
-    [width / 2, height / 2, -depthSize / 2],
-    [-width / 2, height / 2, depthSize / 2],
-    [width / 2, height / 2, depthSize / 2],
-  ];
-  postPositions.forEach((pos) => {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.09, height, 0.09), mats.post);
-    post.position.set(...pos);
-    post.castShadow = true;
-    moduleGroup.add(post);
+  [x0, xMid, x1].forEach((x) => {
+    [zFront, zMid, zBack].forEach((z) => {
+      const post = addBox(scene, [0.09, height, 0.09], [x, height / 2, z], mats.post, `Poste R${rack} M${moduleIndex}`);
+      post.castShadow = true;
+    });
   });
 
-  for (let level = 0; level <= LEVELS; level += 1) {
-    const y = 0.2 + level * 0.72;
-    [-depthSize / 2, 0, depthSize / 2].forEach((dz) => {
-      const beam = new THREE.Mesh(new THREE.BoxGeometry(width + 0.28, 0.075, 0.075), mats.beam);
-      beam.position.set(0, y, dz);
-      beam.castShadow = true;
-      moduleGroup.add(beam);
+  [x0, x1].forEach((x) => {
+    [zFront, zBack].forEach((z) => {
+      addBox(scene, [0.26, 0.2, 0.26], [x, 0.04, z], createMaterial(0xffea00, { roughness: 0.35 }), `Protector R${rack} M${moduleIndex}`);
     });
-    [-width / 2, width / 2].forEach((dx) => {
-      const sideBeam = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.075, depthSize + 0.18), mats.beam);
-      sideBeam.position.set(dx, y, 0);
-      sideBeam.castShadow = true;
-      moduleGroup.add(sideBeam);
+  });
+
+  for (let level = 1; level <= LEVELS; level += 1) {
+    const y = BASE_Y + level * LEVEL_HEIGHT;
+    [zFront, zMid, zBack].forEach((z) => {
+      addBox(scene, [MODULE_WIDTH, 0.07, 0.08], [x0 + MODULE_WIDTH / 2, y, z], mats.beam, `Viga longitudinal R${rack} M${moduleIndex} N${level}`);
+    });
+    [x0, xMid, x1].forEach((x) => {
+      addBox(scene, [0.07, 0.065, RACK_DEPTH], [x, y, zFront + RACK_DEPTH / 2], mats.beam, `Viga transversal R${rack} M${moduleIndex} N${level}`);
     });
   }
 
-  [-width / 2, width / 2].forEach((dx) => {
-    [-depthSize / 2, depthSize / 2].forEach((dz) => {
-      const foot = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.18, 0.34), createMaterial(0xffea00, { roughness: 0.35 }));
-      foot.position.set(dx, -0.02, dz);
-      foot.castShadow = true;
-      moduleGroup.add(foot);
-    });
-  });
+  if (moduleIndex % 2 === 1) {
+    createRackDiagonal(scene, [x0, BASE_Y, zFront - 0.03], [x1, height - 0.3, zFront - 0.03], mats.post);
+    createRackDiagonal(scene, [x1, BASE_Y, zBack + 0.03], [x0, height - 0.3, zBack + 0.03], mats.post);
+  }
 
-  addModuleLabel(moduleGroup, `M${moduleIndex}`, [0, -0.32, depthSize / 2 + 0.75]);
+  if (rack === 1) {
+    addText(scene, `M${moduleIndex}`, [x0 + MODULE_WIDTH / 2, 0.42, zFront - 0.9], "#111827", 32);
+  }
 
   const cellMap = new Map(moduleCells.map((cell) => [`${cell.physicalLevel}-${cell.physicalDepth}-${cell.physicalPosition}`, cell]));
   for (let level = 1; level <= LEVELS; level += 1) {
     for (let depth = 1; depth <= DEPTHS; depth += 1) {
       for (let position = 1; position <= FRONT_POSITIONS; position += 1) {
         const cell = cellMap.get(`${level}-${depth}-${position}`);
-        const xPos = position === 1 ? -0.42 : 0.42;
-        const y = 0.55 + (level - 1) * 0.72;
-        const dz = -depthSize / 2 + 0.44 + (depth - 1) * 0.72;
+        const [x, y, z] = slotCenter(rack, moduleIndex, level, position, depth);
         const isFiltered = cell ? filteredKeys.has(cell.code) : false;
         const isActive = selected?.code && cell?.code === selected.code;
         const hiddenByFilter = showAllStructure && cell && !isFiltered;
-        const emptyMaterial = createMaterial(0xe5e7eb, { opacity: hiddenByFilter ? 0.12 : 0.22, roughness: 0.62 });
         const mat = isActive
           ? mats.selected
           : cell
-            ? createMaterial(stockColor(cell, maxStock), { opacity: hiddenByFilter ? 0.16 : cell.stock > 0 ? 0.86 : 0.32, roughness: 0.5 })
-            : emptyMaterial;
-        const slot = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.46, 0.56), mat);
-        slot.position.set(xPos, y, dz);
-        slot.castShadow = !hiddenByFilter;
-        slot.receiveShadow = true;
-        moduleGroup.add(slot);
+            ? createMaterial(stockColor(cell, maxStock), { opacity: hiddenByFilter ? 0.1 : cell.stock > 0 ? 0.88 : 0.22, roughness: 0.55 })
+            : createMaterial(0xd1d5db, { opacity: 0.18, roughness: 0.62 });
+        const slot = addBox(scene, [POSITION_WIDTH * 0.86, LEVEL_HEIGHT * 0.72, DEPTH_WIDTH * 0.82], [x, y, z], mat, cell?.code || `R${rack}-M${moduleIndex}-P${position}-N${level}-D${depth}`);
+        slot.castShadow = Boolean(cell) && !hiddenByFilter;
 
         if (cell) {
           meshMap.set(slot, cell);
-          if ((isFiltered || isActive) && level % 2 === 0) {
-            const label = createTextSprite(cell.code, "#111827", 46);
-            label.scale.set(1.12, 0.34, 1);
-            label.position.set(xPos, y + 0.28, dz + 0.34);
-            moduleGroup.add(label);
+          const shouldLabel = visibleCount <= 900 && (isFiltered || isActive || !showAllStructure);
+          if (shouldLabel) {
+            const label = createTextSprite(cell.code, "#111827", 36);
+            label.scale.set(0.92, 0.28, 1);
+            label.position.set(x, y + 0.32, z + 0.02);
+            scene.add(label);
           }
         }
       }
@@ -766,6 +786,17 @@ function createRackModule(scene, moduleCells, moduleIndex, rowIndex, z, selected
   }
 }
 
+function createRackDiagonal(scene, start, end, material) {
+  const startVec = new THREE.Vector3(...start);
+  const endVec = new THREE.Vector3(...end);
+  const delta = new THREE.Vector3().subVectors(endVec, startVec);
+  const length = delta.length();
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, length, 8), material);
+  mesh.position.copy(startVec).add(endVec).multiplyScalar(0.5);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
+  mesh.castShadow = true;
+  scene.add(mesh);
+}
 function addModuleLabel(group, text, position) {
   const sprite = createTextSprite(text, "#111827", 58);
   sprite.scale.set(1.6, 0.5, 1);
@@ -1250,6 +1281,10 @@ const layoutStyles = `
   }
 }
 `;
+
+
+
+
 
 
 
