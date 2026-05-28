@@ -1248,20 +1248,20 @@ button { -webkit-tap-highlight-color: transparent; }
   flex: 0 0 var(--topbar-height);
 }
 .compact-login-topbar { justify-content: flex-start; }
-.landing-login-topbar { padding-top: 36px; }
+.login-topbar.landing-login-topbar { padding-top: 34px; }
 
 .brand { display: flex; align-items: center; gap: 0; min-width: 0; }
 .brand-single { gap: 0; }
 .brand-logo {
-  width: clamp(135px, 10vw, 190px);
-  height: clamp(34px, 3vw, 52px);
+  width: clamp(118px, 8.5vw, 165px);
+  height: clamp(30px, 2.5vw, 44px);
   object-fit: contain;
   object-position: center;
   display: block;
   image-rendering: auto;
   filter: drop-shadow(0 10px 24px rgba(0,0,0,.32));
 }
-.brand-logo-wide { width: clamp(135px, 10vw, 190px); height: clamp(34px, 3vw, 52px); }
+.brand-logo-wide { width: clamp(118px, 8.5vw, 165px); height: clamp(30px, 2.5vw, 44px); }
 
 .icon-button {
   width: 42px;
@@ -1725,9 +1725,10 @@ button { -webkit-tap-highlight-color: transparent; }
 @media (max-height: 830px) and (min-width: 1281px) {
   :root { --topbar-height: 104px; }
   .login-topbar { padding-top: 12px; }
+  .login-topbar.landing-login-topbar { padding-top: 34px; }
   .landing-view { padding-top: 6px; padding-bottom: 18px; }
   .landing-head { margin-top: 0; margin-bottom: 12px; gap: 6px; }
-  .brand-logo { height: 48px; width: 178px; }
+  .brand-logo { height: 42px; width: 155px; }
   .landing-card { grid-template-rows: minmax(190px, 39%) auto 64px; }
   .landing-card-content { padding-top: 20px; }
   .landing-title-row h2 { font-size: 66px; }
@@ -1771,7 +1772,8 @@ button { -webkit-tap-highlight-color: transparent; }
   :root { --topbar-height: 92px; }
   .login-topbar { width: min(100% - 24px, 680px); padding-top: 12px; }
   .mobile-only { display: grid; }
-  .brand-logo { width: min(48vw, 210px); height: 52px; }
+  .brand-logo { width: min(42vw, 180px); height: 46px; }
+  .login-topbar.landing-login-topbar { padding-top: 28px; }
   .landing-view { padding-top: 16px; }
   .landing-head { margin-top: 0; }
   .landing-head p { font-size: 14px; }

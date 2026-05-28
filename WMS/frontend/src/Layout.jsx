@@ -596,9 +596,9 @@ button { -webkit-tap-highlight-color: transparent; }
 .brand-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
-  height: 52px;
+  height: 44px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -606,8 +606,8 @@ button { -webkit-tap-highlight-color: transparent; }
   overflow: hidden;
 }
 .brand-header img {
-  width: 158px;
-  height: 46px;
+  width: 118px;
+  height: 34px;
   object-fit: contain;
   object-position: left center;
   flex: 0 1 auto;
@@ -749,8 +749,8 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .sidebar.collapsed .sidebar-top { width: 54px; min-height: 54px; border-radius: 18px; }
 .sidebar-logo-mini {
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
   border-radius: 12px;
   background: linear-gradient(135deg, #312064, #4f32b8);
@@ -771,8 +771,8 @@ button { -webkit-tap-highlight-color: transparent; }
   overflow: hidden;
 }
 .brand-sidebar img {
-  width: 118px;
-  height: 38px;
+  width: 92px;
+  height: 30px;
   object-fit: contain;
   object-position: left center;
   flex: 1 1 auto;

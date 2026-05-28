@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import API from "./api";
 import {
   Activity,
@@ -33,12 +33,12 @@ import DashboardView from "./modules/dashboard/DashboardView";
 import AdminAccess from "../admin/AdminAccess";
 
 const TABS = [
-  { key: "portal", label: "Portal" },
-  { key: "processes", label: "Procesos" },
-  { key: "indicators", label: "Indicadores" },
-  { key: "daily", label: "Captura diaria" },
-  { key: "history", label: "Historico" },
-  { key: "dashboard", label: "Dashboard" },
+  { key: "portal", label: "Portal", permission: "eto.portal" },
+  { key: "processes", label: "Procesos", permission: "eto.processes" },
+  { key: "indicators", label: "Indicadores", permission: "eto.indicators" },
+  { key: "daily", label: "Captura diaria", permission: "eto.daily" },
+  { key: "history", label: "Historico", permission: "eto.history" },
+  { key: "dashboard", label: "Dashboard", permission: "eto.dashboard" },
 ];
 
 const ACCESS_CODES = {
@@ -115,6 +115,18 @@ const TAB_ICONS = {
   history: FileText,
   dashboard: BarChart3,
 };
+
+function readSessionPermissions() {
+  try {
+    return JSON.parse(sessionStorage.getItem("permisos") || "[]") || [];
+  } catch {
+    return [];
+  }
+}
+
+function canAccessEtoTab(tab, permisos) {
+  return !tab.permission || permisos.includes(tab.permission);
+}
 
 const EMPTY_PROCESS_FORM = {
   name: "",
@@ -493,7 +505,7 @@ export default function App() {
   const viewportWidth = useViewport();
   const config = useMemo(() => getConfig(viewportWidth), [viewportWidth]);
 
-  const [tab, setTab] = useState("portal");
+  const [tab, setTab] = useState(() => readSessionPermissions().includes("eto.portal") ? "portal" : "dashboard");
   const [sidebarPinned, setSidebarPinned] = useState(false);
   const [sidebarHover, setSidebarHover] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -1107,7 +1119,19 @@ export default function App() {
     }
   }
 
-  const activeTabLabel = TABS.find((x) => x.key === tab)?.label || "Portal";
+  const permisos = readSessionPermissions();
+  const availableTabs = useMemo(
+    () => TABS.filter((item) => canAccessEtoTab(item, permisos)),
+    [permisos.join("|")]
+  );
+
+  useEffect(() => {
+    if (!availableTabs.some((item) => item.key === tab)) {
+      setTab(availableTabs[0]?.key || "dashboard");
+    }
+  }, [availableTabs, tab]);
+
+  const activeTabLabel = availableTabs.find((x) => x.key === tab)?.label || "Dashboard";
   const sidebarExpanded = config.isMobile
     ? sidebarPinned || mobileSidebarOpen
     : sidebarPinned || sidebarHover;
@@ -1121,7 +1145,7 @@ export default function App() {
     sessionStorage.getItem("etoRole") ||
     sessionStorage.getItem("rol") ||
     `NIVEL_${accessLevel}_ETO`;
-  const canAdmin = /SUPER_ADMIN|ADMIN/i.test(rol);
+  const canAdmin = /SUPER_ADMIN|ADMIN/i.test(rol) || permisos.includes("admin.usuarios.gestionar");
 
   const contentPaddingLeft = config.isMobile
     ? config.gap
@@ -1413,7 +1437,7 @@ export default function App() {
             <div className="sidebar-nav">
               {sidebarExpanded && <SectionTitle>Gestion ETO</SectionTitle>}
 
-              {TABS.map((item) => {
+              {availableTabs.map((item) => {
                 const Icon = TAB_ICONS[item.key] || Activity;
                 const active = tab === item.key;
 
@@ -1599,9 +1623,9 @@ button { -webkit-tap-highlight-color: transparent; }
 .brand-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
-  height: 52px;
+  height: 44px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1609,8 +1633,8 @@ button { -webkit-tap-highlight-color: transparent; }
   overflow: hidden;
 }
 .brand-header img {
-  width: 158px;
-  height: 46px;
+  width: 118px;
+  height: 34px;
   object-fit: contain;
   object-position: left center;
   flex: 0 1 auto;

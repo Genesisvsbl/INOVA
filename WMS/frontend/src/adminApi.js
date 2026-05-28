@@ -1,4 +1,4 @@
-﻿import {
+import {
   empresaId,
   insertRow,
   selectRows,
@@ -401,6 +401,12 @@ function roleToPermissions(role, pilar, etoNivel, options = {}) {
     base.push("eto.ver");
     if (String(etoNivel) === "1") base.push("eto.nivel1");
     if (String(etoNivel) === "2") base.push("eto.nivel2");
+
+    if (rol.includes("OPERADOR")) {
+      base.push("eto.daily", "eto.dashboard");
+    } else {
+      base.push("eto.portal", "eto.processes", "eto.indicators", "eto.daily", "eto.history", "eto.dashboard");
+    }
   }
   if (rol.includes("ADMIN")) base.push("admin.usuarios.ver", "admin.usuarios.gestionar", "roles.ver", "admin.roles.gestionar");
   return base;

@@ -1274,8 +1274,8 @@ tbody tr:hover {
 }
 
 .access-hero-logo-inner {
-  width: 62px;
-  height: 62px;
+  width: 48px;
+  height: 48px;
   border-radius: 999px;
   display: grid;
   place-items: center;
@@ -1519,8 +1519,8 @@ tbody tr:hover {
 }
 
 .topbar-logo-image {
-  width: 42px;
-  height: 42px;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
   border-radius: 16px;
   padding: 6px;
@@ -1535,8 +1535,8 @@ tbody tr:hover {
 }
 
 .sidebar-logo-image {
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
   flex-shrink: 0;
   border-radius: 14px;
