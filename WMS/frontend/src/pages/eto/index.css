@@ -1274,8 +1274,8 @@ tbody tr:hover {
 }
 
 .access-hero-logo-inner {
-  width: 48px;
-  height: 48px;
+  width: 42px;
+  height: 42px;
   border-radius: 999px;
   display: grid;
   place-items: center;
@@ -1287,7 +1287,7 @@ tbody tr:hover {
     inset 0 1px 0 rgba(255,255,255,0.8),
     0 14px 28px rgba(16, 39, 67, 0.08);
   overflow: hidden;
-  padding: 12px;
+  padding: 10px;
 }
 
 .access-login-head h2 {

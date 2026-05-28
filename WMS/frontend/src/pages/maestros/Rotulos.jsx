@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { eliminarRotulo as borrarRotulo, getRotulos } from "../../api";
 import {
   Tags,
@@ -482,6 +482,8 @@ export default function Rotulos() {
 <head>
   <meta charset="UTF-8" />
   <title>Rótulo ${impresion}</title>
+  <link rel="preload" as="image" href="/INOVA2026.png" />
+  <link rel="preload" as="image" href="/favicon.ico" />
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 
   <style>
@@ -522,10 +524,10 @@ export default function Rotulos() {
 
     .logo-inova {
       position: absolute;
-      top: 1.7mm;
-      left: 3mm;
-      width: 49mm;
-      height: 14mm;
+      top: 2.2mm;
+      left: 3.2mm;
+      width: 36mm;
+      height: 9.6mm;
       object-fit: contain;
       object-position: left center;
       display: block;
@@ -545,7 +547,7 @@ export default function Rotulos() {
 
     .auxiliar {
       position: absolute;
-      top: 15.5mm;
+      top: 13.6mm;
       left: 3mm;
       width: 58mm;
       font-size: 6.2px;
@@ -699,8 +701,8 @@ export default function Rotulos() {
 
 <body>
   <div class="label">
-    <img src="/INOVA2026.png" class="logo-inova" alt="Logo Inova" />
-    <img src="/favicon.ico" class="logo-b" alt="Logo B" />
+    <img src="/INOVA2026.png" class="logo-inova" alt="Logo Inova" loading="eager" decoding="sync" />
+    <img src="/favicon.ico" class="logo-b" alt="Logo B" loading="eager" decoding="sync" />
 
     <div class="auxiliar">${auxiliar}</div>
     <div class="linea-superior"></div>

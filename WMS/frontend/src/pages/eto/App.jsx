@@ -59,7 +59,7 @@ const COLORS = {
   soft: "#f7f9fd",
 };
 
-const PRELOAD_IMAGES = ["/INOVA2026.png", "/INOVA2026.png", "/INOVA2026.png", "/INOVA2026.png"];
+const PRELOAD_IMAGES = ["/INOVA2026.png", "/ETO.png", "/5S.png", "/WMS.png"];
 
 function preloadImages(sources) {
   if (typeof window === "undefined") return Promise.resolve();
@@ -1633,8 +1633,8 @@ button { -webkit-tap-highlight-color: transparent; }
   overflow: hidden;
 }
 .brand-header img {
-  width: 118px;
-  height: 34px;
+  width: 96px;
+  height: 28px;
   object-fit: contain;
   object-position: left center;
   flex: 0 1 auto;
@@ -1841,11 +1841,11 @@ button { -webkit-tap-highlight-color: transparent; }
   overflow: hidden;
 }
 .brand-sidebar img {
-  width: 168px;
-  height: 54px;
+  width: 104px;
+  height: 32px;
   object-fit: contain;
   object-position: left center;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-width: 0;
 }
 .brand-sidebar strong {
@@ -2066,7 +2066,7 @@ button { -webkit-tap-highlight-color: transparent; }
     gap: 10px;
   }
   .topbar-left { gap: 9px; }
-  .brand-header img { width: 120px; height: 42px; }
+  .brand-header img { width: 88px; height: 26px; }
   .brand-header strong { font-size: 18px; }
   .notification-btn { display: none; }
   .user-chip {
