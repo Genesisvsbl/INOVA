@@ -588,7 +588,7 @@ export async function autenticarUsuario({ usuario, password, pilar }) {
 
   const usuarios = await safeSelect("public", "usuarios", {
     select: "*",
-    or: `(usuario.ilike.${login},email.ilike.${login},documento.ilike.${login},nombre.ilike.${login})`,
+    or: `(usuario.ilike.${login},email.ilike.${login})`,
     estado: eq("ACTIVO"),
     limit: "1",
   });
