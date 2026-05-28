@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowRightLeft,
@@ -749,8 +749,8 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .sidebar.collapsed .sidebar-top { width: 54px; min-height: 54px; border-radius: 18px; }
 .sidebar-logo-mini {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
   border-radius: 12px;
   background: linear-gradient(135deg, #312064, #4f32b8);
@@ -771,8 +771,8 @@ button { -webkit-tap-highlight-color: transparent; }
   overflow: hidden;
 }
 .brand-sidebar img {
-  width: 168px;
-  height: 54px;
+  width: 142px;
+  height: 46px;
   object-fit: contain;
   object-position: left center;
   flex: 1 1 auto;

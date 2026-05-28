@@ -1,4 +1,4 @@
-﻿// LoginPage.jsx - INOVA landing + login por pilar
+// LoginPage.jsx - INOVA landing + login por pilar
 // Requiere: npm install lucide-react
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -1252,15 +1252,15 @@ button { -webkit-tap-highlight-color: transparent; }
 .brand { display: flex; align-items: center; gap: 0; min-width: 0; }
 .brand-single { gap: 0; }
 .brand-logo {
-  width: clamp(300px, 25vw, 440px);
-  height: clamp(76px, 6.8vw, 106px);
+  width: clamp(170px, 13vw, 235px);
+  height: clamp(44px, 3.8vw, 64px);
   object-fit: contain;
   object-position: center;
   display: block;
   image-rendering: auto;
   filter: drop-shadow(0 10px 24px rgba(0,0,0,.32));
 }
-.brand-logo-wide { width: clamp(300px, 25vw, 440px); height: clamp(76px, 6.8vw, 106px); }
+.brand-logo-wide { width: clamp(170px, 13vw, 235px); height: clamp(44px, 3.8vw, 64px); }
 
 .icon-button {
   width: 42px;
@@ -1726,7 +1726,7 @@ button { -webkit-tap-highlight-color: transparent; }
   .login-topbar { padding-top: 12px; }
   .landing-view { padding-top: 6px; padding-bottom: 18px; }
   .landing-head { margin-top: 0; margin-bottom: 12px; gap: 6px; }
-  .brand-logo { height: 84px; width: 330px; }
+  .brand-logo { height: 58px; width: 220px; }
   .landing-card { grid-template-rows: minmax(190px, 39%) auto 64px; }
   .landing-card-content { padding-top: 20px; }
   .landing-title-row h2 { font-size: 66px; }
@@ -1770,7 +1770,7 @@ button { -webkit-tap-highlight-color: transparent; }
   :root { --topbar-height: 92px; }
   .login-topbar { width: min(100% - 24px, 680px); padding-top: 12px; }
   .mobile-only { display: grid; }
-  .brand-logo { width: min(78vw, 360px); height: 86px; }
+  .brand-logo { width: min(58vw, 250px); height: 62px; }
   .landing-view { padding-top: 16px; }
   .landing-head { margin-top: 0; }
   .landing-head p { font-size: 14px; }
