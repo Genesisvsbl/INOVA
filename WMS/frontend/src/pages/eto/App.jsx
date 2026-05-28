@@ -59,7 +59,7 @@ const COLORS = {
   soft: "#f7f9fd",
 };
 
-const PRELOAD_IMAGES = ["/INOVA2026.png", "/ETO.png", "/5S.png", "/WMS.png"];
+const PRELOAD_IMAGES = ["/INOVA2026.png", "/ETO-login.jpg", "/5S-login.jpg", "/WMS-login.jpg"];
 
 function preloadImages(sources) {
   if (typeof window === "undefined") return Promise.resolve();
@@ -1610,6 +1610,8 @@ button { -webkit-tap-highlight-color: transparent; }
   flex: 0 0 auto;
   display: grid;
   place-items: center;
+  padding: 0;
+  line-height: 0;
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,.14);
   color: rgba(255,255,255,.84);
@@ -1618,6 +1620,11 @@ button { -webkit-tap-highlight-color: transparent; }
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.06),
     0 10px 26px rgba(0,0,0,.18);
+}
+
+.top-icon-btn svg {
+  display: block;
+  margin: auto;
 }
 
 .brand-header {

@@ -24,8 +24,8 @@ import {
   solicitarRecuperacionClave,
 } from "../adminApi";
 import { buildApprovalEmailHtml } from "../approvalEmailTemplate";
-const fiveSImage = "/5S.png";
-const etoImage = "/ETO.png";
+const fiveSImage = "/5S-login.jpg";
+const etoImage = "/ETO-login.jpg";
 const ALLOW_LEGACY_LOGIN = import.meta.env.VITE_ALLOW_LEGACY_LOGIN === "true";
 
 const ADMIN_PERMISSIONS = [
@@ -188,7 +188,7 @@ const PILLARS = [
     glow: "rgba(168,85,247,.42)",
     visualHue: "0deg",
     icon: Boxes,
-    image: "/WMS.png",
+    image: "/WMS-login.jpg",
   },
   {
     id: "5s",
@@ -260,7 +260,7 @@ export default function LoginPage() {
       "/INOVA1.jpeg",
       "/INOVA.jpeg",
       "/INOVA2026.png",
-      "/WMS.png",
+      "/WMS-login.jpg",
       fiveSImage,
       etoImage,
       "/INOVA2026.png",
@@ -640,7 +640,7 @@ function LandingCard({ pillar, onClick }) {
       style={{ "--accent": pillar.accent, "--accent2": pillar.accent2, "--glow": pillar.glow }}
     >
       <div className="landing-card-image">
-        <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} loading="eager" decoding="sync" />
+        <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} loading="eager" decoding="sync" fetchPriority="high" />
       </div>
 
       <div className="landing-card-content">
@@ -673,7 +673,7 @@ function PillarCard({ pillar, active, compact, onClick }) {
       style={{ "--accent": pillar.accent, "--accent2": pillar.accent2, "--glow": pillar.glow }}
     >
       <div className="pillar-visual">
-        <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} loading="eager" decoding="sync" />
+        <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} loading="eager" decoding="sync" fetchPriority="high" />
         <div className="pillar-image-shade" />
       </div>
 
@@ -765,7 +765,7 @@ function LoginCard({
         </button>
 
         <div className="login-visual-mini">
-          <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} loading="eager" decoding="sync" />
+          <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} loading="eager" decoding="sync" fetchPriority="high" />
           <div className="login-visual-overlay" />
         </div>
       </div>
@@ -1268,12 +1268,15 @@ button { -webkit-tap-highlight-color: transparent; }
   height: 42px;
   display: grid;
   place-items: center;
+  padding: 0;
+  line-height: 0;
   border-radius: 999px;
   color: #fff;
   cursor: pointer;
   background: rgba(255,255,255,.08);
   border: 1px solid rgba(255,255,255,.12);
 }
+.icon-button svg { display: block; margin: auto; }
 .mobile-only { display: none; }
 
 .landing-view {

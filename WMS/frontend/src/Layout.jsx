@@ -585,12 +585,19 @@ button { -webkit-tap-highlight-color: transparent; }
   flex: 0 0 auto;
   display: grid;
   place-items: center;
+  padding: 0;
+  line-height: 0;
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,.14);
   color: rgba(255,255,255,.84);
   background: rgba(255,255,255,.055);
   cursor: pointer;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+.top-icon-btn svg {
+  display: block;
+  margin: auto;
 }
 
 .brand-header {
