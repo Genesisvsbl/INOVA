@@ -749,8 +749,8 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .sidebar.collapsed .sidebar-top { width: 54px; min-height: 54px; border-radius: 18px; }
 .sidebar-logo-mini {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
   border-radius: 12px;
   background: linear-gradient(135deg, #312064, #4f32b8);
@@ -771,8 +771,8 @@ button { -webkit-tap-highlight-color: transparent; }
   overflow: hidden;
 }
 .brand-sidebar img {
-  width: 142px;
-  height: 46px;
+  width: 118px;
+  height: 38px;
   object-fit: contain;
   object-position: left center;
   flex: 1 1 auto;

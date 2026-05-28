@@ -1248,19 +1248,20 @@ button { -webkit-tap-highlight-color: transparent; }
   flex: 0 0 var(--topbar-height);
 }
 .compact-login-topbar { justify-content: flex-start; }
+.landing-login-topbar { padding-top: 36px; }
 
 .brand { display: flex; align-items: center; gap: 0; min-width: 0; }
 .brand-single { gap: 0; }
 .brand-logo {
-  width: clamp(170px, 13vw, 235px);
-  height: clamp(44px, 3.8vw, 64px);
+  width: clamp(135px, 10vw, 190px);
+  height: clamp(34px, 3vw, 52px);
   object-fit: contain;
   object-position: center;
   display: block;
   image-rendering: auto;
   filter: drop-shadow(0 10px 24px rgba(0,0,0,.32));
 }
-.brand-logo-wide { width: clamp(170px, 13vw, 235px); height: clamp(44px, 3.8vw, 64px); }
+.brand-logo-wide { width: clamp(135px, 10vw, 190px); height: clamp(34px, 3vw, 52px); }
 
 .icon-button {
   width: 42px;
@@ -1726,7 +1727,7 @@ button { -webkit-tap-highlight-color: transparent; }
   .login-topbar { padding-top: 12px; }
   .landing-view { padding-top: 6px; padding-bottom: 18px; }
   .landing-head { margin-top: 0; margin-bottom: 12px; gap: 6px; }
-  .brand-logo { height: 58px; width: 220px; }
+  .brand-logo { height: 48px; width: 178px; }
   .landing-card { grid-template-rows: minmax(190px, 39%) auto 64px; }
   .landing-card-content { padding-top: 20px; }
   .landing-title-row h2 { font-size: 66px; }
@@ -1770,7 +1771,7 @@ button { -webkit-tap-highlight-color: transparent; }
   :root { --topbar-height: 92px; }
   .login-topbar { width: min(100% - 24px, 680px); padding-top: 12px; }
   .mobile-only { display: grid; }
-  .brand-logo { width: min(58vw, 250px); height: 62px; }
+  .brand-logo { width: min(48vw, 210px); height: 52px; }
   .landing-view { padding-top: 16px; }
   .landing-head { margin-top: 0; }
   .landing-head p { font-size: 14px; }

@@ -911,8 +911,8 @@ button {
 }
 
 .sidebar-logo-mini {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
   border-radius: 12px;
   background: linear-gradient(135deg, #0b3b7a, #1d74d8);
@@ -934,8 +934,8 @@ button {
 }
 
 .brand-sidebar img {
-  width: 142px;
-  height: 46px;
+  width: 118px;
+  height: 38px;
   object-fit: contain;
   object-position: left center;
   flex: 1 1 auto;
@@ -6508,8 +6508,8 @@ button {
 }
 
 .s5-layout .brand-sidebar img {
-  width: 168px !important;
-  height: 50px !important;
+  width: 124px !important;
+  height: 38px !important;
   object-position: left center !important;
 }
 
