@@ -1,7 +1,13 @@
 ﻿import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BrowserMultiFormatReader } from "@zxing/browser";
-import { crearMovimiento, crearRotulosBulk, getUbicaciones, sugerirUbicaciones } from "../../api";
+import {
+  crearMovimiento,
+  crearRotulosBulk,
+  getUbicaciones,
+  guardarCertificadosCalidad,
+  sugerirUbicaciones,
+} from "../../api";
 import {
   ArrowLeft,
   Save,
@@ -39,6 +45,15 @@ function todayISODate() {
 
 function serialItem(serial, idx) {
   return `${serial}-${String(idx + 1).padStart(2, "0")}`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function loteProveedorFromLoteAlmacen(lote15) {
@@ -1392,6 +1407,84 @@ export default function DesdeRecibo() {
     await crearRotulosBulk({ items: rotulosItems });
   };
 
+  const buildReciboConsultaHtml = () => {
+    const header = draft?.header || {};
+    const rows = (draft?.lineas || [])
+      .map(
+        (linea, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${escapeHtml(serialItem(header.serial || "", i))}</td>
+            <td>${escapeHtml(linea.codigo || "")}</td>
+            <td>${escapeHtml(linea.descripcion || "")}</td>
+            <td>${escapeHtml(linea.lote_proveedor || "")}</td>
+            <td>${escapeHtml(linea.fecha_fabricacion || "")}</td>
+            <td>${escapeHtml(linea.fecha_vencimiento || "")}</td>
+            <td style="text-align:right;">${escapeHtml(linea.total || linea.cantidad || "")}</td>
+            <td>${linea.certificado_data_url ? "Completo" : "Pendiente"}</td>
+          </tr>`
+      )
+      .join("");
+
+    return `<!doctype html>
+      <html><head><meta charset="utf-8"><title>Recibo ciego ${escapeHtml(header.serial || "")}</title>
+      <style>
+        body{font-family:Arial,sans-serif;padding:24px;color:#0f172a}
+        h1{margin:0 0 8px;font-size:22px}
+        .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0}
+        .box{border:1px solid #d9e2ec;border-radius:8px;padding:10px}
+        .label{font-size:10px;text-transform:uppercase;color:#64748b;font-weight:800}
+        .value{font-size:13px;font-weight:800;margin-top:4px}
+        table{width:100%;border-collapse:collapse;margin-top:14px}
+        th,td{border:1px solid #d9e2ec;padding:8px;font-size:12px}
+        th{background:#f8fafc;text-align:left}
+      </style></head><body>
+        <h1>Recibo ciego</h1>
+        <div class="meta">
+          <div class="box"><div class="label">Serial</div><div class="value">${escapeHtml(header.serial || "")}</div></div>
+          <div class="box"><div class="label">Proveedor</div><div class="value">${escapeHtml(header.proveedor || "")}</div></div>
+          <div class="box"><div class="label">Documento</div><div class="value">${escapeHtml(header.documento || "")}</div></div>
+          <div class="box"><div class="label">Orden compra</div><div class="value">${escapeHtml(header.orden_compra || "")}</div></div>
+          <div class="box"><div class="label">Auxiliar</div><div class="value">${escapeHtml(header.auxiliar || "")}</div></div>
+          <div class="box"><div class="label">Fecha</div><div class="value">${escapeHtml(header.fecha_recepcion || todayISODate())}</div></div>
+        </div>
+        <table>
+          <thead><tr><th>#</th><th>Item</th><th>Codigo</th><th>Descripcion</th><th>Lote proveedor</th><th>Fabricacion</th><th>Vencimiento</th><th>Cantidad</th><th>Certificado</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </body></html>`;
+  };
+
+  const guardarTrazabilidadCertificados = async () => {
+    const header = draft?.header || {};
+    const reciboHtml = buildReciboConsultaHtml();
+    const items = (draft?.lineas || []).map((linea, i) => ({
+      fecha_recibo: linea.fecha_recepcion || header.fecha_recepcion || todayISODate(),
+      codigo_material: linea.codigo || "",
+      descripcion_material: linea.descripcion || "",
+      unidad_medida: linea.um || "",
+      lote_proveedor: linea.lote_proveedor || "",
+      fecha_fabricacion: linea.fecha_fabricacion || null,
+      fecha_vencimiento: linea.fecha_vencimiento || null,
+      cantidad: Number(linea.total || linea.cantidad || 0),
+      proveedor: header.proveedor || "",
+      documento: header.documento || "",
+      orden_compra: header.orden_compra || "",
+      recibo_serial: header.serial || "",
+      recibo_item: serialItem(header.serial || "", i),
+      certificado_nombre: linea.certificado_nombre || "",
+      certificado_tipo: linea.certificado_tipo || "",
+      certificado_data_url: linea.certificado_data_url || "",
+    }));
+
+    return guardarCertificadosCalidad({
+      header,
+      items,
+      recibo_documento_html: reciboHtml,
+      created_at: draft?.createdAtISO || new Date().toISOString(),
+    });
+  };
+
   const postMovimiento = async (payload) => {
     await crearMovimiento(payload);
   };
@@ -1461,6 +1554,7 @@ export default function DesdeRecibo() {
       }
 
       await guardarRotulos();
+      await guardarTrazabilidadCertificados();
 
       localStorage.removeItem(DRAFT_KEY);
       alert("OK Movimientos guardados con ubicacion + historial de rotulos.");
@@ -1519,6 +1613,7 @@ export default function DesdeRecibo() {
       }
 
       await guardarRotulos();
+      await guardarTrazabilidadCertificados();
 
       localStorage.removeItem(DRAFT_KEY);
       alert("OK Material guardado en EN TRANSITO por pallet + historial de rotulos.");

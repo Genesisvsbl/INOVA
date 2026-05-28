@@ -140,6 +140,133 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+const CERTIFICADOS_CACHE_KEY = "wms_certificados_calidad_cache";
+
+function readCertificadosCache() {
+  try {
+    const raw = localStorage.getItem(CERTIFICADOS_CACHE_KEY);
+    const rows = raw ? JSON.parse(raw) : [];
+    return Array.isArray(rows) ? rows : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeCertificadosCache(rows) {
+  localStorage.setItem(CERTIFICADOS_CACHE_KEY, JSON.stringify(rows || []));
+}
+
+function certificadoEstado(row) {
+  if (row?.certificado_data_url || row?.certificado_nombre) return "COMPLETO";
+  if (row?.vence_gestion_at && new Date(row.vence_gestion_at).getTime() < Date.now()) return "VENCIDO";
+  return "PENDIENTE";
+}
+
+function add24HoursISO(date = new Date()) {
+  return new Date(date.getTime() + 24 * 60 * 60 * 1000).toISOString();
+}
+
+function normalizeCertificadoRow(row) {
+  const normalized = {
+    ...row,
+    empresa_id: row.empresa_id ?? empresaId,
+    estado_certificado: certificadoEstado(row),
+  };
+  return normalized;
+}
+
+export async function guardarCertificadosCalidad(payload = {}) {
+  const createdAt = payload.created_at || new Date().toISOString();
+  const header = payload.header || {};
+  const reciboDocumentoHtml = payload.recibo_documento_html || "";
+  const rows = (payload.items || []).map((item, index) =>
+    normalizeCertificadoRow({
+      empresa_id: empresaId,
+      fecha_recibo: item.fecha_recibo || header.fecha_recepcion || todayISO(),
+      codigo_material: item.codigo_material || item.codigo || "",
+      descripcion_material: item.descripcion_material || item.descripcion || "",
+      unidad_medida: item.unidad_medida || item.um || "",
+      lote_proveedor: item.lote_proveedor || "",
+      fecha_fabricacion: item.fecha_fabricacion || null,
+      fecha_vencimiento: item.fecha_vencimiento || null,
+      cantidad: Number(item.cantidad ?? item.total ?? 0),
+      proveedor: item.proveedor || header.proveedor || "",
+      documento: item.documento || header.documento || "",
+      orden_compra: item.orden_compra || header.orden_compra || "",
+      recibo_serial: item.recibo_serial || header.serial || "",
+      recibo_item: item.recibo_item || String(index + 1).padStart(2, "0"),
+      certificado_nombre: item.certificado_nombre || "",
+      certificado_tipo: item.certificado_tipo || "",
+      certificado_data_url: item.certificado_data_url || "",
+      recibo_documento_html: reciboDocumentoHtml,
+      vence_gestion_at: item.vence_gestion_at || add24HoursISO(new Date(createdAt)),
+      created_at: createdAt,
+      updated_at: createdAt,
+    })
+  );
+
+  if (!rows.length) return { saved: [], fallback: false };
+
+  try {
+    const saved = await insertRow("wms", "certificados_calidad", rows);
+    return { saved: Array.isArray(saved) ? saved : [saved], fallback: false };
+  } catch (error) {
+    const current = readCertificadosCache();
+    const localRows = rows.map((row) => ({
+      ...row,
+      id: row.id || `local-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      origen_local: true,
+    }));
+    writeCertificadosCache([...localRows, ...current]);
+    return { saved: localRows, fallback: true, error };
+  }
+}
+
+export async function getCertificadosCalidad(params = {}) {
+  try {
+    const rows = await selectRows("wms", "certificados_calidad", {
+      empresa_id: `eq.${empresaId}`,
+      order: "created_at.desc",
+      select: "*",
+      ...params,
+    });
+    return (Array.isArray(rows) ? rows : []).map(normalizeCertificadoRow);
+  } catch {
+    return readCertificadosCache().map(normalizeCertificadoRow);
+  }
+}
+
+export async function actualizarCertificadoCalidad(id, certificado = {}) {
+  const updatedAt = new Date().toISOString();
+  const payload = normalizeCertificadoRow({
+    certificado_nombre: certificado.certificado_nombre || "",
+    certificado_tipo: certificado.certificado_tipo || "",
+    certificado_data_url: certificado.certificado_data_url || "",
+    estado_certificado: "COMPLETO",
+    updated_at: updatedAt,
+  });
+
+  if (String(id || "").startsWith("local-")) {
+    const rows = readCertificadosCache();
+    const next = rows.map((row) => (String(row.id) === String(id) ? { ...row, ...payload } : row));
+    writeCertificadosCache(next);
+    return next.find((row) => String(row.id) === String(id)) || payload;
+  }
+
+  try {
+    const saved = await updateById("wms", "certificados_calidad", id, payload);
+    return Array.isArray(saved) ? saved[0] : saved;
+  } catch (error) {
+    const rows = readCertificadosCache();
+    const exists = rows.some((row) => String(row.id) === String(id));
+    const next = exists
+      ? rows.map((row) => (String(row.id) === String(id) ? { ...row, ...payload } : row))
+      : [{ id: `local-${id || Date.now()}`, ...payload, origen_local: true }, ...rows];
+    writeCertificadosCache(next);
+    return next.find((row) => String(row.id) === String(id)) || next[0];
+  }
+}
+
 function toNumber(value) {
   const n = Number(value || 0);
   return Number.isFinite(n) ? n : 0;

@@ -32,7 +32,7 @@ const quickActions = [
   { label: "Nueva ubicacion", to: "/datos-maestros/ubicaciones", icon: MapPin },
   { label: "Registrar movimiento", to: "/movimientos/recibo", icon: ArrowRightLeft },
   { label: "Generar rótulo", to: "/datos-maestros/rotulos", icon: Tag },
-  { label: "Ver inventario", to: "/stock", icon: ClipboardList },
+  { label: "Consulta", to: "/stock", icon: ClipboardList },
 ];
 
 function toNumber(value) {
@@ -898,6 +898,5 @@ const css = `
   .storage-panel { display: grid; }
 }
 `;
-
 
 

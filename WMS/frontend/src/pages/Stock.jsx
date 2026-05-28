@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   PackageSearch,
@@ -8,8 +8,12 @@ import {
   ShieldCheck,
   AlertTriangle,
   RefreshCcw,
+  FileText,
+  Upload,
+  Clock,
+  CheckCircle2,
 } from "lucide-react";
-import { getStock } from "../api";
+import { actualizarCertificadoCalidad, getCertificadosCalidad, getStock } from "../api";
 
 const colors = {
   navy: "#133454",
@@ -185,6 +189,320 @@ function DataBox({ label, value }) {
         }}
       >
         {value || "-"}
+      </div>
+    </div>
+  );
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("No se pudo leer el archivo."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function openHtmlDocument(html) {
+  if (!html) return;
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank", "noopener,noreferrer");
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
+function statusInfo(row) {
+  const status = String(row.estado_certificado || "").toUpperCase();
+  const expired =
+    !row.certificado_data_url &&
+    row.vence_gestion_at &&
+    new Date(row.vence_gestion_at).getTime() < Date.now();
+  if (status === "COMPLETO" || row.certificado_data_url) {
+    return { label: "Completo", tone: "green", icon: CheckCircle2 };
+  }
+  if (expired || status === "VENCIDO") {
+    return { label: "Vencido", tone: "red", icon: AlertTriangle };
+  }
+  return { label: "Pendiente", tone: "amber", icon: Clock };
+}
+
+function CertificadosCalidadView() {
+  const [rows, setRows] = useState([]);
+  const [q, setQ] = useState("");
+  const [estado, setEstado] = useState("TODOS");
+  const [loading, setLoading] = useState(false);
+  const [savingId, setSavingId] = useState("");
+
+  const loadRows = async () => {
+    setLoading(true);
+    try {
+      setRows(await getCertificadosCalidad());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRows();
+  }, []);
+
+  const filtered = useMemo(() => {
+    const text = q.trim().toUpperCase();
+    return rows.filter((row) => {
+      const info = statusInfo(row);
+      const matchesStatus = estado === "TODOS" || info.label.toUpperCase() === estado;
+      const haystack = [
+        row.fecha_recibo,
+        row.codigo_material,
+        row.descripcion_material,
+        row.unidad_medida,
+        row.lote_proveedor,
+        row.fecha_fabricacion,
+        row.fecha_vencimiento,
+        row.proveedor,
+        row.documento,
+        row.orden_compra,
+        row.recibo_serial,
+        row.recibo_item,
+      ]
+        .join(" ")
+        .toUpperCase();
+      return matchesStatus && (!text || haystack.includes(text));
+    });
+  }, [rows, q, estado]);
+
+  const onUpload = async (row, file) => {
+    if (!file) return;
+    const maxBytes = 7 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      alert("El certificado supera 7 MB. Usa una imagen o PDF mas liviano.");
+      return;
+    }
+    setSavingId(String(row.id));
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const saved = await actualizarCertificadoCalidad(row.id, {
+        certificado_nombre: file.name || "certificado",
+        certificado_tipo: file.type || "application/octet-stream",
+        certificado_data_url: dataUrl,
+      });
+      setRows((prev) =>
+        prev.map((item) =>
+          String(item.id) === String(row.id)
+            ? { ...item, ...saved, certificado_nombre: file.name, certificado_tipo: file.type, certificado_data_url: dataUrl }
+            : item
+        )
+      );
+    } catch (e) {
+      alert(`No se pudo actualizar el certificado: ${e?.message || e}`);
+    } finally {
+      setSavingId("");
+    }
+  };
+
+  const th = {
+    padding: "10px 8px",
+    textAlign: "left",
+    fontSize: 11,
+    color: colors.muted,
+    textTransform: "uppercase",
+    letterSpacing: ".04em",
+    borderBottom: `1px solid ${colors.border}`,
+    background: colors.soft,
+    whiteSpace: "nowrap",
+  };
+  const td = {
+    padding: "10px 8px",
+    borderBottom: "1px solid #edf2f7",
+    fontSize: 12,
+    color: colors.text,
+    verticalAlign: "middle",
+  };
+
+  return (
+    <div
+      style={{
+        background: colors.card,
+        border: `1px solid ${colors.border}`,
+        borderRadius: 12,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          padding: 14,
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+          borderBottom: `1px solid ${colors.border}`,
+          background: colors.soft,
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 900, color: colors.navy }}>Certificados de calidad</div>
+          <div style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>
+            Trazabilidad del recibo ciego por lote, con pendientes de 24 horas.
+          </div>
+        </div>
+        <button
+          onClick={loadRows}
+          style={{
+            height: 36,
+            padding: "0 12px",
+            borderRadius: 10,
+            border: `1px solid ${colors.border}`,
+            background: "#fff",
+            fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          {loading ? "Cargando..." : "Actualizar"}
+        </button>
+      </div>
+
+      <div style={{ padding: 14, display: "grid", gridTemplateColumns: "1fr 180px", gap: 10 }}>
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Buscar por lote, codigo, proveedor, documento..."
+          style={{
+            height: 38,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 10,
+            padding: "0 12px",
+            fontWeight: 700,
+            outline: "none",
+          }}
+        />
+        <select
+          value={estado}
+          onChange={(e) => setEstado(e.target.value)}
+          style={{
+            height: 38,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 10,
+            padding: "0 10px",
+            fontWeight: 800,
+            background: "#fff",
+          }}
+        >
+          <option value="TODOS">Todos</option>
+          <option value="PENDIENTE">Pendiente</option>
+          <option value="VENCIDO">Vencido</option>
+          <option value="COMPLETO">Completo</option>
+        </select>
+      </div>
+
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1180 }}>
+          <thead>
+            <tr>
+              <th style={th}>Estado</th>
+              <th style={th}>Fecha recibo</th>
+              <th style={th}>Codigo</th>
+              <th style={th}>Descripcion</th>
+              <th style={th}>UM</th>
+              <th style={th}>Lote proveedor</th>
+              <th style={th}>Fabricacion</th>
+              <th style={th}>Vencimiento</th>
+              <th style={th}>Cantidad</th>
+              <th style={th}>Recibo</th>
+              <th style={th}>Certificado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={11} style={{ ...td, padding: 24, textAlign: "center", color: colors.muted }}>
+                  No hay certificados para los filtros seleccionados.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((row) => {
+                const info = statusInfo(row);
+                return (
+                  <tr key={row.id || `${row.recibo_item}-${row.codigo_material}-${row.lote_proveedor}`}>
+                    <td style={td}>
+                      <Chip label={info.label} tone={info.tone} />
+                    </td>
+                    <td style={td}>{row.fecha_recibo || "-"}</td>
+                    <td style={{ ...td, fontWeight: 900 }}>{row.codigo_material || "-"}</td>
+                    <td style={{ ...td, maxWidth: 260 }}>{row.descripcion_material || "-"}</td>
+                    <td style={td}>{row.unidad_medida || "-"}</td>
+                    <td style={{ ...td, fontWeight: 900 }}>{row.lote_proveedor || "-"}</td>
+                    <td style={td}>{row.fecha_fabricacion || "-"}</td>
+                    <td style={td}>{row.fecha_vencimiento || "-"}</td>
+                    <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>{formatQty(row.cantidad)}</td>
+                    <td style={td}>
+                      <button
+                        type="button"
+                        onClick={() => openHtmlDocument(row.recibo_documento_html)}
+                        disabled={!row.recibo_documento_html}
+                        style={{
+                          border: `1px solid ${colors.border}`,
+                          background: "#fff",
+                          borderRadius: 8,
+                          height: 30,
+                          padding: "0 9px",
+                          fontWeight: 800,
+                          cursor: row.recibo_documento_html ? "pointer" : "not-allowed",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                      >
+                        <FileText size={14} />
+                        Ver
+                      </button>
+                    </td>
+                    <td style={td}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        {row.certificado_data_url ? (
+                          <a
+                            href={row.certificado_data_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ fontWeight: 900, color: colors.good, textDecoration: "none" }}
+                          >
+                            Ver certificado
+                          </a>
+                        ) : (
+                          <span style={{ color: colors.warn, fontWeight: 900 }}>Pendiente</span>
+                        )}
+                        <label
+                          style={{
+                            border: `1px solid ${colors.border}`,
+                            background: "#fff",
+                            borderRadius: 8,
+                            height: 30,
+                            padding: "0 9px",
+                            fontWeight: 800,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          <Upload size={14} />
+                          {savingId === String(row.id) ? "Subiendo..." : "Cargar"}
+                          <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            capture="environment"
+                            onChange={(e) => onUpload(row, e.target.files?.[0])}
+                            style={{ display: "none" }}
+                          />
+                        </label>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -370,6 +688,7 @@ function FrescuraCard({ data }) {
 }
 
 export default function Stock() {
+  const [activeTab, setActiveTab] = useState("stock");
   const [codigo, setCodigo] = useState("");
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
@@ -443,7 +762,7 @@ export default function Stock() {
                 marginBottom: 6,
               }}
             >
-              Stock
+              Consulta
             </div>
 
             <div
@@ -454,7 +773,7 @@ export default function Stock() {
                 color: colors.navy,
               }}
             >
-              Consulta de inventario y condición de material
+              Consulta operativa
             </div>
 
             <div
@@ -464,18 +783,51 @@ export default function Stock() {
                 fontSize: 13,
               }}
             >
-              Visualiza disponibilidad, almacenamiento, tránsito y preparación para análisis de frescura.
+              Visualiza stock y certificados de calidad generados desde recibo ciego.
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {loading && <Chip label="Consultando..." tone="amber" />}
-            {!loading && data && <Chip label="Consulta OK" tone="green" />}
-            {!loading && !data && !err && <Chip label="Modo consulta" tone="blue" />}
-            {err && <Chip label="Error de consulta" tone="red" />}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={() => setActiveTab("stock")}
+              style={{
+                height: 34,
+                padding: "0 12px",
+                borderRadius: 10,
+                border: `1px solid ${activeTab === "stock" ? colors.blue : colors.border}`,
+                background: activeTab === "stock" ? colors.blue : "#fff",
+                color: activeTab === "stock" ? "#fff" : colors.text,
+                fontWeight: 900,
+                cursor: "pointer",
+              }}
+            >
+              Stock
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("certificados")}
+              style={{
+                height: 34,
+                padding: "0 12px",
+                borderRadius: 10,
+                border: `1px solid ${activeTab === "certificados" ? colors.blue : colors.border}`,
+                background: activeTab === "certificados" ? colors.blue : "#fff",
+                color: activeTab === "certificados" ? "#fff" : colors.text,
+                fontWeight: 900,
+                cursor: "pointer",
+              }}
+            >
+              Certificados
+            </button>
+            {activeTab === "stock" && loading && <Chip label="Consultando..." tone="amber" />}
+            {activeTab === "stock" && !loading && data && <Chip label="Consulta OK" tone="green" />}
+            {activeTab === "stock" && !loading && !data && !err && <Chip label="Modo consulta" tone="blue" />}
+            {activeTab === "stock" && err && <Chip label="Error de consulta" tone="red" />}
           </div>
         </div>
 
+        {activeTab === "stock" && (
         <div style={{ padding: 16 }}>
           <div
             style={{
@@ -597,8 +949,13 @@ export default function Stock() {
             </div>
           ) : null}
         </div>
+        )}
       </div>
 
+      {activeTab === "certificados" ? (
+        <CertificadosCalidadView />
+      ) : (
+        <>
       <div
         style={{
           display: "grid",
@@ -731,6 +1088,8 @@ export default function Stock() {
 
         <FrescuraCard data={data} />
       </div>
+        </>
+      )}
     </div>
   );
 }

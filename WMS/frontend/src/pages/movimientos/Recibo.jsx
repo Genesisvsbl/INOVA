@@ -10,6 +10,9 @@ import {
   Trash2,
   User,
   CalendarDays,
+  Camera,
+  FileCheck,
+  X,
 } from "lucide-react";
 
 // ===== Helpers =====
@@ -200,6 +203,10 @@ function createEmptyLinea() {
     fv_automatica: false,
     vigencia_meses: null,
     lote: "",
+    certificado_nombre: "",
+    certificado_tipo: "",
+    certificado_data_url: "",
+    certificado_fecha: "",
   };
 }
 
@@ -364,6 +371,15 @@ function StatusChip({ label, tone = "neutral" }) {
   );
 }
 
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("No se pudo leer el archivo."));
+    reader.readAsDataURL(file);
+  });
+}
+
 const thStyle = {
   textAlign: "left",
   padding: "8px 6px",
@@ -429,15 +445,16 @@ const detailColWidths = {
   fechaRecepcion: "7%",
   codigo: "6.2%",
   descripcion: "12.5%",
+  certificado: "7.8%",
   empaque: "8%",
   umb: "5.3%",
   um: "4.9%",
   cantidad: "6.2%",
   total: "7%",
-  lote: "8.2%",
+  lote: "7.4%",
   fabricacion: "7.4%",
   vencimiento: "8%",
-  accion: "10.8%",
+  accion: "3%",
 };
 
 export default function Recibo() {
@@ -650,6 +667,36 @@ export default function Recibo() {
 
   const removeLinea = (idx) =>
     setLineas((prev) => prev.filter((_, i) => i !== idx));
+
+  const onCertificadoChange = async (idx, file) => {
+    if (!file) return;
+    const maxBytes = 7 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      alert("El certificado supera 7 MB. Toma una foto mas liviana o usa un PDF comprimido.");
+      return;
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      setLinea(idx, {
+        certificado_nombre: file.name || `certificado-linea-${idx + 1}`,
+        certificado_tipo: file.type || "application/octet-stream",
+        certificado_data_url: dataUrl,
+        certificado_fecha: new Date().toISOString(),
+      });
+    } catch (e) {
+      alert(`No se pudo anexar el certificado: ${e?.message || e}`);
+    }
+  };
+
+  const clearCertificado = (idx) => {
+    setLinea(idx, {
+      certificado_nombre: "",
+      certificado_tipo: "",
+      certificado_data_url: "",
+      certificado_fecha: "",
+    });
+  };
 
   const recomputeTotal = (umb, cantidad) => {
     const u = Number(umb);
@@ -884,6 +931,10 @@ export default function Recibo() {
           lote_proveedor: pad10WithStarsAny(ln.lote_proveedor),
           fecha_fabricacion: ln.fecha_fabricacion || "",
           fecha_vencimiento: ln.fecha_vencimiento || "",
+          certificado_nombre: ln.certificado_nombre || "",
+          certificado_tipo: ln.certificado_tipo || "",
+          certificado_data_url: ln.certificado_data_url || "",
+          certificado_fecha: ln.certificado_fecha || "",
         })),
         totalRecibo,
         createdAtISO: new Date().toISOString(),
@@ -2068,6 +2119,7 @@ export default function Recibo() {
                   <col style={{ width: detailColWidths.fechaRecepcion }} />
                   <col style={{ width: detailColWidths.codigo }} />
                   <col style={{ width: detailColWidths.descripcion }} />
+                  <col style={{ width: detailColWidths.certificado }} />
                   <col style={{ width: detailColWidths.empaque }} />
                   <col style={{ width: detailColWidths.umb }} />
                   <col style={{ width: detailColWidths.um }} />
@@ -2085,6 +2137,7 @@ export default function Recibo() {
                     <th style={thStyle}>Fecha recepción</th>
                     <th style={thStyle}>Código</th>
                     <th style={thStyle}>Texto breve material</th>
+                    <th style={thStyle}>Certificado</th>
                     <th style={thStyle}>Empaque</th>
                     <th style={thStyle}>UMB</th>
                     <th style={thStyle}>UM</th>
@@ -2138,6 +2191,81 @@ export default function Recibo() {
                           readOnly
                           style={detailReadOnlyInputStyle}
                         />
+                      </td>
+                      <td style={tdStyle}>
+                        <label
+                          style={{
+                            ...secondaryButtonStyle,
+                            height: 30,
+                            padding: "0 7px",
+                            fontSize: 10,
+                            gap: 4,
+                            width: "100%",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                            boxSizing: "border-box",
+                          }}
+                        >
+                          {ln.certificado_data_url ? <FileCheck size={13} /> : <Camera size={13} />}
+                          {ln.certificado_data_url ? "Anexo OK" : "Anexar"}
+                          <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            capture="environment"
+                            onChange={(e) => onCertificadoChange(idx, e.target.files?.[0])}
+                            style={{ display: "none" }}
+                          />
+                        </label>
+                        {ln.certificado_data_url ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 4,
+                              alignItems: "center",
+                              marginTop: 5,
+                            }}
+                          >
+                            <a
+                              href={ln.certificado_data_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                ...detailHelpStyle,
+                                color: colors.good,
+                                textDecoration: "none",
+                                flex: 1,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                              title={ln.certificado_nombre}
+                            >
+                              {ln.certificado_nombre || "Certificado"}
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => clearCertificado(idx)}
+                              style={{
+                                border: "none",
+                                background: colors.badBg,
+                                color: colors.bad,
+                                borderRadius: 6,
+                                width: 20,
+                                height: 20,
+                                display: "grid",
+                                placeItems: "center",
+                                cursor: "pointer",
+                              }}
+                              title="Quitar certificado"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ ...detailHelpStyle, color: colors.warn }}>
+                            Pendiente 24h
+                          </div>
+                        )}
                       </td>
                       <td style={tdStyle}>
                         <select

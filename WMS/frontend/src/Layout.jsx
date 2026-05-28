@@ -314,9 +314,9 @@ export default function Layout() {
                     </SubNav>
                   )}
 
-                  <NavLink to="/stock" style={(state) => navStyle(state, sidebarExpanded)} title="Stock">
+                  <NavLink to="/stock" style={(state) => navStyle(state, sidebarExpanded)} title="Consulta">
                     <Boxes size={18} />
-                    {sidebarExpanded && <span>Stock</span>}
+                    {sidebarExpanded && <span>Consulta</span>}
                   </NavLink>
 
                   <NavLink to="/layout-zona" style={(state) => navStyle(state, sidebarExpanded)} title="Layout por zona">
