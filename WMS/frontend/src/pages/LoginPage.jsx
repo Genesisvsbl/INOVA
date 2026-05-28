@@ -24,8 +24,9 @@ import {
   solicitarRecuperacionClave,
 } from "../adminApi";
 import { buildApprovalEmailHtml } from "../approvalEmailTemplate";
-const fiveSImage = "/5S-login.jpg";
-const etoImage = "/ETO-login.jpg";
+const wmsImage = "/WMS-login-thumb.jpg";
+const fiveSImage = "/5S-login-thumb.jpg";
+const etoImage = "/ETO-login-thumb.jpg";
 const ALLOW_LEGACY_LOGIN = import.meta.env.VITE_ALLOW_LEGACY_LOGIN === "true";
 
 const ADMIN_PERMISSIONS = [
@@ -188,7 +189,7 @@ const PILLARS = [
     glow: "rgba(168,85,247,.42)",
     visualHue: "0deg",
     icon: Boxes,
-    image: "/WMS-login.jpg",
+    image: wmsImage,
   },
   {
     id: "5s",
@@ -260,7 +261,7 @@ export default function LoginPage() {
       "/INOVA1.jpeg",
       "/INOVA.jpeg",
       "/INOVA2026.png",
-      "/WMS-login.jpg",
+      wmsImage,
       fiveSImage,
       etoImage,
       "/INOVA2026.png",
@@ -639,8 +640,8 @@ function LandingCard({ pillar, onClick }) {
       onClick={onClick}
       style={{ "--accent": pillar.accent, "--accent2": pillar.accent2, "--glow": pillar.glow }}
     >
-      <div className="landing-card-image">
-        <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} loading="eager" decoding="sync" fetchPriority="high" />
+      <div className="landing-card-image" style={{ backgroundImage: `url(${pillar.image})` }}>
+        <img src={pillar.image} alt="" loading="eager" decoding="sync" fetchPriority="high" />
       </div>
 
       <div className="landing-card-content">
@@ -672,8 +673,8 @@ function PillarCard({ pillar, active, compact, onClick }) {
       onClick={onClick}
       style={{ "--accent": pillar.accent, "--accent2": pillar.accent2, "--glow": pillar.glow }}
     >
-      <div className="pillar-visual">
-        <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} loading="eager" decoding="sync" fetchPriority="high" />
+      <div className="pillar-visual" style={{ backgroundImage: `url(${pillar.image})` }}>
+        <img src={pillar.image} alt="" loading="eager" decoding="sync" fetchPriority="high" />
         <div className="pillar-image-shade" />
       </div>
 
@@ -764,8 +765,8 @@ function LoginCard({
           <ChevronLeft size={16} /> Volver a pilares
         </button>
 
-        <div className="login-visual-mini">
-          <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} loading="eager" decoding="sync" fetchPriority="high" />
+        <div className="login-visual-mini" style={{ backgroundImage: `url(${pillar.image})` }}>
+          <img src={pillar.image} alt="" loading="eager" decoding="sync" fetchPriority="high" />
           <div className="login-visual-overlay" />
         </div>
       </div>
@@ -1358,6 +1359,9 @@ button { -webkit-tap-highlight-color: transparent; }
   border-radius: 24px;
   border: 1px solid rgba(255,255,255,.10);
   box-shadow: inset 0 -80px 90px rgba(0,0,0,.35);
+  background-color: rgba(3,2,12,.72);
+  background-size: cover;
+  background-position: center;
 }
 .landing-card-image::after {
   content: "";
@@ -1373,6 +1377,7 @@ button { -webkit-tap-highlight-color: transparent; }
   object-fit: cover;
   object-position: center;
   filter: saturate(1.12) contrast(1.05) brightness(.94);
+  color: transparent;
 }
 .landing-card-content {
   padding: clamp(22px, 1.8vw, 34px) clamp(24px, 2vw, 38px) 10px;
@@ -1530,7 +1535,9 @@ button { -webkit-tap-highlight-color: transparent; }
   height: 100%;
   border-radius: clamp(18px, 1.5vw, 24px);
   overflow: hidden;
-  background: rgba(3,2,12,.72);
+  background-color: rgba(3,2,12,.72);
+  background-size: cover;
+  background-position: center;
   border: 1px solid rgba(255,255,255,.12);
   box-shadow: inset 0 -32px 52px rgba(0,0,0,.20), 0 0 24px color-mix(in srgb, var(--accent) 24%, transparent);
 }
@@ -1541,6 +1548,7 @@ button { -webkit-tap-highlight-color: transparent; }
   object-fit: cover;
   object-position: center;
   filter: saturate(1.1) contrast(1.04) brightness(.96);
+  color: transparent;
 }
 .pillar-image-shade {
   position: absolute;
@@ -1646,8 +1654,8 @@ button { -webkit-tap-highlight-color: transparent; }
   font-weight: 850;
   outline: none;
 }
-.login-visual-mini { position: absolute; inset: 0; overflow: hidden; }
-.login-visual-mini img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center; filter: var(--hero-filter); transform: scale(1.01); }
+.login-visual-mini { position: absolute; inset: 0; overflow: hidden; background-size: cover; background-position: center; }
+.login-visual-mini img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center; filter: var(--hero-filter); transform: scale(1.01); color: transparent; }
 .login-visual-overlay { position: absolute; inset: 0; background: radial-gradient(circle at 34% 44%, color-mix(in srgb, var(--accent) 58%, transparent), transparent 44%), linear-gradient(135deg, color-mix(in srgb, var(--accent) 48%, transparent), transparent 48%), linear-gradient(90deg, color-mix(in srgb, var(--accent) 28%, rgba(3,3,15,.18)), rgba(3,3,15,.08) 52%, rgba(3,3,15,.38)), linear-gradient(180deg, rgba(3,3,15,.04), rgba(3,3,15,.34)); mix-blend-mode: screen; pointer-events: none; }
 .login-body { min-width: 0; width: 100%; padding: 34px 56px 32px; align-self: stretch; display: flex; flex-direction: column; justify-content: center; overflow: hidden; background: radial-gradient(circle at 90% 18%, rgba(20,80,160,.18), transparent 34%), linear-gradient(180deg, rgba(8,13,32,.96), rgba(4,7,19,.94)); }
 .login-body h2 { margin: 0; font-size: clamp(34px, 2.7vw, 46px); line-height: 1; text-transform: uppercase; letter-spacing: -.025em; white-space: nowrap; color: #fff; text-shadow: 0 0 18px rgba(255,255,255,.10); }

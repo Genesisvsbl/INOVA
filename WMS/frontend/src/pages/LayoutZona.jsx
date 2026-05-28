@@ -67,41 +67,72 @@ function locationCode(row) {
   return String(row?.ubicacion || [row?.ubicacion_base, row?.posicion].filter(Boolean).join("") || "").trim();
 }
 
+function parseFinalLocationPosition(value) {
+  const raw = String(value || "").replace(/\D/g, "");
+  const finalNumber = Number(raw);
+  const normalized = raw.padStart(2, "0");
+
+  if (raw.length && finalNumber >= 1 && finalNumber <= 8) {
+    return {
+      depth: finalNumber === 3 || finalNumber === 4 || finalNumber === 7 || finalNumber === 8 ? 2 : 1,
+      positionIndex: finalNumber >= 5 ? 2 : 1,
+      rackSide: finalNumber % 2 === 0 ? 0 : 1,
+      finalPosition: normalized,
+    };
+  }
+
+  return {
+    depth: 1,
+    positionIndex: 1,
+    rackSide: 0,
+    finalPosition: raw || "01",
+  };
+}
+
+function finalPositionFromSlot(depth, position, rack) {
+  const rackNumber = Number(rack) || 1;
+  const rackSide = rackNumber === 2 || rackNumber === 4 ? 1 : 0;
+  const depthOffset = clamp(Number(depth) || 1, 1, DEPTHS) === 2 ? 2 : 0;
+  const positionOffset = clamp(Number(position) || 1, 1, FRONT_POSITIONS) === 2 ? 4 : 0;
+  return String(1 + rackSide + depthOffset + positionOffset).padStart(2, "0");
+}
 function parseLocation(row) {
   const code = locationCode(row);
   const base = cleanZone(row.ubicacion_base || row.zona || code.slice(0, 3));
   const raw = String(row.posicion || code.replace(base, "") || "").replace(/\s/g, "");
-  const compact = raw.replace(/[´`]/g, "'");
-  const fullCode = code.replace(/[´`]/g, "'");
+  const compact = raw.replace(/[\u00b4`]/g, "'");
+  const fullCode = code.replace(/[\u00b4`]/g, "'");
   const wmsMatch = fullCode.match(/^(\d{3})(\d)(\d)(\d)'?(\d+)$/);
 
   if (wmsMatch) {
     const [, zoneValue, pasilloValue, bloqueValue, nivelValue, finalValue] = wmsMatch;
-    const finalText = String(finalValue || "1");
-    const depthCandidate = Number(finalText.slice(0, -1) || 1);
-    const positionCandidate = Number(finalText.slice(-1) || 1);
+    const finalSlot = parseFinalLocationPosition(finalValue);
     return {
       base: zoneValue,
       module: Number(bloqueValue),
       level: Number(nivelValue),
-      depth: clamp(depthCandidate, 1, DEPTHS),
-      positionIndex: clamp(positionCandidate, 1, FRONT_POSITIONS),
+      depth: finalSlot.depth,
+      positionIndex: finalSlot.positionIndex,
       pasilloCode: clamp(Number(pasilloValue), 1, 2),
-      finalPosition: finalText,
+      finalPosition: finalSlot.finalPosition,
+      rackSide: finalSlot.rackSide,
       position: compact || code.replace(zoneValue, ""),
       parseMode: "wms",
     };
   }
 
-  const match = compact.match(/^(\d{2})(\d)['’]?(\d{1,2})?$/);
+  const match = compact.match(/^(\d{2})(\d)['\u2019]?(\d{1,2})?$/);
 
   if (match) {
+    const finalSlot = parseFinalLocationPosition(match[3] || "02");
     return {
       base,
       module: Number(match[1]),
       level: Number(match[2]),
-      depth: Number(match[3] || 1),
-      positionIndex: clamp(Number(String(match[3] || 1).slice(-1) || 1), 1, FRONT_POSITIONS),
+      depth: finalSlot.depth,
+      positionIndex: finalSlot.positionIndex,
+      finalPosition: finalSlot.finalPosition,
+      rackSide: finalSlot.rackSide,
       position: compact,
       parseMode: "legacy",
     };
@@ -198,12 +229,13 @@ function enhanceRackData(cells) {
     const moduleSlot = rackSlot % (LEVELS * FRONT_POSITIONS * DEPTHS);
     const fallbackLevel = Math.floor(moduleSlot / (FRONT_POSITIONS * DEPTHS)) + 1;
     const faceSlot = moduleSlot % (FRONT_POSITIONS * DEPTHS);
-    const fallbackPosition = (faceSlot % FRONT_POSITIONS) + 1;
-    const fallbackDepth = Math.floor(faceSlot / FRONT_POSITIONS) + 1;
+    const fallbackDepth = (faceSlot % DEPTHS) + 1;
+    const fallbackPosition = Math.floor(faceSlot / DEPTHS) + 1;
     const pasillo = cell.pasilloCode || (fallbackRack <= 2 ? 1 : 2);
     const physicalDepth = clamp(Number(cell.depth) || fallbackDepth, 1, DEPTHS);
+    const rackSide = clamp(Number(cell.rackSide ?? (fallbackRack % 2 === 0 ? 1 : 0)), 0, 1);
     const rack = cell.parseMode === "wms"
-      ? (pasillo === 2 ? 2 : 0) + physicalDepth
+      ? (pasillo === 2 ? 3 : 1) + rackSide
       : fallbackRack;
     const moduleInRack = clamp(Number(cell.module) || fallbackModule, 1, MODULES_PER_RACK);
     const physicalLevel = clamp(Number(cell.level) || fallbackLevel, 1, LEVELS);
@@ -241,10 +273,16 @@ function matchFilter(value, filterValue) {
   return String(value) === String(filterValue);
 }
 
+function aisleForRack(rack) {
+  const rackNumber = Number(rack);
+  if (!rackNumber) return "1";
+  return rackNumber <= 2 ? "1" : "2";
+}
+
 function matchAisleFilter(cell, filterValue) {
   if (!filterValue || filterValue === "todos") return true;
   const value = String(filterValue);
-  const rackFallback = Number(cell.rack) <= 2 ? "1" : "2";
+  const rackFallback = aisleForRack(cell.rack);
   return String(cell.pasillo) === value || rackFallback === value;
 }
 
@@ -275,12 +313,12 @@ function formatQty(value) {
 function slotLocationCode(cell, zone = "300") {
   if (cell?.code && !String(cell.code).startsWith("R")) return cell.code;
   const zoneCode = cleanZone(zone) || cleanZone(cell?.base) || "300";
-  const pasillo = Number(cell?.pasillo) || (Number(cell?.rack) <= 2 ? 1 : 2);
+  const pasillo = Number(cell?.pasillo) || (Number(aisleForRack(cell?.rack)));
   const modulo = clamp(Number(cell?.moduleInRack) || 1, 1, MODULES_PER_RACK);
   const nivel = clamp(Number(cell?.physicalLevel) || 1, 1, LEVELS);
   const profundidad = clamp(Number(cell?.physicalDepth) || 1, 1, DEPTHS);
   const posicion = clamp(Number(cell?.physicalPosition) || 1, 1, FRONT_POSITIONS);
-  return `${zoneCode}${pasillo}${modulo}${nivel}'${profundidad}${posicion}`;
+  return `${zoneCode}${pasillo}${modulo}${nivel}'${finalPositionFromSlot(profundidad, posicion, cell?.rack)}`;
 }
 
 function stockColor(cell, maxStock) {
@@ -497,7 +535,7 @@ function getRackLevelFrameCells(filters, fallbackCells = []) {
     Array.from({ length: DEPTHS }, (_, depthIndex) =>
       Array.from({ length: FRONT_POSITIONS }, (_, positionIndex) => ({
         rack,
-        pasillo: rack <= 2 ? 1 : 2,
+        pasillo: Number(aisleForRack(rack)),
         moduleInRack: moduleIndex + 1,
         physicalLevel: level,
         physicalDepth: depthIndex + 1,
@@ -691,7 +729,13 @@ export default function LayoutZona() {
       if (value === "todos") {
         setView("iso");
         setShowAllStructure(false);
+        setFilters((current) => ({ ...current, rack: value }));
+        return;
       }
+      setFilters((current) => ({ ...current, pasillo: aisleForRack(value), rack: value }));
+      setView("close");
+      setShowAllStructure(false);
+      return;
     }
     setFilters((current) => ({ ...current, [name]: value }));
     if (["rack", "modulo", "nivel", "posicion", "profundidad"].includes(name) && value !== "todos") {
@@ -939,7 +983,7 @@ export default function LayoutZona() {
 
       if (selectedPoint && nextView !== "top") {
         const selectedRackCenterZ = rackZStart(Number(selected.rack)) + RACK_DEPTH / 2;
-        const selectedAisleZ = Number(selected.rack) <= 2 ? AISLE_Z[0] : AISLE_Z[1];
+        const selectedAisleZ = aisleForRack(selected.rack) === "1" ? AISLE_Z[0] : AISLE_Z[1];
         const selectedRackDirection = selectedRackCenterZ >= selectedAisleZ ? 1 : -1;
         const selectedFrontSide = selectedRackDirection >= 0 ? -1 : 1;
         controls.target.set(selectedPoint[0], Math.max(1.05, selectedPoint[1]), selectedPoint[2]);
@@ -956,13 +1000,21 @@ export default function LayoutZona() {
 
       if (nextView === "top") {
         camera.position.set(cx, targetY + fitRadius * 1.65, cz + 0.1);
+      } else if (nextView === "iso" && aisleFocus && !rackFocus) {
+        const aisleSide = filters.pasillo === "2" ? -1 : 1;
+        const startX = -CENTER_X + 5.2;
+        const lookX = Math.min(CENTER_X - 2.2, startX + 13.8);
+        controls.target.set(lookX, 2.15, aisleZ + aisleSide * 0.08);
+        camera.position.set(startX - 7.4, 4.75, aisleZ + aisleSide * 1.02);
+        camera.zoom = 0.80;
+        camera.updateProjectionMatrix();
       } else if (nextView === "close") {
         if (rackFocus) {
           const rackNumber = Number(filters.rack);
           const rackCenterZ = filters.modulo === "todos" && filters.nivel === "todos" && filters.posicion === "todos" && filters.profundidad === "todos"
             ? operatorPose?.rackCenterZ ?? rackZStart(rackNumber) + RACK_DEPTH / 2
             : baseCz;
-          const rackAisleZ = rackNumber <= 2 ? AISLE_Z[0] : AISLE_Z[1];
+          const rackAisleZ = aisleForRack(rackNumber) === "1" ? AISLE_Z[0] : AISLE_Z[1];
           const rackDirection = operatorPose?.rackDirection ?? (rackCenterZ >= rackAisleZ ? 1 : -1);
           const frontSide = rackDirection >= 0 ? -1 : 1;
           const faceSide = rackFace === "back" ? -frontSide : frontSide;
@@ -990,7 +1042,7 @@ export default function LayoutZona() {
       } else if (nextView === "depth" && rackFocus) {
         const rackNumber = Number(filters.rack);
         const rackCenterZ = rackZStart(rackNumber) + RACK_DEPTH / 2;
-        const rackAisleZ = rackNumber <= 2 ? AISLE_Z[0] : AISLE_Z[1];
+        const rackAisleZ = aisleForRack(rackNumber) === "1" ? AISLE_Z[0] : AISLE_Z[1];
         const rackDirection = rackCenterZ >= rackAisleZ ? 1 : -1;
         const frontSide = rackDirection >= 0 ? -1 : 1;
         const targetZ = filters.modulo === "todos" && filters.nivel === "todos" && filters.posicion === "todos" && filters.profundidad === "todos"
@@ -1184,7 +1236,7 @@ export default function LayoutZona() {
             <div className="layout3d-rack-face-panel">
               <div>
                 <span>Rack filtrado</span>
-                <strong>R{filters.rack} · {view === "depth" ? "D1 + D2" : rackFace === "front" ? "Frente" : "Atras"}</strong>
+                <strong>R{filters.rack} - {view === "depth" ? "D1 + D2" : rackFace === "front" ? "Frente" : "Atras"}</strong>
               </div>
               <button type="button" className={rackFace === "front" ? "active" : ""} onClick={() => { setRackFace("front"); setView("close"); }}>Frente D1</button>
               <button type="button" className={rackFace === "back" ? "active" : ""} onClick={() => { setRackFace("back"); setView("close"); }}>Atras D2</button>
@@ -1194,7 +1246,7 @@ export default function LayoutZona() {
             <div className="layout3d-orientation-cards">
               <article>
                 <span>Ubicacion</span>
-                <strong>Pasillo {filters.pasillo !== "todos" ? filters.pasillo : Number(filters.rack) <= 2 ? "1" : "2"}</strong>
+                <strong>Pasillo {filters.pasillo !== "todos" ? filters.pasillo : aisleForRack(filters.rack)}</strong>
                 <small>Referencia de acceso al rack</small>
               </article>
               <article>
@@ -1208,10 +1260,10 @@ export default function LayoutZona() {
             <div className="layout3d-floating-operator">
               <div>
                 <span>Recorrido</span>
-                <strong>P{filters.pasillo}{filters.rack !== "todos" ? ` · R${filters.rack}` : ""} · M{operatorStep + 1}</strong>
+                <strong>P{filters.pasillo}{filters.rack !== "todos" ? ` - R${filters.rack}` : ""} - M{operatorStep + 1}</strong>
               </div>
-              <button type="button" onClick={() => moveOperator(-1)} title="Modulo anterior">←</button>
-              <button type="button" onClick={() => moveOperator(1)} title="Modulo siguiente">→</button>
+              <button type="button" onClick={() => moveOperator(-1)} title="Modulo anterior">&lt;</button>
+              <button type="button" onClick={() => moveOperator(1)} title="Modulo siguiente">&gt;</button>
               {filters.rack === "todos" ? (
                 <>
                   <button type="button" className={operatorTarget === "pasillo" ? "active" : ""} onClick={() => guideOperator("pasillo")}>Pasillo</button>
@@ -1553,7 +1605,7 @@ function createRackCity(
           for (let position = 1; position <= FRONT_POSITIONS; position += 1) {
             const cell = cellBySlot.get(`${rack}-${moduleIndex}-${level}-${depth}-${position}`) || {
               rack,
-              pasillo: rack <= 2 ? 1 : 2,
+              pasillo: Number(aisleForRack(rack)),
               moduleInRack: moduleIndex,
               physicalLevel: level,
               physicalDepth: depth,
@@ -1574,7 +1626,7 @@ function createRackCity(
             const activeFaceDepth = rackFace === "back" ? 2 : 1;
             const depthNumber = Number(cell.physicalDepth || 1);
             const rackCenterZ = rackZStart(rack) + RACK_DEPTH / 2;
-            const rackAisleZ = rack <= 2 ? AISLE_Z[0] : AISLE_Z[1];
+            const rackAisleZ = aisleForRack(rack) === "1" ? AISLE_Z[0] : AISLE_Z[1];
             const rackDirection = rackCenterZ >= rackAisleZ ? 1 : -1;
             const backDepth = rackDirection >= 0 ? 2 : 1;
             const isBackDepth = depthNumber === backDepth;
@@ -1593,19 +1645,25 @@ function createRackCity(
                 ? [0.98, 1.02, 0.74]
                 : [0.98, 0.64, 0.62]
               : [1, 1, 1];
+            const isOccupied = Number(cell.stock || 0) > 0;
+            const loadScale = isOccupied
+              ? [depthScale[0] * 0.96, depthScale[1] * 0.84, depthScale[2] * 0.94]
+              : depthScale;
             const depthOffset = frontalDepthMode
               ? isBackDepth
                 ? [0, 0.06, depthSide * 0.12]
                 : [0, -0.12, -depthSide * 0.18]
               : [0, 0, 0];
+            const loadLift = isOccupied ? LEVEL_HEIGHT * 0.7 * depthScale[1] * 0.06 : 0;
             visibleSlots.push({
               cell,
               position: [
                 position3d[0] + depthOffset[0],
-                position3d[1] + depthOffset[1],
+                position3d[1] + depthOffset[1] + loadLift,
                 position3d[2] + depthOffset[2],
               ],
-              scale: depthScale,
+              scale: loadScale,
+              palletScale: depthScale,
               color: displayColor,
               isSelected,
               dimmed,
@@ -1624,10 +1682,14 @@ function createRackCity(
   const backOccupiedSlots = frontalDepthMode ? visibleSlots.filter((slot) => Number(slot.cell.stock || 0) > 0 && slot.isBackDepth) : [];
   const backDepthOutlineSlots = frontalDepthMode ? visibleSlots.filter((slot) => slot.isBackDepth && !slot.isSelected) : [];
   const slotSize = [POSITION_WIDTH * 0.84, LEVEL_HEIGHT * 0.7, DEPTH_WIDTH * 0.8];
+  const occupiedPalletSlots = visibleSlots.filter((slot) => Number(slot.cell.stock || 0) > 0);
   const emptyMesh = createInstancedBoxMesh(scene, slotSize, emptySlots.length, new THREE.MeshBasicMaterial({ color: 0xff3347, transparent: true, opacity: 0.92 }), 'Ubicaciones vacias');
   const occupiedMesh = createInstancedBoxMesh(scene, slotSize, occupiedSlots.length, new THREE.MeshBasicMaterial({ color: 0x00b894, transparent: true, opacity: 0.94 }), 'Ubicaciones ocupadas');
   const backEmptyMesh = createInstancedBoxMesh(scene, slotSize, backEmptySlots.length, new THREE.MeshBasicMaterial({ color: 0xb8001d, transparent: true, opacity: 0.98 }), 'Ubicaciones vacias posteriores');
   const backOccupiedMesh = createInstancedBoxMesh(scene, slotSize, backOccupiedSlots.length, new THREE.MeshBasicMaterial({ color: 0x007a46, transparent: true, opacity: 0.98 }), 'Ubicaciones ocupadas posteriores');
+  const palletBaseMesh = createInstancedBoxMesh(scene, [slotSize[0] * 0.92, 0.045, slotSize[2] * 0.72], occupiedPalletSlots.length, createMaterial(0x9a5a13, { roughness: 0.78 }), 'Estibas apoyadas en larguero');
+  const palletSlatMesh = createInstancedBoxMesh(scene, [slotSize[0] * 0.16, 0.055, slotSize[2] * 0.74], occupiedPalletSlots.length * 4, createMaterial(0xd6a15d, { roughness: 0.8 }), 'Tablillas de estiba ocupada');
+  const palletFrontMesh = createInstancedBoxMesh(scene, [slotSize[0] * 0.98, 0.055, 0.05], occupiedPalletSlots.length, createMaterial(0x6f3f0f, { roughness: 0.82 }), 'Frente de estiba apoyada');
   const backDepthOutlineMesh = frontalDepthMode
     ? createInstancedBoxMesh(
         scene,
@@ -1659,6 +1721,28 @@ function createRackCity(
     backDepthOutlineMesh.instanceMatrix.needsUpdate = true;
     backDepthOutlineMesh.renderOrder = 12;
   }
+  occupiedPalletSlots.forEach((slot, index) => {
+    const rackCenterZ = rackZStart(Number(slot.cell.rack)) + RACK_DEPTH / 2;
+    const aisleZ = aisleForRack(slot.cell.rack) === "1" ? AISLE_Z[0] : AISLE_Z[1];
+    const faceDirection = rackCenterZ >= aisleZ ? -1 : 1;
+    const scaledSlotHeight = slotSize[1] * (slot.scale?.[1] || 1);
+    const slotBottomY = slot.position[1] - scaledSlotHeight / 2;
+    const palletScale = slot.palletScale || slot.scale || [1, 1, 1];
+    const palletY = slotBottomY - 0.035;
+    const faceZ = slot.position[2] + faceDirection * slotSize[2] * 0.5 * (palletScale[2] || 1);
+    setBoxInstance(palletBaseMesh, index, [slot.position[0], palletY - 0.012, slot.position[2]], palletScale);
+    [-0.36, -0.12, 0.12, 0.36].forEach((offset, slatIndex) => {
+      const slatX = slot.position[0] + offset * slotSize[0] * (palletScale[0] || 1);
+      setBoxInstance(palletSlatMesh, index * 4 + slatIndex, [slatX, palletY + 0.025, slot.position[2]], palletScale);
+    });
+    setBoxInstance(palletFrontMesh, index, [slot.position[0], palletY + 0.02, faceZ], palletScale);
+  });
+  palletBaseMesh.instanceMatrix.needsUpdate = true;
+  palletSlatMesh.instanceMatrix.needsUpdate = true;
+  palletFrontMesh.instanceMatrix.needsUpdate = true;
+  palletBaseMesh.renderOrder = 28;
+  palletSlatMesh.renderOrder = 34;
+  palletFrontMesh.renderOrder = 35;
 
   visibleSlots.forEach((slot) => {
     if (slot.isSelected) {
@@ -2986,6 +3070,7 @@ const layoutStyles = `
   }
 }
 `;
+
 
 
 
