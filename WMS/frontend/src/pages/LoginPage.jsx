@@ -15,9 +15,18 @@ import {
   User,
   X,
 } from "lucide-react";
-import fiveSImage from "../../../../5S/assets/5S.png";
-import etoImage from "../../../../ETO/app/public/ETO.png";
-import { empresaId, selectRows, supabaseEnabled } from "../supabaseRest";
+import {
+  autenticarUsuario,
+  cambiarClaveObligatoria,
+  consultarSolicitudAcceso,
+  restablecerClaveConToken,
+  solicitarAcceso,
+  solicitarRecuperacionClave,
+} from "../adminApi";
+import { buildApprovalEmailHtml } from "../approvalEmailTemplate";
+const fiveSImage = "/5S.png";
+const etoImage = "/ETO.png";
+const ALLOW_LEGACY_LOGIN = import.meta.env.VITE_ALLOW_LEGACY_LOGIN === "true";
 
 const ADMIN_PERMISSIONS = [
   "usuarios.ver",
@@ -221,109 +230,6 @@ const PILLARS = [
   },
 ];
 
-function readFirst(row, keys, fallback = "") {
-  const found = keys.find((key) => row?.[key] !== undefined && row?.[key] !== null && String(row[key]).trim() !== "");
-  return found ? row[found] : fallback;
-}
-
-function parsePermissions(value, role) {
-  if (Array.isArray(value)) return value;
-  if (typeof value === "string" && value.trim()) {
-    try {
-      const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) return parsed;
-    } catch {
-      return value.split(",").map((item) => item.trim()).filter(Boolean);
-    }
-  }
-  return String(role || "").toUpperCase().includes("CONSULT") ? CONSULT_PERMISSIONS : ADMIN_PERMISSIONS;
-}
-
-function inferPlatformFromRole(role) {
-  const normalizedRole = String(role || "").toUpperCase();
-  if (normalizedRole.includes("_5S")) return "5s";
-  if (normalizedRole.includes("ETO")) return "eto";
-  return "wms";
-}
-
-function normalizeLoginUser(row, assignment = null, roleRow = null) {
-  const role = roleRow?.codigo || readFirst(row, ["rol", "role", "perfil"], "USUARIO");
-  const explicitPlatform = assignment?.pilar || readFirst(row, ["plataforma", "pilar", "modulo", "app"], "");
-  const platform = String(explicitPlatform || inferPlatformFromRole(role)).toLowerCase();
-  const password = readFirst(row, [
-    "password",
-    "clave",
-    "contrasena",
-    "contraseña",
-    "pin",
-    "clave_acceso",
-    "codigo_acceso",
-    "access_code",
-    "accessCode",
-  ]);
-
-  return {
-    auth: "true",
-    userId: String(row.id || row.userId || row.usuario_id || ""),
-    nombre: readFirst(row, ["nombre", "name", "email", "usuario"], "Usuario"),
-    usuario: readFirst(row, ["usuario", "username", "email"], ""),
-    email: readFirst(row, ["email"], ""),
-    documento: readFirst(row, ["documento"], ""),
-    password: String(password || ""),
-    rol: String(role || "USUARIO").toUpperCase(),
-    estado: String(readFirst(row, ["estado", "status"], "ACTIVO")).toUpperCase(),
-    plataforma: platform || "wms",
-    accessLevel: assignment?.eto_nivel || readFirst(row, ["accessLevel", "access_level", "nivel_acceso"], ""),
-    accessCode: readFirst(row, ["accessCode", "access_code", "codigo_acceso", "clave_acceso"], ""),
-    permisos: parsePermissions(readFirst(row, ["permisos", "permissions"], ""), role),
-  };
-}
-
-function buildLoginUsers(usuarios, usuarioPilares, roles) {
-  const activeAssignments = (usuarioPilares || []).filter((row) => String(row.estado || "ACTIVO").toUpperCase() === "ACTIVO");
-  const rolesById = new Map((roles || []).map((row) => [String(row.id), row]));
-
-  return (usuarios || []).flatMap((user) => {
-    const userAssignments = activeAssignments.filter((assignment) => String(assignment.usuario_id) === String(user.id));
-
-    if (!userAssignments.length) {
-      return [normalizeLoginUser(user)];
-    }
-
-    return userAssignments.map((assignment) =>
-      normalizeLoginUser(user, assignment, rolesById.get(String(assignment.rol_id)))
-    );
-  });
-}
-
-async function getLoginUsers() {
-  if (!supabaseEnabled) return USERS_MOCK;
-
-  try {
-    const [usuarios, usuarioPilares, roles] = await Promise.all([
-      selectRows("public", "usuarios", {
-        empresa_id: `eq.${empresaId}`,
-        select: "*",
-        limit: "1000",
-      }),
-      selectRows("public", "usuario_pilares", {
-        empresa_id: `eq.${empresaId}`,
-        select: "*",
-        limit: "3000",
-      }),
-      selectRows("public", "roles", {
-        empresa_id: `eq.${empresaId}`,
-        select: "*",
-        limit: "1000",
-      }),
-    ]);
-    return buildLoginUsers(usuarios, usuarioPilares, roles).filter((user) => user.usuario);
-  } catch (error) {
-    console.warn("No se pudieron cargar usuarios de Supabase para login", error);
-    return [];
-  }
-}
-
 export default function LoginPage() {
   const [selectedPillarId, setSelectedPillarId] = useState("wms");
   const [showLogin, setShowLogin] = useState(false);
@@ -334,7 +240,14 @@ export default function LoginPage() {
   const [recordarme, setRecordarme] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [assetsReady, setAssetsReady] = useState(false);
+  const [assetsReady, setAssetsReady] = useState(true);
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [requestStatus, setRequestStatus] = useState("");
+  const [loginNotice, setLoginNotice] = useState("");
+  const [passwordChangeUser, setPasswordChangeUser] = useState(null);
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [recoveryToken, setRecoveryToken] = useState(null);
+  const [lookupOpen, setLookupOpen] = useState(false);
 
   const selectedPillar = useMemo(
     () => PILLARS.find((pillar) => pillar.id === selectedPillarId) || PILLARS[0],
@@ -346,11 +259,11 @@ export default function LoginPage() {
       "/ICONOINOVA.ico",
       "/INOVA1.jpeg",
       "/INOVA.jpeg",
-      "/inova-logo.png",
+      "/INOVA2026.png",
       "/WMS.png",
       fiveSImage,
       etoImage,
-      "/INOVA.png",
+      "/INOVA2026.png",
     ];
 
     let cancelled = false;
@@ -395,11 +308,28 @@ export default function LoginPage() {
     sessionStorage.removeItem("etoRole");
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const resetToken = params.get("resetPasswordToken");
+    const resetEmail = params.get("email");
+    const resetPilar = params.get("pilar");
+    if (!resetToken || !resetEmail) return;
+
+    if (resetPilar && PILLARS.some((pillar) => pillar.id === resetPilar)) {
+      setSelectedPillarId(resetPilar);
+    }
+    setShowLogin(true);
+    setRecoveryToken({ token: resetToken, email: resetEmail });
+    setRecoveryOpen(true);
+    window.history.replaceState({}, "", "/login");
+  }, []);
+
   const selectPillar = (pillarId) => {
     setSelectedPillarId(pillarId);
     setShowLogin(true);
     setMenuOpen(false);
     setError("");
+    setLoginNotice("");
     setUsuario("");
     setPassword("");
   };
@@ -417,25 +347,32 @@ export default function LoginPage() {
     try {
       const usuarioInput = usuario.trim();
       const passwordInput = password.trim();
-      const loginUsers = await getLoginUsers();
-
       const plataformaSeleccionada = selectedPillar.id;
+      let usuarioEncontrado;
 
-      const usuarioEncontrado = loginUsers.find((u) => {
-        const samePlatform = u.plataforma === plataformaSeleccionada;
-        const isGlobalAdmin = u.rol === "SUPER_ADMIN";
-        const normalizedInput = usuarioInput.toLowerCase();
-        const sameUser = [u.usuario, u.nombre, u.email, u.documento]
-          .filter(Boolean)
-          .some((value) => String(value).toLowerCase() === normalizedInput);
+      try {
+        usuarioEncontrado = await autenticarUsuario({
+          usuario: usuarioInput,
+          password: passwordInput,
+          pilar: plataformaSeleccionada,
+        });
+      } catch (supabaseError) {
+        if (!ALLOW_LEGACY_LOGIN) throw supabaseError;
 
-        const samePassword =
-          u.plataforma === "eto"
-            ? u.password.toUpperCase() === passwordInput.toUpperCase()
-            : u.password === passwordInput;
+        usuarioEncontrado = USERS_MOCK.find((u) => {
+          const samePlatform = u.plataforma === plataformaSeleccionada;
+          const isGlobalAdmin = u.rol === "SUPER_ADMIN";
+          const sameUser = u.usuario.toLowerCase() === usuarioInput.toLowerCase();
+          const samePassword =
+            u.plataforma === "eto"
+              ? u.password.toUpperCase() === passwordInput.toUpperCase()
+              : u.password === passwordInput;
 
-        return (samePlatform || isGlobalAdmin) && sameUser && samePassword;
-      });
+          return (samePlatform || isGlobalAdmin) && sameUser && samePassword;
+        });
+
+        if (!usuarioEncontrado) throw supabaseError;
+      }
 
       if (!usuarioEncontrado) {
         setError("Credenciales incorrectas.");
@@ -457,6 +394,9 @@ export default function LoginPage() {
 
       sessionStorage.setItem("auth", usuarioEncontrado.auth);
       sessionStorage.setItem("userId", usuarioEncontrado.userId);
+      sessionStorage.setItem("empresaId", usuarioEncontrado.empresaId || "");
+      sessionStorage.setItem("esPlatformAdmin", String(Boolean(usuarioEncontrado.esPlatformAdmin)));
+      sessionStorage.setItem("esSuperAdmin", String(Boolean(usuarioEncontrado.esSuperAdmin)));
       sessionStorage.setItem("nombre", usuarioEncontrado.nombre);
       sessionStorage.setItem("usuario", usuarioEncontrado.usuario);
       sessionStorage.setItem("rol", usuarioEncontrado.rol);
@@ -487,12 +427,30 @@ export default function LoginPage() {
         sessionStorage.removeItem("etoRole");
       }
 
+      if (usuarioEncontrado.debeCambiarClave) {
+        setPasswordChangeUser(usuarioEncontrado);
+        setLoading(false);
+        return;
+      }
+
+      if (usuarioEncontrado.esPlatformAdmin) {
+        window.location.href = "/admin/configuracion";
+        return;
+      }
+
       window.location.href = selectedPillar.route;
-    } catch (error) {
-      console.error(error);
-      setError("No se pudo validar el usuario. Revisa la conexion e intenta de nuevo.");
+    } catch (err) {
+      setError(err?.message || "No se pudo validar el acceso.");
       setLoading(false);
     }
+  };
+
+  const submitAccessRequest = async (payload) => {
+    setRequestStatus("");
+    await solicitarAcceso(payload);
+    setRequestOpen(false);
+    setShowLogin(true);
+    setLoginNotice("Solicitud enviada. Consulta tu aprobación dentro de las 24 horas con tu correo, documento y la clave que elegiste.");
   };
 
   return (
@@ -516,16 +474,14 @@ export default function LoginPage() {
 
         <div className="brand brand-single">
           <img
-            src="/ICONOINOVA.ico"
+            src="/INOVA2026.png"
             alt="INOVA Innovamos Contigo"
-            className="brand-logo brand-logo-wide white-logo"
+            className="brand-logo brand-logo-wide"
+            loading="eager"
+            decoding="sync"
             onError={(event) => {
-              if (event.currentTarget.src.includes("/ICONOINOVA.ico")) {
-                event.currentTarget.src = "/INOVA1.jpeg";
-              } else if (event.currentTarget.src.includes("/INOVA1.jpeg")) {
-                event.currentTarget.src = "/INOVA.jpeg";
-              } else if (event.currentTarget.src.includes("/INOVA.jpeg")) {
-                event.currentTarget.src = "/inova-logo.png";
+              if (event.currentTarget.src.includes("/INOVA2026.png")) {
+                event.currentTarget.src = "/INOVA2026.png";
               }
             }}
           />
@@ -586,12 +542,73 @@ export default function LoginPage() {
               recordarme={recordarme}
               setRecordarme={setRecordarme}
               error={error}
+              notice={loginNotice}
               loading={loading}
               login={login}
               back={() => setShowLogin(false)}
+              requestAccess={() => setRequestOpen(true)}
+              lookupAccess={() => setLookupOpen(true)}
+              recoverPassword={() => {
+                setRecoveryToken(null);
+                setRecoveryOpen(true);
+              }}
             />
           </section>
         </main>
+      )}
+
+      {requestOpen && (
+        <AccessRequestModal
+          pillar={selectedPillar}
+          status={requestStatus}
+          onClose={() => {
+            setRequestOpen(false);
+            setRequestStatus("");
+          }}
+          onSubmit={submitAccessRequest}
+        />
+      )}
+
+      {lookupOpen && (
+        <AccessLookupModal
+          pillar={selectedPillar}
+          onClose={() => setLookupOpen(false)}
+          onLookup={(payload) => consultarSolicitudAcceso({ ...payload, pilar: selectedPillar.id })}
+        />
+      )}
+
+      {passwordChangeUser && (
+        <ForcedPasswordModal
+          user={passwordChangeUser}
+          onCancel={() => setPasswordChangeUser(null)}
+          onSubmit={async (newPassword) => {
+            await cambiarClaveObligatoria(passwordChangeUser.userId, newPassword);
+            setPasswordChangeUser(null);
+            window.location.href = selectedPillar.route;
+          }}
+        />
+      )}
+
+      {recoveryOpen && (
+        <PasswordRecoveryModal
+          pillar={selectedPillar}
+          defaultUser={recoveryToken?.email || usuario}
+          tokenData={recoveryToken}
+          onClose={() => {
+            setRecoveryOpen(false);
+            setRecoveryToken(null);
+          }}
+          onRequest={async (value) => {
+            const result = await solicitarRecuperacionClave({ usuario: value, pilar: selectedPillar.id });
+            setLoginNotice(result.message);
+          }}
+          onReset={async ({ email, token, password: newPassword }) => {
+            await restablecerClaveConToken({ email, token, nuevaClave: newPassword, pilar: selectedPillar.id });
+            setRecoveryOpen(false);
+            setRecoveryToken(null);
+            setLoginNotice("Contraseña actualizada. Ya puedes iniciar sesión.");
+          }}
+        />
       )}
     </div>
   );
@@ -623,7 +640,7 @@ function LandingCard({ pillar, onClick }) {
       style={{ "--accent": pillar.accent, "--accent2": pillar.accent2, "--glow": pillar.glow }}
     >
       <div className="landing-card-image">
-        <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} />
+        <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} loading="eager" decoding="sync" />
       </div>
 
       <div className="landing-card-content">
@@ -656,7 +673,7 @@ function PillarCard({ pillar, active, compact, onClick }) {
       style={{ "--accent": pillar.accent, "--accent2": pillar.accent2, "--glow": pillar.glow }}
     >
       <div className="pillar-visual">
-        <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} />
+        <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} loading="eager" decoding="sync" />
         <div className="pillar-image-shade" />
       </div>
 
@@ -688,42 +705,45 @@ function LoginCard({
   recordarme,
   setRecordarme,
   error,
+  notice,
   loading,
   login,
   back,
+  requestAccess,
+  lookupAccess,
+  recoverPassword,
 }) {
-  const userInputRef = useRef(null);
-  const passwordInputRef = useRef(null);
+  const usuarioRef = useRef(null);
+  const passwordRef = useRef(null);
 
-  const handleUserKeyDown = (event) => {
-    if (event.key === "ArrowDown") {
+  function focusPassword() {
+    passwordRef.current?.focus();
+    passwordRef.current?.select?.();
+  }
+
+  function focusUsuario() {
+    usuarioRef.current?.focus();
+    usuarioRef.current?.select?.();
+  }
+
+  function handleUsuarioKeyDown(event) {
+    if (event.key === "Enter" || event.key === "ArrowDown") {
       event.preventDefault();
-      passwordInputRef.current?.focus();
-      return;
+      focusPassword();
     }
+  }
 
-    if (event.key === "Enter") {
-      event.preventDefault();
-      if (!password.trim()) {
-        passwordInputRef.current?.focus();
-        return;
-      }
-      login();
-    }
-  };
-
-  const handlePasswordKeyDown = (event) => {
+  function handlePasswordKeyDown(event) {
     if (event.key === "ArrowUp") {
       event.preventDefault();
-      userInputRef.current?.focus();
+      focusUsuario();
       return;
     }
 
     if (event.key === "Enter") {
-      event.preventDefault();
       login();
     }
-  };
+  }
 
   return (
     <div
@@ -745,7 +765,7 @@ function LoginCard({
         </button>
 
         <div className="login-visual-mini">
-          <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} />
+          <img src={pillar.image} alt={`${pillar.area} ${pillar.title}`} loading="eager" decoding="sync" />
           <div className="login-visual-overlay" />
         </div>
       </div>
@@ -759,14 +779,15 @@ function LoginCard({
         <p>Ingresa tus credenciales para continuar en el pilar seleccionado.</p>
 
         {error ? <div className="error-box">{error}</div> : null}
+        {notice ? <div className="success-box">{notice}</div> : null}
 
         <label className="field">
           <span><User size={16} /> Usuario</span>
           <input
-            ref={userInputRef}
+            ref={usuarioRef}
             value={usuario}
             onChange={(event) => setUsuario(event.target.value)}
-            onKeyDown={handleUserKeyDown}
+            onKeyDown={handleUsuarioKeyDown}
             placeholder="Ingresa tu usuario"
             autoComplete="username"
           />
@@ -776,7 +797,7 @@ function LoginCard({
           <span><LockKeyhole size={16} /> Contraseña</span>
           <div className="password-row">
             <input
-              ref={passwordInputRef}
+              ref={passwordRef}
               type={mostrarClave ? "text" : "password"}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
@@ -795,7 +816,7 @@ function LoginCard({
             <input type="checkbox" checked={recordarme} onChange={(event) => setRecordarme(event.target.checked)} />
             <span>Recordarme</span>
           </label>
-          <button type="button">¿Olvidaste tu contraseña?</button>
+          <button type="button" onClick={recoverPassword}>¿Olvidaste tu contraseña?</button>
         </div>
 
         <button className="login-submit" onClick={login} disabled={loading}>
@@ -809,8 +830,348 @@ function LoginCard({
           Iniciar sesión con Microsoft
         </button>
 
-        <small className="login-note">¿No tienes acceso? Contacta a tu administrador.</small>
+        <small className="login-note">
+          ¿No tienes acceso? <button type="button" className="request-link" onClick={requestAccess}>Solicitar acceso</button>
+          <span className="login-note-separator">·</span>
+          <button type="button" className="request-link" onClick={lookupAccess}>Consultar solicitud</button>
+        </small>
       </div>
+    </div>
+  );
+}
+
+function PasswordRecoveryModal({ pillar, defaultUser, tokenData, onClose, onRequest, onReset }) {
+  const [identifier, setIdentifier] = useState(defaultUser || "");
+  const [passwordOne, setPasswordOne] = useState("");
+  const [passwordTwo, setPasswordTwo] = useState("");
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
+  const confirmMode = Boolean(tokenData?.token && tokenData?.email);
+
+  const submitRequest = async () => {
+    setError("");
+    setStatus("");
+    if (!identifier.trim()) {
+      setError("Ingresa tu correo o usuario.");
+      return;
+    }
+    setSending(true);
+    try {
+      await onRequest(identifier.trim());
+      setStatus("Si el usuario existe y está activo, enviaremos el enlace de recuperación a su correo.");
+    } catch (err) {
+      setError(err?.message || "No se pudo enviar la recuperación.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const submitReset = async () => {
+    setError("");
+    setStatus("");
+    if (passwordOne.length < 8) {
+      setError("La nueva contraseña debe tener mínimo 8 caracteres.");
+      return;
+    }
+    if (passwordOne !== passwordTwo) {
+      setError("Las contraseñas no coinciden.");
+      return;
+    }
+    setSending(true);
+    try {
+      await onReset({ email: tokenData.email, token: tokenData.token, password: passwordOne });
+      setStatus("Contraseña actualizada correctamente.");
+    } catch (err) {
+      setError(err?.message || "No se pudo actualizar la contraseña.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="access-modal-backdrop">
+      <section
+        className="access-modal password-change-modal"
+        style={{ "--accent": pillar.accent, "--accent2": pillar.accent2, "--glow": pillar.glow }}
+      >
+        <button type="button" className="access-close" onClick={onClose} aria-label="Cerrar recuperación">
+          <X size={18} />
+        </button>
+        <span>Seguridad de acceso</span>
+        <h2>{confirmMode ? "Crear nueva contraseña" : "Recuperar contraseña"}</h2>
+        <p>
+          {confirmMode
+            ? "Escribe una contraseña nueva para tu cuenta INOVA."
+            : "Te enviaremos un enlace seguro al correo registrado. El enlace vence en 30 minutos."}
+        </p>
+
+        {error ? <div className="error-box">{error}</div> : null}
+        {status ? <div className="success-box">{status}</div> : null}
+
+        <div className="access-form-grid">
+          {!confirmMode ? (
+            <label className="full">Correo o usuario<input value={identifier} onChange={(event) => setIdentifier(event.target.value)} autoComplete="username" /></label>
+          ) : (
+            <>
+              <label className="full">Correo<input value={tokenData.email} readOnly /></label>
+              <label>Nueva contraseña<input type="password" value={passwordOne} onChange={(event) => setPasswordOne(event.target.value)} autoComplete="new-password" /></label>
+              <label>Confirmar contraseña<input type="password" value={passwordTwo} onChange={(event) => setPasswordTwo(event.target.value)} autoComplete="new-password" /></label>
+            </>
+          )}
+        </div>
+
+        <button type="button" className="login-submit" onClick={confirmMode ? submitReset : submitRequest} disabled={sending}>
+          {sending ? "Procesando..." : confirmMode ? "Guardar nueva contraseña" : "Enviar enlace de recuperación"}
+        </button>
+      </section>
+    </div>
+  );
+}
+
+function AccessLookupModal({ pillar, onClose, onLookup }) {
+  const [form, setForm] = useState({
+    email: "",
+    documento: "",
+    claveConsulta: "",
+  });
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+  const [checking, setChecking] = useState(false);
+
+  const setValue = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  const submit = async () => {
+    setError("");
+    setResult(null);
+    if (!form.email.trim() || !form.documento.trim() || !form.claveConsulta.trim()) {
+      setError("Ingresa correo, documento y clave de consulta.");
+      return;
+    }
+
+    setChecking(true);
+    try {
+      const response = await onLookup(form);
+      setResult(response);
+    } catch (err) {
+      setError(err?.message || "No se pudo consultar la solicitud.");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const approved = result?.estado === "APROBADA";
+
+  return (
+    <div className="access-modal-backdrop">
+      <section
+        className="access-modal access-lookup-modal"
+        style={{ "--accent": pillar.accent, "--accent2": pillar.accent2, "--glow": pillar.glow }}
+      >
+        <button type="button" className="access-close" onClick={onClose} aria-label="Cerrar consulta">
+          <X size={18} />
+        </button>
+        <span>Consulta de solicitud</span>
+        <h2>{pillar.title}</h2>
+        <p>Valida tu solicitud con el correo, documento y la clave que elegiste al registrarte.</p>
+
+        {error ? <div className="error-box">{error}</div> : null}
+        {result?.mensaje ? (
+          <div className={approved ? "success-box" : "lookup-pending-box"}>
+            <strong>{approved ? "Acceso aprobado" : "Solicitud en revisión"}</strong>
+            <span>{result.mensaje}</span>
+          </div>
+        ) : null}
+
+        <div className="access-form-grid">
+          <label>Correo electrónico<input value={form.email} onChange={(event) => setValue("email", event.target.value)} autoComplete="email" /></label>
+          <label>Cédula / documento<input value={form.documento} onChange={(event) => setValue("documento", event.target.value)} /></label>
+          <label className="full">Clave de consulta<input type="password" value={form.claveConsulta} onChange={(event) => setValue("claveConsulta", event.target.value)} placeholder="La clave que elegiste al solicitar acceso" /></label>
+        </div>
+
+        <button type="button" className="login-submit" onClick={submit} disabled={checking}>
+          {checking ? "Consultando..." : "Consultar estado"}
+        </button>
+
+        {result ? (
+          <div className="lookup-result">
+            <div className="lookup-meta">
+              <div>
+                <span>Consulta</span>
+                <strong>Validada</strong>
+              </div>
+              <div>
+                <span>Estado</span>
+                <strong>{result.estado}</strong>
+              </div>
+              {result.user?.usuario ? (
+                <div>
+                  <span>Usuario</span>
+                  <strong>{result.user.usuario}</strong>
+                </div>
+              ) : null}
+              {result.claveTemporal ? (
+                <div>
+                  <span>Clave temporal</span>
+                  <strong>{result.claveTemporal}</strong>
+                </div>
+              ) : null}
+            </div>
+
+            {approved && result.payload ? (
+              <>
+                <div className="lookup-security-note">
+                  La clave temporal solo se muestra mientras la cuenta aún debe cambiar contraseña.
+                </div>
+                <iframe
+                  className="lookup-preview"
+                  title="Vista de aprobación INOVA"
+                  srcDoc={buildApprovalEmailHtml(result.payload)}
+                />
+              </>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
+function AccessRequestModal({ pillar, status, onClose, onSubmit }) {
+  const [form, setForm] = useState({
+    nombre_completo: "",
+    documento: "",
+    email: "",
+    telefono: "",
+    empresa_nombre: "",
+    cargo: "",
+    pilar: pillar.id,
+    eto_nivel: "1",
+    clave_consulta: "",
+    clave_consulta_confirm: "",
+    motivo: "",
+  });
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setForm((prev) => ({ ...prev, pilar: pillar.id }));
+  }, [pillar.id]);
+
+  const setValue = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  const submit = async () => {
+    setError("");
+    if (!form.nombre_completo.trim() || !form.documento.trim() || !form.email.trim() || !form.empresa_nombre.trim()) {
+      setError("Completa nombre, documento, correo y empresa.");
+      return;
+    }
+    if (form.clave_consulta.trim().length < 6) {
+      setError("Crea una clave de consulta de mínimo 6 caracteres.");
+      return;
+    }
+    if (form.clave_consulta !== form.clave_consulta_confirm) {
+      setError("Las claves de consulta no coinciden.");
+      return;
+    }
+
+    setSending(true);
+    try {
+      await onSubmit(form);
+    } catch (err) {
+      setError(err?.message || "No se pudo enviar la solicitud.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="access-modal-backdrop">
+      <section
+        className="access-modal"
+        style={{ "--accent": pillar.accent, "--accent2": pillar.accent2, "--glow": pillar.glow }}
+      >
+        <button type="button" className="access-close" onClick={onClose} aria-label="Cerrar solicitud">
+          <X size={18} />
+        </button>
+        <span>Solicitud de acceso</span>
+        <h2>{pillar.title}</h2>
+        <p>Tu solicitud quedará pendiente para aprobación de la super administradora.</p>
+
+        {error ? <div className="error-box">{error}</div> : null}
+        {status ? <div className="success-box">{status}</div> : null}
+
+        <div className="access-form-grid">
+          <label>Nombre completo<input value={form.nombre_completo} onChange={(event) => setValue("nombre_completo", event.target.value)} /></label>
+          <label>Cédula / documento<input value={form.documento} onChange={(event) => setValue("documento", event.target.value)} /></label>
+          <label>Correo electrónico<input value={form.email} onChange={(event) => setValue("email", event.target.value)} /></label>
+          <label>Teléfono<input value={form.telefono} onChange={(event) => setValue("telefono", event.target.value)} /></label>
+          <label>Empresa<input value={form.empresa_nombre} onChange={(event) => setValue("empresa_nombre", event.target.value)} /></label>
+          <label>Cargo<input value={form.cargo} onChange={(event) => setValue("cargo", event.target.value)} /></label>
+          <label>Clave de consulta<input type="password" value={form.clave_consulta} onChange={(event) => setValue("clave_consulta", event.target.value)} placeholder="Crea una clave para consultar" /></label>
+          <label>Confirmar clave<input type="password" value={form.clave_consulta_confirm} onChange={(event) => setValue("clave_consulta_confirm", event.target.value)} placeholder="Repite tu clave" /></label>
+          {pillar.id === "eto" && (
+            <label>Nivel ETO<select value={form.eto_nivel} onChange={(event) => setValue("eto_nivel", event.target.value)}><option value="1">Nivel 1</option><option value="2">Nivel 2</option></select></label>
+          )}
+          <label className="full">Motivo<textarea value={form.motivo} onChange={(event) => setValue("motivo", event.target.value)} /></label>
+        </div>
+
+        <button type="button" className="login-submit" onClick={submit} disabled={sending || Boolean(status)}>
+          {sending ? "Enviando solicitud..." : "Enviar solicitud"}
+        </button>
+      </section>
+    </div>
+  );
+}
+
+function ForcedPasswordModal({ user, onCancel, onSubmit }) {
+  const [passwordOne, setPasswordOne] = useState("");
+  const [passwordTwo, setPasswordTwo] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async () => {
+    setError("");
+    if (passwordOne.length < 8) {
+      setError("La nueva contraseña debe tener mínimo 8 caracteres.");
+      return;
+    }
+    if (passwordOne !== passwordTwo) {
+      setError("Las contraseñas no coinciden.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await onSubmit(passwordOne);
+    } catch (err) {
+      setError(err?.message || "No se pudo cambiar la contraseña.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="access-modal-backdrop">
+      <section className="access-modal password-change-modal">
+        <button type="button" className="access-close" onClick={onCancel} aria-label="Cerrar cambio de contraseña">
+          <X size={18} />
+        </button>
+        <span>Seguridad de acceso</span>
+        <h2>Cambia tu contraseña</h2>
+        <p>Hola {user.nombre}. Tu acceso fue aprobado con una contraseña temporal. Debes crear una nueva para continuar.</p>
+
+        {error ? <div className="error-box">{error}</div> : null}
+
+        <div className="access-form-grid">
+          <label>Nueva contraseña<input type="password" value={passwordOne} onChange={(event) => setPasswordOne(event.target.value)} autoComplete="new-password" /></label>
+          <label>Confirmar contraseña<input type="password" value={passwordTwo} onChange={(event) => setPasswordTwo(event.target.value)} autoComplete="new-password" /></label>
+        </div>
+
+        <button type="button" className="login-submit" onClick={submit} disabled={saving}>
+          {saving ? "Guardando contraseña..." : "Cambiar contraseña y continuar"}
+        </button>
+      </section>
     </div>
   );
 }
@@ -846,18 +1207,10 @@ button { -webkit-tap-highlight-color: transparent; }
   flex-direction: column;
 }
 
-.inova-shell.assets-loading .login-topbar,
-.inova-shell.assets-loading .landing-view,
-.inova-shell.assets-loading .main-grid {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.inova-shell.assets-ready .login-topbar,
-.inova-shell.assets-ready .landing-view,
-.inova-shell.assets-ready .main-grid {
+.inova-shell .login-topbar,
+.inova-shell .landing-view,
+.inova-shell .main-grid {
   opacity: 1;
-  transition: opacity .18s ease;
 }
 
 .bg-grid {
@@ -899,14 +1252,15 @@ button { -webkit-tap-highlight-color: transparent; }
 .brand { display: flex; align-items: center; gap: 0; min-width: 0; }
 .brand-single { gap: 0; }
 .brand-logo {
-  width: clamp(250px, 20vw, 340px);
-  height: clamp(78px, 7vw, 108px);
+  width: clamp(300px, 25vw, 440px);
+  height: clamp(76px, 6.8vw, 106px);
   object-fit: contain;
   object-position: center;
   display: block;
+  image-rendering: auto;
+  filter: drop-shadow(0 10px 24px rgba(0,0,0,.32));
 }
-.brand-logo-wide { width: clamp(250px, 20vw, 340px); height: clamp(78px, 7vw, 108px); }
-.white-logo { filter: brightness(0) invert(1) drop-shadow(0 0 18px rgba(255,255,255,.22)); }
+.brand-logo-wide { width: clamp(300px, 25vw, 440px); height: clamp(76px, 6.8vw, 106px); }
 
 .icon-button {
   width: 42px;
@@ -1321,6 +1675,29 @@ button { -webkit-tap-highlight-color: transparent; }
 .ms-grid i:nth-child(3) { background: #00a4ef; }
 .ms-grid i:nth-child(4) { background: #ffb900; }
 .login-note { display: block; margin-top: 14px; text-align: center; color: rgba(255,255,255,.52); line-height: 1.35; }
+.request-link { border: 0; background: transparent; color: #fff; padding: 0; font-weight: 950; text-decoration: underline; cursor: pointer; }
+.success-box { color: #064e3b; background: #dcfce7; border: 1px solid #86efac; border-radius: 14px; padding: 11px 12px; font-size: 13px; font-weight: 850; }
+.access-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: rgba(3,7,18,.66); backdrop-filter: blur(8px); }
+.access-modal { position: relative; width: min(760px, 100%); max-height: calc(100vh - 36px); overflow: auto; border: 1px solid rgba(255,255,255,.16); border-radius: 26px; background: linear-gradient(135deg, rgba(12,18,35,.98), rgba(22,31,52,.96)); box-shadow: 0 34px 90px rgba(0,0,0,.42); padding: 28px; }
+.access-modal > span { color: var(--accent); text-transform: uppercase; letter-spacing: .14em; font-size: 11px; font-weight: 950; }
+.access-modal h2 { margin: 6px 0 4px; font-size: 32px; }
+.access-modal p { margin: 0 0 18px; color: rgba(255,255,255,.68); }
+.access-close { position: absolute; top: 16px; right: 16px; width: 38px; height: 38px; border-radius: 12px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.08); color: #fff; display: grid; place-items: center; cursor: pointer; }
+.access-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+.access-form-grid label { display: grid; gap: 7px; color: rgba(255,255,255,.76); font-size: 12px; font-weight: 850; }
+.access-form-grid .full { grid-column: 1 / -1; }
+.access-form-grid input, .access-form-grid select, .access-form-grid textarea { width: 100%; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.08); color: #fff; border-radius: 14px; padding: 11px 12px; outline: none; }
+.access-form-grid textarea { min-height: 86px; resize: vertical; }
+.access-form-grid option { color: #111827; }
+.access-lookup-modal { width: min(920px, 100%); }
+.lookup-pending-box { display: grid; gap: 4px; margin-bottom: 16px; padding: 12px 14px; border-radius: 16px; color: #92400e; background: #fef3c7; border: 1px solid #fbbf24; font-weight: 850; }
+.lookup-result { margin-top: 18px; display: grid; gap: 14px; }
+.lookup-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.lookup-meta div { min-width: 0; padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.07); }
+.lookup-meta span { display: block; margin-bottom: 4px; color: rgba(255,255,255,.58); font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: .08em; }
+.lookup-meta strong { display: block; color: #fff; font-size: 14px; word-break: break-word; }
+.lookup-security-note { padding: 12px 14px; border-radius: 16px; color: color-mix(in srgb, var(--accent2) 70%, #fff); border: 1px solid color-mix(in srgb, var(--accent2) 42%, transparent); background: color-mix(in srgb, var(--accent) 16%, rgba(255,255,255,.05)); font-weight: 850; }
+.lookup-preview { width: 100%; height: min(72vh, 760px); border: 1px solid rgba(255,255,255,.14); border-radius: 18px; background: #f4f6fb; }
 
 .mobile-login-back {
   display: none;
@@ -1349,7 +1726,7 @@ button { -webkit-tap-highlight-color: transparent; }
   .login-topbar { padding-top: 12px; }
   .landing-view { padding-top: 6px; padding-bottom: 18px; }
   .landing-head { margin-top: 0; margin-bottom: 12px; gap: 6px; }
-  .brand-logo { height: 78px; width: 300px; }
+  .brand-logo { height: 84px; width: 330px; }
   .landing-card { grid-template-rows: minmax(190px, 39%) auto 64px; }
   .landing-card-content { padding-top: 20px; }
   .landing-title-row h2 { font-size: 66px; }
@@ -1393,7 +1770,7 @@ button { -webkit-tap-highlight-color: transparent; }
   :root { --topbar-height: 92px; }
   .login-topbar { width: min(100% - 24px, 680px); padding-top: 12px; }
   .mobile-only { display: grid; }
-  .brand-logo { width: 220px; height: 62px; }
+  .brand-logo { width: min(78vw, 360px); height: 86px; }
   .landing-view { padding-top: 16px; }
   .landing-head { margin-top: 0; }
   .landing-head p { font-size: 14px; }

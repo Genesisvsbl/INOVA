@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from "react";
-import { getProveedores, crearProveedor, editarProveedor, eliminarProveedor } from "../../api";
+import { getProveedores, crearProveedor, editarProveedor, eliminarProveedor, importarProveedoresExcel } from "../../api";
 import {
   Building2,
   Search,
@@ -400,19 +400,7 @@ export default function Proveedores() {
     setImportando(true);
 
     try {
-      const formData = new FormData();
-      formData.append("file", archivoExcel);
-
-      const res = await fetch(`${API_URL}/proveedores/importar`, {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error(data?.detail || "Error importando proveedores");
-      }
+      const data = await importarProveedoresExcel(archivoExcel);
 
       setArchivoExcel(null);
 

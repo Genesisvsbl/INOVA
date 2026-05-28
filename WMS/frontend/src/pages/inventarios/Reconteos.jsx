@@ -7,8 +7,7 @@ import {
   ArrowRight,
   Eye,
 } from "lucide-react";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+import { getInventarioTareas } from "../../api";
 
 export default function Reconteos() {
   const navigate = useNavigate();
@@ -28,19 +27,12 @@ export default function Reconteos() {
     setError("");
 
     try {
-      const params = new URLSearchParams();
-      params.append("es_reconteo", "true");
-      if (asignadoA.trim()) params.append("asignado_a", asignadoA.trim());
-      if (estado.trim()) params.append("estado", estado.trim());
+      const data = await getInventarioTareas({
+        asignado_a: asignadoA.trim(),
+        estado: estado.trim(),
+      });
 
-      const res = await fetch(`${API_URL}/inventarios/tareas?${params.toString()}`);
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.detail || "No se pudieron cargar los reconteos");
-      }
-
-      setRows(Array.isArray(data) ? data : []);
+      setRows((Array.isArray(data) ? data : []).filter((row) => row.es_reconteo));
     } catch (err) {
       setError(err.message || "Error consultando reconteos");
     } finally {

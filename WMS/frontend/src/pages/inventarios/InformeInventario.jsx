@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   FileBarChart2,
@@ -12,8 +12,7 @@ import {
   FileText,
   GitCompare,
 } from "lucide-react";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+import { getInventarioConciliacion, getInventarioTarea, getInventarioTareas } from "../../api";
 
 export default function InformeInventario() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -34,10 +33,7 @@ export default function InformeInventario() {
     setError("");
 
     try {
-      const res = await fetch(`${API_URL}/inventarios/tareas`);
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.detail || "No se pudo cargar listado");
+      const data = await getInventarioTareas();
       setTaskList(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err.message || "Error cargando tareas");
@@ -57,21 +53,23 @@ export default function InformeInventario() {
     setError("");
 
     try {
-      const [reportRes, detailRes] = await Promise.all([
-        fetch(`${API_URL}/inventarios/tareas/${taskIdValue}/informe`),
-        fetch(`${API_URL}/inventarios/tareas/${taskIdValue}`),
+      const [detailBase, detalles] = await Promise.all([
+        getInventarioTarea(taskIdValue),
+        getInventarioConciliacion(taskIdValue),
       ]);
-
-      const reportData = await reportRes.json();
-      const detailData = await detailRes.json();
-
-      if (!reportRes.ok) {
-        throw new Error(reportData.detail || "No se pudo cargar el informe");
-      }
-
-      if (!detailRes.ok) {
-        throw new Error(detailData.detail || "No se pudo cargar el detalle de la tarea");
-      }
+      if (!detailBase) throw new Error("No se pudo cargar el detalle de la tarea");
+      const detailData = { ...detailBase, detalles };
+      const reportData = {
+        tarea_id: detailBase.id,
+        estado: detailBase.estado,
+        total_lineas: detailBase.total_lineas ?? detalles.length,
+        total_coinciden: detailBase.total_coinciden ?? detalles.filter((x) => x.coincide).length,
+        total_no_coinciden:
+          detailBase.total_no_coinciden ?? detalles.filter((x) => x.coincide === false).length,
+        porcentaje_exactitud: detailBase.porcentaje_exactitud ?? 0,
+        genera_reconteo: detalles.some((x) => x.coincide === false),
+        reconteo_tarea_id: detailBase.reconteo_tarea_id || null,
+      };
 
       setReport(reportData);
       setTaskDetail(detailData);
@@ -581,7 +579,7 @@ export default function InformeInventario() {
               <div style={printHeaderStyle}>
                 <div style={printBrandWrapStyle}>
                   <div style={printLogoBoxStyle}>
-                    <img src="/INOVA-dark.png" alt="INOVA" style={printLogoImageStyle} />
+                    <img src="/INOVA2026.png" alt="INOVA" style={printLogoImageStyle} />
                   </div>
 
                   <div style={{ minWidth: 0 }}>
@@ -1300,3 +1298,4 @@ const signatureGridStyle = {
 const signatureBoxStyle = { textAlign: "center" };
 const signatureLineStyle = { borderTop: "1px solid #5c6c7c", marginBottom: 6, height: 1 };
 const signatureLabelStyle = { fontSize: 8.8, color: "#56697d", fontWeight: 700 };
+

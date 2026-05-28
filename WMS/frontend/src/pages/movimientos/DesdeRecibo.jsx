@@ -1,7 +1,7 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+﻿import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BrowserMultiFormatReader } from "@zxing/browser";
-import { API_URL } from "../../api";
+import { crearMovimiento, crearRotulosBulk, getUbicaciones, sugerirUbicaciones } from "../../api";
 import {
   ArrowLeft,
   Save,
@@ -44,6 +44,10 @@ function serialItem(serial, idx) {
 function loteProveedorFromLoteAlmacen(lote15) {
   const s = (lote15 ?? "").toString();
   return s.length >= 10 ? s.slice(0, 10) : "";
+}
+
+function stripAccents(value) {
+  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
 function normalizeISODate(v) {
@@ -144,16 +148,27 @@ function Chip({ label, tone = "neutral" }) {
 }
 
 function esMaterialAuto(linea) {
-  const texto = [linea?.familia || "", linea?.descripcion || "", linea?.codigo || ""]
-    .join(" ")
+  const texto = stripAccents([linea?.familia || "", linea?.descripcion || "", linea?.codigo || ""]
+    .join(" "))
     .toLowerCase();
 
   return (
     texto.includes("lata") ||
     texto.includes("preforma") ||
     texto.includes("azucar") ||
-    texto.includes("azúcar")
+    texto.includes("azucar")
   );
+}
+
+function tipoSugerenciaMaterial(linea) {
+  const texto = stripAccents([linea?.familia || "", linea?.descripcion || "", linea?.codigo || ""]
+    .join(" "))
+    .toLowerCase();
+
+  if (texto.includes("preforma")) return "preforma";
+  if (texto.includes("lata")) return "lata";
+  if (texto.includes("azucar") || texto.includes("azucar")) return "azucar";
+  return "normal";
 }
 
 function buildLineaExpandida({
@@ -337,6 +352,7 @@ export default function DesdeRecibo() {
   const controlsZXingRef = useRef(null);
 
   const [draft, setDraft] = useState(null);
+  const [loadError, setLoadError] = useState("");
   const [ubicaciones, setUbicaciones] = useState([]);
   const [ubicacionesError, setUbicacionesError] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -354,13 +370,16 @@ export default function DesdeRecibo() {
     const raw = localStorage.getItem(DRAFT_KEY);
 
     if (!raw) {
-      alert("No hay recibo en proceso.");
-      navigate("/movimientos/recibo");
+      setLoadError("No hay recibo en proceso. Vuelve a Recibo y confirma nuevamente.");
       return;
     }
 
     try {
       const d = JSON.parse(raw);
+      if (!d || !Array.isArray(d.lineas)) {
+        throw new Error("El recibo guardado no tiene lineas validas.");
+      }
+      setLoadError("");
       setDraft(d);
 
       const init = {};
@@ -378,18 +397,14 @@ export default function DesdeRecibo() {
         };
       });
       setUbicPorLinea(init);
-    } catch {
-      alert("Error leyendo el recibo.");
-      navigate("/movimientos/recibo");
+    } catch (error) {
+      setDraft(null);
+      setLoadError(`Error leyendo el recibo: ${error?.message || error}`);
     }
   }, [navigate]);
 
   useEffect(() => {
-    fetch(`${API_URL}/ubicaciones?limit=5000`)
-      .then((r) => {
-        if (!r.ok) throw new Error("No se pudo listar ubicaciones");
-        return r.json();
-      })
+    getUbicaciones()
       .then((data) => {
         setUbicaciones(Array.isArray(data) ? data : []);
         setUbicacionesError("");
@@ -600,7 +615,55 @@ export default function DesdeRecibo() {
     return filas;
   }, [draft, ubicPorLinea]);
 
-  if (!draft) return <div>Cargando...</div>;
+  if (!draft) {
+    return (
+      <div
+        style={{
+          minHeight: "calc(100vh - 140px)",
+          display: "grid",
+          placeItems: "center",
+          padding: 24,
+        }}
+      >
+        <div
+          style={{
+            width: "min(560px, 100%)",
+            border: `1px solid ${loadError ? "rgba(220,38,38,.24)" : colors.border}`,
+            borderRadius: 18,
+            background: colors.card,
+            boxShadow: "0 18px 45px rgba(15,23,42,.12)",
+            padding: 24,
+            color: colors.text,
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: colors.muted }}>
+            MOVIMIENTOS DESDE RECIBO
+          </div>
+          <h2 style={{ margin: "8px 0 10px", color: colors.navy }}>Recibo no disponible</h2>
+          <p style={{ margin: 0, color: loadError ? colors.bad : colors.muted, fontWeight: 800 }}>
+            {loadError || "Cargando recibo..."}
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/movimientos/recibo")}
+            style={{
+              marginTop: 18,
+              height: 40,
+              padding: "0 14px",
+              borderRadius: 12,
+              border: "none",
+              background: colors.blue,
+              color: "#fff",
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+          >
+            Volver a Recibo
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const createReaderZXing = () => {
     if (!readerZXingRef.current) {
@@ -635,7 +698,7 @@ export default function DesdeRecibo() {
     const codigo = limpiarCodigoUbicacion(raw);
 
     if (!codigo) {
-      alert("No se leyó ninguna ubicación.");
+      alert("No se leyo ninguna ubicacion.");
       return;
     }
 
@@ -699,7 +762,7 @@ export default function DesdeRecibo() {
     }
 
     if (!ubic) {
-      alert(`❌ La ubicación escaneada no existe en datos maestros:\n${codigo}`);
+      alert(`Error La ubicacion escaneada no existe en datos maestros:\n${codigo}`);
       return;
     }
 
@@ -721,7 +784,7 @@ export default function DesdeRecibo() {
     cerrarScanner();
   };
 
-  const cerrarScanner = () => {
+  function cerrarScanner() {
     try {
       if (controlsZXingRef.current) {
         controlsZXingRef.current.stop();
@@ -743,7 +806,7 @@ export default function DesdeRecibo() {
     setScannerOpen(false);
     setScannerLineaIdx(null);
     setScannerBusy(false);
-  };
+  }
 
   const decodeFromCanvasZXing = async (canvas) => {
     const reader = createReaderZXing();
@@ -871,13 +934,13 @@ export default function DesdeRecibo() {
       const texto = await leerImagenUbicacion(file);
 
       if (!texto) {
-        alert("No se detectó código en la foto. Toma la foto más cerca, enfocada y con buena luz.");
+        alert("No se detecto codigo en la foto. Toma la foto mas cerca, enfocada y con buena luz.");
         return;
       }
 
       aplicarUbicacionEscaneada(idx, texto);
     } catch (e) {
-      alert(`❌ Error leyendo foto:\n${e?.message || e}`);
+      alert(`Error Error leyendo foto:\n${e?.message || e}`);
     } finally {
       setScannerBusy(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -893,7 +956,7 @@ export default function DesdeRecibo() {
 
   const ingresarManualDesdeScanner = () => {
     const idx = scannerLineaIdx;
-    const valor = window.prompt("Ingresa o pega el código de ubicación:");
+    const valor = window.prompt("Ingresa o pega el codigo de ubicacion:");
 
     if (valor === null) return;
     aplicarUbicacionEscaneada(idx, valor);
@@ -941,7 +1004,7 @@ export default function DesdeRecibo() {
         } catch (e) {
           setScannerBusy(false);
           setScannerError(
-            `No se pudo abrir la cámara. Revisa permisos o usa FOTO / Ingresar manual. Detalle: ${
+            `No se pudo abrir la camara. Revisa permisos o usa FOTO / Ingresar manual. Detalle: ${
               e?.message || e
             }`
           );
@@ -975,6 +1038,10 @@ export default function DesdeRecibo() {
 
       return { ...prev, [idx]: next };
     });
+
+    if ((ubicPorLinea[idx] || {}).auto && value) {
+      setTimeout(() => sugerirLinea(idx, draft?.lineas?.[idx]?.cantidad, value), 0);
+    }
   };
 
   const onChangePosicion = (idx, value) => {
@@ -1018,18 +1085,18 @@ export default function DesdeRecibo() {
     });
   };
 
-  const sugerirLinea = async (idx, cantidadRaw) => {
+  const sugerirLinea = async (idx, cantidadRaw, baseOverride = "") => {
     const conf = ubicPorLinea[idx] || {};
-    const base = (conf.base || "").trim();
+    const base = (baseOverride || conf.base || "").trim();
 
     if (!base) {
-      alert(`Selecciona ubicación base en la línea #${idx + 1}.`);
+      alert(`Selecciona ubicacion base en la linea #${idx + 1}.`);
       return;
     }
 
     const cantidad = Number(cantidadRaw || 0);
     if (!Number.isInteger(cantidad) || cantidad <= 0) {
-      alert(`La línea #${idx + 1} debe tener cantidad entera > 0 para auto ubicación.`);
+      alert(`La linea #${idx + 1} debe tener cantidad entera > 0 para auto ubicacion.`);
       return;
     }
 
@@ -1039,42 +1106,22 @@ export default function DesdeRecibo() {
       const payload = {
         ubicacion_base: base,
         cantidad_pallets: cantidad,
+        tipo_material: tipoSugerenciaMaterial(draft?.lineas?.[idx]),
       };
 
-      const res = await fetch(`${API_URL}/ubicaciones/sugerir`, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      let data = null;
-      let rawText = "";
-
-      try {
-        rawText = await res.text();
-        data = rawText ? JSON.parse(rawText) : null;
-      } catch {
-        data = null;
-      }
-
-      if (!res.ok) {
-        throw new Error(
-          data?.detail ||
-            rawText ||
-            `Error ${res.status}: ${res.statusText || "No se pudo sugerir posiciones"}`
-        );
-      }
-
-      const posiciones = Array.isArray(data?.posiciones) ? data.posiciones : [];
+      const data = await sugerirUbicaciones(payload);
+      const posiciones = Array.isArray(data?.posiciones)
+        ? data.posiciones
+        : Array.isArray(data?.ubicaciones)
+        ? data.ubicaciones
+        : [];
       const faltante = Math.max(0, cantidad - posiciones.length);
 
       setUbicPorLinea((prev) => ({
         ...prev,
         [idx]: {
           ...(prev[idx] || {}),
+          base,
           sugeridas: posiciones,
           sugeridasSecundarias: [],
           baseSecundaria: "",
@@ -1085,11 +1132,11 @@ export default function DesdeRecibo() {
 
       if (faltante > 0) {
         alert(
-          `⚠️ Solo se encontraron ${posiciones.length} posiciones en ${base}. Faltan ${faltante} pallet(s). Ahora puedes elegir una ubicación base secundaria o mandar el faltante a tránsito.`
+          `Atencion Solo se encontraron ${posiciones.length} posiciones en ${base}. Faltan ${faltante} pallet(s). Ahora puedes elegir una ubicacion base secundaria o mandar el faltante a transito.`
         );
       }
     } catch (e) {
-      alert(`❌ Error sugiriendo línea #${idx + 1}:\n${e?.message || e}`);
+      alert(`Error Error sugiriendo linea #${idx + 1}:\n${e?.message || e}`);
     } finally {
       setSugiriendoLinea((p) => ({ ...p, [idx]: false }));
     }
@@ -1101,12 +1148,12 @@ export default function DesdeRecibo() {
     const faltante = Number(conf.faltanteCantidad || 0);
 
     if (!baseSecundaria) {
-      alert(`Selecciona ubicación base secundaria en la línea #${idx + 1}.`);
+      alert(`Selecciona ubicacion base secundaria en la linea #${idx + 1}.`);
       return;
     }
 
     if (!Number.isInteger(faltante) || faltante <= 0) {
-      alert(`No hay faltante pendiente en la línea #${idx + 1}.`);
+      alert(`No hay faltante pendiente en la linea #${idx + 1}.`);
       return;
     }
 
@@ -1116,36 +1163,15 @@ export default function DesdeRecibo() {
       const payload = {
         ubicacion_base: baseSecundaria,
         cantidad_pallets: faltante,
+        tipo_material: tipoSugerenciaMaterial(draft?.lineas?.[idx]),
       };
 
-      const res = await fetch(`${API_URL}/ubicaciones/sugerir`, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      let data = null;
-      let rawText = "";
-
-      try {
-        rawText = await res.text();
-        data = rawText ? JSON.parse(rawText) : null;
-      } catch {
-        data = null;
-      }
-
-      if (!res.ok) {
-        throw new Error(
-          data?.detail ||
-            rawText ||
-            `Error ${res.status}: ${res.statusText || "No se pudo sugerir posiciones"}`
-        );
-      }
-
-      const posiciones = Array.isArray(data?.posiciones) ? data.posiciones : [];
+      const data = await sugerirUbicaciones(payload);
+      const posiciones = Array.isArray(data?.posiciones)
+        ? data.posiciones
+        : Array.isArray(data?.ubicaciones)
+        ? data.ubicaciones
+        : [];
       const nuevoFaltante = Math.max(0, faltante - posiciones.length);
 
       setUbicPorLinea((prev) => ({
@@ -1159,11 +1185,11 @@ export default function DesdeRecibo() {
 
       if (nuevoFaltante > 0) {
         alert(
-          `⚠️ La ubicación secundaria ${baseSecundaria} solo cubrió ${posiciones.length} pallet(s). Aún faltan ${nuevoFaltante}. Marca la opción de enviar faltante a tránsito si deseas continuar.`
+          `Atencion La ubicacion secundaria ${baseSecundaria} solo cubrio ${posiciones.length} pallet(s). Aun faltan ${nuevoFaltante}. Marca la opcion de enviar faltante a transito si deseas continuar.`
         );
       }
     } catch (e) {
-      alert(`❌ Error sugiriendo secundaria línea #${idx + 1}:\n${e?.message || e}`);
+      alert(`Error Error sugiriendo secundaria linea #${idx + 1}:\n${e?.message || e}`);
     } finally {
       setSugiriendoSecundaria((p) => ({ ...p, [idx]: false }));
     }
@@ -1171,7 +1197,7 @@ export default function DesdeRecibo() {
 
   const validarDatosBase = () => {
     for (const ln of draft.lineas || []) {
-      if (!ln?.codigo) return "Hay líneas sin SKU/código.";
+      if (!ln?.codigo) return "Hay lineas sin SKU/codigo.";
 
       const fv = normalizeISODate(ln.fecha_vencimiento);
       const loteProv =
@@ -1179,16 +1205,16 @@ export default function DesdeRecibo() {
         loteProveedorFromLoteAlmacen(ln.lote);
 
       if (loteProv.length !== 10) {
-        return "El Lote Proveedor debe ser exactamente 10 caracteres en todas las líneas.";
+        return "El Lote Proveedor debe ser exactamente 10 caracteres en todas las lineas.";
       }
 
       if (!fv) {
-        return "Falta Fecha de Vencimiento en una o más líneas.";
+        return "Falta Fecha de Vencimiento en una o mas lineas.";
       }
 
       const loteAlm = buildLoteAlmacen15(loteProv, fv);
       if (!loteAlm || loteAlm.length !== 15) {
-        return "No se pudo generar Lote Almacén (15). Revisa lote proveedor y fecha vencimiento.";
+        return "No se pudo generar Lote Almacen (15). Revisa lote proveedor y fecha vencimiento.";
       }
     }
 
@@ -1206,12 +1232,12 @@ export default function DesdeRecibo() {
 
       if (auto) {
         if (!(conf.base || "").trim()) {
-          return `Falta ubicación base en la línea #${i + 1}.`;
+          return `Falta ubicacion base en la linea #${i + 1}.`;
         }
 
         const cant = Number(ln.cantidad || 0);
         if (!Number.isInteger(cant) || cant <= 0) {
-          return `La línea #${i + 1} debe tener cantidad entera > 0 para auto ubicación.`;
+          return `La linea #${i + 1} debe tener cantidad entera > 0 para auto ubicacion.`;
         }
 
         const sugeridasPrincipal = Array.isArray(conf.sugeridas) ? conf.sugeridas.length : 0;
@@ -1221,27 +1247,27 @@ export default function DesdeRecibo() {
         const faltante = Number(conf.faltanteCantidad || 0);
 
         if (sugeridasPrincipal === 0) {
-          return `Debes generar la sugerencia principal en la línea #${i + 1}.`;
+          return `Debes generar la sugerencia principal en la linea #${i + 1}.`;
         }
 
         if (sugeridasPrincipal + sugeridasSec + faltante !== cant) {
-          return `La distribución de pallet(s) no cuadra en la línea #${i + 1}.`;
+          return `La distribucion de pallet(s) no cuadra en la linea #${i + 1}.`;
         }
 
         if (faltante > 0 && !conf.faltanteATransito) {
           if (!(conf.baseSecundaria || "").trim() || sugeridasSec === 0) {
-            return `Faltan pallet(s) por ubicar en la línea #${i + 1}. Usa base secundaria o marca enviar faltante a tránsito.`;
+            return `Faltan pallet(s) por ubicar en la linea #${i + 1}. Usa base secundaria o marca enviar faltante a transito.`;
           }
         }
       } else {
         if (!(conf.base || "").trim()) {
-          return `Falta ubicación base en la línea #${i + 1}.`;
+          return `Falta ubicacion base en la linea #${i + 1}.`;
         }
         if (!(conf.posicion || "").trim()) {
-          return `Falta posición en la línea #${i + 1}.`;
+          return `Falta posicion en la linea #${i + 1}.`;
         }
         if (!(conf.ubicacion || "").trim()) {
-          return `No se pudo construir la ubicación final en la línea #${i + 1}.`;
+          return `No se pudo construir la ubicacion final en la linea #${i + 1}.`;
         }
       }
     }
@@ -1266,7 +1292,7 @@ export default function DesdeRecibo() {
     const loteAlm = buildLoteAlmacen15(loteProv, fv);
 
     if (!loteAlm) {
-      throw new Error(`No se pudo generar Lote Almacén en la línea #${idx + 1}`);
+      throw new Error(`No se pudo generar Lote Almacen en la linea #${idx + 1}`);
     }
 
     const umMovimiento = (
@@ -1363,30 +1389,11 @@ export default function DesdeRecibo() {
 
   const guardarRotulos = async () => {
     const rotulosItems = construirRotulosItems();
-
-    const rotRes = await fetch(`${API_URL}/rotulos/bulk`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: rotulosItems }),
-    });
-
-    if (!rotRes.ok) {
-      const txt = await rotRes.text();
-      throw new Error("Movimientos OK, pero falló guardando rótulos:\n" + txt);
-    }
+    await crearRotulosBulk({ items: rotulosItems });
   };
 
   const postMovimiento = async (payload) => {
-    const res = await fetch(`${API_URL}/movimientos`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(txt);
-    }
+    await crearMovimiento(payload);
   };
 
   const guardarMovimientos = async () => {
@@ -1456,15 +1463,15 @@ export default function DesdeRecibo() {
       await guardarRotulos();
 
       localStorage.removeItem(DRAFT_KEY);
-      alert("✅ Movimientos guardados con ubicación + historial de rótulos.");
+      alert("OK Movimientos guardados con ubicacion + historial de rotulos.");
       window.location.assign(`${window.location.origin}/datos-maestros/rotulos`);
     } catch (e) {
       const msg = e?.message || String(e);
       alert(
-        "❌ Error guardando:\n" +
+        "Error Error guardando:\n" +
           msg +
           (msg.includes("Failed to fetch")
-            ? "\n\nEl navegador no pudo comunicarse con el backend. Revisa que la API esté encendida y que VITE_API_URL apunte al servicio correcto."
+            ? "\n\nNo se pudo comunicar con Supabase. Revisa VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY."
             : "")
       );
     } finally {
@@ -1514,15 +1521,15 @@ export default function DesdeRecibo() {
       await guardarRotulos();
 
       localStorage.removeItem(DRAFT_KEY);
-      alert("✅ Material guardado en EN TRANSITO por pallet + historial de rótulos.");
+      alert("OK Material guardado en EN TRANSITO por pallet + historial de rotulos.");
       window.location.assign(`${window.location.origin}/datos-maestros/rotulos`);
     } catch (e) {
       const msg = e?.message || String(e);
       alert(
-        "❌ Error guardando en tránsito:\n" +
+        "Error Error guardando en transito:\n" +
           msg +
           (msg.includes("Failed to fetch")
-            ? "\n\nEl navegador no pudo comunicarse con el backend. Revisa que la API esté encendida y que VITE_API_URL apunte al servicio correcto."
+            ? "\n\nNo se pudo comunicar con Supabase. Revisa VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY."
             : "")
       );
     } finally {
@@ -1570,7 +1577,7 @@ export default function DesdeRecibo() {
         }}
       >
         <Save size={16} />
-        {guardando ? "Guardando..." : "Guardar con ubicación"}
+        {guardando ? "Guardando..." : "Guardar con ubicacion"}
       </button>
 
       <button
@@ -1592,7 +1599,7 @@ export default function DesdeRecibo() {
         }}
       >
         <Truck size={16} />
-        {guardando ? "Guardando..." : "Guardar en tránsito"}
+        {guardando ? "Guardando..." : "Guardar en transito"}
       </button>
     </div>
   );
@@ -1646,7 +1653,7 @@ export default function DesdeRecibo() {
             <style>{`@keyframes wmsSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
             <div style={{ fontSize: 18, fontWeight: 1000, color: colors.navy }}>Guardando movimientos</div>
             <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: colors.muted }}>
-              No cierres esta ventana. Estamos guardando movimientos y rótulos.
+              No cierres esta ventana. Estamos guardando movimientos y rotulos.
             </div>
           </div>
         </div>
@@ -1694,9 +1701,9 @@ export default function DesdeRecibo() {
               }}
             >
               <div>
-                <div style={{ fontWeight: 1000, color: colors.navy }}>Escanear ubicación</div>
+                <div style={{ fontWeight: 1000, color: colors.navy }}>Escanear ubicacion</div>
                 <div style={{ fontSize: 12, color: colors.muted, fontWeight: 700 }}>
-                  Apunta al QR/código de la ubicación.
+                  Apunta al QR/codigo de la ubicacion.
                 </div>
               </div>
 
@@ -1811,16 +1818,16 @@ export default function DesdeRecibo() {
               MOVIMIENTOS DESDE RECIBO
             </div>
             <h1 style={{ margin: "6px 0 0", color: colors.navy, fontSize: 30 }}>
-              Confirmación de movimientos
+              Confirmacion de movimientos
             </h1>
             <div style={{ marginTop: 6, color: colors.muted, fontSize: 14 }}>
-              Para lata, preforma y azúcar eliges base y el sistema sugiere posiciones.
-              Para el resto eliges base + posición manual o escaneas la ubicación.
+              Para lata, preforma y azucar eliges base y el sistema sugiere posiciones.
+              Para el resto eliges base + posicion manual o escaneas la ubicacion.
             </div>
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <Chip label={`Líneas: ${draft.lineas.length}`} tone="blue" />
+            <Chip label={`Lineas: ${draft.lineas.length}`} tone="blue" />
             <Chip label={`Serial: ${draft.header.serial || ""}`} tone="green" />
             {guardando && <Chip label="Guardando..." tone="amber" />}
           </div>
@@ -1922,7 +1929,7 @@ export default function DesdeRecibo() {
                   background: "#FCFDFE",
                 }}
               >
-                <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>LÍNEAS</div>
+                <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900 }}>LINEAS</div>
                 <div style={{ marginTop: 6, fontWeight: 900, color: colors.text }}>
                   {draft.lineas.length}
                 </div>
@@ -1965,16 +1972,16 @@ export default function DesdeRecibo() {
         >
           <div>
             <div style={{ fontWeight: 1000, color: colors.navy, fontSize: 18 }}>
-              Confirmación por línea
+              Confirmacion por linea
             </div>
             <div style={{ marginTop: 4, color: colors.muted, fontSize: 12, fontWeight: 700 }}>
-              Revisa ubicación manual, escaneada o sugerida antes de guardar los movimientos.
+              Revisa ubicacion manual, escaneada o sugerida antes de guardar los movimientos.
             </div>
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <Chip label="AUTO = sugerencia por pallets" tone="amber" />
-            <Chip label="MANUAL = base + posición / cámara / foto" tone="blue" />
+            <Chip label="MANUAL = base + posicion / camara / foto" tone="blue" />
           </div>
         </div>
 
@@ -2000,16 +2007,16 @@ export default function DesdeRecibo() {
             <thead>
               <tr>
                 <th style={thStyle}>Modo</th>
-                <th style={thStyle}>Ubicación base</th>
-                <th style={thStyle}>Posición manual</th>
-                <th style={thStyle}>Ubicación final / sugeridas</th>
+                <th style={thStyle}>Ubicacion base</th>
+                <th style={thStyle}>Posicion manual</th>
+                <th style={thStyle}>Ubicacion final / sugeridas</th>
                 <th style={thStyle}>Fecha</th>
-                <th style={thStyle}>Código Cita</th>
+                <th style={thStyle}>Codigo Cita</th>
                 <th style={thStyle}>SKU</th>
                 <th style={thStyle}>Texto Breve del Material</th>
-                <th style={thStyle}>Lote Almacén</th>
+                <th style={thStyle}>Lote Almacen</th>
                 <th style={thStyle}>Lote Proveedor</th>
-                <th style={thStyle}>Fecha de Fabricación</th>
+                <th style={thStyle}>Fecha de Fabricacion</th>
                 <th style={thStyle}>Fecha de Vencimiento</th>
                 <th style={thStyle}>UM</th>
                 <th style={thStyle}>UMB</th>
@@ -2137,7 +2144,7 @@ export default function DesdeRecibo() {
                               <>
                                 <button
                                   onClick={() => escanearUbicacion(r.idxLineaOriginal)}
-                                  title="Escanear con cámara"
+                                  title="Escanear con camara"
                                   style={{
                                     height: 24,
                                     width: 24,
@@ -2250,7 +2257,7 @@ export default function DesdeRecibo() {
 
                             <div>
                               <div style={{ fontSize: 11, color: colors.muted, fontWeight: 900, marginBottom: 6 }}>
-                                UBICACIÓN BASE SECUNDARIA
+                                UBICACION BASE SECUNDARIA
                               </div>
                               <select
                                 value={conf.baseSecundaria || ""}
@@ -2325,7 +2332,7 @@ export default function DesdeRecibo() {
                                 }
                                 disabled={Number(conf.faltanteCantidad || 0) <= 0}
                               />
-                              Enviar faltante a tránsito
+                              Enviar faltante a transito
                             </label>
                           </div>
                         </td>
@@ -2341,3 +2348,5 @@ export default function DesdeRecibo() {
     </div>
   );
 }
+
+

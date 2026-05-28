@@ -78,12 +78,18 @@ export default function Layout() {
   const usuario = sessionStorage.getItem("usuario") || "Gvisbal";
   const rol = sessionStorage.getItem("rol") || "SUPER_ADMIN";
   const permisos = JSON.parse(sessionStorage.getItem("permisos") || "[]");
+  const roleKey = String(rol || "").toUpperCase();
+  const esPlatformAdmin =
+    sessionStorage.getItem("esPlatformAdmin") === "true" ||
+    ["ADMIN_INOVA", "INOVA_ADMIN", "ADMIN_PLATAFORMA", "PLATFORM_ADMIN"].includes(roleKey);
 
   const puedeVerAdmin =
-    rol === "SUPER_ADMIN" ||
-    permisos.includes("usuarios.ver") ||
-    permisos.includes("roles.ver") ||
-    permisos.includes("auditoria.ver");
+    esPlatformAdmin ||
+    sessionStorage.getItem("esSuperAdmin") === "true" ||
+    roleKey === "SUPER_ADMIN" ||
+    roleKey.includes("ADMIN") ||
+    permisos.includes("admin.usuarios.gestionar") ||
+    permisos.includes("admin.roles.gestionar");
 
   const sidebarExpanded = config.isMobile ? sidebarPinned : sidebarPinned || sidebarHover;
 
@@ -93,28 +99,26 @@ export default function Layout() {
       setSidebarHover(false);
     }
 
-    // Al cambiar de ruta, todos los módulos quedan cerrados.
     setOpenMenu(null);
   }, [config.isMobile, location.pathname]);
 
   const isDatosActive = location.pathname.startsWith("/datos-maestros");
   const isMovimientosActive = location.pathname.startsWith("/movimientos");
   const isInventariosActive = location.pathname.startsWith("/inventarios");
-  const isLayoutZonaActive = location.pathname.startsWith("/layout-zona");
   const isAdminUsuariosActive = location.pathname.startsWith("/admin/usuarios");
   const isAdminRolesActive = location.pathname.startsWith("/admin/roles");
   const isAdminAuditoriaActive = location.pathname.startsWith("/admin/auditoria");
+  const visibleOpenMenu = openMenu;
 
   const contentPaddingLeft = config.isMobile
     ? config.gap
     : (sidebarExpanded ? config.sidebarExpanded : config.sidebarCollapsed) + config.gap * 2;
 
   const toggleMenu = (key) => {
-    if (!sidebarExpanded) return;
+    if (!sidebarExpanded) {
+      setSidebarPinned(true);
+    }
 
-    // Solo permite un módulo abierto a la vez:
-    // si abres uno, automáticamente se cierra el anterior.
-    // si vuelves a tocar el mismo, se cierra.
     setOpenMenu((value) => (value === key ? null : key));
   };
 
@@ -244,111 +248,111 @@ export default function Layout() {
         >
           <div className="sidebar-inner">
             <div className="sidebar-top">
-              {sidebarExpanded ? <BrandSidebar /> : <img className="sidebar-logo-mini" src="/inova-mark-dark.png" alt="INOVA" />}
+              {sidebarExpanded ? <BrandSidebar /> : <img className="sidebar-logo-mini" src="/INOVA2026.png" alt="INOVA" />}
             </div>
 
             <nav className="sidebar-nav" onClick={handleSidebarNavClick}>
-              {sidebarExpanded && <SectionTitle>Operaciones</SectionTitle>}
+              {!esPlatformAdmin && (
+                <>
+                  {sidebarExpanded && <SectionTitle>Operaciones</SectionTitle>}
 
-              <NavLink to="/" style={(state) => navStyle(state, sidebarExpanded)} title="Inicio">
-                <Home size={18} />
-                {sidebarExpanded && <span>Inicio</span>}
-              </NavLink>
+                  <NavLink to="/" style={(state) => navStyle(state, sidebarExpanded)} title="Inicio">
+                    <Home size={18} />
+                    {sidebarExpanded && <span>Inicio</span>}
+                  </NavLink>
 
-              <button
-                type="button"
-                style={menuStyle(isDatosActive, sidebarExpanded)}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  toggleMenu("datosMaestros");
-                }}
-                onMouseEnter={() => {}}
-                title="Datos maestros"
-              >
-                <span className="menu-left">
-                  <Database size={18} />
-                  {sidebarExpanded && <span>Datos maestros</span>}
-                </span>
-                {sidebarExpanded && (openMenu === "datosMaestros" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
-              </button>
+                  <button
+                    type="button"
+                    style={menuStyle(isDatosActive, sidebarExpanded)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleMenu("datosMaestros");
+                    }}
+                    onMouseEnter={() => {}}
+                    title="Datos maestros"
+                  >
+                    <span className="menu-left">
+                      <Database size={18} />
+                      {sidebarExpanded && <span>Datos maestros</span>}
+                    </span>
+                    {sidebarExpanded && (visibleOpenMenu === "datosMaestros" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
+                  </button>
 
-              {sidebarExpanded && openMenu === "datosMaestros" && (
-                <SubNav>
-                  <NavLink to="/datos-maestros/materiales" style={childNavStyle}>Materiales</NavLink>
-                  <NavLink to="/datos-maestros/proveedores" style={childNavStyle}>Proveedores</NavLink>
-                  <NavLink to="/datos-maestros/ubicaciones" style={childNavStyle}>Ubicaciones</NavLink>
-                  <NavLink to="/datos-maestros/motor" style={childNavStyle}>Motor principal</NavLink>
-                  <NavLink to="/datos-maestros/rotulos" style={childNavStyle}>Historial de rótulos</NavLink>
-                  <NavLink to="/datos-maestros/en-transito" style={childNavStyle}>En tránsito</NavLink>
-                </SubNav>
-              )}
+                  {sidebarExpanded && visibleOpenMenu === "datosMaestros" && (
+                    <SubNav>
+                      <NavLink to="/datos-maestros/materiales" style={childNavStyle}>Materiales</NavLink>
+                      <NavLink to="/datos-maestros/proveedores" style={childNavStyle}>Proveedores</NavLink>
+                      <NavLink to="/datos-maestros/ubicaciones" style={childNavStyle}>Ubicaciones</NavLink>
+                      <NavLink to="/datos-maestros/motor" style={childNavStyle}>Motor principal</NavLink>
+                      <NavLink to="/datos-maestros/rotulos" style={childNavStyle}>Historial de rótulos</NavLink>
+                      <NavLink to="/datos-maestros/en-transito" style={childNavStyle}>En tránsito</NavLink>
+                    </SubNav>
+                  )}
 
-              <button
-                type="button"
-                style={menuStyle(isMovimientosActive, sidebarExpanded)}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  toggleMenu("movimientos");
-                }}
-                onMouseEnter={() => {}}
-                title="Movimientos"
-              >
-                <span className="menu-left">
-                  <ArrowRightLeft size={18} />
-                  {sidebarExpanded && <span>Movimientos</span>}
-                </span>
-                {sidebarExpanded && (openMenu === "movimientos" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
-              </button>
+                  <button
+                    type="button"
+                    style={menuStyle(isMovimientosActive, sidebarExpanded)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleMenu("movimientos");
+                    }}
+                    onMouseEnter={() => {}}
+                    title="Movimientos"
+                  >
+                    <span className="menu-left">
+                      <ArrowRightLeft size={18} />
+                      {sidebarExpanded && <span>Movimientos</span>}
+                    </span>
+                    {sidebarExpanded && (visibleOpenMenu === "movimientos" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
+                  </button>
 
-              {sidebarExpanded && openMenu === "movimientos" && (
-                <SubNav>
-                  <NavLink to="/movimientos/recibo" style={childNavStyle}>Recibo</NavLink>
-                  <NavLink to="/movimientos/despacho" style={childNavStyle}>Despacho</NavLink>
-                  <NavLink to="/movimientos/reasignacion" style={childNavStyle}>Reasignación</NavLink>
-                </SubNav>
-              )}
+                  {sidebarExpanded && visibleOpenMenu === "movimientos" && (
+                    <SubNav>
+                      <NavLink to="/movimientos/recibo" style={childNavStyle}>Recibo</NavLink>
+                      <NavLink to="/movimientos/despacho" style={childNavStyle}>Despacho</NavLink>
+                      <NavLink to="/movimientos/reasignacion" style={childNavStyle}>Reasignación</NavLink>
+                    </SubNav>
+                  )}
 
-              <NavLink to="/stock" style={(state) => navStyle(state, sidebarExpanded)} title="Stock">
-                <Boxes size={18} />
-                {sidebarExpanded && <span>Stock</span>}
-              </NavLink>
+                  <NavLink to="/stock" style={(state) => navStyle(state, sidebarExpanded)} title="Stock">
+                    <Boxes size={18} />
+                    {sidebarExpanded && <span>Stock</span>}
+                  </NavLink>
 
-              <NavLink
-                to="/layout-zona"
-                style={() => navStyle({ isActive: isLayoutZonaActive }, sidebarExpanded)}
-                title="Layout zona"
-              >
-                <Map size={18} />
-                {sidebarExpanded && <span>Layout zona</span>}
-              </NavLink>
+                  <NavLink to="/layout-zona" style={(state) => navStyle(state, sidebarExpanded)} title="Layout por zona">
+                    <Map size={18} />
+                    {sidebarExpanded && <span>Layout por zona</span>}
+                  </NavLink>
 
-              <button
-                type="button"
-                style={menuStyle(isInventariosActive, sidebarExpanded)}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  toggleMenu("inventarios");
-                }}
-                onMouseEnter={() => {}}
-                title="Inventarios"
-              >
-                <span className="menu-left">
-                  <ClipboardCheck size={18} />
-                  {sidebarExpanded && <span>Inventarios</span>}
-                </span>
-                {sidebarExpanded && (openMenu === "inventarios" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
-              </button>
+                  <button
+                    type="button"
+                    style={menuStyle(isInventariosActive, sidebarExpanded)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleMenu("inventarios");
+                    }}
+                    onMouseEnter={() => {}}
+                    title="Inventarios"
+                  >
+                    <span className="menu-left">
+                      <ClipboardCheck size={18} />
+                      {sidebarExpanded && <span>Inventarios</span>}
+                    </span>
+                    {sidebarExpanded && (visibleOpenMenu === "inventarios" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
+                  </button>
 
-              {sidebarExpanded && openMenu === "inventarios" && (
-                <SubNav>
-                  <NavLink to="/inventarios" style={childNavStyle}>Panel inventarios</NavLink>
-                  <NavLink to="/inventarios/crear-tarea" style={childNavStyle}>Crear tarea</NavLink>
-                  <NavLink to="/inventarios/mis-conteos" style={childNavStyle}>Mis conteos</NavLink>
-                  <NavLink to="/inventarios/conteo-fisico" style={childNavStyle}>Conteo físico</NavLink>
-                  <NavLink to="/inventarios/conciliacion" style={childNavStyle}>Conciliación</NavLink>
-                  <NavLink to="/inventarios/reconteos" style={childNavStyle}>Reconteos</NavLink>
-                  <NavLink to="/inventarios/informe" style={childNavStyle}>Informe inventario</NavLink>
-                </SubNav>
+                  {sidebarExpanded && visibleOpenMenu === "inventarios" && (
+                    <SubNav>
+                      <NavLink to="/inventarios" style={childNavStyle}>Panel inventarios</NavLink>
+                      <NavLink to="/inventarios/crear-tarea" style={childNavStyle}>Crear tarea</NavLink>
+                      <NavLink to="/inventarios/mis-conteos" style={childNavStyle}>Mis conteos</NavLink>
+                      <NavLink to="/inventarios/conteo-fisico" style={childNavStyle}>Conteo físico</NavLink>
+                      <NavLink to="/inventarios/conciliacion" style={childNavStyle}>Conciliación</NavLink>
+                      <NavLink to="/inventarios/reconteos" style={childNavStyle}>Reconteos</NavLink>
+                      <NavLink to="/inventarios/informe" style={childNavStyle}>Informe inventario</NavLink>
+                    </SubNav>
+                  )}
+                </>
               )}
 
               {puedeVerAdmin && sidebarExpanded && <SectionTitle>Administración</SectionTitle>}
@@ -418,10 +422,8 @@ export default function Layout() {
 function BrandHeader() {
   return (
     <div className="brand-header">
-      <img src="/INOVA.png" alt="INOVA" />
-      <div>
-        <small>WMS</small>
-      </div>
+      <img src="/INOVA2026.png" alt="INOVA" loading="eager" decoding="sync" fetchPriority="high" />
+      <small>WMS</small>
     </div>
   );
 }
@@ -429,10 +431,8 @@ function BrandHeader() {
 function BrandSidebar() {
   return (
     <div className="brand-sidebar">
-      <img src="/INOVA-dark.png" alt="INOVA" />
-      <div>
-        <small>WMS</small>
-      </div>
+      <img src="/INOVA2026.png" alt="INOVA" loading="eager" decoding="sync" fetchPriority="high" />
+      <small>WMS</small>
     </div>
   );
 }
@@ -442,7 +442,19 @@ function SectionTitle({ children }) {
 }
 
 function SubNav({ children }) {
-  return <div className="subnav">{children}</div>;
+  const itemCount = Array.isArray(children) ? children.length : children ? 1 : 0;
+  return (
+    <div
+      className="subnav"
+      role="group"
+      style={{
+        gridTemplateRows: `repeat(${itemCount}, 34px)`,
+        minHeight: itemCount * 37 + 10,
+      }}
+    >
+      {children}
+    </div>
+  );
 }
 
 function navStyle({ isActive }, expanded) {
@@ -510,10 +522,12 @@ function menuStyle(active, expanded) {
 }
 
 const childNavStyle = ({ isActive }) => ({
-  minHeight: 35,
+  minHeight: 34,
+  height: 34,
   display: "flex",
   alignItems: "center",
-  padding: "0 12px 0 46px",
+  justifyContent: "flex-start",
+  padding: "0 10px 0 44px",
   borderRadius: 12,
   color: isActive ? "#4f46e5" : "#667085",
   background: isActive ? "rgba(124,58,237,.08)" : "transparent",
@@ -579,11 +593,25 @@ button { -webkit-tap-highlight-color: transparent; }
   box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
 }
 
-.brand-header { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.brand-header img {
-  width: 172px;
+.brand-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
   height: 52px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: hidden;
+}
+.brand-header img {
+  width: 158px;
+  height: 46px;
   object-fit: contain;
+  object-position: left center;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 .brand-header strong {
   display: block;
@@ -595,13 +623,14 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .brand-header small {
   display: block;
-  margin-top: 6px;
-  color: rgba(255,255,255,.70);
+  margin-left: 2px;
+  color: rgba(255,255,255,.82);
   font-size: 10px;
   line-height: 1;
   font-weight: 850;
-  letter-spacing: .19em;
+  letter-spacing: .15em;
   white-space: nowrap;
+  text-shadow: none;
 }
 
 
@@ -723,13 +752,31 @@ button { -webkit-tap-highlight-color: transparent; }
   width: 42px;
   height: 42px;
   object-fit: contain;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #312064, #4f32b8);
+  padding: 5px;
 }
 
-.brand-sidebar { width: 100%; display: flex; align-items: center; gap: 12px; padding: 0 12px; }
+.brand-sidebar {
+  width: 100%;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(124, 94, 255, .28);
+  background: linear-gradient(135deg, #25163f, #4f32b8 54%, #0b1020);
+  box-shadow: 0 16px 34px rgba(79, 50, 184, .22);
+  overflow: hidden;
+}
 .brand-sidebar img {
-  width: 178px;
-  height: 58px;
+  width: 168px;
+  height: 54px;
   object-fit: contain;
+  object-position: left center;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .brand-sidebar strong {
   display: block;
@@ -741,13 +788,14 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .brand-sidebar small {
   display: block;
-  margin-top: 6px;
-  color: #7b8496;
+  margin-left: auto;
+  color: #ffffff;
   font-size: 10px;
   line-height: 1;
   font-weight: 850;
   letter-spacing: .15em;
   white-space: nowrap;
+  text-shadow: 0 1px 8px rgba(0,0,0,.35);
 }
 
 .sidebar-nav { flex: 1 1 auto; min-height: 0; display: grid; align-content: start; gap: 7px; overflow: auto; padding-top: 12px; scrollbar-width: none; }
@@ -799,7 +847,21 @@ button { -webkit-tap-highlight-color: transparent; }
 .section-title { color: #7b8496; font-size: 10px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; padding: 14px 12px 5px; }
 .menu-left { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
 .menu-left span, .sidebar-nav a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.subnav { display: grid; gap: 3px; padding: 2px 0 4px; overflow: auto; scrollbar-width: none; }
+.subnav {
+  display: grid !important;
+  width: 100%;
+  gap: 3px;
+  padding: 5px 0 5px;
+  margin: 0 0 4px;
+  overflow: hidden !important;
+}
+.subnav a {
+  min-height: 34px !important;
+  height: 34px !important;
+  width: 100% !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
 .subnav a:hover {
   background: rgba(99,102,241,.08) !important;
   color: #4338ca !important;
@@ -982,6 +1044,4 @@ button { -webkit-tap-highlight-color: transparent; }
   .top-icon-btn { width: 40px; height: 40px; border-radius: 13px; }
 }
 `;
-
-
 

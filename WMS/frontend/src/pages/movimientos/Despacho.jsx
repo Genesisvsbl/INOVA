@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { API_URL } from "../../api";
+import {
+  eliminarReserva as eliminarReservaSupabase,
+  generarPicking,
+  getDespachos,
+  importarDespachos,
+  verPicking,
+} from "../../api";
 import {
   Upload,
   Search,
@@ -46,6 +52,12 @@ function formatQty(n) {
   const x = Number(n);
   if (!Number.isFinite(x)) return "";
   return fmtCO.format(x);
+}
+
+function formatPct(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return "0%";
+  return `${fmtCO.format(x)}%`;
 }
 
 function fmtDate(v) {
@@ -95,13 +107,14 @@ function Chip({ label, tone = "neutral" }) {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        padding: "5px 10px",
-        borderRadius: 999,
+        minHeight: 28,
+        padding: "0 10px",
+        borderRadius: 8,
         background: t.bg,
         border: `1px solid ${t.bd}`,
         color: t.tx,
-        fontSize: 12,
-        fontWeight: 800,
+        fontSize: 11,
+        fontWeight: 850,
         whiteSpace: "nowrap",
       }}
     >
@@ -112,8 +125,9 @@ function Chip({ label, tone = "neutral" }) {
 
 function toneByClasificacion(v) {
   const x = String(v || "").toUpperCase();
-  if (x.includes("CUMPLIDA")) return "green";
+  if (x.includes("NO CUMPLIDA")) return "red";
   if (x.includes("PARCIAL")) return "amber";
+  if (x.includes("CUMPLIDA")) return "green";
   return "red";
 }
 
@@ -187,15 +201,15 @@ const inputStyle = {
 };
 
 const buttonBase = {
-  height: 42,
-  padding: "0 16px",
-  borderRadius: 10,
+  height: 34,
+  padding: "0 12px",
+  borderRadius: 8,
   fontWeight: 800,
   cursor: "pointer",
   display: "inline-flex",
   alignItems: "center",
-  gap: 8,
-  fontSize: 14,
+  gap: 6,
+  fontSize: 12,
 };
 
 const secondaryButtonStyle = {
@@ -345,14 +359,7 @@ export default function Despacho() {
     setErr("");
 
     try {
-      const params = new URLSearchParams();
-      if (reservaBuscar.trim()) params.set("reserva", reservaBuscar.trim());
-
-      const qs = params.toString();
-      const res = await fetch(`${API_URL}/despachos${qs ? `?${qs}` : ""}`);
-      if (!res.ok) throw new Error(await res.text());
-
-      const data = await res.json();
+      const data = await getDespachos({ reserva: reservaBuscar.trim() });
       setRows(Array.isArray(data) ? data : []);
     } catch (e) {
       setErr(String(e?.message || e));
@@ -371,16 +378,7 @@ export default function Despacho() {
     setLoadingPicking(true);
 
     try {
-      const res = await fetch(
-        `${API_URL}/despachos/picking/${encodeURIComponent(reservaBuscar.trim())}`
-      );
-
-      if (!res.ok) {
-        setPickingRows([]);
-        return;
-      }
-
-      const data = await res.json();
+      const data = await verPicking(reservaBuscar.trim());
       setPickingRows(Array.isArray(data) ? data : []);
     } catch {
       setPickingRows([]);
@@ -403,17 +401,7 @@ export default function Despacho() {
     setErr("");
 
     try {
-      const form = new FormData();
-      form.append("file", file);
-
-      const res = await fetch(`${API_URL}/despachos/importar`, {
-        method: "POST",
-        body: form,
-      });
-
-      if (!res.ok) throw new Error(await res.text());
-
-      const data = await res.json();
+      const data = await importarDespachos(file);
       setUltimaCargaId(data?.carga_id || null);
 
       alert(
@@ -462,14 +450,7 @@ export default function Despacho() {
     }
 
     try {
-      const res = await fetch(
-        `${API_URL}/despachos/generar-picking/${encodeURIComponent(reservaFinal)}`,
-        { method: "POST" }
-      );
-
-      if (!res.ok) throw new Error(await res.text());
-
-      const data = await res.json();
+      const data = await generarPicking(reservaFinal);
 
       alert(
         `✅ Picking generado\n\n` +
@@ -531,16 +512,7 @@ export default function Despacho() {
     if (!ok) return;
 
     try {
-      const res = await fetch(
-        `${API_URL}/despachos/reserva/${encodeURIComponent(reservaId)}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
+      await eliminarReservaSupabase(reservaId);
 
       const actual = getReservaStore();
       delete actual[reservaId];
@@ -1049,7 +1021,7 @@ export default function Despacho() {
                       {formatQty(r.total_diferencia)}
                     </td>
                     <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
-                      {formatQty(pct)}
+                      {formatPct(pct)}
                     </td>
 
                     <td style={tdStyle}>
@@ -1079,7 +1051,7 @@ export default function Despacho() {
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <button
                           onClick={() => verReserva(r.reserva)}
-                          style={{ ...secondaryButtonStyle, height: 36, padding: "0 12px" }}
+                          style={secondaryButtonStyle}
                         >
                           <Eye size={14} />
                           Ver
@@ -1087,7 +1059,7 @@ export default function Despacho() {
 
                         <button
                           onClick={() => onGenerarPicking(r.reserva)}
-                          style={{ ...subtleBlueButtonStyle, height: 36, padding: "0 12px" }}
+                          style={subtleBlueButtonStyle}
                         >
                           <Settings2 size={14} />
                           Picking
@@ -1096,7 +1068,7 @@ export default function Despacho() {
                         {!r.cerrada ? (
                           <button
                             onClick={() => cerrarReserva(r.reserva, r.clasificacion_base)}
-                            style={{ ...subtleWarnButtonStyle, height: 36, padding: "0 12px" }}
+                            style={subtleWarnButtonStyle}
                           >
                             <Lock size={14} />
                             Cerrar
@@ -1104,7 +1076,7 @@ export default function Despacho() {
                         ) : (
                           <button
                             onClick={() => reabrirReserva(r.reserva)}
-                            style={{ ...subtleGreenButtonStyle, height: 36, padding: "0 12px" }}
+                            style={subtleGreenButtonStyle}
                           >
                             <Unlock size={14} />
                             Reabrir
@@ -1113,7 +1085,7 @@ export default function Despacho() {
 
                         <button
                           onClick={() => eliminarReserva(r.reserva)}
-                          style={{ ...subtleRedButtonStyle, height: 36, padding: "0 12px" }}
+                          style={subtleRedButtonStyle}
                         >
                           <Trash2 size={14} />
                           Eliminar
@@ -1199,7 +1171,7 @@ export default function Despacho() {
                     {r.lineas_usadas ?? 0}
                   </td>
                   <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
-                    {formatQty(r.pct_cumplimiento_sku)}
+                    {formatPct(r.pct_cumplimiento_sku)}
                   </td>
                   <td style={tdStyle}>
                     <Chip
@@ -1208,7 +1180,7 @@ export default function Despacho() {
                     />
                   </td>
                   <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
-                    {formatQty(r.pct_cumplimiento_reserva)}
+                    {formatPct(r.pct_cumplimiento_reserva)}
                   </td>
                   <td style={tdStyle}>
                     <Chip

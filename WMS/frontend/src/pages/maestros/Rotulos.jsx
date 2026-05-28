@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { API_URL } from "../../api";
+﻿import { useEffect, useMemo, useState } from "react";
+import { eliminarRotulo as borrarRotulo, getRotulos } from "../../api";
 import {
   Tags,
   Search,
@@ -227,6 +227,36 @@ function classifySerialInput(raw) {
   return { kind: "codigo_cita", value: s };
 }
 
+function descargarRotulosCsv(items) {
+  const cols = [
+    "codigo_cita",
+    "impresion",
+    "documento",
+    "sku",
+    "texto_breve",
+    "lote_almacen",
+    "lote_proveedor",
+    "fecha_fabricacion",
+    "fecha_vencimiento",
+    "cantidad",
+    "proveedor",
+    "remesa",
+    "orden_compra",
+    "auxiliar",
+  ];
+  const escapeCsv = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+  const csv = [cols.join(";")]
+    .concat((items || []).map((row) => cols.map((col) => escapeCsv(row[col])).join(";")))
+    .join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "rotulo_print.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function ModuleHeader({ title, subtitle, helper }) {
   return (
     <div style={panelStyle}>
@@ -375,22 +405,18 @@ export default function Rotulos() {
     setLoading(true);
     setErr("");
 
-    const params = new URLSearchParams();
+    const params = {};
 
-    if (q.trim()) params.set("q", q.trim());
+    if (q.trim()) params.q = q.trim();
 
     const { kind, value } = classifySerialInput(serial);
 
-    if (kind === "codigo_cita") params.set("codigo_cita", value);
-    if (kind === "impresion") params.set("impresion", value);
+    if (kind === "codigo_cita") params.codigo_cita = value;
+    if (kind === "impresion") params.impresion = value;
 
-    params.set("limit", "2000");
+    params.limit = "2000";
 
-    fetch(`${API_URL}/rotulos?${params.toString()}`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error(await r.text());
-        return r.json();
-      })
+    getRotulos(params)
       .then((data) => {
         setRows(Array.isArray(data) ? data : []);
         setLoading(false);
@@ -416,21 +442,17 @@ export default function Rotulos() {
 
   const exportCSV = () => {
     const { kind, value } = classifySerialInput(serial);
-    const url = `${API_URL}/rotulos/export`;
-
-    if (kind === "none") {
-      window.open(url, "_blank");
-    } else if (kind === "codigo_cita") {
-      window.open(`${url}?codigo_cita=${encodeURIComponent(value)}`, "_blank");
-    } else {
-      window.open(`${url}?impresion=${encodeURIComponent(value)}`, "_blank");
-    }
-
+    const data = rows.filter((r) => {
+      if (kind === "codigo_cita") return String(r.codigo_cita || "") === String(value);
+      if (kind === "impresion") return String(r.impresion || "") === String(value);
+      return true;
+    });
+    descargarRotulosCsv(data);
     mostrarAyudaDescarga();
   };
 
   const exportarFila = (rotuloId) => {
-    window.open(`${API_URL}/rotulos/export?rotulo_id=${rotuloId}`, "_blank");
+    descargarRotulosCsv(rows.filter((r) => String(r.id) === String(rotuloId)));
     mostrarAyudaDescarga();
   };
 
@@ -500,12 +522,14 @@ export default function Rotulos() {
 
     .logo-inova {
       position: absolute;
-      top: 2mm;
+      top: 1.7mm;
       left: 3mm;
-      width: 12mm;
-      height: 12mm;
+      width: 49mm;
+      height: 14mm;
       object-fit: contain;
+      object-position: left center;
       display: block;
+      filter: grayscale(100%) brightness(0%);
     }
 
     .logo-b {
@@ -675,7 +699,7 @@ export default function Rotulos() {
 
 <body>
   <div class="label">
-    <img src="/INOVA-dark.png" class="logo-inova" alt="Logo Inova" />
+    <img src="/INOVA2026.png" class="logo-inova" alt="Logo Inova" />
     <img src="/favicon.ico" class="logo-b" alt="Logo B" />
 
     <div class="auxiliar">${auxiliar}</div>
@@ -797,12 +821,7 @@ export default function Rotulos() {
     if (!ok) return;
 
     try {
-      const res = await fetch(`${API_URL}/rotulos/${r.id}`, {
-        method: "DELETE",
-      });
-
-      if (!res.ok) throw new Error(await res.text());
-
+      await borrarRotulo(r.id);
       alert("Rótulo eliminado correctamente");
       load();
     } catch (e) {
@@ -1098,3 +1117,4 @@ export default function Rotulos() {
     </div>
   );
 }
+

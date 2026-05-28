@@ -8,8 +8,7 @@ import {
   ArrowRight,
   ClipboardCheck,
 } from "lucide-react";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+import { getInventarioDetalles, getInventarioTarea, registrarConteoInventario } from "../../api";
 
 export default function ConteoFisico() {
   const navigate = useNavigate();
@@ -38,21 +37,11 @@ export default function ConteoFisico() {
     setSuccessMsg("");
 
     try {
-      const [taskRes, blindRes] = await Promise.all([
-        fetch(`${API_URL}/inventarios/tareas/${taskIdValue}`),
-        fetch(`${API_URL}/inventarios/tareas/${taskIdValue}/conteo-ciego`),
+      const [taskData, blindData] = await Promise.all([
+        getInventarioTarea(taskIdValue),
+        getInventarioDetalles(taskIdValue, { ciego: true }),
       ]);
-
-      const taskData = await taskRes.json();
-      const blindData = await blindRes.json();
-
-      if (!taskRes.ok) {
-        throw new Error(taskData.detail || "No se pudo consultar la tarea");
-      }
-
-      if (!blindRes.ok) {
-        throw new Error(blindData.detail || "No se pudo consultar el conteo ciego");
-      }
+      if (!taskData) throw new Error("No se pudo consultar la tarea");
 
       setTask(taskData);
       setRows(
@@ -139,25 +128,10 @@ export default function ConteoFisico() {
     setSuccessMsg("");
 
     try {
-      const res = await fetch(
-        `${API_URL}/inventarios/tareas/${task.id}/registrar-conteo`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            usuario: usuario.trim(),
-            items,
-          }),
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.detail || "No se pudo registrar el conteo");
-      }
+      await registrarConteoInventario(task.id, {
+        usuario: usuario.trim(),
+        items,
+      });
 
       setSuccessMsg("Conteo registrado correctamente");
       await loadTask(task.id);

@@ -1,18 +1,18 @@
 ﻿import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Layout from "./Layout";
-import Calidad5S from "../../../5S/frontend/src/pages/5s/Calidad5S.jsx";
-import EtoDigitalApp from "../../../ETO/app/src/App.jsx";
-import "../../../ETO/app/src/index.css";
+import Calidad5S from "./pages/5s/Calidad5S.jsx";
+import EtoDigitalApp from "./pages/eto/App.jsx";
+import "./pages/eto/index.css";
 
 /* ================= PAGINAS ================= */
 import Inicio from "./pages/Inicio";
 import DatosMaestros from "./pages/DatosMaestros";
 import Materiales from "./pages/Materiales";
 import Stock from "./pages/Stock";
-import LayoutZona from "./pages/LayoutZona";
 import Movimientos from "./pages/Movimientos";
 import Inventarios from "./pages/Inventarios";
+import LayoutZona from "./pages/LayoutZona";
 
 /* ================= MOVIMIENTOS ================= */
 import Recibo from "./pages/movimientos/Recibo";
@@ -38,6 +38,7 @@ import InformeInventario from "./pages/inventarios/InformeInventario";
 
 /* ================= LOGIN ================= */
 import LoginPage from "./pages/LoginPage";
+import AdminAccess from "./pages/admin/AdminAccess";
 
 
 function useGlobalTableTools() {
@@ -102,6 +103,7 @@ function useGlobalTableTools() {
 
     const enhance = () => {
       enhanceScheduled = false;
+      const isEtoRoute = location.pathname.startsWith("/eto");
       document.querySelectorAll("table").forEach((table) => {
         const skip = table.closest(".table-tools-skip") || table.classList.contains("print-table") || table.classList.contains("receipt-table");
         if (skip) return;
@@ -109,8 +111,13 @@ function useGlobalTableTools() {
         const hasBody = Boolean(table.tBodies?.[0]);
         if (!headers.length || !hasBody) return;
 
+        table.classList.toggle("table-tools-eto", isEtoRoute);
+        table.classList.toggle("table-tools-wms", !isEtoRoute);
+
         if (table.dataset.tableTools === "1") {
           const toolbar = table.previousElementSibling?.classList?.contains("table-tools-bar") ? table.previousElementSibling : null;
+          toolbar?.classList.toggle("table-tools-eto", isEtoRoute);
+          toolbar?.classList.toggle("table-tools-wms", !isEtoRoute);
           const count = toolbar?.querySelector(".table-tools-count");
           updateCount(table, count);
           return;
@@ -121,6 +128,7 @@ function useGlobalTableTools() {
 
         const toolbar = document.createElement("div");
         toolbar.className = "table-tools-bar";
+        toolbar.classList.add(isEtoRoute ? "table-tools-eto" : "table-tools-wms");
 
         const inputWrap = document.createElement("label");
         inputWrap.className = "table-tools-search";
@@ -211,6 +219,37 @@ function PillarRoute({ pillar, children }) {
   return isAuth && selectedPillar === pillar ? children : <Navigate to="/login" replace />;
 }
 
+function isAdminSession() {
+  const role = String(sessionStorage.getItem("rol") || "").toUpperCase();
+  const permisos = JSON.parse(sessionStorage.getItem("permisos") || "[]");
+  return (
+    sessionStorage.getItem("esPlatformAdmin") === "true" ||
+    sessionStorage.getItem("esSuperAdmin") === "true" ||
+    ["SUPER_ADMIN", "ADMIN_INOVA", "INOVA_ADMIN", "ADMIN_PLATAFORMA", "PLATFORM_ADMIN"].includes(role) ||
+    role.includes("ADMIN") ||
+    permisos.includes("admin.usuarios.gestionar") ||
+    permisos.includes("admin.roles.gestionar")
+  );
+}
+
+function isPlatformAdminSession() {
+  const role = String(sessionStorage.getItem("rol") || "").toUpperCase();
+  return (
+    sessionStorage.getItem("esPlatformAdmin") === "true" ||
+    ["ADMIN_INOVA", "INOVA_ADMIN", "ADMIN_PLATAFORMA", "PLATFORM_ADMIN"].includes(role)
+  );
+}
+
+function AdminRoute({ children }) {
+  const isAuth = sessionStorage.getItem("auth") === "true";
+  const selectedPillar = sessionStorage.getItem("pilarSeleccionado");
+  return isAuth && selectedPillar === "wms" && isAdminSession() ? children : <Navigate to="/" replace />;
+}
+
+function OperationalRoute({ children }) {
+  return isPlatformAdminSession() ? <Navigate to="/admin/configuracion" replace /> : children;
+}
+
 function AppRoutes() {
   useGlobalTableTools();
 
@@ -244,9 +283,9 @@ function AppRoutes() {
             </PrivateRoute>
           }
         >
-          <Route index element={<Inicio />} />
+          <Route index element={<OperationalRoute><Inicio /></OperationalRoute>} />
 
-          <Route path="datos-maestros" element={<DatosMaestros />}>
+          <Route path="datos-maestros" element={<OperationalRoute><DatosMaestros /></OperationalRoute>}>
             <Route index element={<Navigate to="materiales" replace />} />
             <Route path="materiales" element={<Materiales />} />
             <Route path="proveedores" element={<Proveedores />} />
@@ -256,7 +295,7 @@ function AppRoutes() {
             <Route path="en-transito" element={<EnTransito />} />
           </Route>
 
-          <Route path="movimientos" element={<Movimientos />}>
+          <Route path="movimientos" element={<OperationalRoute><Movimientos /></OperationalRoute>}>
             <Route index element={<Navigate to="recibo" replace />} />
             <Route path="recibo" element={<Recibo />} />
             <Route path="despacho" element={<Despacho />} />
@@ -265,7 +304,7 @@ function AppRoutes() {
             <Route path="reasignacion" element={<Reasignacion />} />
           </Route>
 
-          <Route path="inventarios" element={<Inventarios />}>
+          <Route path="inventarios" element={<OperationalRoute><Inventarios /></OperationalRoute>}>
             <Route index element={<Navigate to="crear-tarea" replace />} />
             <Route path="crear-tarea" element={<CrearTarea />} />
             <Route path="mis-conteos" element={<MisConteos />} />
@@ -275,8 +314,12 @@ function AppRoutes() {
             <Route path="informe" element={<InformeInventario />} />
           </Route>
 
-          <Route path="stock" element={<Stock />} />
-          <Route path="layout-zona" element={<LayoutZona />} />
+          <Route path="stock" element={<OperationalRoute><Stock /></OperationalRoute>} />
+          <Route path="layout-zona" element={<OperationalRoute><LayoutZona /></OperationalRoute>} />
+          <Route path="admin/usuarios" element={<AdminRoute><AdminAccess view="usuarios" /></AdminRoute>} />
+          <Route path="admin/roles" element={<AdminRoute><AdminAccess view="roles" /></AdminRoute>} />
+          <Route path="admin/auditoria" element={<AdminRoute><AdminAccess view="auditoria" /></AdminRoute>} />
+          <Route path="admin/configuracion" element={<AdminRoute><AdminAccess view="empresas" /></AdminRoute>} />
           <Route path="*" element={<div>Ruta no encontrada</div>} />
         </Route>
       </Routes>
@@ -290,6 +333,3 @@ export default function App() {
     </BrowserRouter>
   );
 }
-
-
-

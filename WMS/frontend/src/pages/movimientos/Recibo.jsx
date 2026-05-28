@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { API_URL, getProveedores } from "../../api";
+import { getMateriales, getProveedores } from "../../api";
 import {
   Inbox,
   RotateCcw,
@@ -479,11 +479,7 @@ export default function Recibo() {
   }, []);
 
   useEffect(() => {
-    fetch(`${API_URL}/materiales?limit=1000`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error(await r.text());
-        return r.json();
-      })
+    getMateriales()
       .then((data) => setMateriales(Array.isArray(data) ? data : []))
       .catch(() => setMateriales([]));
   }, []);
@@ -942,7 +938,7 @@ export default function Recibo() {
               <div class="id-card-top">
                 <div class="id-brand">
                   <div class="id-logo-wrap">
-                    <img src="/INOVA-dark.png" alt="INOVA" class="id-logo" />
+                    <img src="/INOVA2026.png" alt="INOVA" class="id-logo" />
                   </div>
 
                   <div>
@@ -1443,7 +1439,7 @@ export default function Recibo() {
             <div class="receipt-header">
               <div class="receipt-header-left">
                 <div class="receipt-logo-box">
-                  <img src="/INOVA-dark.png" alt="INOVA" />
+                  <img src="/INOVA2026.png" alt="INOVA" />
                 </div>
 
                 <div>
@@ -2393,3 +2389,4 @@ export default function Recibo() {
     </div>
   );
 }
+

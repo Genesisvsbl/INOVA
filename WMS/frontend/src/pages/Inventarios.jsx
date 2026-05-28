@@ -1,3 +1,4 @@
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {
   Plus,
@@ -10,54 +11,81 @@ import {
   Warehouse,
   AlertTriangle,
 } from "lucide-react";
+import { getInventarioTareas } from "../api";
+
+function formatDate(value) {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleDateString("es-CO");
+}
+
+function normalizeStatus(status) {
+  const s = String(status || "").trim().toUpperCase();
+  if (s === "EN_PROCESO") return "En proceso";
+  if (s === "PENDIENTE") return "Pendiente";
+  if (s === "RECONTEO_PENDIENTE") return "Reconteo";
+  if (s === "CONCILIADA") return "Conciliada";
+  if (s === "CERRADA") return "Cerrado";
+  return s || "-";
+}
+
+function taskCode(id) {
+  return `INV-${String(id || 0).padStart(6, "0")}`;
+}
 
 export default function Inventarios() {
   const location = useLocation();
   const isRoot = location.pathname === "/inventarios";
+  const [tasks, setTasks] = useState([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
+  const [tasksError, setTasksError] = useState("");
 
-  const summary = [
-    {
-      label: "Tareas activas",
-      value: "12",
-      helper: "En ejecución",
-      icon: ClipboardList,
-    },
-    {
-      label: "Pendientes conciliación",
-      value: "05",
-      helper: "Requieren revisión",
-      icon: CheckCircle2,
-    },
-    {
-      label: "Reconteos abiertos",
-      value: "03",
-      helper: "Con diferencia detectada",
-      icon: RefreshCcw,
-    },
-    {
-      label: "Diferencias detectadas",
-      value: "18",
-      helper: "Pendientes de análisis",
-      icon: AlertTriangle,
-    },
-  ];
+  useEffect(() => {
+    if (!isRoot) return;
+    setLoadingTasks(true);
+    setTasksError("");
+    getInventarioTareas()
+      .then((data) => setTasks(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        setTasks([]);
+        setTasksError(err?.message || "No se pudieron cargar tareas desde Supabase");
+      })
+      .finally(() => setLoadingTasks(false));
+  }, [isRoot]);
+
+  const summary = useMemo(() => {
+    const active = tasks.filter((t) => ["PENDIENTE", "EN_PROCESO"].includes(t.estado)).length;
+    const pendingConciliation = tasks.filter(
+      (t) => t.estado === "EN_PROCESO" && Number(t.total_no_coinciden || 0) > 0
+    ).length;
+    const recounts = tasks.filter((t) => t.es_reconteo || t.estado === "RECONTEO_PENDIENTE").length;
+    const differences = tasks.reduce((acc, t) => acc + Number(t.total_no_coinciden || 0), 0);
+
+    return [
+      { label: "Tareas activas", value: active, helper: "Desde Supabase", icon: ClipboardList },
+      { label: "Pendientes conciliacion", value: pendingConciliation, helper: "Con diferencias", icon: CheckCircle2 },
+      { label: "Reconteos abiertos", value: recounts, helper: "Marcados en BD", icon: RefreshCcw },
+      { label: "Diferencias detectadas", value: differences, helper: "Total no coinciden", icon: AlertTriangle },
+    ];
+  }, [tasks]);
 
   const operations = [
     {
       title: "Crear tarea",
-      desc: "Genera una nueva tarea de inventario físico o cíclico.",
+      desc: "Genera una nueva tarea de inventario fisico o ciclico.",
       to: "/inventarios/crear-tarea",
       icon: Plus,
     },
     {
-      title: "Conteo físico",
-      desc: "Registra cantidades contadas por ubicación, material o lote.",
+      title: "Conteo fisico",
+      desc: "Registra cantidades contadas por ubicacion, material o lote.",
       to: "/inventarios/conteo-fisico",
       icon: Boxes,
     },
     {
-      title: "Conciliación",
-      desc: "Compara el stock del sistema contra el stock físico registrado.",
+      title: "Conciliacion",
+      desc: "Compara el stock del sistema contra el stock fisico registrado.",
       to: "/inventarios/conciliacion",
       icon: CheckCircle2,
     },
@@ -75,46 +103,24 @@ export default function Inventarios() {
     },
     {
       title: "Informe inventario",
-      desc: "Consulta históricos, productividad, diferencias y cierres.",
+      desc: "Consulta historicos, productividad, diferencias y cierres.",
       to: "/inventarios/informe",
       icon: FileBarChart2,
     },
   ];
 
-  const recentTasks = [
-    {
-      code: "INV-000124",
-      type: "Conteo cíclico",
-      zone: "A-01-02",
-      status: "En proceso",
-      owner: "Josué",
-      date: "19/03/2026",
-    },
-    {
-      code: "INV-000123",
-      type: "Conciliación",
-      zone: "B-04-01",
-      status: "Pendiente",
-      owner: "Andrea",
-      date: "18/03/2026",
-    },
-    {
-      code: "INV-000122",
-      type: "Reconteo",
-      zone: "C-02-03",
-      status: "Abierto",
-      owner: "Carlos",
-      date: "18/03/2026",
-    },
-    {
-      code: "INV-000121",
-      type: "Conteo general",
-      zone: "PT-01",
-      status: "Cerrado",
-      owner: "María",
-      date: "17/03/2026",
-    },
-  ];
+  const recentTasks = useMemo(
+    () =>
+      tasks.slice(0, 8).map((task) => ({
+        code: taskCode(task.id),
+        type: task.tipo_conteo || "-",
+        zone: task.zona || task.familia || task.codigo_material || task.criterio || "-",
+        status: normalizeStatus(task.estado),
+        owner: task.asignado_a || "-",
+        date: formatDate(task.fecha_creacion || task.created_at),
+      })),
+    [tasks]
+  );
 
   const getStatusStyle = (status) => {
     const base = {
@@ -221,7 +227,7 @@ export default function Inventarios() {
                   marginTop: 4,
                 }}
               >
-                Gestión de conteos físicos, conciliación, reconteos y cierres.
+                Gestion de conteos fisicos, conciliacion, reconteos y cierres.
               </div>
             </div>
           </div>
@@ -309,7 +315,7 @@ export default function Inventarios() {
                         lineHeight: 1,
                       }}
                     >
-                      {item.value}
+                      {loadingTasks ? "..." : item.value}
                     </div>
                     <div
                       style={{
@@ -476,7 +482,7 @@ export default function Inventarios() {
                     fontSize: 14,
                   }}
                 >
-                  Últimas tareas de inventario
+                  Ultimas tareas de inventario
                 </div>
 
                 <div style={{ fontSize: 12, color: "#708090" }}>
@@ -494,16 +500,40 @@ export default function Inventarios() {
                 >
                   <thead>
                     <tr style={{ background: "#fbfcfd" }}>
-                      <th style={thStyle}>Código</th>
+                      <th style={thStyle}>Codigo</th>
                       <th style={thStyle}>Tipo</th>
-                      <th style={thStyle}>Ubicación</th>
+                      <th style={thStyle}>Ubicacion</th>
                       <th style={thStyle}>Estado</th>
                       <th style={thStyle}>Responsable</th>
                       <th style={thStyle}>Fecha</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {recentTasks.map((row) => (
+                    {loadingTasks && (
+                      <tr>
+                        <td colSpan={6} style={emptyCellStyle}>
+                          Cargando tareas desde Supabase...
+                        </td>
+                      </tr>
+                    )}
+
+                    {!loadingTasks && tasksError && (
+                      <tr>
+                        <td colSpan={6} style={emptyCellStyle}>
+                          {tasksError}
+                        </td>
+                      </tr>
+                    )}
+
+                    {!loadingTasks && !tasksError && recentTasks.length === 0 && (
+                      <tr>
+                        <td colSpan={6} style={emptyCellStyle}>
+                          No hay tareas registradas en Supabase.
+                        </td>
+                      </tr>
+                    )}
+
+                    {!loadingTasks && !tasksError && recentTasks.map((row) => (
                       <tr key={row.code}>
                         <td style={tdStyleCode}>{row.code}</td>
                         <td style={tdStyle}>{row.type}</td>
@@ -532,7 +562,7 @@ export default function Inventarios() {
                 }}
               >
                 <div style={{ fontSize: 12, color: "#708090" }}>
-                  Mostrando actividad reciente del módulo
+                  Mostrando actividad reciente desde Supabase
                 </div>
 
                 <Link
@@ -577,3 +607,12 @@ const tdStyleCode = {
   fontWeight: 700,
   color: "#17324d",
 };
+
+const emptyCellStyle = {
+  padding: 22,
+  textAlign: "center",
+  borderBottom: "1px solid #edf2f7",
+  color: "#708090",
+  fontWeight: 700,
+};
+
