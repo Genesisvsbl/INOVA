@@ -1,7 +1,7 @@
 ﻿// LoginPage.jsx - INOVA landing + login por pilar
 // Requiere: npm install lucide-react
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   Boxes,
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import fiveSImage from "../../../../5S/assets/5S.png";
 import etoImage from "../../../../ETO/app/public/ETO.png";
+import { empresaId, selectRows, supabaseEnabled } from "../supabaseRest";
 
 const ADMIN_PERMISSIONS = [
   "usuarios.ver",
@@ -220,6 +221,70 @@ const PILLARS = [
   },
 ];
 
+function readFirst(row, keys, fallback = "") {
+  const found = keys.find((key) => row?.[key] !== undefined && row?.[key] !== null && String(row[key]).trim() !== "");
+  return found ? row[found] : fallback;
+}
+
+function parsePermissions(value, role) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      return value.split(",").map((item) => item.trim()).filter(Boolean);
+    }
+  }
+  return String(role || "").toUpperCase().includes("CONSULT") ? CONSULT_PERMISSIONS : ADMIN_PERMISSIONS;
+}
+
+function normalizeLoginUser(row) {
+  const role = readFirst(row, ["rol", "role", "perfil"], "USUARIO");
+  const platform = String(readFirst(row, ["plataforma", "pilar", "modulo", "app"], "wms")).toLowerCase();
+  const password = readFirst(row, [
+    "password",
+    "clave",
+    "contrasena",
+    "contraseña",
+    "pin",
+    "codigo_acceso",
+    "access_code",
+    "accessCode",
+  ]);
+
+  return {
+    auth: "true",
+    userId: String(row.id || row.userId || row.usuario_id || ""),
+    nombre: readFirst(row, ["nombre", "name", "email", "usuario"], "Usuario"),
+    usuario: readFirst(row, ["usuario", "username", "email"], ""),
+    password: String(password || ""),
+    rol: String(role || "USUARIO").toUpperCase(),
+    estado: String(readFirst(row, ["estado", "status"], "ACTIVO")).toUpperCase(),
+    plataforma: platform || "wms",
+    accessLevel: readFirst(row, ["accessLevel", "access_level", "nivel_acceso"], ""),
+    accessCode: readFirst(row, ["accessCode", "access_code", "codigo_acceso"], ""),
+    permisos: parsePermissions(readFirst(row, ["permisos", "permissions"], ""), role),
+  };
+}
+
+async function getLoginUsers() {
+  if (!supabaseEnabled) return USERS_MOCK;
+
+  try {
+    const rows = await selectRows("public", "usuarios", {
+      empresa_id: `eq.${empresaId}`,
+      select: "*",
+      limit: "1000",
+    });
+    const supabaseUsers = (rows || []).map(normalizeLoginUser).filter((user) => user.usuario);
+    return supabaseUsers.length ? supabaseUsers : USERS_MOCK;
+  } catch (error) {
+    console.warn("No se pudieron cargar usuarios de Supabase para login", error);
+    return USERS_MOCK;
+  }
+}
+
 export default function LoginPage() {
   const [selectedPillarId, setSelectedPillarId] = useState("wms");
   const [showLogin, setShowLogin] = useState(false);
@@ -300,7 +365,7 @@ export default function LoginPage() {
     setPassword("");
   };
 
-  const login = () => {
+  const login = async () => {
     setError("");
 
     if (!usuario.trim() || !password.trim()) {
@@ -310,13 +375,14 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    setTimeout(() => {
+    try {
       const usuarioInput = usuario.trim();
       const passwordInput = password.trim();
+      const loginUsers = await getLoginUsers();
 
       const plataformaSeleccionada = selectedPillar.id;
 
-      const usuarioEncontrado = USERS_MOCK.find((u) => {
+      const usuarioEncontrado = loginUsers.find((u) => {
         const samePlatform = u.plataforma === plataformaSeleccionada;
         const isGlobalAdmin = u.rol === "SUPER_ADMIN";
         const sameUser = u.usuario.toLowerCase() === usuarioInput.toLowerCase();
@@ -380,7 +446,11 @@ export default function LoginPage() {
       }
 
       window.location.href = selectedPillar.route;
-    }, 450);
+    } catch (error) {
+      console.error(error);
+      setError("No se pudo validar el usuario. Revisa la conexion e intenta de nuevo.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -580,6 +650,39 @@ function LoginCard({
   login,
   back,
 }) {
+  const userInputRef = useRef(null);
+  const passwordInputRef = useRef(null);
+
+  const handleUserKeyDown = (event) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      passwordInputRef.current?.focus();
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      if (!password.trim()) {
+        passwordInputRef.current?.focus();
+        return;
+      }
+      login();
+    }
+  };
+
+  const handlePasswordKeyDown = (event) => {
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      userInputRef.current?.focus();
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      login();
+    }
+  };
+
   return (
     <div
       className="login-card"
@@ -618,9 +721,10 @@ function LoginCard({
         <label className="field">
           <span><User size={16} /> Usuario</span>
           <input
+            ref={userInputRef}
             value={usuario}
             onChange={(event) => setUsuario(event.target.value)}
-            onKeyDown={(event) => event.key === "Enter" && login()}
+            onKeyDown={handleUserKeyDown}
             placeholder="Ingresa tu usuario"
             autoComplete="username"
           />
@@ -630,10 +734,11 @@ function LoginCard({
           <span><LockKeyhole size={16} /> Contraseña</span>
           <div className="password-row">
             <input
+              ref={passwordInputRef}
               type={mostrarClave ? "text" : "password"}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              onKeyDown={(event) => event.key === "Enter" && login()}
+              onKeyDown={handlePasswordKeyDown}
               placeholder="Ingresa tu contraseña"
               autoComplete="current-password"
             />
