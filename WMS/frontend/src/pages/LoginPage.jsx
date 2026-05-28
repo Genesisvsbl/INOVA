@@ -239,9 +239,17 @@ function parsePermissions(value, role) {
   return String(role || "").toUpperCase().includes("CONSULT") ? CONSULT_PERMISSIONS : ADMIN_PERMISSIONS;
 }
 
-function normalizeLoginUser(row) {
-  const role = readFirst(row, ["rol", "role", "perfil"], "USUARIO");
-  const platform = String(readFirst(row, ["plataforma", "pilar", "modulo", "app"], "wms")).toLowerCase();
+function inferPlatformFromRole(role) {
+  const normalizedRole = String(role || "").toUpperCase();
+  if (normalizedRole.includes("_5S")) return "5s";
+  if (normalizedRole.includes("ETO")) return "eto";
+  return "wms";
+}
+
+function normalizeLoginUser(row, assignment = null, roleRow = null) {
+  const role = roleRow?.codigo || readFirst(row, ["rol", "role", "perfil"], "USUARIO");
+  const explicitPlatform = assignment?.pilar || readFirst(row, ["plataforma", "pilar", "modulo", "app"], "");
+  const platform = String(explicitPlatform || inferPlatformFromRole(role)).toLowerCase();
   const password = readFirst(row, [
     "password",
     "clave",
@@ -259,30 +267,60 @@ function normalizeLoginUser(row) {
     userId: String(row.id || row.userId || row.usuario_id || ""),
     nombre: readFirst(row, ["nombre", "name", "email", "usuario"], "Usuario"),
     usuario: readFirst(row, ["usuario", "username", "email"], ""),
+    email: readFirst(row, ["email"], ""),
+    documento: readFirst(row, ["documento"], ""),
     password: String(password || ""),
     rol: String(role || "USUARIO").toUpperCase(),
     estado: String(readFirst(row, ["estado", "status"], "ACTIVO")).toUpperCase(),
     plataforma: platform || "wms",
-    accessLevel: readFirst(row, ["accessLevel", "access_level", "nivel_acceso"], ""),
-    accessCode: readFirst(row, ["accessCode", "access_code", "codigo_acceso"], ""),
+    accessLevel: assignment?.eto_nivel || readFirst(row, ["accessLevel", "access_level", "nivel_acceso"], ""),
+    accessCode: readFirst(row, ["accessCode", "access_code", "codigo_acceso", "clave_acceso"], ""),
     permisos: parsePermissions(readFirst(row, ["permisos", "permissions"], ""), role),
   };
+}
+
+function buildLoginUsers(usuarios, usuarioPilares, roles) {
+  const activeAssignments = (usuarioPilares || []).filter((row) => String(row.estado || "ACTIVO").toUpperCase() === "ACTIVO");
+  const rolesById = new Map((roles || []).map((row) => [String(row.id), row]));
+
+  return (usuarios || []).flatMap((user) => {
+    const userAssignments = activeAssignments.filter((assignment) => String(assignment.usuario_id) === String(user.id));
+
+    if (!userAssignments.length) {
+      return [normalizeLoginUser(user)];
+    }
+
+    return userAssignments.map((assignment) =>
+      normalizeLoginUser(user, assignment, rolesById.get(String(assignment.rol_id)))
+    );
+  });
 }
 
 async function getLoginUsers() {
   if (!supabaseEnabled) return USERS_MOCK;
 
   try {
-    const rows = await selectRows("public", "usuarios", {
-      empresa_id: `eq.${empresaId}`,
-      select: "*",
-      limit: "1000",
-    });
-    const supabaseUsers = (rows || []).map(normalizeLoginUser).filter((user) => user.usuario);
-    return supabaseUsers.length ? supabaseUsers : USERS_MOCK;
+    const [usuarios, usuarioPilares, roles] = await Promise.all([
+      selectRows("public", "usuarios", {
+        empresa_id: `eq.${empresaId}`,
+        select: "*",
+        limit: "1000",
+      }),
+      selectRows("public", "usuario_pilares", {
+        empresa_id: `eq.${empresaId}`,
+        select: "*",
+        limit: "3000",
+      }),
+      selectRows("public", "roles", {
+        empresa_id: `eq.${empresaId}`,
+        select: "*",
+        limit: "1000",
+      }),
+    ]);
+    return buildLoginUsers(usuarios, usuarioPilares, roles).filter((user) => user.usuario);
   } catch (error) {
     console.warn("No se pudieron cargar usuarios de Supabase para login", error);
-    return USERS_MOCK;
+    return [];
   }
 }
 
@@ -386,7 +424,10 @@ export default function LoginPage() {
       const usuarioEncontrado = loginUsers.find((u) => {
         const samePlatform = u.plataforma === plataformaSeleccionada;
         const isGlobalAdmin = u.rol === "SUPER_ADMIN";
-        const sameUser = u.usuario.toLowerCase() === usuarioInput.toLowerCase();
+        const normalizedInput = usuarioInput.toLowerCase();
+        const sameUser = [u.usuario, u.nombre, u.email, u.documento]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase() === normalizedInput);
 
         const samePassword =
           u.plataforma === "eto"
