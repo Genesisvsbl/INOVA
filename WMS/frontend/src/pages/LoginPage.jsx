@@ -248,6 +248,7 @@ function normalizeLoginUser(row) {
     "contrasena",
     "contraseña",
     "pin",
+    "clave_acceso",
     "codigo_acceso",
     "access_code",
     "accessCode",
