@@ -1,5 +1,6 @@
 dist/
 node_modules/
+.vercel/
 supabase/.temp/
 venv/
 .venv/
