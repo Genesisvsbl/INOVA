@@ -11,6 +11,7 @@ import {
   FileText,
   Home,
   LogOut,
+  Map,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
@@ -99,6 +100,7 @@ export default function Layout() {
   const isDatosActive = location.pathname.startsWith("/datos-maestros");
   const isMovimientosActive = location.pathname.startsWith("/movimientos");
   const isInventariosActive = location.pathname.startsWith("/inventarios");
+  const isLayoutZonaActive = location.pathname.startsWith("/layout-zona");
   const isAdminUsuariosActive = location.pathname.startsWith("/admin/usuarios");
   const isAdminRolesActive = location.pathname.startsWith("/admin/roles");
   const isAdminAuditoriaActive = location.pathname.startsWith("/admin/auditoria");
@@ -309,6 +311,15 @@ export default function Layout() {
               <NavLink to="/stock" style={(state) => navStyle(state, sidebarExpanded)} title="Stock">
                 <Boxes size={18} />
                 {sidebarExpanded && <span>Stock</span>}
+              </NavLink>
+
+              <NavLink
+                to="/layout-zona"
+                style={() => navStyle({ isActive: isLayoutZonaActive }, sidebarExpanded)}
+                title="Layout zona"
+              >
+                <Map size={18} />
+                {sidebarExpanded && <span>Layout zona</span>}
               </NavLink>
 
               <button

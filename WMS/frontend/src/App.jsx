@@ -10,6 +10,7 @@ import Inicio from "./pages/Inicio";
 import DatosMaestros from "./pages/DatosMaestros";
 import Materiales from "./pages/Materiales";
 import Stock from "./pages/Stock";
+import LayoutZona from "./pages/LayoutZona";
 import Movimientos from "./pages/Movimientos";
 import Inventarios from "./pages/Inventarios";
 
@@ -275,6 +276,7 @@ function AppRoutes() {
           </Route>
 
           <Route path="stock" element={<Stock />} />
+          <Route path="layout-zona" element={<LayoutZona />} />
           <Route path="*" element={<div>Ruta no encontrada</div>} />
         </Route>
       </Routes>

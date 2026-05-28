@@ -104,6 +104,46 @@ export function getMovimientos() {
   return apiFetch("/movimientos");
 }
 
+
+export function getMovimientosLayoutStock() {
+  if (supabaseEnabled) {
+    return selectRows("wms", "movimientos", {
+      empresa_id: `eq.${empresaId}`,
+      estado: "eq.ALMACENADO",
+      select: "id,estado,cantidad_r,ubicacion_id,proveedor,lote_almacen,lote_proveedor,fecha_vencimiento,material:materiales(codigo,descripcion,unidad_medida,familia),ubicacion:ubicaciones(ubicacion,ubicacion_base,posicion,zona,familias,bodega)",
+      order: "id.desc",
+      limit: "5000",
+    }).then((rows) =>
+      (rows || []).map((row) => {
+        const cantidad = Number(row.cantidad_r ?? 0);
+        const ubicacion = row.ubicacion?.ubicacion || "";
+        const material = row.material || {};
+        return {
+          id: row.id,
+          tipo: cantidad >= 0 ? "ENTRADA" : "SALIDA",
+          estado: row.estado,
+          ubicacion,
+          ubicacion_final: ubicacion,
+          ubicacion_codigo: ubicacion,
+          ubicacion_id: row.ubicacion_id,
+          ubicacion_final_id: row.ubicacion_id,
+          codigo_material: material.codigo || "",
+          descripcion_material: material.descripcion || "",
+          unidad_medida: material.unidad_medida || "",
+          familia: material.familia || "",
+          proveedor: row.proveedor || "",
+          lote_almacen: row.lote_almacen || "",
+          lote_proveedor: row.lote_proveedor || "",
+          fecha_vencimiento: row.fecha_vencimiento || "",
+          cantidad,
+          cantidad_r: cantidad,
+        };
+      })
+    );
+  }
+
+  return Promise.resolve([]);
+}
 export function getEnTransito(q = "") {
   const url = new URL(`${API_URL}/movimientos/en-transito`);
 
@@ -334,5 +374,8 @@ export function marcarPickingImpreso(reserva) {
     method: "POST",
   });
 }
+
+
+
 
 
