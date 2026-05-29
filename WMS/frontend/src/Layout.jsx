@@ -3,7 +3,6 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowRightLeft,
   Bell,
-  Boxes,
   ChevronDown,
   ChevronRight,
   ClipboardCheck,
@@ -15,6 +14,7 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
+  Search,
   Settings,
   ShieldCheck,
   UserRound,
@@ -315,7 +315,7 @@ export default function Layout() {
                   )}
 
                   <NavLink to="/stock" style={(state) => navStyle(state, sidebarExpanded)} title="Consulta">
-                    <Boxes size={18} />
+                    <Search size={18} />
                     {sidebarExpanded && <span>Consulta</span>}
                   </NavLink>
 

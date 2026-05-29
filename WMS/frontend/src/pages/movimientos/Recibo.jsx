@@ -372,6 +372,40 @@ function StatusChip({ label, tone = "neutral" }) {
 }
 
 function readFileAsDataUrl(file) {
+  if (file?.type?.startsWith("image/")) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const maxEdge = 1800;
+            const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+            const width = Math.max(1, Math.round(img.width * scale));
+            const height = Math.max(1, Math.round(img.height * scale));
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, width, height);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.filter = "brightness(1.12) contrast(1.24) saturate(0.96)";
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL("image/jpeg", 0.88));
+          } catch (err) {
+            reject(err);
+          }
+        };
+        img.onerror = () => reject(new Error("No se pudo procesar la imagen."));
+        img.src = String(reader.result || "");
+      };
+      reader.onerror = () => reject(reader.error || new Error("No se pudo leer el archivo."));
+      reader.readAsDataURL(file);
+    });
+  }
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ""));
@@ -445,7 +479,6 @@ const detailColWidths = {
   fechaRecepcion: "7%",
   codigo: "6.2%",
   descripcion: "12.5%",
-  certificado: "7.8%",
   empaque: "8%",
   umb: "5.3%",
   um: "4.9%",
@@ -454,7 +487,7 @@ const detailColWidths = {
   lote: "7.4%",
   fabricacion: "7.4%",
   vencimiento: "8%",
-  accion: "3%",
+  accion: "10.8%",
 };
 
 export default function Recibo() {
@@ -989,7 +1022,7 @@ export default function Recibo() {
               <div class="id-card-top">
                 <div class="id-brand">
                   <div class="id-logo-wrap">
-                    <img src="/INOVA2026.png" alt="INOVA" class="id-logo" />
+                    <img src="/favicon1.ico" alt="INOVA" class="id-logo" />
                   </div>
 
                   <div>
@@ -1128,6 +1161,7 @@ export default function Recibo() {
             tipoRecibo === "devolucion" ? "Devolución" : "Recibo ciego"
           )} - ${escapeHtml(header.serial)}</title>
           <meta charset="utf-8" />
+          <link rel="preload" as="image" href="/favicon1.ico" />
           <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
           <style>
             @page {
@@ -1173,10 +1207,10 @@ export default function Recibo() {
             }
 
             .receipt-logo-box {
-              width: 74px;
-              height: 74px;
+              width: 58px;
+              height: 58px;
               border: 1px solid #d9e2ec;
-              border-radius: 12px;
+              border-radius: 10px;
               display: grid;
               place-items: center;
               overflow: hidden;
@@ -1490,7 +1524,7 @@ export default function Recibo() {
             <div class="receipt-header">
               <div class="receipt-header-left">
                 <div class="receipt-logo-box">
-                  <img src="/INOVA2026.png" alt="INOVA" />
+                  <img src="/favicon1.ico" alt="INOVA" />
                 </div>
 
                 <div>
@@ -2119,7 +2153,6 @@ export default function Recibo() {
                   <col style={{ width: detailColWidths.fechaRecepcion }} />
                   <col style={{ width: detailColWidths.codigo }} />
                   <col style={{ width: detailColWidths.descripcion }} />
-                  <col style={{ width: detailColWidths.certificado }} />
                   <col style={{ width: detailColWidths.empaque }} />
                   <col style={{ width: detailColWidths.umb }} />
                   <col style={{ width: detailColWidths.um }} />
@@ -2137,7 +2170,6 @@ export default function Recibo() {
                     <th style={thStyle}>Fecha recepción</th>
                     <th style={thStyle}>Código</th>
                     <th style={thStyle}>Texto breve material</th>
-                    <th style={thStyle}>Certificado</th>
                     <th style={thStyle}>Empaque</th>
                     <th style={thStyle}>UMB</th>
                     <th style={thStyle}>UM</th>
@@ -2146,7 +2178,7 @@ export default function Recibo() {
                     <th style={thStyle}>Lote proveedor (10)</th>
                     <th style={thStyle}>Fecha fabricación</th>
                     <th style={thStyle}>Fecha vencimiento</th>
-                    <th style={thStyle}>Acción</th>
+                    <th style={thStyle}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2191,81 +2223,6 @@ export default function Recibo() {
                           readOnly
                           style={detailReadOnlyInputStyle}
                         />
-                      </td>
-                      <td style={tdStyle}>
-                        <label
-                          style={{
-                            ...secondaryButtonStyle,
-                            height: 30,
-                            padding: "0 7px",
-                            fontSize: 10,
-                            gap: 4,
-                            width: "100%",
-                            justifyContent: "center",
-                            cursor: "pointer",
-                            boxSizing: "border-box",
-                          }}
-                        >
-                          {ln.certificado_data_url ? <FileCheck size={13} /> : <Camera size={13} />}
-                          {ln.certificado_data_url ? "Anexo OK" : "Anexar"}
-                          <input
-                            type="file"
-                            accept="image/*,application/pdf"
-                            capture="environment"
-                            onChange={(e) => onCertificadoChange(idx, e.target.files?.[0])}
-                            style={{ display: "none" }}
-                          />
-                        </label>
-                        {ln.certificado_data_url ? (
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: 4,
-                              alignItems: "center",
-                              marginTop: 5,
-                            }}
-                          >
-                            <a
-                              href={ln.certificado_data_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={{
-                                ...detailHelpStyle,
-                                color: colors.good,
-                                textDecoration: "none",
-                                flex: 1,
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                              title={ln.certificado_nombre}
-                            >
-                              {ln.certificado_nombre || "Certificado"}
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => clearCertificado(idx)}
-                              style={{
-                                border: "none",
-                                background: colors.badBg,
-                                color: colors.bad,
-                                borderRadius: 6,
-                                width: 20,
-                                height: 20,
-                                display: "grid",
-                                placeItems: "center",
-                                cursor: "pointer",
-                              }}
-                              title="Quitar certificado"
-                            >
-                              <X size={12} />
-                            </button>
-                          </div>
-                        ) : (
-                          <div style={{ ...detailHelpStyle, color: colors.warn }}>
-                            Pendiente 24h
-                          </div>
-                        )}
                       </td>
                       <td style={tdStyle}>
                         <select
@@ -2440,27 +2397,124 @@ export default function Recibo() {
                         )}
                       </td>
                       <td style={tdStyle}>
-                        <button
-                          onClick={() => removeLinea(idx)}
-                          disabled={lineas.length === 1}
+                        <div
                           style={{
-                            ...dangerButtonStyle,
-                            height: 30,
-                            padding: "0 7px",
-                            fontSize: 10,
-                            gap: 4,
-                            width: "100%",
+                            display: "grid",
+                            gridTemplateColumns: "repeat(4, 30px)",
+                            gap: 5,
                             justifyContent: "center",
-                            opacity: lineas.length === 1 ? 0.55 : 1,
-                            cursor:
-                              lineas.length === 1
-                                ? "not-allowed"
-                                : "pointer",
+                            alignItems: "center",
                           }}
                         >
-                          <Trash2 size={14} />
-                          Eliminar
-                        </button>
+                          <label
+                            title="Escanear o anexar certificado"
+                            style={{
+                              width: 30,
+                              height: 30,
+                              borderRadius: 8,
+                              border: `1px solid ${ln.certificado_data_url ? colors.goodBd : colors.infoBd}`,
+                              background: ln.certificado_data_url ? colors.goodBg : colors.infoBg,
+                              color: ln.certificado_data_url ? colors.good : colors.blue,
+                              display: "grid",
+                              placeItems: "center",
+                              cursor: "pointer",
+                              boxShadow: ln.certificado_data_url
+                                ? "none"
+                                : "0 0 0 3px rgba(10,110,209,.08)",
+                            }}
+                          >
+                            <Camera size={15} />
+                            <input
+                              type="file"
+                              accept="image/*,application/pdf"
+                              capture="environment"
+                              onChange={(e) => onCertificadoChange(idx, e.target.files?.[0])}
+                              style={{ display: "none" }}
+                            />
+                          </label>
+
+                          {ln.certificado_data_url ? (
+                            <a
+                              href={ln.certificado_data_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Ver certificado anexado"
+                              style={{
+                                width: 30,
+                                height: 30,
+                                borderRadius: 8,
+                                border: `1px solid ${colors.goodBd}`,
+                                background: colors.goodBg,
+                                color: colors.good,
+                                display: "grid",
+                                placeItems: "center",
+                                textDecoration: "none",
+                              }}
+                            >
+                              <FileCheck size={15} />
+                            </a>
+                          ) : (
+                            <span
+                              title="Certificado pendiente: 24h"
+                              style={{
+                                width: 30,
+                                height: 30,
+                                borderRadius: 8,
+                                border: `1px solid ${colors.warnBd}`,
+                                background: colors.warnBg,
+                                color: colors.warn,
+                                display: "grid",
+                                placeItems: "center",
+                                fontSize: 10,
+                                fontWeight: 900,
+                              }}
+                            >
+                              24h
+                            </span>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => clearCertificado(idx)}
+                            disabled={!ln.certificado_data_url}
+                            title="Quitar certificado"
+                            style={{
+                              width: 30,
+                              height: 30,
+                              borderRadius: 8,
+                              border: `1px solid ${colors.border}`,
+                              background: "#fff",
+                              color: ln.certificado_data_url ? colors.bad : colors.muted,
+                              display: "grid",
+                              placeItems: "center",
+                              cursor: ln.certificado_data_url ? "pointer" : "not-allowed",
+                              opacity: ln.certificado_data_url ? 1 : 0.45,
+                            }}
+                          >
+                            <X size={14} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => removeLinea(idx)}
+                            disabled={lineas.length === 1}
+                            title="Eliminar linea"
+                            style={{
+                              width: 30,
+                              height: 30,
+                              borderRadius: 8,
+                              border: `1px solid ${colors.badBd}`,
+                              background: colors.badBg,
+                              color: colors.bad,
+                              display: "grid",
+                              placeItems: "center",
+                              opacity: lineas.length === 1 ? 0.55 : 1,
+                              cursor: lineas.length === 1 ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

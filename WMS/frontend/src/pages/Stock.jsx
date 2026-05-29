@@ -12,6 +12,8 @@ import {
   Upload,
   Clock,
   CheckCircle2,
+  Printer,
+  X,
 } from "lucide-react";
 import { actualizarCertificadoCalidad, getCertificadosCalidad, getStock } from "../api";
 
@@ -195,6 +197,40 @@ function DataBox({ label, value }) {
 }
 
 function readFileAsDataUrl(file) {
+  if (file?.type?.startsWith("image/")) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const maxEdge = 1800;
+            const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+            const width = Math.max(1, Math.round(img.width * scale));
+            const height = Math.max(1, Math.round(img.height * scale));
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, width, height);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.filter = "brightness(1.12) contrast(1.24) saturate(0.96)";
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL("image/jpeg", 0.88));
+          } catch (err) {
+            reject(err);
+          }
+        };
+        img.onerror = () => reject(new Error("No se pudo procesar la imagen."));
+        img.src = String(reader.result || "");
+      };
+      reader.onerror = () => reject(reader.error || new Error("No se pudo leer el archivo."));
+      reader.readAsDataURL(file);
+    });
+  }
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ""));
@@ -211,6 +247,114 @@ function openHtmlDocument(html) {
   setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
+function printCertificatePreview(doc) {
+  if (!doc?.dataUrl) return;
+  const frame = document.createElement("iframe");
+  frame.style.position = "fixed";
+  frame.style.width = "0";
+  frame.style.height = "0";
+  frame.style.border = "0";
+  document.body.appendChild(frame);
+
+  if (doc.type?.includes("pdf") || doc.dataUrl.startsWith("data:application/pdf")) {
+    frame.src = doc.dataUrl;
+    frame.onload = () => {
+      frame.contentWindow?.focus();
+      frame.contentWindow?.print();
+      setTimeout(() => frame.remove(), 1500);
+    };
+    return;
+  }
+
+  frame.contentDocument?.open();
+  frame.contentDocument?.write(`
+    <html>
+      <head>
+        <title>${doc.name || "Certificado de calidad"}</title>
+        <style>
+          @page { size: A4; margin: 12mm; }
+          body { margin: 0; background: #fff; }
+          .page { min-height: calc(100vh - 24mm); display: grid; place-items: center; }
+          img { max-width: 100%; max-height: calc(100vh - 24mm); object-fit: contain; }
+        </style>
+      </head>
+      <body><div class="page"><img src="${doc.dataUrl}" /></div></body>
+    </html>
+  `);
+  frame.contentDocument?.close();
+  setTimeout(() => {
+    frame.contentWindow?.focus();
+    frame.contentWindow?.print();
+    setTimeout(() => frame.remove(), 1500);
+  }, 250);
+}
+
+function CertificatePreviewModal({ doc, onClose }) {
+  if (!doc?.dataUrl) return null;
+  const isPdf = doc.type?.includes("pdf") || doc.dataUrl.startsWith("data:application/pdf");
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        background: "rgba(8,18,34,.68)",
+        display: "grid",
+        placeItems: "center",
+        padding: 24,
+      }}
+    >
+      <div
+        style={{
+          width: "min(1120px, 94vw)",
+          height: "min(860px, 90vh)",
+          background: "#f8fafc",
+          borderRadius: 16,
+          border: `1px solid ${colors.border}`,
+          boxShadow: "0 30px 80px rgba(0,0,0,.35)",
+          display: "grid",
+          gridTemplateRows: "auto 1fr",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            padding: "14px 16px",
+            background: "#fff",
+            borderBottom: `1px solid ${colors.border}`,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 11, color: colors.blue, fontWeight: 900, letterSpacing: ".08em" }}>VISTA PREVIA</div>
+            <div style={{ fontSize: 18, fontWeight: 950, color: colors.navy }}>{doc.name || "Certificado de calidad"}</div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" onClick={() => printCertificatePreview(doc)} style={{ border: `1px solid ${colors.border}`, background: colors.blue, color: "#fff", borderRadius: 10, height: 38, padding: "0 14px", fontWeight: 900, display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <Printer size={16} />
+              Imprimir / PDF
+            </button>
+            <button type="button" onClick={onClose} style={{ width: 38, height: 38, borderRadius: 10, border: `1px solid ${colors.border}`, background: "#fff", display: "grid", placeItems: "center", cursor: "pointer" }}>
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+        <div style={{ padding: 18, overflow: "auto", display: "grid", placeItems: "center" }}>
+          {isPdf ? (
+            <iframe title="Vista previa certificado" src={doc.dataUrl} style={{ width: "100%", height: "100%", border: 0, borderRadius: 10, background: "#fff" }} />
+          ) : (
+            <img src={doc.dataUrl} alt="Certificado" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 10, boxShadow: "0 12px 30px rgba(15,39,68,.14)" }} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function statusInfo(row) {
   const status = String(row.estado_certificado || "").toUpperCase();
   const expired =
@@ -224,6 +368,122 @@ function statusInfo(row) {
     return { label: "Vencido", tone: "red", icon: AlertTriangle };
   }
   return { label: "Pendiente", tone: "amber", icon: Clock };
+}
+
+function ConsultaChoice({ activeTab, onSelect }) {
+  const cards = [
+    {
+      key: "stock",
+      eyebrow: "Inventario",
+      title: "Stock operativo",
+      text: "Consulta disponibilidad, transito, ubicacion y condicion ejecutiva por codigo de material.",
+      icon: Search,
+      accent: colors.blue,
+      bg: "linear-gradient(135deg, #eef6ff 0%, #ffffff 58%)",
+    },
+    {
+      key: "certificados",
+      eyebrow: "Calidad",
+      title: "Certificados de calidad",
+      text: "Revisa certificados anexados desde recibo ciego, pendientes de 24 horas y evidencias por lote.",
+      icon: ShieldCheck,
+      accent: "#7c3aed",
+      bg: "linear-gradient(135deg, #f5f0ff 0%, #ffffff 58%)",
+    },
+  ];
+
+  return (
+    <div
+      style={{
+        padding: 16,
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+        gap: 14,
+      }}
+    >
+      {cards.map((card) => {
+        const Icon = card.icon;
+        const selected = activeTab === card.key;
+        return (
+          <button
+            key={card.key}
+            type="button"
+            onClick={() => onSelect(card.key)}
+            style={{
+              border: `1px solid ${selected ? card.accent : colors.border}`,
+              background: card.bg,
+              borderRadius: 14,
+              padding: 18,
+              minHeight: 154,
+              textAlign: "left",
+              cursor: "pointer",
+              boxShadow: selected
+                ? `0 18px 40px ${card.accent}24`
+                : "0 12px 30px rgba(15, 39, 68, 0.08)",
+              display: "grid",
+              gridTemplateColumns: "1fr auto",
+              gap: 14,
+              alignItems: "start",
+            }}
+          >
+            <span>
+              <span
+                style={{
+                  display: "block",
+                  color: card.accent,
+                  fontSize: 11,
+                  fontWeight: 950,
+                  letterSpacing: ".1em",
+                  textTransform: "uppercase",
+                  marginBottom: 8,
+                }}
+              >
+                {card.eyebrow}
+              </span>
+              <span
+                style={{
+                  display: "block",
+                  color: colors.navy,
+                  fontSize: 24,
+                  fontWeight: 950,
+                  lineHeight: 1,
+                  marginBottom: 10,
+                }}
+              >
+                {card.title}
+              </span>
+              <span
+                style={{
+                  display: "block",
+                  color: colors.muted,
+                  fontSize: 13,
+                  fontWeight: 650,
+                  lineHeight: 1.45,
+                  maxWidth: 520,
+                }}
+              >
+                {card.text}
+              </span>
+            </span>
+            <span
+              style={{
+                width: 54,
+                height: 54,
+                borderRadius: 14,
+                display: "grid",
+                placeItems: "center",
+                color: "#fff",
+                background: card.accent,
+                boxShadow: `0 14px 28px ${card.accent}35`,
+              }}
+            >
+              <Icon size={24} />
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 function CertificadosCalidadView() {
@@ -270,6 +530,20 @@ function CertificadosCalidadView() {
       return matchesStatus && (!text || haystack.includes(text));
     });
   }, [rows, q, estado]);
+
+  const stats = useMemo(() => {
+    return rows.reduce(
+      (acc, row) => {
+        const info = statusInfo(row);
+        acc.total += 1;
+        if (info.label === "Completo") acc.completos += 1;
+        if (info.label === "Pendiente") acc.pendientes += 1;
+        if (info.label === "Vencido") acc.vencidos += 1;
+        return acc;
+      },
+      { total: 0, completos: 0, pendientes: 0, vencidos: 0 }
+    );
+  }, [rows]);
 
   const onUpload = async (row, file) => {
     if (!file) return;
@@ -330,19 +604,50 @@ function CertificadosCalidadView() {
     >
       <div
         style={{
-          padding: 14,
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 12,
-          flexWrap: "wrap",
+          padding: 16,
+          display: "grid",
+          gridTemplateColumns: "1fr auto",
+          gap: 16,
+          alignItems: "center",
           borderBottom: `1px solid ${colors.border}`,
-          background: colors.soft,
+          background:
+            "linear-gradient(135deg, rgba(124,58,237,.13) 0%, rgba(255,255,255,1) 58%), #fff",
         }}
       >
-        <div>
-          <div style={{ fontWeight: 900, color: colors.navy }}>Certificados de calidad</div>
-          <div style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>
-            Trazabilidad del recibo ciego por lote, con pendientes de 24 horas.
+        <div style={{ display: "flex", gap: 12, alignItems: "center", minWidth: 0 }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 14,
+              display: "grid",
+              placeItems: "center",
+              color: "#fff",
+              background: "#7c3aed",
+              boxShadow: "0 14px 28px rgba(124,58,237,.28)",
+              flexShrink: 0,
+            }}
+          >
+            <ShieldCheck size={23} />
+          </div>
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 950,
+                color: "#7c3aed",
+                letterSpacing: ".12em",
+                textTransform: "uppercase",
+              }}
+            >
+              Calidad documental
+            </div>
+            <div style={{ fontWeight: 950, color: colors.navy, fontSize: 22, lineHeight: 1.1 }}>
+              Certificados de calidad
+            </div>
+            <div style={{ color: colors.muted, fontSize: 12, marginTop: 4, fontWeight: 650 }}>
+              Trazabilidad del recibo ciego por lote, con evidencia, vencimiento de gestion y estado.
+            </div>
           </div>
         </div>
         <button
@@ -359,6 +664,22 @@ function CertificadosCalidadView() {
         >
           {loading ? "Cargando..." : "Actualizar"}
         </button>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+          gap: 10,
+          padding: 14,
+          borderBottom: `1px solid ${colors.border}`,
+          background: "#fff",
+        }}
+      >
+        <SummaryBox label="Total" value={stats.total} helper="Lotes recibidos" icon={FileText} tone="blue" />
+        <SummaryBox label="Pendientes" value={stats.pendientes} helper="Dentro de 24 horas" icon={Clock} tone="amber" />
+        <SummaryBox label="Completos" value={stats.completos} helper="Con evidencia" icon={CheckCircle2} tone="green" />
+        <SummaryBox label="Vencidos" value={stats.vencidos} helper="Requieren gestion" icon={AlertTriangle} tone="red" />
       </div>
 
       <div style={{ padding: 14, display: "grid", gridTemplateColumns: "1fr 180px", gap: 10 }}>
@@ -688,7 +1009,7 @@ function FrescuraCard({ data }) {
 }
 
 export default function Stock() {
-  const [activeTab, setActiveTab] = useState("stock");
+  const [activeTab, setActiveTab] = useState("");
   const [codigo, setCodigo] = useState("");
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
@@ -783,7 +1104,7 @@ export default function Stock() {
                 fontSize: 13,
               }}
             >
-              Visualiza stock y certificados de calidad generados desde recibo ciego.
+              Selecciona una consulta: inventario operativo o certificados de calidad del recibo ciego.
             </div>
           </div>
 
@@ -822,10 +1143,11 @@ export default function Stock() {
             </button>
             {activeTab === "stock" && loading && <Chip label="Consultando..." tone="amber" />}
             {activeTab === "stock" && !loading && data && <Chip label="Consulta OK" tone="green" />}
-            {activeTab === "stock" && !loading && !data && !err && <Chip label="Modo consulta" tone="blue" />}
             {activeTab === "stock" && err && <Chip label="Error de consulta" tone="red" />}
           </div>
         </div>
+
+        <ConsultaChoice activeTab={activeTab} onSelect={setActiveTab} />
 
         {activeTab === "stock" && (
         <div style={{ padding: 16 }}>
@@ -954,7 +1276,7 @@ export default function Stock() {
 
       {activeTab === "certificados" ? (
         <CertificadosCalidadView />
-      ) : (
+      ) : activeTab === "stock" ? (
         <>
       <div
         style={{
@@ -1089,7 +1411,7 @@ export default function Stock() {
         <FrescuraCard data={data} />
       </div>
         </>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -482,7 +482,7 @@ export default function Rotulos() {
 <head>
   <meta charset="UTF-8" />
   <title>Rótulo ${impresion}</title>
-  <link rel="preload" as="image" href="/INOVA2026.png" />
+  <link rel="preload" as="image" href="/favicon1.ico" />
   <link rel="preload" as="image" href="/favicon.ico" />
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 
@@ -526,8 +526,8 @@ export default function Rotulos() {
       position: absolute;
       top: 2.2mm;
       left: 3.2mm;
-      width: 36mm;
-      height: 9.6mm;
+      width: 30mm;
+      height: 8.8mm;
       object-fit: contain;
       object-position: left center;
       display: block;
@@ -701,7 +701,7 @@ export default function Rotulos() {
 
 <body>
   <div class="label">
-    <img src="/INOVA2026.png" class="logo-inova" alt="Logo Inova" loading="eager" decoding="sync" />
+    <img src="/favicon1.ico" class="logo-inova" alt="Logo Inova" loading="eager" decoding="sync" />
     <img src="/favicon.ico" class="logo-b" alt="Logo B" loading="eager" decoding="sync" />
 
     <div class="auxiliar">${auxiliar}</div>
