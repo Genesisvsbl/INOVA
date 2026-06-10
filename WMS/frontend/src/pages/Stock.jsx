@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Printer,
   X,
+  Eye,
 } from "lucide-react";
 import { actualizarCertificadoCalidad, getCertificadosCalidad, getStock } from "../api";
 
@@ -355,6 +356,91 @@ function CertificatePreviewModal({ doc, onClose }) {
   );
 }
 
+function withPreviewBase(html) {
+  if (!html) return "";
+  const origin = window.location?.origin || "";
+  const hasBase = /<base\s/i.test(html);
+  const withBase = hasBase ? html : html.replace(/<head([^>]*)>/i, `<head$1><base href="${origin}/">`);
+  return withBase.replace(/<body([^>]*)>/i, `<body$1 style="margin:0;background:#fff;">`);
+}
+
+function printHtmlPreview(html) {
+  if (!html) return;
+  const frame = document.createElement("iframe");
+  frame.style.position = "fixed";
+  frame.style.width = "0";
+  frame.style.height = "0";
+  frame.style.border = "0";
+  document.body.appendChild(frame);
+  frame.contentDocument?.open();
+  frame.contentDocument?.write(withPreviewBase(html));
+  frame.contentDocument?.close();
+  setTimeout(() => {
+    frame.contentWindow?.focus();
+    frame.contentWindow?.print();
+    setTimeout(() => frame.remove(), 1500);
+  }, 300);
+}
+
+function DocumentPreviewModal({ doc, onClose }) {
+  if (!doc) return null;
+  if (!doc.html) return <CertificatePreviewModal doc={doc} onClose={onClose} />;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        background: "rgba(8,18,34,.68)",
+        display: "grid",
+        placeItems: "center",
+        padding: 24,
+      }}
+    >
+      <div
+        style={{
+          width: "min(1180px, 94vw)",
+          height: "min(860px, 90vh)",
+          background: "#f8fafc",
+          borderRadius: 16,
+          border: `1px solid ${colors.border}`,
+          boxShadow: "0 30px 80px rgba(0,0,0,.35)",
+          display: "grid",
+          gridTemplateRows: "auto 1fr",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            padding: "14px 16px",
+            background: "#fff",
+            borderBottom: `1px solid ${colors.border}`,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 11, color: colors.blue, fontWeight: 900, letterSpacing: ".08em" }}>VISTA PREVIA</div>
+            <div style={{ fontSize: 18, fontWeight: 950, color: colors.navy }}>{doc.title || "Recibo ciego"}</div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" onClick={() => printHtmlPreview(doc.html)} style={{ border: `1px solid ${colors.border}`, background: colors.blue, color: "#fff", borderRadius: 10, height: 38, padding: "0 14px", fontWeight: 900, display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <Printer size={16} />
+              Imprimir / PDF
+            </button>
+            <button type="button" onClick={onClose} style={{ width: 38, height: 38, borderRadius: 10, border: `1px solid ${colors.border}`, background: "#fff", display: "grid", placeItems: "center", cursor: "pointer" }}>
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+        <iframe title="Vista previa recibo ciego" srcDoc={withPreviewBase(doc.html)} style={{ width: "100%", height: "100%", border: 0, background: "#fff" }} />
+      </div>
+    </div>
+  );
+}
 function statusInfo(row) {
   const status = String(row.estado_certificado || "").toUpperCase();
   const expired =
@@ -492,6 +578,7 @@ function CertificadosCalidadView() {
   const [estado, setEstado] = useState("TODOS");
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState("");
+  const [previewDoc, setPreviewDoc] = useState(null);
 
   const loadRows = async () => {
     setLoading(true);
@@ -758,7 +845,13 @@ function CertificadosCalidadView() {
                     <td style={td}>
                       <button
                         type="button"
-                        onClick={() => openHtmlDocument(row.recibo_documento_html)}
+                        onClick={() =>
+                          setPreviewDoc({
+                            kind: "recibo",
+                            title: `Recibo ciego ${row.recibo_serial || row.documento || ""}`.trim(),
+                            html: row.recibo_documento_html,
+                          })
+                        }
                         disabled={!row.recibo_documento_html}
                         style={{
                           border: `1px solid ${colors.border}`,
@@ -773,21 +866,39 @@ function CertificadosCalidadView() {
                           gap: 6,
                         }}
                       >
-                        <FileText size={14} />
+                        <Eye size={14} />
                         Ver
                       </button>
                     </td>
                     <td style={td}>
                       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                         {row.certificado_data_url ? (
-                          <a
-                            href={row.certificado_data_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ fontWeight: 900, color: colors.good, textDecoration: "none" }}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewDoc({
+                                kind: "certificado",
+                                title: row.certificado_nombre || `Certificado ${row.lote_proveedor || row.codigo_material || ""}`.trim(),
+                                name: row.certificado_nombre || "Certificado de calidad",
+                                type: row.certificado_tipo,
+                                dataUrl: row.certificado_data_url,
+                              })
+                            }
+                            style={{
+                              border: 0,
+                              background: "transparent",
+                              padding: 0,
+                              fontWeight: 900,
+                              color: colors.good,
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 5,
+                            }}
                           >
+                            <Eye size={14} />
                             Ver certificado
-                          </a>
+                          </button>
                         ) : (
                           <span style={{ color: colors.warn, fontWeight: 900 }}>Pendiente</span>
                         )}
@@ -825,6 +936,7 @@ function CertificadosCalidadView() {
           </tbody>
         </table>
       </div>
+      <DocumentPreviewModal doc={previewDoc} onClose={() => setPreviewDoc(null)} />
     </div>
   );
 }
@@ -1147,7 +1259,7 @@ export default function Stock() {
           </div>
         </div>
 
-        <ConsultaChoice activeTab={activeTab} onSelect={setActiveTab} />
+        {!activeTab && <ConsultaChoice activeTab={activeTab} onSelect={setActiveTab} />}
 
         {activeTab === "stock" && (
         <div style={{ padding: 16 }}>
@@ -1415,3 +1527,4 @@ export default function Stock() {
     </div>
   );
 }
+
