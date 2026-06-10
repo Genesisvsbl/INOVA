@@ -364,7 +364,7 @@ function ProcessNoticeModal({ notice, onClose }) {
   const tone = notice.tone || "info";
   const palette =
     {
-      success: { bg: "#ecfdf3", border: "#bbf7d0", color: colors.good, mark: "OK" },
+      success: { bg: "#f3e8ff", border: "#d8b4fe", color: colors.purple, mark: "OK" },
       error: { bg: "#fef2f2", border: "#fecaca", color: colors.bad, mark: "!" },
       warn: { bg: "#fffbeb", border: "#fed7aa", color: colors.warn, mark: "!" },
       info: { bg: "#eff6ff", border: "#bfdbfe", color: colors.blue, mark: "i" },
@@ -1813,7 +1813,7 @@ export default function DesdeRecibo() {
       await guardarTrazabilidadCertificados();
 
       localStorage.removeItem(DRAFT_KEY);
-      showNotice({ tone: "success", title: "Movimientos guardados", message: "Se guardo la ubicacion y el historial de rotulos correctamente.", confirmText: "Ir a rotulos", onConfirm: () => window.location.assign(`${window.location.origin}/datos-maestros/rotulos`) });
+      showNotice({ tone: "success", title: "Movimientos guardados", message: "Se guardo la ubicacion y el historial de rotulos correctamente.", confirmText: "Ir a rotulos", onConfirm: () => navigate("/datos-maestros/rotulos") });
       
     } catch (e) {
       const msg = e?.message || String(e);
@@ -1866,7 +1866,7 @@ export default function DesdeRecibo() {
       await guardarTrazabilidadCertificados();
 
       localStorage.removeItem(DRAFT_KEY);
-      showNotice({ tone: "success", title: "Material en transito", message: "Se guardo el material en EN TRANSITO por pallet y el historial de rotulos correctamente.", confirmText: "Ir a rotulos", onConfirm: () => window.location.assign(`${window.location.origin}/datos-maestros/rotulos`) });
+      showNotice({ tone: "success", title: "Material en transito", message: "Se guardo el material en EN TRANSITO por pallet y el historial de rotulos correctamente.", confirmText: "Ir a rotulos", onConfirm: () => navigate("/datos-maestros/rotulos") });
       
     } catch (e) {
       const msg = e?.message || String(e);
@@ -1879,7 +1879,7 @@ export default function DesdeRecibo() {
   const renderTopButtons = () => (
     <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
       <button
-        onClick={() => window.location.assign(`${window.location.origin}/movimientos/recibo`)}
+        onClick={() => navigate("/movimientos/recibo")}
         style={{
           height: 42,
           padding: "0 14px",

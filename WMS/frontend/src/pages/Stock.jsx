@@ -715,7 +715,7 @@ function AppNoticeModal({ notice, onClose }) {
   if (!notice) return null;
   const palette =
     {
-      success: { bg: "#ecfdf3", border: "#bbf7d0", color: colors.good, mark: <CheckCircle2 size={24} /> },
+      success: { bg: "#f3e8ff", border: "#d8b4fe", color: colors.purple, mark: <CheckCircle2 size={24} /> },
       error: { bg: "#fef2f2", border: "#fecaca", color: colors.bad, mark: <AlertTriangle size={24} /> },
       warn: { bg: "#fffbeb", border: "#fed7aa", color: colors.warn, mark: <AlertTriangle size={24} /> },
       info: { bg: "#eff6ff", border: "#bfdbfe", color: colors.blue, mark: <FileText size={24} /> },
