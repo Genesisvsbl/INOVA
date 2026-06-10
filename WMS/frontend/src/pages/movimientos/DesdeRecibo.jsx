@@ -1,4 +1,4 @@
-﻿import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import {
@@ -358,6 +358,98 @@ const compactTextBox = {
   alignItems: "center",
 };
 
+
+function ProcessNoticeModal({ notice, onClose }) {
+  if (!notice) return null;
+  const tone = notice.tone || "info";
+  const palette =
+    {
+      success: { bg: "#ecfdf3", border: "#bbf7d0", color: colors.good, mark: "OK" },
+      error: { bg: "#fef2f2", border: "#fecaca", color: colors.bad, mark: "!" },
+      warn: { bg: "#fffbeb", border: "#fed7aa", color: colors.warn, mark: "!" },
+      info: { bg: "#eff6ff", border: "#bfdbfe", color: colors.blue, mark: "i" },
+    }[tone] || { bg: "#eff6ff", border: "#bfdbfe", color: colors.blue, mark: "i" };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 13000,
+        background: "rgba(8, 15, 31, .48)",
+        display: "grid",
+        placeItems: "center",
+        padding: 18,
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        style={{
+          width: "min(520px, 94vw)",
+          borderRadius: 22,
+          background: "#fff",
+          border: `1px solid ${colors.border}`,
+          boxShadow: "0 28px 70px rgba(15, 23, 42, .26)",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ padding: 22, display: "flex", gap: 16, alignItems: "flex-start" }}>
+          <div
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 16,
+              display: "grid",
+              placeItems: "center",
+              flexShrink: 0,
+              background: palette.bg,
+              border: `1px solid ${palette.border}`,
+              color: palette.color,
+              fontWeight: 950,
+            }}
+          >
+            {palette.mark}
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 950, color: palette.color, letterSpacing: ".12em", textTransform: "uppercase" }}>
+              {notice.kicker || "WMS INOVA"}
+            </div>
+            <div style={{ marginTop: 5, fontSize: 22, lineHeight: 1.15, fontWeight: 950, color: colors.navy }}>
+              {notice.title || "Operacion completada"}
+            </div>
+            {notice.message ? (
+              <div style={{ marginTop: 9, color: colors.muted, fontSize: 14, lineHeight: 1.45, fontWeight: 650, whiteSpace: "pre-line" }}>
+                {notice.message}
+              </div>
+            ) : null}
+          </div>
+        </div>
+        <div style={{ padding: "0 22px 22px", display: "flex", justifyContent: "flex-end" }}>
+          <button
+            type="button"
+            onClick={onClose}
+            autoFocus
+            style={{
+              height: 42,
+              minWidth: 118,
+              borderRadius: 13,
+              border: 0,
+              background: `linear-gradient(135deg, ${colors.purple}, ${colors.purple2})`,
+              color: "#fff",
+              fontWeight: 950,
+              cursor: "pointer",
+              boxShadow: "0 14px 30px rgba(107,33,168,.26)",
+            }}
+          >
+            {notice.confirmText || "Aceptar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DesdeRecibo() {
   const navigate = useNavigate();
 
@@ -380,6 +472,23 @@ export default function DesdeRecibo() {
   const [scannerLineaIdx, setScannerLineaIdx] = useState(null);
   const [scannerError, setScannerError] = useState("");
   const [scannerBusy, setScannerBusy] = useState(false);
+  const [notice, setNotice] = useState(null);
+
+  const showNotice = (payload) => {
+    setNotice({
+      tone: "info",
+      title: "Mensaje del sistema",
+      message: "",
+      confirmText: "Aceptar",
+      ...payload,
+    });
+  };
+
+  const closeNotice = () => {
+    const action = notice?.onConfirm;
+    setNotice(null);
+    if (typeof action === "function") setTimeout(action, 0);
+  };
 
   useEffect(() => {
     const raw = localStorage.getItem(DRAFT_KEY);
@@ -713,7 +822,7 @@ export default function DesdeRecibo() {
     const codigo = limpiarCodigoUbicacion(raw);
 
     if (!codigo) {
-      alert("No se leyo ninguna ubicacion.");
+      showNotice({ tone: "warn", title: "No se leyo ubicacion", message: "Intenta escanear nuevamente con mejor enfoque." });
       return;
     }
 
@@ -777,7 +886,7 @@ export default function DesdeRecibo() {
     }
 
     if (!ubic) {
-      alert(`Error La ubicacion escaneada no existe en datos maestros:\n${codigo}`);
+      showNotice({ tone: "error", title: "Ubicacion no existe", message: `La ubicacion escaneada no existe en datos maestros:\n${codigo}` });
       return;
     }
 
@@ -949,13 +1058,13 @@ export default function DesdeRecibo() {
       const texto = await leerImagenUbicacion(file);
 
       if (!texto) {
-        alert("No se detecto codigo en la foto. Toma la foto mas cerca, enfocada y con buena luz.");
+        showNotice({ tone: "warn", title: "No se detecto codigo", message: "Toma la foto mas cerca, enfocada y con buena luz." });
         return;
       }
 
       aplicarUbicacionEscaneada(idx, texto);
     } catch (e) {
-      alert(`Error Error leyendo foto:\n${e?.message || e}`);
+      showNotice({ tone: "error", title: "Error leyendo foto", message: String(e?.message || e) });
     } finally {
       setScannerBusy(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -1105,13 +1214,13 @@ export default function DesdeRecibo() {
     const base = (baseOverride || conf.base || "").trim();
 
     if (!base) {
-      alert(`Selecciona ubicacion base en la linea #${idx + 1}.`);
+      showNotice({ tone: "warn", title: "Falta ubicacion base", message: `Selecciona ubicacion base en la linea #${idx + 1}.` });
       return;
     }
 
     const cantidad = Number(cantidadRaw || 0);
     if (!Number.isInteger(cantidad) || cantidad <= 0) {
-      alert(`La linea #${idx + 1} debe tener cantidad entera > 0 para auto ubicacion.`);
+      showNotice({ tone: "warn", title: "Cantidad invalida", message: `La linea #${idx + 1} debe tener cantidad entera mayor a 0 para auto ubicacion.` });
       return;
     }
 
@@ -1146,12 +1255,10 @@ export default function DesdeRecibo() {
       }));
 
       if (faltante > 0) {
-        alert(
-          `Atencion Solo se encontraron ${posiciones.length} posiciones en ${base}. Faltan ${faltante} pallet(s). Ahora puedes elegir una ubicacion base secundaria o mandar el faltante a transito.`
-        );
+        showNotice({ tone: "warn", title: "Ubicaciones incompletas", message: `Solo se encontraron ${posiciones.length} posiciones en ${base}. Faltan ${faltante} pallet(s). Puedes elegir una ubicacion base secundaria o mandar el faltante a transito.` });
       }
     } catch (e) {
-      alert(`Error Error sugiriendo linea #${idx + 1}:\n${e?.message || e}`);
+      showNotice({ tone: "error", title: "Error sugiriendo ubicacion", message: `Linea #${idx + 1}:\n${e?.message || e}` });
     } finally {
       setSugiriendoLinea((p) => ({ ...p, [idx]: false }));
     }
@@ -1163,12 +1270,12 @@ export default function DesdeRecibo() {
     const faltante = Number(conf.faltanteCantidad || 0);
 
     if (!baseSecundaria) {
-      alert(`Selecciona ubicacion base secundaria en la linea #${idx + 1}.`);
+      showNotice({ tone: "warn", title: "Falta ubicacion secundaria", message: `Selecciona ubicacion base secundaria en la linea #${idx + 1}.` });
       return;
     }
 
     if (!Number.isInteger(faltante) || faltante <= 0) {
-      alert(`No hay faltante pendiente en la linea #${idx + 1}.`);
+      showNotice({ tone: "info", title: "Sin faltante pendiente", message: `No hay faltante pendiente en la linea #${idx + 1}.` });
       return;
     }
 
@@ -1199,12 +1306,10 @@ export default function DesdeRecibo() {
       }));
 
       if (nuevoFaltante > 0) {
-        alert(
-          `Atencion La ubicacion secundaria ${baseSecundaria} solo cubrio ${posiciones.length} pallet(s). Aun faltan ${nuevoFaltante}. Marca la opcion de enviar faltante a transito si deseas continuar.`
-        );
+        showNotice({ tone: "warn", title: "Faltante por gestionar", message: `La ubicacion secundaria ${baseSecundaria} solo cubrio ${posiciones.length} pallet(s). Aun faltan ${nuevoFaltante}. Marca la opcion de enviar faltante a transito si deseas continuar.` });
       }
     } catch (e) {
-      alert(`Error Error sugiriendo secundaria linea #${idx + 1}:\n${e?.message || e}`);
+      showNotice({ tone: "error", title: "Error sugiriendo secundaria", message: `Linea #${idx + 1}:\n${e?.message || e}` });
     } finally {
       setSugiriendoSecundaria((p) => ({ ...p, [idx]: false }));
     }
@@ -1643,7 +1748,7 @@ export default function DesdeRecibo() {
   const guardarMovimientos = async () => {
     const err = validarConUbicacion();
     if (err) {
-      alert(err);
+      showNotice({ tone: "warn", title: "Datos incompletos", message: String(err) });
       return;
     }
 
@@ -1708,17 +1813,11 @@ export default function DesdeRecibo() {
       await guardarTrazabilidadCertificados();
 
       localStorage.removeItem(DRAFT_KEY);
-      alert("OK Movimientos guardados con ubicacion + historial de rotulos.");
-      window.location.assign(`${window.location.origin}/datos-maestros/rotulos`);
+      showNotice({ tone: "success", title: "Movimientos guardados", message: "Se guardo la ubicacion y el historial de rotulos correctamente.", confirmText: "Ir a rotulos", onConfirm: () => window.location.assign(`${window.location.origin}/datos-maestros/rotulos`) });
+      
     } catch (e) {
       const msg = e?.message || String(e);
-      alert(
-        "Error Error guardando:\n" +
-          msg +
-          (msg.includes("Failed to fetch")
-            ? "\n\nNo se pudo comunicar con Supabase. Revisa VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY."
-            : "")
-      );
+      showNotice({ tone: "error", title: "Error guardando", message: msg + (msg.includes("Failed to fetch") ? "\n\nNo se pudo comunicar con Supabase. Revisa VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY." : "") });
     } finally {
       setGuardando(false);
     }
@@ -1727,7 +1826,7 @@ export default function DesdeRecibo() {
   const guardarEnTransito = async () => {
     const err = validarDatosBase();
     if (err) {
-      alert(err);
+      showNotice({ tone: "warn", title: "Datos incompletos", message: String(err) });
       return;
     }
 
@@ -1767,17 +1866,11 @@ export default function DesdeRecibo() {
       await guardarTrazabilidadCertificados();
 
       localStorage.removeItem(DRAFT_KEY);
-      alert("OK Material guardado en EN TRANSITO por pallet + historial de rotulos.");
-      window.location.assign(`${window.location.origin}/datos-maestros/rotulos`);
+      showNotice({ tone: "success", title: "Material en transito", message: "Se guardo el material en EN TRANSITO por pallet y el historial de rotulos correctamente.", confirmText: "Ir a rotulos", onConfirm: () => window.location.assign(`${window.location.origin}/datos-maestros/rotulos`) });
+      
     } catch (e) {
       const msg = e?.message || String(e);
-      alert(
-        "Error Error guardando en transito:\n" +
-          msg +
-          (msg.includes("Failed to fetch")
-            ? "\n\nNo se pudo comunicar con Supabase. Revisa VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY."
-            : "")
-      );
+      showNotice({ tone: "error", title: "Error guardando en transito", message: msg + (msg.includes("Failed to fetch") ? "\n\nNo se pudo comunicar con Supabase. Revisa VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY." : "") });
     } finally {
       setGuardando(false);
     }
@@ -1861,6 +1954,8 @@ export default function DesdeRecibo() {
           box-sizing: border-box;
         }
       `}</style>
+
+      <ProcessNoticeModal notice={notice} onClose={closeNotice} />
 
       {guardando && (
         <div
