@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   PackageSearch,
@@ -41,6 +41,10 @@ const colors = {
   warnBd: "#f1ddb0",
   infoBg: "#eaf3ff",
   infoBd: "#cfe0ff",
+  purple: "#6d28d9",
+  purple2: "#7c3aed",
+  purpleSoft: "#f5f0ff",
+  purpleBd: "#d9c7ff",
 };
 
 const fmtCO = new Intl.NumberFormat("es-CO", {
@@ -51,6 +55,16 @@ const fmtCO = new Intl.NumberFormat("es-CO", {
 function formatQty(n) {
   const x = Number(n || 0);
   return fmtCO.format(x);
+}
+
+function normalizeKey(value) {
+  return String(value ?? "").trim().toUpperCase();
+}
+
+function pct(part, total) {
+  const base = Number(total || 0);
+  if (!base) return 0;
+  return Math.round((Number(part || 0) / base) * 100);
 }
 
 
@@ -141,7 +155,7 @@ function buildReceiptPreviewHtml(row, allRows = []) {
           <div class="receipt-logo-box"><img src="/favicon1.ico" alt="INOVA" /></div>
           <div>
             <div class="receipt-title">RECIBO CIEGO</div>
-            <div class="receipt-subtitle">Formato de recepción y trazabilidad de ingreso</div>
+            <div class="receipt-subtitle">Formato de recepciÃ³n y trazabilidad de ingreso</div>
           </div>
         </div>
         <div class="receipt-meta">
@@ -154,7 +168,7 @@ function buildReceiptPreviewHtml(row, allRows = []) {
       <div class="receipt-summary">
         <div class="summary-card"><div class="summary-label">Proveedor</div><div class="summary-value">${escapeHtml(row?.proveedor || "-")}</div></div>
         <div class="summary-card"><div class="summary-label">Orden compra</div><div class="summary-value">${escapeHtml(row?.orden_compra || "-")}</div></div>
-        <div class="summary-card"><div class="summary-label">Líneas</div><div class="summary-value">${receiptLines.length}</div></div>
+        <div class="summary-card"><div class="summary-label">LÃ­neas</div><div class="summary-value">${receiptLines.length}</div></div>
         <div class="summary-card"><div class="summary-label">Total</div><div class="summary-value">${escapeHtml(formatQty(total))}</div></div>
       </div>
       <table class="receipt-table">
@@ -165,7 +179,7 @@ function buildReceiptPreviewHtml(row, allRows = []) {
         </colgroup>
         <thead>
           <tr>
-            <th>#</th><th>Item</th><th>Fecha recepción</th><th>Código</th><th>Descripción</th><th>UM</th><th>Cantidad</th><th>Lote proveedor</th><th>Fabricación</th><th>Vencimiento</th><th>Certificado</th>
+            <th>#</th><th>Item</th><th>Fecha recepciÃ³n</th><th>CÃ³digo</th><th>DescripciÃ³n</th><th>UM</th><th>Cantidad</th><th>Lote proveedor</th><th>FabricaciÃ³n</th><th>Vencimiento</th><th>Certificado</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -733,21 +747,22 @@ function AppNoticeModal({ notice, onClose }) {
 function CertificadosCalidadView() {
   const [rows, setRows] = useState([]);
   const [q, setQ] = useState("");
+  const [materialQ, setMaterialQ] = useState("");
+  const [proveedorQ, setProveedorQ] = useState("");
+  const [loteQ, setLoteQ] = useState("");
   const [estado, setEstado] = useState("TODOS");
   const [vida, setVida] = useState("TODOS");
   const [loading, setLoading] = useState(false);
+  const [stockLoading, setStockLoading] = useState(false);
+  const [stockIndex, setStockIndex] = useState({});
   const [savingId, setSavingId] = useState("");
   const [previewDoc, setPreviewDoc] = useState(null);
   const [notice, setNotice] = useState(null);
-
-  const showNotice = (payload) => setNotice({ tone: "info", title: "Mensaje", message: "", confirmText: "Aceptar", ...payload });
 
   const loadRows = async () => {
     setLoading(true);
     try {
       setRows(await getCertificadosCalidad());
-    } catch (e) {
-      showNotice({ tone: "error", title: "No se pudo cargar", message: String(e?.message || e) });
     } finally {
       setLoading(false);
     }
@@ -757,300 +772,514 @@ function CertificadosCalidadView() {
     loadRows();
   }, []);
 
-  const rowsWithLife = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return rows.map((row) => {
-      const due = row.fecha_vencimiento ? new Date(`${row.fecha_vencimiento}T00:00:00`) : null;
-      const days = due && !Number.isNaN(due.getTime()) ? Math.ceil((due - today) / 86400000) : null;
-      return { ...row, vidaDias: days };
-    });
+  useEffect(() => {
+    const codes = Array.from(new Set(rows.map((row) => normalizeKey(row.codigo_material)).filter(Boolean)));
+    let active = true;
+    if (!codes.length) {
+      setStockIndex({});
+      return () => {
+        active = false;
+      };
+    }
+
+    setStockLoading(true);
+    Promise.all(
+      codes.map(async (code) => {
+        try {
+          const data = await getStock(code);
+          const qty = Number(data?.stock_actual ?? data?.stock_total ?? data?.cantidad ?? 0);
+          return [code, Number.isFinite(qty) ? qty : 0];
+        } catch {
+          return [code, 0];
+        }
+      })
+    )
+      .then((entries) => {
+        if (active) setStockIndex(Object.fromEntries(entries));
+      })
+      .finally(() => {
+        if (active) setStockLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [rows]);
 
+  const rowsWithLife = useMemo(
+    () => rows.map((row) => ({ ...row, vidaDias: daysUntil(row.fecha_vencimiento) })),
+    [rows]
+  );
+
+  const hasStock = (row) => Number(stockIndex[normalizeKey(row.codigo_material)] || 0) > 0;
+
+  const rowsWithStock = useMemo(
+    () => rowsWithLife.filter((row) => hasStock(row)),
+    [rowsWithLife, stockIndex]
+  );
+
   const filtered = useMemo(() => {
-    const text = q.trim().toUpperCase();
+    const query = normalizeKey(q);
+    const material = normalizeKey(materialQ);
+    const supplier = normalizeKey(proveedorQ);
+    const lot = normalizeKey(loteQ);
+
     return rowsWithLife.filter((row) => {
-      const info = statusInfo(row);
-      const matchesStatus = estado === "TODOS" || info.label.toUpperCase() === estado;
-      const matchesLife =
-        vida === "TODOS" ||
-        (vida === "0-30" && row.vidaDias !== null && row.vidaDias >= 0 && row.vidaDias <= 30) ||
-        (vida === "31-60" && row.vidaDias !== null && row.vidaDias >= 31 && row.vidaDias <= 60) ||
-        (vida === "60+" && (row.vidaDias === null || row.vidaDias > 60)) ||
-        (vida === "VENCIDO" && row.vidaDias !== null && row.vidaDias < 0);
-      const haystack = [
-        row.fecha_recibo,
+      const status = statusInfo(row);
+      const globalHaystack = normalizeKey([
+        row.recibo_serial,
+        row.codigo_material,
+        row.descripcion_material,
+        row.lote_proveedor,
+        row.proveedor,
+        row.documento,
+        row.unidad_medida,
+        row.estado_certificado,
+      ].join(" "));
+      const materialHaystack = normalizeKey([
         row.codigo_material,
         row.descripcion_material,
         row.unidad_medida,
-        row.lote_proveedor,
-        row.fecha_fabricacion,
-        row.fecha_vencimiento,
-        row.proveedor,
-        row.documento,
-        row.orden_compra,
-        row.recibo_serial,
-        row.recibo_item,
-      ]
-        .join(" ")
-        .toUpperCase();
-      return matchesStatus && matchesLife && (!text || haystack.includes(text));
+        row.categoria,
+        row.tipo_material,
+      ].join(" "));
+      const supplierHaystack = normalizeKey([row.proveedor, row.proveedor_nombre, row.documento].join(" "));
+      const lotHaystack = normalizeKey([row.lote_proveedor, row.recibo_serial, row.codigo_material].join(" "));
+
+      const matchQuery = !query || globalHaystack.includes(query);
+      const matchMaterial = !material || materialHaystack.includes(material);
+      const matchSupplier = !supplier || supplierHaystack.includes(supplier);
+      const matchLot = !lot || lotHaystack.includes(lot);
+      const matchStatus = estado === "TODOS" || status.label.toUpperCase() === estado;
+      const matchVida =
+        vida === "TODOS" ||
+        (vida === "VENCIDO" && row.vidaDias < 0) ||
+        (vida === "30" && row.vidaDias >= 0 && row.vidaDias <= 30) ||
+        (vida === "60" && row.vidaDias > 30 && row.vidaDias <= 60) ||
+        (vida === "OK" && row.vidaDias > 60);
+
+      return matchQuery && matchMaterial && matchSupplier && matchLot && matchStatus && matchVida;
     });
-  }, [rowsWithLife, q, estado, vida]);
+  }, [rowsWithLife, q, materialQ, proveedorQ, loteQ, estado, vida]);
 
   const stats = useMemo(() => {
-    return rowsWithLife.reduce(
+    const total = rowsWithLife.length;
+    const completos = rowsWithLife.filter((row) => statusInfo(row).label === "Completo").length;
+    const pendientes = rowsWithLife.filter((row) => statusInfo(row).label !== "Completo").length;
+    const vencidosGestion = rowsWithLife.filter((row) => statusInfo(row).label === "Vencido").length;
+    const uniqueMaterials = new Set(rowsWithLife.map((row) => normalizeKey(row.codigo_material)).filter(Boolean)).size;
+    const suppliers = new Set(rowsWithLife.map((row) => normalizeKey(row.proveedor)).filter(Boolean)).size;
+
+    const stockScope = rowsWithStock.reduce(
       (acc, row) => {
-        const info = statusInfo(row);
-        acc.total += 1;
-        if (info.label === "Completo") acc.completos += 1;
-        if (info.label === "Pendiente") acc.pendientes += 1;
-        if (info.label === "Vencido") acc.vencidos += 1;
-        if (row.vidaDias !== null && row.vidaDias >= 0 && row.vidaDias <= 30) acc.v30 += 1;
-        if (row.vidaDias !== null && row.vidaDias >= 31 && row.vidaDias <= 60) acc.v60 += 1;
-        if (row.vidaDias === null || row.vidaDias > 60) acc.vOk += 1;
+        if (row.vidaDias < 0) acc.expired += 1;
+        else if (row.vidaDias <= 30) acc.v30 += 1;
+        else if (row.vidaDias <= 60) acc.v60 += 1;
+        else acc.vOk += 1;
+        if (statusInfo(row).label === "Completo") acc.completeStock += 1;
         return acc;
       },
-      { total: 0, completos: 0, pendientes: 0, vencidos: 0, v30: 0, v60: 0, vOk: 0 }
+      { expired: 0, v30: 0, v60: 0, vOk: 0, completeStock: 0 }
     );
-  }, [rowsWithLife]);
 
-  const onUpload = async (row, file) => {
+    return {
+      total,
+      completos,
+      pendientes,
+      vencidosGestion,
+      uniqueMaterials,
+      suppliers,
+      conStock: rowsWithStock.length,
+      documentalPct: pct(completos, total),
+      trazabilidadPct: pct(stockScope.completeStock, rowsWithStock.length),
+      ...stockScope,
+    };
+  }, [rowsWithLife, rowsWithStock]);
+
+  const monthStats = useMemo(() => {
+    const map = new Map();
+    rowsWithStock.forEach((row) => {
+      if (!row.fecha_vencimiento) return;
+      const d = new Date(`${row.fecha_vencimiento}T00:00:00`);
+      if (Number.isNaN(d.getTime())) return;
+      const key = d.toLocaleDateString("es-CO", { month: "short" });
+      const item = map.get(key) || { label: key, v30: 0, v60: 0, vOk: 0 };
+      if (row.vidaDias >= 0 && row.vidaDias <= 30) item.v30 += 1;
+      else if (row.vidaDias > 30 && row.vidaDias <= 60) item.v60 += 1;
+      else if (row.vidaDias > 60) item.vOk += 1;
+      map.set(key, item);
+    });
+    return Array.from(map.values()).slice(0, 6);
+  }, [rowsWithStock]);
+
+  const activeAlerts = useMemo(() => {
+    const alerts = [];
+    if (stats.expired) alerts.push({ tone: "red", title: `${stats.expired} lotes vencidos con stock`, helper: "Gestion inmediata" });
+    if (stats.v30) alerts.push({ tone: "red", title: `${stats.v30} lotes vencen en 0-30 dias`, helper: "Requieren atencion" });
+    if (stats.v60) alerts.push({ tone: "orange", title: `${stats.v60} lotes vencen en 31-60 dias`, helper: "Atencion recomendada" });
+    if (stats.pendientes) alerts.push({ tone: "blue", title: `${stats.pendientes} certificados sin evidencia completa`, helper: "Seguimiento documental" });
+    return alerts.slice(0, 4);
+  }, [stats]);
+
+  const handleUpload = async (row, file) => {
     if (!file) return;
-    const maxBytes = 7 * 1024 * 1024;
-    if (file.size > maxBytes) {
-      showNotice({ tone: "warn", title: "Archivo muy pesado", message: "El certificado supera 7 MB. Usa una imagen o PDF mas liviano." });
-      return;
-    }
-    setSavingId(String(row.id));
+    setSavingId(row.id);
     try {
       const dataUrl = await readFileAsDataUrl(file);
-      const saved = await actualizarCertificadoCalidad(row.id, {
-        certificado_nombre: file.name || "certificado",
-        certificado_tipo: file.type || "application/octet-stream",
-        certificado_data_url: dataUrl,
-      });
-      setRows((prev) =>
-        prev.map((item) =>
-          String(item.id) === String(row.id)
-            ? { ...item, ...saved, certificado_nombre: file.name, certificado_tipo: file.type, certificado_data_url: dataUrl }
-            : item
-        )
-      );
-      showNotice({ tone: "success", title: "Certificado actualizado", message: "La evidencia quedo anexada al lote seleccionado." });
-    } catch (e) {
-      showNotice({ tone: "error", title: "No se pudo actualizar", message: String(e?.message || e) });
+      await actualizarCertificadoCalidad(row.id, { certificado_data_url: dataUrl, estado_certificado: "COMPLETO" });
+      setNotice({ tone: "success", title: "Certificado actualizado", message: "La evidencia quedo anexada y disponible para vista previa." });
+      await loadRows();
+    } catch (error) {
+      setNotice({ tone: "error", title: "No se pudo cargar", message: error?.message || "Revisa el archivo e intenta de nuevo." });
     } finally {
       setSavingId("");
     }
   };
 
-  const th = {
-    padding: "11px 10px",
-    textAlign: "left",
-    fontSize: 10,
-    color: colors.muted,
-    textTransform: "uppercase",
-    letterSpacing: ".06em",
-    borderBottom: `1px solid ${colors.border}`,
-    background: colors.soft,
-    whiteSpace: "nowrap",
-  };
-  const td = {
-    padding: "12px 10px",
-    borderBottom: "1px solid #edf2f7",
-    fontSize: 12,
-    color: colors.text,
-    verticalAlign: "middle",
-  };
-  const filterStyle = {
-    height: 38,
-    border: `1px solid ${colors.border}`,
-    borderRadius: 10,
-    padding: "0 11px",
-    fontWeight: 800,
-    background: "#fff",
-    outline: "none",
+  const openReceiptPreview = (row) => {
+    const html = getReceiptPreviewHtml(row, rowsWithLife);
+    setPreviewDoc({ title: `Recibo ciego ${row.recibo_serial || row.documento || ""}`, html });
   };
 
-  const barMax = Math.max(stats.v30, stats.v60, stats.vOk, 1);
+  const openCertificatePreview = (row) => {
+    if (!row.certificado_data_url) {
+      setNotice({ tone: "info", title: "Certificado pendiente", message: "Este lote todavia no tiene evidencia anexada." });
+      return;
+    }
+    setPreviewDoc({
+      title: `Certificado ${row.lote_proveedor || row.codigo_material || ""}`,
+      src: row.certificado_data_url,
+      type: row.certificado_mime || "image",
+    });
+  };
+
+  const clearFilters = () => {
+    setQ("");
+    setMaterialQ("");
+    setProveedorQ("");
+    setLoteQ("");
+    setEstado("TODOS");
+    setVida("TODOS");
+  };
+
+  const inputStyle = {
+    height: 42,
+    border: `1px solid ${colors.border}`,
+    borderRadius: 12,
+    padding: "0 12px",
+    fontWeight: 850,
+    color: colors.text,
+    background: "#fff",
+    outline: "none",
+    minWidth: 0,
+  };
+
+  const actionButton = {
+    height: 42,
+    borderRadius: 12,
+    border: `1px solid ${colors.purpleBd}`,
+    background: "#fff",
+    color: colors.text,
+    fontWeight: 950,
+    padding: "0 14px",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    cursor: "pointer",
+  };
+
+  const maxMonth = Math.max(1, ...monthStats.flatMap((item) => [item.v30, item.v60, item.vOk]));
+  const distributionTotal = Math.max(1, stats.expired + stats.v30 + stats.v60 + stats.vOk);
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 12, alignItems: "start" }}>
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 950, color: colors.purple, letterSpacing: ".13em", textTransform: "uppercase" }}>
-            Consulta operativa
+      <div
+        style={{
+          border: `1px solid ${colors.purpleBd}`,
+          borderRadius: 20,
+          background: "linear-gradient(135deg, #ffffff 0%, #f7f2ff 42%, #ffffff 100%)",
+          boxShadow: "0 18px 40px rgba(79, 70, 229, .10)",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ padding: 22, display: "flex", justifyContent: "space-between", gap: 18, alignItems: "flex-start", flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontSize: 30, lineHeight: 1.1, fontWeight: 950, color: colors.navy }}>Trazabilidad de Materiales</div>
+            <div style={{ marginTop: 7, color: colors.muted, fontSize: 14, fontWeight: 650 }}>
+              Seguimiento de lotes, vencimientos y certificados de calidad anexados desde recibo ciego.
+            </div>
           </div>
-          <div style={{ fontSize: 28, lineHeight: 1.05, fontWeight: 950, color: colors.navy }}>Trazabilidad de Materiales</div>
-          <div style={{ marginTop: 5, color: colors.muted, fontSize: 13, fontWeight: 650 }}>
-            Seguimiento de lotes, vencimientos y certificados de calidad anexados desde recibo ciego.
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button type="button" style={actionButton} onClick={() => setNotice({ tone: "info", title: "Exportacion preparada", message: "La exportacion se conectara con Excel/PDF para calidad." })}>
+              <Download size={16} /> Exportar
+            </button>
+            <button type="button" style={actionButton} onClick={() => setNotice({ tone: "info", title: "Notificaciones", message: "Las alertas se generan con base en certificados de materiales que tienen stock." })}>
+              <Bell size={16} /> Alertas
+            </button>
+            <button
+              type="button"
+              style={{ ...actionButton, border: 0, background: `linear-gradient(135deg, ${colors.purple}, ${colors.blue})`, color: "#fff" }}
+              onClick={() => setNotice({ tone: "info", title: "Nuevo certificado", message: "Carga el certificado desde el recibo ciego o desde la accion de la tabla." })}
+            >
+              <Plus size={16} /> Nuevo certificado
+            </button>
           </div>
         </div>
-        <button type="button" style={{ ...filterStyle, display: "inline-flex", alignItems: "center", gap: 8 }}>
-          <Download size={15} /> Exportar
-        </button>
-        <button type="button" style={{ ...filterStyle, background: `linear-gradient(135deg, ${colors.purple}, ${colors.blue})`, color: "#fff", border: 0, display: "inline-flex", alignItems: "center", gap: 8 }}>
-          <Plus size={16} /> Nuevo certificado
-        </button>
-      </div>
 
-      <div style={{ background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 14, boxShadow: "0 14px 34px rgba(15,23,42,.06)", overflow: "hidden" }}>
-        <div style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(5, minmax(150px, 1fr)) auto", gap: 12, alignItems: "end" }}>
-          <label style={{ display: "grid", gap: 6, fontSize: 11, fontWeight: 950, color: colors.muted, textTransform: "uppercase" }}>
-            Material
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Codigo, lote o material" style={filterStyle} />
-          </label>
-          <label style={{ display: "grid", gap: 6, fontSize: 11, fontWeight: 950, color: colors.muted, textTransform: "uppercase" }}>
-            Proveedor
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Proveedor o documento" style={filterStyle} />
-          </label>
-          <label style={{ display: "grid", gap: 6, fontSize: 11, fontWeight: 950, color: colors.muted, textTransform: "uppercase" }}>
-            Lote / Codigo
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar lote" style={filterStyle} />
-          </label>
-          <label style={{ display: "grid", gap: 6, fontSize: 11, fontWeight: 950, color: colors.muted, textTransform: "uppercase" }}>
-            Vida util
-            <select value={vida} onChange={(e) => setVida(e.target.value)} style={filterStyle}>
-              <option value="TODOS">Todos</option>
-              <option value="0-30">0-30 dias</option>
-              <option value="31-60">31-60 dias</option>
-              <option value="60+">60+ dias</option>
-              <option value="VENCIDO">Vencido</option>
-            </select>
-          </label>
-          <label style={{ display: "grid", gap: 6, fontSize: 11, fontWeight: 950, color: colors.muted, textTransform: "uppercase" }}>
-            Estado
-            <select value={estado} onChange={(e) => setEstado(e.target.value)} style={filterStyle}>
-              <option value="TODOS">Todos</option>
-              <option value="PENDIENTE">Pendiente</option>
-              <option value="VENCIDO">Vencido</option>
-              <option value="COMPLETO">Completo</option>
-            </select>
-          </label>
-          <button onClick={() => { setQ(""); setEstado("TODOS"); setVida("TODOS"); }} style={{ height: 38, borderRadius: 10, border: 0, background: colors.blue, color: "#fff", fontWeight: 950, padding: "0 18px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}>
-            <Search size={16} /> Buscar
-          </button>
+        <div style={{ borderTop: `1px solid ${colors.purpleBd}`, padding: 18, display: "grid", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1.1fr 1.1fr .9fr .9fr .8fr", gap: 12, alignItems: "end" }}>
+            <label style={{ display: "grid", gap: 6, minWidth: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 950, color: colors.purple, letterSpacing: ".09em", textTransform: "uppercase" }}>Material</span>
+              <input value={materialQ} onChange={(e) => setMaterialQ(e.target.value)} placeholder="Codigo o descripcion" style={inputStyle} />
+            </label>
+            <label style={{ display: "grid", gap: 6, minWidth: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 950, color: colors.purple, letterSpacing: ".09em", textTransform: "uppercase" }}>Proveedor</span>
+              <input value={proveedorQ} onChange={(e) => setProveedorQ(e.target.value)} placeholder="Proveedor" style={inputStyle} />
+            </label>
+            <label style={{ display: "grid", gap: 6, minWidth: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 950, color: colors.purple, letterSpacing: ".09em", textTransform: "uppercase" }}>Lote / Codigo</span>
+              <input value={loteQ} onChange={(e) => setLoteQ(e.target.value)} placeholder="Lote o recibo" style={inputStyle} />
+            </label>
+            <label style={{ display: "grid", gap: 6, minWidth: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 950, color: colors.purple, letterSpacing: ".09em", textTransform: "uppercase" }}>Vida util</span>
+              <select value={vida} onChange={(e) => setVida(e.target.value)} style={inputStyle}>
+                <option value="TODOS">Todos</option>
+                <option value="30">0-30 dias</option>
+                <option value="60">31-60 dias</option>
+                <option value="OK">+60 dias</option>
+                <option value="VENCIDO">Vencido</option>
+              </select>
+            </label>
+            <label style={{ display: "grid", gap: 6, minWidth: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 950, color: colors.purple, letterSpacing: ".09em", textTransform: "uppercase" }}>Estado</span>
+              <select value={estado} onChange={(e) => setEstado(e.target.value)} style={inputStyle}>
+                <option value="TODOS">Todos</option>
+                <option value="COMPLETO">Completo</option>
+                <option value="PENDIENTE">Pendiente</option>
+                <option value="VENCIDO">Vencido</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={clearFilters}
+              style={{ ...actionButton, justifyContent: "center", background: colors.purpleSoft, color: colors.purple }}
+            >
+              Limpiar
+            </button>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, color: colors.muted, fontSize: 13, fontWeight: 750 }}>
+            <ShieldCheck size={17} color={colors.purple} />
+            Alertas calculadas solo sobre certificados cuyo material tiene stock activo. Tabla completa: {filtered.length} registros.
+            {stockLoading ? " Validando stock..." : ""}
+          </div>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(150px, 1fr))", gap: 12 }}>
-        <SummaryBox label="Total materiales" value={stats.total} helper="Lotes registrados" icon={Boxes} tone="blue" />
-        <SummaryBox label="Vencen 0-30 dias" value={stats.v30} helper="Requieren atencion" icon={AlertTriangle} tone="red" />
-        <SummaryBox label="Vencen 31-60 dias" value={stats.v60} helper="Atencion recomendada" icon={Clock} tone="amber" />
-        <SummaryBox label="Vencen +60 dias" value={stats.vOk} helper="En condicion normal" icon={CheckCircle2} tone="green" />
-        <SummaryBox label="Pendientes" value={stats.pendientes} helper="Sin evidencia" icon={FileText} tone="amber" />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0, 1fr))", gap: 12 }}>
+        <SummaryBox label="Total lotes" value={stats.total} helper="Certificados registrados" icon={<Boxes size={22} />} tone="blue" />
+        <SummaryBox label="Con stock" value={stats.conStock} helper="Base para alertas" icon={<Warehouse size={22} />} tone="default" />
+        <SummaryBox label="0-30 dias" value={stats.v30} helper="Requieren atencion" icon={<AlertTriangle size={22} />} tone="red" />
+        <SummaryBox label="31-60 dias" value={stats.v60} helper="Atencion recomendada" icon={<Clock size={22} />} tone="orange" />
+        <SummaryBox label="+60 dias" value={stats.vOk} helper="En condicion normal" icon={<CheckCircle2 size={22} />} tone="green" />
+        <SummaryBox label="Vencidos" value={stats.expired} helper="Gestion inmediata" icon={<AlertTriangle size={22} />} tone="red" />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <div style={{ background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 14, padding: 16 }}>
-          <div style={{ fontWeight: 950, color: colors.navy, marginBottom: 16 }}>Distribucion por vencimiento</div>
-          {[
-            ["0-30 dias", stats.v30, colors.bad],
-            ["31-60 dias", stats.v60, colors.warn],
-            ["+60 dias", stats.vOk, colors.good],
-          ].map(([label, value, color]) => (
-            <div key={label} style={{ display: "grid", gridTemplateColumns: "90px 1fr 40px", gap: 10, alignItems: "center", marginBottom: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 850, color: colors.muted }}>{label}</div>
-              <div style={{ height: 10, borderRadius: 999, background: colors.soft, overflow: "hidden" }}>
-                <div style={{ width: `${Math.max(4, (Number(value) / barMax) * 100)}%`, height: "100%", borderRadius: 999, background: color }} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.05fr", gap: 14 }}>
+        <div style={{ border: `1px solid ${colors.border}`, borderRadius: 16, background: "#fff", padding: 18 }}>
+          <div style={{ fontSize: 12, fontWeight: 950, color: colors.navy, textTransform: "uppercase", letterSpacing: ".05em" }}>Distribucion por vencimiento</div>
+          <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "150px 1fr", gap: 18, alignItems: "center" }}>
+            <div
+              style={{
+                width: 136,
+                height: 136,
+                borderRadius: "50%",
+                background: `conic-gradient(${colors.bad} 0 ${pct(stats.expired, distributionTotal)}%, #ef4444 ${pct(stats.expired, distributionTotal)}% ${pct(stats.expired + stats.v30, distributionTotal)}%, #f59e0b ${pct(stats.expired + stats.v30, distributionTotal)}% ${pct(stats.expired + stats.v30 + stats.v60, distributionTotal)}%, #22c55e ${pct(stats.expired + stats.v30 + stats.v60, distributionTotal)}% 100%)`,
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <div style={{ width: 82, height: 82, borderRadius: "50%", background: "#fff", display: "grid", placeItems: "center", textAlign: "center", color: colors.navy, fontWeight: 950 }}>
+                <span>{stats.conStock}</span>
+                <small style={{ display: "block", color: colors.muted }}>stock</small>
               </div>
-              <div style={{ textAlign: "right", fontWeight: 950, color }}>{value}</div>
             </div>
-          ))}
-        </div>
-        <div style={{ background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 14, padding: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <div style={{ fontWeight: 950, color: colors.navy }}>Alertas activas</div>
-            <Bell size={18} color={colors.muted} />
+            <div style={{ display: "grid", gap: 10, fontWeight: 850, color: colors.text }}>
+              <Legend color={colors.bad} label="Vencidos" value={stats.expired} />
+              <Legend color="#ef4444" label="0-30 dias" value={stats.v30} />
+              <Legend color="#f59e0b" label="31-60 dias" value={stats.v60} />
+              <Legend color="#22c55e" label="+60 dias" value={stats.vOk} />
+            </div>
           </div>
-          {[
-            { text: `${stats.v30} lotes vencen en los proximos 30 dias`, tone: colors.bad, tag: "Critico" },
-            { text: `${stats.pendientes} certificados pendientes por evidencia`, tone: colors.warn, tag: "Alto" },
-            { text: `${stats.vencidos} certificados vencidos en gestion`, tone: colors.bad, tag: "Vencido" },
-          ].map((item) => (
-            <div key={item.text} style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", padding: "12px 0", borderBottom: "1px solid #eef2f7" }}>
-              <div style={{ fontWeight: 850, color: colors.text }}>{item.text}</div>
-              <span style={{ borderRadius: 999, padding: "5px 9px", background: `${item.tone}16`, color: item.tone, fontSize: 11, fontWeight: 950 }}>{item.tag}</span>
-            </div>
-          ))}
+        </div>
+
+        <div style={{ border: `1px solid ${colors.border}`, borderRadius: 16, background: "#fff", padding: 18 }}>
+          <div style={{ fontSize: 12, fontWeight: 950, color: colors.navy, textTransform: "uppercase", letterSpacing: ".05em" }}>Vencimientos por mes</div>
+          <div style={{ marginTop: 18, display: "grid", gap: 10 }}>
+            {monthStats.length ? monthStats.map((item) => (
+              <div key={item.label} style={{ display: "grid", gridTemplateColumns: "48px 1fr", gap: 10, alignItems: "center" }}>
+                <div style={{ fontWeight: 950, color: colors.muted, textTransform: "capitalize" }}>{item.label}</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 5, alignItems: "end", height: 42 }}>
+                  <Bar value={item.v30} max={maxMonth} color="#ef4444" />
+                  <Bar value={item.v60} max={maxMonth} color="#f59e0b" />
+                  <Bar value={item.vOk} max={maxMonth} color="#22c55e" />
+                </div>
+              </div>
+            )) : <EmptyMini text="Sin vencimientos con stock para graficar." />}
+          </div>
+        </div>
+
+        <div style={{ border: `1px solid ${colors.border}`, borderRadius: 16, background: "#fff", padding: 18 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: 12, fontWeight: 950, color: colors.navy, textTransform: "uppercase", letterSpacing: ".05em" }}>Alertas activas</div>
+            <button type="button" style={{ border: 0, background: "transparent", color: colors.purple, fontWeight: 950, cursor: "pointer" }}>Ver todas</button>
+          </div>
+          <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+            {activeAlerts.length ? activeAlerts.map((alert) => (
+              <div key={alert.title} style={{ display: "flex", alignItems: "center", gap: 12, border: `1px solid ${colors.border}`, borderRadius: 14, padding: 12, background: colors.soft }}>
+                <div style={{ width: 34, height: 34, borderRadius: 11, display: "grid", placeItems: "center", background: alert.tone === "red" ? colors.badBg : alert.tone === "orange" ? colors.warnBg : colors.infoBg }}>
+                  <AlertTriangle size={18} color={alert.tone === "red" ? colors.bad : alert.tone === "orange" ? colors.warn : colors.blue} />
+                </div>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontWeight: 950, color: colors.text }}>{alert.title}</div>
+                  <div style={{ fontSize: 12, color: colors.muted, fontWeight: 750 }}>{alert.helper}</div>
+                </div>
+              </div>
+            )) : <EmptyMini text="Sin alertas activas para materiales con stock." />}
+          </div>
         </div>
       </div>
 
-      <div style={{ background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 14, overflow: "hidden" }}>
-        <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${colors.border}` }}>
-          <div style={{ fontWeight: 950, color: colors.purple, fontSize: 13, letterSpacing: ".04em" }}>LISTA DE MATERIALES</div>
-          <button onClick={loadRows} style={{ ...filterStyle, width: "auto" }}>{loading ? "Actualizando..." : "Actualizar"}</button>
+      <div style={{ border: `1px solid ${colors.border}`, borderRadius: 16, background: "#fff", overflow: "hidden" }}>
+        <div style={{ padding: 16, borderBottom: `1px solid ${colors.border}`, display: "flex", justifyContent: "space-between", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontWeight: 950, color: colors.purple, fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase" }}>Lista de materiales</div>
+            <div style={{ color: colors.muted, fontWeight: 650, marginTop: 3 }}>Certificados, recibos y evidencias por lote.</div>
+          </div>
+          <button onClick={loadRows} style={{ ...actionButton, width: "auto" }}>{loading ? "Actualizando..." : "Actualizar"}</button>
+        </div>
+        <div style={{ padding: 14, display: "grid", gridTemplateColumns: "1fr 210px 92px", gap: 10, borderBottom: `1px solid ${colors.border}` }}>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar en la tabla..." style={inputStyle} />
+          <select value={estado} onChange={(e) => setEstado(e.target.value)} style={inputStyle}>
+            <option value="TODOS">Todas las columnas</option>
+            <option value="COMPLETO">Completos</option>
+            <option value="PENDIENTE">Pendientes</option>
+            <option value="VENCIDO">Vencidos</option>
+          </select>
+          <div style={{ height: 42, border: `1px solid ${colors.border}`, borderRadius: 12, display: "grid", placeItems: "center", fontWeight: 950, color: colors.navy }}>{filtered.length}</div>
         </div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1180 }}>
             <thead>
-              <tr>
-                <th style={th}>Estado</th>
-                <th style={th}>Fecha recibo</th>
-                <th style={th}>Material</th>
-                <th style={th}>Lote / codigo</th>
-                <th style={th}>Proveedor</th>
-                <th style={th}>Fabricacion</th>
-                <th style={th}>Vencimiento</th>
-                <th style={th}>Vida restante</th>
-                <th style={th}>Cantidad</th>
-                <th style={th}>Recibo</th>
-                <th style={th}>Certificado</th>
+              <tr style={{ background: "#f6f9fc", color: colors.text }}>
+                {[
+                  "Estado",
+                  "Fecha recibo",
+                  "Codigo",
+                  "Descripcion",
+                  "UM",
+                  "Lote proveedor",
+                  "Fabricacion",
+                  "Vencimiento",
+                  "Vida restante",
+                  "Cantidad",
+                  "Recibo",
+                  "Certificado",
+                ].map((h) => (
+                  <th key={h} style={{ padding: "11px 12px", textAlign: "left", fontSize: 11, letterSpacing: ".04em", textTransform: "uppercase", borderBottom: `1px solid ${colors.border}` }}>{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {filtered.map((row) => {
+                const status = statusInfo(row);
+                const vidaTone = row.vidaDias < 0 ? "red" : row.vidaDias <= 30 ? "red" : row.vidaDias <= 60 ? "orange" : "green";
+                return (
+                  <tr key={row.id} style={{ borderBottom: `1px solid #eef2f6` }}>
+                    <td style={{ padding: 12 }}><Chip label={status.label} tone={status.tone} /></td>
+                    <td style={{ padding: 12, fontWeight: 800 }}>{row.fecha_recibo || "-"}</td>
+                    <td style={{ padding: 12, fontWeight: 900 }}>{row.codigo_material || "-"}</td>
+                    <td style={{ padding: 12, fontWeight: 850, color: colors.text }}>{row.descripcion_material || "-"}</td>
+                    <td style={{ padding: 12, fontWeight: 850 }}>{row.unidad_medida || "-"}</td>
+                    <td style={{ padding: 12, fontWeight: 850 }}>{row.lote_proveedor || "-"}</td>
+                    <td style={{ padding: 12 }}>{row.fecha_fabricacion || "-"}</td>
+                    <td style={{ padding: 12, fontWeight: 850 }}>{row.fecha_vencimiento || "-"}</td>
+                    <td style={{ padding: 12 }}><Chip label={row.vidaDias == null ? "Sin fecha" : row.vidaDias < 0 ? `${Math.abs(row.vidaDias)} dias vencido` : `${row.vidaDias} dias`} tone={vidaTone} /></td>
+                    <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>{formatQty(row.cantidad)}</td>
+                    <td style={{ padding: 12 }}>
+                      <button onClick={() => openReceiptPreview(row)} style={{ ...actionButton, height: 34, padding: "0 10px", borderColor: colors.border }}><Eye size={15} /> Ver</button>
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <button
+                          onClick={() => openCertificatePreview(row)}
+                          title="Ver certificado"
+                          aria-label="Ver certificado"
+                          style={{ ...actionButton, width: 36, height: 34, padding: 0, justifyContent: "center", color: row.certificado_data_url ? colors.good : colors.muted }}
+                        >
+                          <Eye size={15} />
+                        </button>
+                        <label style={{ ...actionButton, height: 34, padding: "0 10px", cursor: savingId === row.id ? "wait" : "pointer" }}>
+                          <Upload size={15} /> {savingId === row.id ? "..." : "Cargar"}
+                          <input type="file" accept="image/*,.pdf" style={{ display: "none" }} onChange={(e) => handleUpload(row, e.target.files?.[0])} />
+                        </label>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {!filtered.length ? (
                 <tr>
-                  <td colSpan={11} style={{ ...td, padding: 28, textAlign: "center", color: colors.muted }}>
+                  <td colSpan={12} style={{ padding: 28, textAlign: "center", color: colors.muted, fontWeight: 900 }}>
                     No hay certificados para los filtros seleccionados.
                   </td>
                 </tr>
-              ) : (
-                filtered.map((row) => {
-                  const info = statusInfo(row);
-                  const life = row.vidaDias === null ? "-" : `${row.vidaDias} dias`;
-                  return (
-                    <tr key={row.id || `${row.recibo_item}-${row.codigo_material}-${row.lote_proveedor}`}>
-                      <td style={td}><Chip label={info.label} tone={info.tone} /></td>
-                      <td style={td}>{row.fecha_recibo || "-"}</td>
-                      <td style={{ ...td, fontWeight: 900 }}>{row.codigo_material || "-"}<div style={{ fontWeight: 700, color: colors.muted }}>{row.descripcion_material || "-"}</div></td>
-                      <td style={{ ...td, fontWeight: 900 }}>{row.lote_proveedor || "-"}</td>
-                      <td style={td}>{row.proveedor || row.documento || "-"}</td>
-                      <td style={td}>{row.fecha_fabricacion || "-"}</td>
-                      <td style={td}>{row.fecha_vencimiento || "-"}</td>
-                      <td style={{ ...td, fontWeight: 950, color: row.vidaDias !== null && row.vidaDias < 30 ? colors.bad : colors.good }}>{life}</td>
-                      <td style={{ ...td, textAlign: "right", fontWeight: 900 }}>{formatQty(row.cantidad)}</td>
-                      <td style={td}>
-                        <button type="button" onClick={() => setPreviewDoc({ kind: "recibo", title: `Recibo ciego ${row.recibo_serial || row.documento || ""}`.trim(), html: getReceiptPreviewHtml(row, filtered) })} style={{ height: 30, borderRadius: 8, border: `1px solid ${colors.border}`, background: "#fff", padding: "0 10px", fontWeight: 850, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                          <Eye size={14} /> Ver
-                        </button>
-                      </td>
-                      <td style={td}>
-                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                          {row.certificado_data_url ? (
-                            <button type="button" title="Ver certificado" aria-label="Ver certificado" onClick={() => setPreviewDoc({ kind: "certificado", title: row.certificado_nombre || `Certificado ${row.lote_proveedor || row.codigo_material || ""}`.trim(), name: row.certificado_nombre || "Certificado de calidad", type: row.certificado_tipo, dataUrl: row.certificado_data_url })} style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${colors.border}`, background: "#fff", color: colors.good, display: "inline-grid", placeItems: "center", cursor: "pointer" }}>
-                              <Eye size={15} />
-                            </button>
-                          ) : (
-                            <span style={{ color: colors.warn, fontWeight: 900 }}>Pendiente</span>
-                          )}
-                          <label style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${colors.border}`, background: "#fff", color: colors.blue, display: "inline-grid", placeItems: "center", cursor: "pointer" }} title={savingId === String(row.id) ? "Subiendo..." : "Cargar certificado"}>
-                            <Upload size={15} />
-                            <input type="file" accept="image/*,application/pdf" capture="environment" onChange={(e) => onUpload(row, e.target.files?.[0])} style={{ display: "none" }} />
-                          </label>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+              ) : null}
             </tbody>
           </table>
         </div>
       </div>
+
+      <div style={{ border: `1px solid ${colors.purpleBd}`, borderRadius: 16, background: "#fff", padding: 16, display: "grid", gridTemplateColumns: "repeat(5, 1fr) 48px", gap: 12, alignItems: "center" }}>
+        <FooterMetric label="Materiales unicos" value={stats.uniqueMaterials} />
+        <FooterMetric label="Proveedores activos" value={stats.suppliers} />
+        <FooterMetric label="Certificados con evidencia" value={`${stats.completos} (${stats.documentalPct}%)`} />
+        <FooterMetric label="Sin evidencia" value={`${stats.pendientes} (${pct(stats.pendientes, stats.total)}%)`} />
+        <FooterMetric label="Trazabilidad con stock" value={`${stats.trazabilidadPct}%`} />
+        <button type="button" onClick={loadRows} style={{ width: 42, height: 42, borderRadius: 13, border: 0, background: colors.purpleSoft, color: colors.purple, display: "grid", placeItems: "center", cursor: "pointer" }}>
+          <RefreshCcw size={18} />
+        </button>
+      </div>
+
       <DocumentPreviewModal doc={previewDoc} onClose={() => setPreviewDoc(null)} />
       <AppNoticeModal notice={notice} onClose={() => setNotice(null)} />
+    </div>
+  );
+}
+
+function Legend({ color, label, value }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <span style={{ width: 10, height: 10, borderRadius: 999, background: color, display: "inline-block" }} />
+      <span style={{ flex: 1 }}>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function Bar({ value, max, color }) {
+  const height = Math.max(5, Math.round((Number(value || 0) / Math.max(1, max)) * 38));
+  return <div title={String(value)} style={{ alignSelf: "end", height, borderRadius: "7px 7px 2px 2px", background: color, opacity: value ? 1 : 0.18 }} />;
+}
+
+function EmptyMini({ text }) {
+  return <div style={{ border: `1px dashed ${colors.border}`, borderRadius: 13, padding: 14, color: colors.muted, fontWeight: 850 }}>{text}</div>;
+}
+
+function FooterMetric({ label, value }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: colors.muted, fontWeight: 950, textTransform: "uppercase", letterSpacing: ".06em" }}>{label}</div>
+      <div style={{ marginTop: 4, fontSize: 18, color: colors.navy, fontWeight: 950 }}>{value}</div>
     </div>
   );
 }
@@ -1064,7 +1293,7 @@ function FrescuraCard({ data }) {
       return {
         label: "Sin consulta",
         tone: "neutral",
-        text: "Consulta un material para analizar disponibilidad y condición operativa.",
+        text: "Consulta un material para analizar disponibilidad y condiciÃ³n operativa.",
       };
     }
 
@@ -1078,9 +1307,9 @@ function FrescuraCard({ data }) {
 
     if (stockAlmacenado > 0 && stockEnTransito > 0) {
       return {
-        label: "Reposición en curso",
+        label: "ReposiciÃ³n en curso",
         tone: "blue",
-        text: "El material tiene stock disponible y adicionalmente cuenta con inventario en tránsito.",
+        text: "El material tiene stock disponible y adicionalmente cuenta con inventario en trÃ¡nsito.",
       };
     }
 
@@ -1088,22 +1317,22 @@ function FrescuraCard({ data }) {
       return {
         label: "Disponible",
         tone: "green",
-        text: "El material tiene inventario disponible en almacén para operación.",
+        text: "El material tiene inventario disponible en almacÃ©n para operaciÃ³n.",
       };
     }
 
     if (stockEnTransito > 0) {
       return {
-        label: "Solo en tránsito",
+        label: "Solo en trÃ¡nsito",
         tone: "amber",
-        text: "El material no está almacenado aún, pero existen unidades en tránsito.",
+        text: "El material no estÃ¡ almacenado aÃºn, pero existen unidades en trÃ¡nsito.",
       };
     }
 
     return {
       label: "Sin visibilidad completa",
       tone: "neutral",
-      text: "Se encontró información parcial del material.",
+      text: "Se encontrÃ³ informaciÃ³n parcial del material.",
     };
   }, [data, stockActual, stockAlmacenado, stockEnTransito]);
 
@@ -1136,7 +1365,7 @@ function FrescuraCard({ data }) {
               color: colors.navy,
             }}
           >
-            Frescura / condición operativa
+            Frescura / condiciÃ³n operativa
           </div>
           <div
             style={{
@@ -1208,12 +1437,12 @@ function FrescuraCard({ data }) {
             }
           />
           <DataBox
-            label="Condición logística"
+            label="CondiciÃ³n logÃ­stica"
             value={
               stockEnTransito > 0 && stockAlmacenado > 0
                 ? "Mixta"
                 : stockEnTransito > 0
-                ? "En tránsito"
+                ? "En trÃ¡nsito"
                 : stockAlmacenado > 0
                 ? "Almacenado"
                 : "No disponible"
@@ -1224,8 +1453,8 @@ function FrescuraCard({ data }) {
             value="Pendiente de backend por lote/vencimiento"
           />
           <DataBox
-            label="Observación"
-            value="Este módulo ya quedó preparado para mostrar lotes, vencimientos y alertas de rotación."
+            label="ObservaciÃ³n"
+            value="Este mÃ³dulo ya quedÃ³ preparado para mostrar lotes, vencimientos y alertas de rotaciÃ³n."
           />
         </div>
       </div>
@@ -1243,7 +1472,7 @@ export default function Stock() {
   const consultar = async () => {
     const cod = codigo.trim();
     if (!cod) {
-      setErr("Debes escribir un código de material.");
+      setErr("Debes escribir un cÃ³digo de material.");
       setData(null);
       return;
     }
@@ -1395,7 +1624,7 @@ export default function Stock() {
                   textTransform: "uppercase",
                 }}
               >
-                Código material
+                CÃ³digo material
               </div>
 
               <div style={{ position: "relative" }}>
@@ -1520,24 +1749,24 @@ export default function Stock() {
         <SummaryBox
           label="Stock almacenado"
           value={formatQty(stockAlmacenado)}
-          helper="Disponible físicamente en ubicación"
+          helper="Disponible fÃ­sicamente en ubicaciÃ³n"
           icon={Warehouse}
           tone="green"
         />
         <SummaryBox
-          label="En tránsito"
+          label="En trÃ¡nsito"
           value={formatQty(stockTransito)}
           helper="Pendiente por ubicar o recibir"
           icon={Truck}
           tone="amber"
         />
         <SummaryBox
-          label="Condición"
+          label="CondiciÃ³n"
           value={
             !data
               ? "-"
               : totalStock <= 0
-              ? "Crítico"
+              ? "CrÃ­tico"
               : stockAlmacenado > 0
               ? "Operativo"
               : "Pendiente"
@@ -1586,7 +1815,7 @@ export default function Stock() {
                 marginTop: 4,
               }}
             >
-              Datos base del código consultado.
+              Datos base del cÃ³digo consultado.
             </div>
           </div>
 
@@ -1613,13 +1842,13 @@ export default function Stock() {
                   gap: 10,
                 }}
               >
-                <DataBox label="Código" value={data.codigo} />
+                <DataBox label="CÃ³digo" value={data.codigo} />
                 <DataBox label="Unidad de medida" value={data.unidad_medida} />
                 <DataBox label="Familia" value={data.familia} />
-                <DataBox label="Descripción" value={data.descripcion} />
+                <DataBox label="DescripciÃ³n" value={data.descripcion} />
                 <DataBox label="Stock actual" value={formatQty(data.stock_actual)} />
                 <DataBox label="Stock almacenado" value={formatQty(data.stock_almacenado)} />
-                <DataBox label="Stock en tránsito" value={formatQty(data.stock_en_transito)} />
+                <DataBox label="Stock en trÃ¡nsito" value={formatQty(data.stock_en_transito)} />
                 <DataBox
                   label="Balance operativo"
                   value={
@@ -1640,6 +1869,8 @@ export default function Stock() {
     </div>
   );
 }
+
+
 
 
 
