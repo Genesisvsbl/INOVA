@@ -1409,52 +1409,203 @@ export default function DesdeRecibo() {
 
   const buildReciboConsultaHtml = () => {
     const header = draft?.header || {};
-    const rows = (draft?.lineas || [])
-      .map(
-        (linea, i) => `
+    const lineas = draft?.lineas || [];
+    const generatedAt = draft?.createdAtISO ? new Date(draft.createdAtISO) : new Date();
+    const generatedDate = Number.isNaN(generatedAt.getTime())
+      ? todayISODate()
+      : generatedAt.toLocaleDateString("es-CO");
+    const generatedTime = Number.isNaN(generatedAt.getTime())
+      ? ""
+      : generatedAt.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+    const totalRecibo = lineas.reduce(
+      (acc, linea) => acc + Number(linea.total || linea.cantidad || 0),
+      0
+    );
+
+    const rows = lineas
+      .map((linea, i) => {
+        const item = serialItem(header.serial || "", i);
+        return `
           <tr>
             <td>${i + 1}</td>
-            <td>${escapeHtml(serialItem(header.serial || "", i))}</td>
+            <td>${escapeHtml(item)}</td>
+            <td>${escapeHtml(linea.fecha_recepcion || header.fecha_recepcion || todayISODate())}</td>
             <td>${escapeHtml(linea.codigo || "")}</td>
             <td>${escapeHtml(linea.descripcion || "")}</td>
+            <td>${escapeHtml(linea.empaque || "")}</td>
+            <td style="text-align:right;">${escapeHtml(linea.umb || "")}</td>
+            <td>${escapeHtml(linea.um || linea.umm || linea.unidad_medida || header.um || "")}</td>
+            <td style="text-align:right;">${escapeHtml(linea.cantidad || "")}</td>
+            <td style="text-align:right;">${escapeHtml(formatQty(linea.total || linea.cantidad || 0))}</td>
             <td>${escapeHtml(linea.lote_proveedor || "")}</td>
             <td>${escapeHtml(linea.fecha_fabricacion || "")}</td>
             <td>${escapeHtml(linea.fecha_vencimiento || "")}</td>
-            <td style="text-align:right;">${escapeHtml(linea.total || linea.cantidad || "")}</td>
             <td>${linea.certificado_data_url ? "Completo" : "Pendiente"}</td>
-          </tr>`
-      )
+          </tr>`;
+      })
       .join("");
 
     return `<!doctype html>
-      <html><head><meta charset="utf-8"><title>Recibo ciego ${escapeHtml(header.serial || "")}</title>
-      <style>
-        body{font-family:Arial,sans-serif;padding:24px;color:#0f172a}
-        h1{margin:0 0 8px;font-size:22px}
-        .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0}
-        .box{border:1px solid #d9e2ec;border-radius:8px;padding:10px}
-        .label{font-size:10px;text-transform:uppercase;color:#64748b;font-weight:800}
-        .value{font-size:13px;font-weight:800;margin-top:4px}
-        table{width:100%;border-collapse:collapse;margin-top:14px}
-        th,td{border:1px solid #d9e2ec;padding:8px;font-size:12px}
-        th{background:#f8fafc;text-align:left}
-      </style></head><body>
-        <h1>Recibo ciego</h1>
-        <div class="meta">
-          <div class="box"><div class="label">Serial</div><div class="value">${escapeHtml(header.serial || "")}</div></div>
-          <div class="box"><div class="label">Proveedor</div><div class="value">${escapeHtml(header.proveedor || "")}</div></div>
-          <div class="box"><div class="label">Documento</div><div class="value">${escapeHtml(header.documento || "")}</div></div>
-          <div class="box"><div class="label">Orden compra</div><div class="value">${escapeHtml(header.orden_compra || "")}</div></div>
-          <div class="box"><div class="label">Auxiliar</div><div class="value">${escapeHtml(header.auxiliar || "")}</div></div>
-          <div class="box"><div class="label">Fecha</div><div class="value">${escapeHtml(header.fecha_recepcion || todayISODate())}</div></div>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Recibo ciego ${escapeHtml(header.serial || "")}</title>
+    <link rel="preload" as="image" href="/favicon1.ico" />
+    <style>
+      @page { size: A4 landscape; margin: 12mm; }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        color: #0f172a;
+        background: #ffffff;
+      }
+      body { padding: 12mm; }
+      .page { width: 100%; min-height: calc(100vh - 24mm); }
+      .receipt-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 20px;
+        border-bottom: 2px solid #0f2744;
+        padding-bottom: 12px;
+        margin-bottom: 18px;
+      }
+      .receipt-header-left { display: flex; align-items: center; gap: 14px; }
+      .receipt-logo-box {
+        width: 58px;
+        height: 58px;
+        border: 1px solid #d9e2ec;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: #fff;
+      }
+      .receipt-logo-box img { width: 100%; height: 100%; object-fit: contain; }
+      .receipt-title { font-size: 28px; font-weight: 900; color: #0f2744; letter-spacing: .02em; }
+      .receipt-subtitle { margin-top: 5px; font-size: 13px; color: #64748b; }
+      .receipt-meta { text-align: right; font-size: 12px; line-height: 1.7; color: #0f172a; font-weight: 700; }
+      .receipt-summary {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      .summary-card {
+        min-height: 12mm;
+        border: 1px solid #d9e2ec;
+        border-radius: 6px;
+        padding: 5px 7px;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        overflow: hidden;
+      }
+      .summary-label {
+        font-size: 7px;
+        line-height: 1;
+        font-weight: 900;
+        color: #0f2744;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        margin: 0 0 3px;
+      }
+      .summary-value {
+        margin: 0;
+        font-size: 11px;
+        font-weight: 900;
+        color: #001b3f;
+        line-height: 1.1;
+        word-break: break-word;
+      }
+      .receipt-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 7px; line-height: 1; }
+      .receipt-table th, .receipt-table td {
+        border: 1px solid #d9e2ec;
+        padding: 3px 4px;
+        vertical-align: middle;
+        white-space: normal;
+        word-break: break-word;
+        line-height: 1.05;
+      }
+      .receipt-table th { background: #f8fafc; text-align: left; font-weight: 900; color: #0f2744; }
+      .receipt-table td { color: #0f172a; font-weight: 700; }
+      .receipt-footer { margin-top: 10px; font-size: 8px; line-height: 1.2; color: #0f2744; font-weight: 900; }
+      @media print { body { padding: 0; } }
+    </style>
+  </head>
+  <body>
+    <section class="page receipt-page">
+      <div class="receipt-header">
+        <div class="receipt-header-left">
+          <div class="receipt-logo-box"><img src="/favicon1.ico" alt="INOVA" /></div>
+          <div>
+            <div class="receipt-title">RECIBO CIEGO</div>
+            <div class="receipt-subtitle">Formato de recepción y trazabilidad de ingreso</div>
+          </div>
         </div>
-        <table>
-          <thead><tr><th>#</th><th>Item</th><th>Codigo</th><th>Descripcion</th><th>Lote proveedor</th><th>Fabricacion</th><th>Vencimiento</th><th>Cantidad</th><th>Certificado</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </body></html>`;
-  };
+        <div class="receipt-meta">
+          <div><b>Usuario:</b> ${escapeHtml(header.usuario || "")}</div>
+          <div><b>Auxiliar:</b> ${escapeHtml(header.auxiliar || "")}</div>
+          <div><b>Documento:</b> ${escapeHtml(header.documento || "")}</div>
+          <div><b>Fecha recibo:</b> ${escapeHtml(header.fecha_recepcion || todayISODate())}</div>
+          <div><b>Generado:</b> ${escapeHtml(generatedDate)} ${escapeHtml(generatedTime)}</div>
+          <div><b>Serial:</b> ${escapeHtml(header.serial || "")}</div>
+        </div>
+      </div>
 
+      <div class="receipt-summary">
+        <div class="summary-card"><div class="summary-label">Proveedor</div><div class="summary-value">${escapeHtml(header.proveedor || "-")}</div></div>
+        <div class="summary-card"><div class="summary-label">Orden compra</div><div class="summary-value">${escapeHtml(header.orden_compra || "-")}</div></div>
+        <div class="summary-card"><div class="summary-label">Lineas</div><div class="summary-value">${lineas.length}</div></div>
+        <div class="summary-card"><div class="summary-label">Total</div><div class="summary-value">${escapeHtml(formatQty(totalRecibo))}</div></div>
+      </div>
+
+      <table class="receipt-table">
+        <colgroup>
+          <col style="width: 3.2%" />
+          <col style="width: 7.2%" />
+          <col style="width: 7.8%" />
+          <col style="width: 6.2%" />
+          <col style="width: 13%" />
+          <col style="width: 6.8%" />
+          <col style="width: 4.6%" />
+          <col style="width: 4%" />
+          <col style="width: 5.8%" />
+          <col style="width: 7%" />
+          <col style="width: 9.5%" />
+          <col style="width: 8.5%" />
+          <col style="width: 8.5%" />
+          <col style="width: 7.9%" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th># Serial</th>
+            <th>Fecha recepción</th>
+            <th>Código</th>
+            <th>Texto breve material</th>
+            <th>Empaque</th>
+            <th>UMB</th>
+            <th>UM</th>
+            <th>Cantidad</th>
+            <th>Total</th>
+            <th>Lote proveedor</th>
+            <th>F. fabricación</th>
+            <th>F. vencimiento</th>
+            <th>Certificado</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+
+      <div class="receipt-footer">Documento generado desde WMS INOVA para control de recibo y trazabilidad.</div>
+    </section>
+  </body>
+</html>`;
+  };
   const guardarTrazabilidadCertificados = async () => {
     const header = draft?.header || {};
     const reciboHtml = buildReciboConsultaHtml();
@@ -2443,5 +2594,6 @@ export default function DesdeRecibo() {
     </div>
   );
 }
+
 
 

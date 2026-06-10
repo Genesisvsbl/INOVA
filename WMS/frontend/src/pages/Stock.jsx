@@ -50,6 +50,134 @@ function formatQty(n) {
   return fmtCO.format(x);
 }
 
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function isRichReceiptHtml(html) {
+  return Boolean(html && /receipt-header|RECIBO CIEGO/i.test(html) && /favicon1\.ico/i.test(html));
+}
+
+function buildReceiptPreviewHtml(row, allRows = []) {
+  const key = row?.recibo_serial || row?.documento || row?.orden_compra || row?.id;
+  const lines = (allRows || []).filter((item) => {
+    if (!key) return item === row;
+    return (
+      item.recibo_serial === row.recibo_serial ||
+      item.documento === row.documento ||
+      item.orden_compra === row.orden_compra
+    );
+  });
+  const receiptLines = lines.length ? lines : [row];
+  const generatedAt = row?.created_at ? new Date(row.created_at) : new Date();
+  const generatedDate = Number.isNaN(generatedAt.getTime())
+    ? new Date().toLocaleDateString("es-CO")
+    : generatedAt.toLocaleDateString("es-CO");
+  const generatedTime = Number.isNaN(generatedAt.getTime())
+    ? ""
+    : generatedAt.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+  const total = receiptLines.reduce((acc, item) => acc + Number(item.cantidad || 0), 0);
+  const rows = receiptLines
+    .map((item, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${escapeHtml(item.recibo_item || `${item.recibo_serial || ""}-${index + 1}`)}</td>
+        <td>${escapeHtml(item.fecha_recibo || "")}</td>
+        <td>${escapeHtml(item.codigo_material || "")}</td>
+        <td>${escapeHtml(item.descripcion_material || "")}</td>
+        <td>${escapeHtml(item.unidad_medida || "")}</td>
+        <td style="text-align:right;">${escapeHtml(formatQty(item.cantidad))}</td>
+        <td>${escapeHtml(item.lote_proveedor || "")}</td>
+        <td>${escapeHtml(item.fecha_fabricacion || "")}</td>
+        <td>${escapeHtml(item.fecha_vencimiento || "")}</td>
+        <td>${item.certificado_data_url ? "Completo" : "Pendiente"}</td>
+      </tr>`)
+    .join("");
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Recibo ciego ${escapeHtml(row?.recibo_serial || row?.documento || "")}</title>
+    <link rel="preload" as="image" href="/favicon1.ico" />
+    <style>
+      @page { size: A4 landscape; margin: 12mm; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; color: #0f172a; background: #fff; }
+      body { padding: 12mm; }
+      .page { width: 100%; min-height: calc(100vh - 24mm); }
+      .receipt-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; border-bottom: 2px solid #0f2744; padding-bottom: 12px; margin-bottom: 18px; }
+      .receipt-header-left { display: flex; align-items: center; gap: 14px; }
+      .receipt-logo-box { width: 58px; height: 58px; border: 1px solid #d9e2ec; border-radius: 10px; display: grid; place-items: center; overflow: hidden; background: #fff; }
+      .receipt-logo-box img { width: 100%; height: 100%; object-fit: contain; }
+      .receipt-title { font-size: 28px; font-weight: 900; color: #0f2744; letter-spacing: .02em; }
+      .receipt-subtitle { margin-top: 5px; font-size: 13px; color: #64748b; }
+      .receipt-meta { text-align: right; font-size: 12px; line-height: 1.7; color: #0f172a; font-weight: 700; }
+      .receipt-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+      .summary-card { min-height: 14mm; border: 1px solid #d9e2ec; border-radius: 8px; padding: 7px 9px; background: #fff; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+      .summary-label { font-size: 8px; line-height: 1; font-weight: 900; color: #0f2744; text-transform: uppercase; letter-spacing: .04em; margin: 0 0 4px; }
+      .summary-value { margin: 0; font-size: 12px; font-weight: 900; color: #001b3f; line-height: 1.1; word-break: break-word; }
+      .receipt-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 8px; line-height: 1; }
+      .receipt-table th, .receipt-table td { border: 1px solid #d9e2ec; padding: 4px 5px; vertical-align: middle; white-space: normal; word-break: break-word; line-height: 1.05; }
+      .receipt-table th { background: #f8fafc; text-align: left; font-weight: 900; color: #0f2744; }
+      .receipt-table td { color: #0f172a; font-weight: 700; }
+      .receipt-footer { margin-top: 10px; font-size: 9px; line-height: 1.2; color: #0f2744; font-weight: 900; display: flex; justify-content: space-between; gap: 12px; }
+      @media print { body { padding: 0; } }
+    </style>
+  </head>
+  <body>
+    <section class="page receipt-page">
+      <div class="receipt-header">
+        <div class="receipt-header-left">
+          <div class="receipt-logo-box"><img src="/favicon1.ico" alt="INOVA" /></div>
+          <div>
+            <div class="receipt-title">RECIBO CIEGO</div>
+            <div class="receipt-subtitle">Formato de recepción y trazabilidad de ingreso</div>
+          </div>
+        </div>
+        <div class="receipt-meta">
+          <div><b>Serial:</b> ${escapeHtml(row?.recibo_serial || "")}</div>
+          <div><b>Documento:</b> ${escapeHtml(row?.documento || "")}</div>
+          <div><b>Fecha recibo:</b> ${escapeHtml(row?.fecha_recibo || "")}</div>
+          <div><b>Generado:</b> ${escapeHtml(generatedDate)} ${escapeHtml(generatedTime)}</div>
+        </div>
+      </div>
+      <div class="receipt-summary">
+        <div class="summary-card"><div class="summary-label">Proveedor</div><div class="summary-value">${escapeHtml(row?.proveedor || "-")}</div></div>
+        <div class="summary-card"><div class="summary-label">Orden compra</div><div class="summary-value">${escapeHtml(row?.orden_compra || "-")}</div></div>
+        <div class="summary-card"><div class="summary-label">Líneas</div><div class="summary-value">${receiptLines.length}</div></div>
+        <div class="summary-card"><div class="summary-label">Total</div><div class="summary-value">${escapeHtml(formatQty(total))}</div></div>
+      </div>
+      <table class="receipt-table">
+        <colgroup>
+          <col style="width: 4%" /><col style="width: 9%" /><col style="width: 9%" /><col style="width: 8%" />
+          <col style="width: 22%" /><col style="width: 6%" /><col style="width: 9%" /><col style="width: 12%" />
+          <col style="width: 8%" /><col style="width: 8%" /><col style="width: 7%" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>#</th><th>Item</th><th>Fecha recepción</th><th>Código</th><th>Descripción</th><th>UM</th><th>Cantidad</th><th>Lote proveedor</th><th>Fabricación</th><th>Vencimiento</th><th>Certificado</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="receipt-footer"><span>Documento generado desde WMS INOVA para control de recibo y trazabilidad.</span><span>${escapeHtml(generatedDate)} ${escapeHtml(generatedTime)}</span></div>
+    </section>
+  </body>
+</html>`;
+}
+
+function getReceiptPreviewHtml(row, allRows) {
+  return isRichReceiptHtml(row?.recibo_documento_html)
+    ? row.recibo_documento_html
+    : buildReceiptPreviewHtml(row, allRows);
+}
 function Chip({ label, tone = "neutral" }) {
   const tones = {
     neutral: { bg: "#eef2f6", bd: "#dbe4ec", tx: colors.text },
@@ -849,10 +977,9 @@ function CertificadosCalidadView() {
                           setPreviewDoc({
                             kind: "recibo",
                             title: `Recibo ciego ${row.recibo_serial || row.documento || ""}`.trim(),
-                            html: row.recibo_documento_html,
+                            html: getReceiptPreviewHtml(row, filtered),
                           })
                         }
-                        disabled={!row.recibo_documento_html}
                         style={{
                           border: `1px solid ${colors.border}`,
                           background: "#fff",
@@ -860,7 +987,7 @@ function CertificadosCalidadView() {
                           height: 30,
                           padding: "0 9px",
                           fontWeight: 800,
-                          cursor: row.recibo_documento_html ? "pointer" : "not-allowed",
+                          cursor: "pointer",
                           display: "inline-flex",
                           alignItems: "center",
                           gap: 6,
@@ -875,6 +1002,8 @@ function CertificadosCalidadView() {
                         {row.certificado_data_url ? (
                           <button
                             type="button"
+                            title="Ver certificado"
+                            aria-label="Ver certificado"
                             onClick={() =>
                               setPreviewDoc({
                                 kind: "certificado",
@@ -897,7 +1026,6 @@ function CertificadosCalidadView() {
                             }}
                           >
                             <Eye size={14} />
-                            Ver certificado
                           </button>
                         ) : (
                           <span style={{ color: colors.warn, fontWeight: 900 }}>Pendiente</span>
@@ -1527,4 +1655,6 @@ export default function Stock() {
     </div>
   );
 }
+
+
 
