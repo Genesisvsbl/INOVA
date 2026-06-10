@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   PackageSearch,
@@ -1076,12 +1076,12 @@ function CertificadosCalidadView() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0, 1fr))", gap: 12 }}>
-        <SummaryBox label="Total lotes" value={stats.total} helper="Certificados registrados" icon={<Boxes size={22} />} tone="blue" />
-        <SummaryBox label="Con stock" value={stats.conStock} helper="Base para alertas" icon={<Warehouse size={22} />} tone="default" />
-        <SummaryBox label="0-30 dias" value={stats.v30} helper="Requieren atencion" icon={<AlertTriangle size={22} />} tone="red" />
-        <SummaryBox label="31-60 dias" value={stats.v60} helper="Atencion recomendada" icon={<Clock size={22} />} tone="orange" />
-        <SummaryBox label="+60 dias" value={stats.vOk} helper="En condicion normal" icon={<CheckCircle2 size={22} />} tone="green" />
-        <SummaryBox label="Vencidos" value={stats.expired} helper="Gestion inmediata" icon={<AlertTriangle size={22} />} tone="red" />
+        <SummaryBox label="Total lotes" value={stats.total} helper="Certificados registrados" icon={Boxes} tone="blue" />
+        <SummaryBox label="Con stock" value={stats.conStock} helper="Base para alertas" icon={Warehouse} tone="default" />
+        <SummaryBox label="0-30 dias" value={stats.v30} helper="Requieren atencion" icon={AlertTriangle} tone="red" />
+        <SummaryBox label="31-60 dias" value={stats.v60} helper="Atencion recomendada" icon={Clock} tone="amber" />
+        <SummaryBox label="+60 dias" value={stats.vOk} helper="En condicion normal" icon={CheckCircle2} tone="green" />
+        <SummaryBox label="Vencidos" value={stats.expired} helper="Gestion inmediata" icon={AlertTriangle} tone="red" />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.05fr", gap: 14 }}>
