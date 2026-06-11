@@ -436,7 +436,7 @@ function ProcessNoticeModal({ notice, onClose }) {
               borderRadius: 13,
               border: 0,
               background: `linear-gradient(135deg, ${colors.purple}, ${colors.purple2})`,
-              color: "#fff",
+              color: notice.confirmTextColor || "#fff",
               fontWeight: 950,
               cursor: "pointer",
               boxShadow: "0 14px 30px rgba(107,33,168,.26)",
@@ -1813,7 +1813,7 @@ export default function DesdeRecibo() {
       await guardarTrazabilidadCertificados();
 
       localStorage.removeItem(DRAFT_KEY);
-      showNotice({ tone: "success", title: "Movimientos guardados", message: "Se guardo la ubicacion y el historial de rotulos correctamente.", confirmText: "Ir a rotulos", onConfirm: () => navigate("/datos-maestros/rotulos") });
+      showNotice({ tone: "success", title: "Movimientos guardados", message: "Se guardo la ubicacion y el historial de rotulos correctamente.", confirmText: "Ir a rotulos", confirmTextColor: colors.purple, onConfirm: () => navigate("/datos-maestros/rotulos") });
       
     } catch (e) {
       const msg = e?.message || String(e);
@@ -1866,7 +1866,7 @@ export default function DesdeRecibo() {
       await guardarTrazabilidadCertificados();
 
       localStorage.removeItem(DRAFT_KEY);
-      showNotice({ tone: "success", title: "Material en transito", message: "Se guardo el material en EN TRANSITO por pallet y el historial de rotulos correctamente.", confirmText: "Ir a rotulos", onConfirm: () => navigate("/datos-maestros/rotulos") });
+      showNotice({ tone: "success", title: "Material en transito", message: "Se guardo el material en EN TRANSITO por pallet y el historial de rotulos correctamente.", confirmText: "Ir a rotulos", confirmTextColor: colors.purple, onConfirm: () => navigate("/datos-maestros/rotulos") });
       
     } catch (e) {
       const msg = e?.message || String(e);
