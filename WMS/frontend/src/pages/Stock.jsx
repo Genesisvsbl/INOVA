@@ -957,7 +957,7 @@ function CertificadosCalidadView() {
     }
     setPreviewDoc({
       title: `Certificado ${row.lote_proveedor || row.codigo_material || ""}`,
-      src: row.certificado_data_url,
+      dataUrl: row.certificado_data_url,
       type: row.certificado_mime || "image",
     });
   };
