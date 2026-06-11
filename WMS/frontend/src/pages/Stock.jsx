@@ -67,6 +67,15 @@ function pct(part, total) {
   return Math.round((Number(part || 0) / base) * 100);
 }
 
+function daysUntil(value) {
+  if (!value) return null;
+  const target = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.ceil((target.getTime() - today.getTime()) / 86400000);
+}
+
 
 function escapeHtml(value) {
   return String(value ?? "")
