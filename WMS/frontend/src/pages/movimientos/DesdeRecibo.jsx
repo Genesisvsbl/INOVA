@@ -1517,6 +1517,7 @@ export default function DesdeRecibo() {
   const buildReciboConsultaHtml = () => {
     const header = draft?.header || {};
     const lineas = draft?.lineas || [];
+    const esDevolucion = draft?.tipoRecibo === "devolucion";
     const generatedAt = draft?.createdAtISO ? new Date(draft.createdAtISO) : new Date();
     const generatedDate = Number.isNaN(generatedAt.getTime())
       ? todayISODate()
@@ -1547,7 +1548,7 @@ export default function DesdeRecibo() {
             <td>${escapeHtml(linea.lote_proveedor || "")}</td>
             <td>${escapeHtml(linea.fecha_fabricacion || "")}</td>
             <td>${escapeHtml(linea.fecha_vencimiento || "")}</td>
-            <td>${linea.certificado_data_url ? "Completo" : "Pendiente"}</td>
+            <td>${esDevolucion ? "No aplica" : linea.certificado_data_url ? "Completo" : "Pendiente"}</td>
           </tr>`;
       })
       .join("");
@@ -1714,6 +1715,10 @@ export default function DesdeRecibo() {
 </html>`;
   };
   const guardarTrazabilidadCertificados = async () => {
+    if (draft?.tipoRecibo === "devolucion") {
+      return { saved: [], skipped: true, reason: "devolucion_no_aplica_certificado" };
+    }
+
     const header = draft?.header || {};
     const reciboHtml = buildReciboConsultaHtml();
     const items = (draft?.lineas || []).map((linea, i) => ({

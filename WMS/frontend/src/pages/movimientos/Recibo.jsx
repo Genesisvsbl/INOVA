@@ -625,6 +625,15 @@ export default function Recibo() {
         remesa_transp: "**********",
         orden_compra: "**********",
       }));
+      setLineas((prev) =>
+        prev.map((ln) => ({
+          ...ln,
+          certificado_nombre: "",
+          certificado_tipo: "",
+          certificado_data_url: "",
+          certificado_fecha: "",
+        }))
+      );
 
       setErrores((prev) => {
         const copy = { ...prev };
@@ -703,6 +712,10 @@ export default function Recibo() {
 
   const onCertificadoChange = async (idx, file) => {
     if (!file) return;
+    if (tipoRecibo === "devolucion") {
+      alert("En devolución no aplica certificado de calidad porque es un movimiento interno.");
+      return;
+    }
     const maxBytes = 7 * 1024 * 1024;
     if (file.size > maxBytes) {
       alert("El certificado supera 7 MB. Toma una foto mas liviana o usa un PDF comprimido.");
@@ -964,10 +977,10 @@ export default function Recibo() {
           lote_proveedor: pad10WithStarsAny(ln.lote_proveedor),
           fecha_fabricacion: ln.fecha_fabricacion || "",
           fecha_vencimiento: ln.fecha_vencimiento || "",
-          certificado_nombre: ln.certificado_nombre || "",
-          certificado_tipo: ln.certificado_tipo || "",
-          certificado_data_url: ln.certificado_data_url || "",
-          certificado_fecha: ln.certificado_fecha || "",
+          certificado_nombre: tipoRecibo === "devolucion" ? "" : ln.certificado_nombre || "",
+          certificado_tipo: tipoRecibo === "devolucion" ? "" : ln.certificado_tipo || "",
+          certificado_data_url: tipoRecibo === "devolucion" ? "" : ln.certificado_data_url || "",
+          certificado_fecha: tipoRecibo === "devolucion" ? "" : ln.certificado_fecha || "",
         })),
         totalRecibo,
         createdAtISO: new Date().toISOString(),
@@ -2400,99 +2413,124 @@ export default function Recibo() {
                         <div
                           style={{
                             display: "grid",
-                            gridTemplateColumns: "repeat(4, 30px)",
+                            gridTemplateColumns: tipoRecibo === "devolucion" ? "auto 30px" : "repeat(4, 30px)",
                             gap: 5,
                             justifyContent: "center",
                             alignItems: "center",
                           }}
                         >
-                          <label
-                            title="Escanear o anexar certificado"
+                          {tipoRecibo === "devolucion" ? (
+                          <span
+                            title="No aplica certificado de calidad en devolución"
                             style={{
-                              width: 30,
+                              minWidth: 86,
                               height: 30,
-                              borderRadius: 8,
-                              border: `1px solid ${ln.certificado_data_url ? colors.goodBd : colors.infoBd}`,
-                              background: ln.certificado_data_url ? colors.goodBg : colors.infoBg,
-                              color: ln.certificado_data_url ? colors.good : colors.blue,
-                              display: "grid",
-                              placeItems: "center",
-                              cursor: "pointer",
-                              boxShadow: ln.certificado_data_url
-                                ? "none"
-                                : "0 0 0 3px rgba(10,110,209,.08)",
-                            }}
-                          >
-                            <Camera size={15} />
-                            <input
-                              type="file"
-                              accept="image/*,application/pdf"
-                              capture="environment"
-                              onChange={(e) => onCertificadoChange(idx, e.target.files?.[0])}
-                              style={{ display: "none" }}
-                            />
-                          </label>
-
-                          {ln.certificado_data_url ? (
-                            <a
-                              href={ln.certificado_data_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              title="Ver certificado anexado"
-                              style={{
-                                width: 30,
-                                height: 30,
-                                borderRadius: 8,
-                                border: `1px solid ${colors.goodBd}`,
-                                background: colors.goodBg,
-                                color: colors.good,
-                                display: "grid",
-                                placeItems: "center",
-                                textDecoration: "none",
-                              }}
-                            >
-                              <FileCheck size={15} />
-                            </a>
-                          ) : (
-                            <span
-                              title="Certificado pendiente: 24h"
-                              style={{
-                                width: 30,
-                                height: 30,
-                                borderRadius: 8,
-                                border: `1px solid ${colors.warnBd}`,
-                                background: colors.warnBg,
-                                color: colors.warn,
-                                display: "grid",
-                                placeItems: "center",
-                                fontSize: 10,
-                                fontWeight: 900,
-                              }}
-                            >
-                              24h
-                            </span>
-                          )}
-
-                          <button
-                            type="button"
-                            onClick={() => clearCertificado(idx)}
-                            disabled={!ln.certificado_data_url}
-                            title="Quitar certificado"
-                            style={{
-                              width: 30,
-                              height: 30,
+                              padding: "0 9px",
                               borderRadius: 8,
                               border: `1px solid ${colors.border}`,
-                              background: "#fff",
-                              color: ln.certificado_data_url ? colors.bad : colors.muted,
-                              display: "grid",
+                              background: "#f8fafc",
+                              color: colors.muted,
+                              display: "inline-grid",
                               placeItems: "center",
-                              cursor: ln.certificado_data_url ? "pointer" : "not-allowed",
-                              opacity: ln.certificado_data_url ? 1 : 0.45,
+                              fontSize: 10,
+                              fontWeight: 950,
+                              textTransform: "uppercase",
+                              whiteSpace: "nowrap",
                             }}
                           >
-                            <X size={14} />
-                          </button>
+                            No aplica
+                          </span>
+                        ) : (
+                          <>
+                            <label
+                              title="Escanear o anexar certificado"
+                              style={{
+                                width: 30,
+                                height: 30,
+                                borderRadius: 8,
+                                border: `1px solid ${ln.certificado_data_url ? colors.goodBd : colors.infoBd}`,
+                                background: ln.certificado_data_url ? colors.goodBg : colors.infoBg,
+                                color: ln.certificado_data_url ? colors.good : colors.blue,
+                                display: "grid",
+                                placeItems: "center",
+                                cursor: "pointer",
+                                boxShadow: ln.certificado_data_url
+                                  ? "none"
+                                  : "0 0 0 3px rgba(10,110,209,.08)",
+                              }}
+                            >
+                              <Camera size={15} />
+                              <input
+                                type="file"
+                                accept="image/*,application/pdf"
+                                capture="environment"
+                                onChange={(e) => onCertificadoChange(idx, e.target.files?.[0])}
+                                style={{ display: "none" }}
+                              />
+                            </label>
+
+                            {ln.certificado_data_url ? (
+                              <a
+                                href={ln.certificado_data_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Ver certificado anexado"
+                                style={{
+                                  width: 30,
+                                  height: 30,
+                                  borderRadius: 8,
+                                  border: `1px solid ${colors.goodBd}`,
+                                  background: colors.goodBg,
+                                  color: colors.good,
+                                  display: "grid",
+                                  placeItems: "center",
+                                  textDecoration: "none",
+                                }}
+                              >
+                                <FileCheck size={15} />
+                              </a>
+                            ) : (
+                              <span
+                                title="Certificado pendiente: 24h"
+                                style={{
+                                  width: 30,
+                                  height: 30,
+                                  borderRadius: 8,
+                                  border: `1px solid ${colors.warnBd}`,
+                                  background: colors.warnBg,
+                                  color: colors.warn,
+                                  display: "grid",
+                                  placeItems: "center",
+                                  fontSize: 10,
+                                  fontWeight: 900,
+                                }}
+                              >
+                                24h
+                              </span>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => clearCertificado(idx)}
+                              disabled={!ln.certificado_data_url}
+                              title="Quitar certificado"
+                              style={{
+                                width: 30,
+                                height: 30,
+                                borderRadius: 8,
+                                border: `1px solid ${colors.border}`,
+                                background: "#fff",
+                                color: ln.certificado_data_url ? colors.bad : colors.muted,
+                                display: "grid",
+                                placeItems: "center",
+                                cursor: ln.certificado_data_url ? "pointer" : "not-allowed",
+                                opacity: ln.certificado_data_url ? 1 : 0.45,
+                              }}
+                            >
+                              <X size={14} />
+                            </button>
+                          </>
+                        )}
 
                           <button
                             type="button"
