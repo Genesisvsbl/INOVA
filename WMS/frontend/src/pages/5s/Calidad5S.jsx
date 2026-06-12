@@ -132,64 +132,97 @@ function preloadImages(sources) {
   );
 }
 
-function openPrintable5SDocument({ title, styles, bodyHtml, extraCss = "" }) {
-  const printableHtml = `<!doctype html>
-    <html>
-      <head>
-        <meta charset="utf-8" />
-        <title>${title}</title>
-        <base href="${window.location.origin}/">
-        <style>
-          ${styles}
-          ${extraCss}
-        </style>
-      </head>
-      <body>
-        ${bodyHtml}
-        <script>
-          (async function () {
-            try {
-              if (document.fonts && document.fonts.ready) {
-                await document.fonts.ready;
-              }
-              await Promise.all(Array.from(document.images).map(function (img) {
-                if (img.complete) return Promise.resolve();
-                return new Promise(function (resolve) {
-                  img.onload = resolve;
-                  img.onerror = resolve;
-                });
-              }));
-              await new Promise(function (resolve) {
-                requestAnimationFrame(function () {
-                  requestAnimationFrame(resolve);
-                });
-              });
-              setTimeout(function () {
-                window.focus();
-                window.print();
-              }, 350);
-            } catch (error) {
-              setTimeout(function () {
-                window.focus();
-                window.print();
-              }, 500);
-            }
-          })();
-        </script>
-      </body>
-    </html>`;
-
-  const blob = new Blob([printableHtml], { type: "text/html;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const win = window.open(url, "_blank", "width=1100,height=800");
-
+async function openPrintable5SDocument({ title, reportElement }) {
+  const win = window.open("", "_blank", "width=1100,height=800");
   if (!win) {
-    URL.revokeObjectURL(url);
     alert("No se pudo abrir la ventana de impresión. Revisa si el navegador bloqueó ventanas emergentes.");
     return;
   }
 
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  win.document.write(`<!doctype html><html><head><title>${title}</title></head><body style="font-family:Arial,sans-serif;padding:24px;">Preparando PDF 5S...</body></html>`);
+  win.document.close();
+
+  const pages = Array.from(reportElement.querySelectorAll(".report-sheet"));
+  const captureTargets = pages.length ? pages : [reportElement];
+  const imagePages = [];
+
+  for (const page of captureTargets) {
+    const canvas = await html2canvas(page, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      windowWidth: page.scrollWidth,
+      windowHeight: page.scrollHeight,
+    });
+    imagePages.push(canvas.toDataURL("image/jpeg", 0.95));
+  }
+
+  const imagesHtml = imagePages
+    .map((src, index) => `<section class="pdf-page"><img src="${src}" alt="Página ${index + 1}" /></section>`)
+    .join("");
+
+  win.document.open();
+  win.document.write(`<!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>${title}</title>
+        <style>
+          @page { size: Letter; margin: 0; }
+          html, body {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .pdf-page {
+            width: 8.5in;
+            height: 11in;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            place-items: stretch;
+            overflow: hidden;
+            page-break-after: always;
+            break-after: page;
+            background: #fff;
+          }
+          .pdf-page:last-child {
+            page-break-after: auto;
+            break-after: auto;
+          }
+          .pdf-page img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+          }
+        </style>
+      </head>
+      <body>
+        ${imagesHtml}
+        <script>
+          Promise.all(Array.from(document.images).map(function (img) {
+            if (img.complete) return Promise.resolve();
+            return new Promise(function (resolve) {
+              img.onload = resolve;
+              img.onerror = resolve;
+            });
+          })).then(function () {
+            requestAnimationFrame(function () {
+              requestAnimationFrame(function () {
+                window.focus();
+                window.print();
+              });
+            });
+          });
+        </script>
+      </body>
+    </html>`);
+  win.document.close();
 }
 
 function useViewport() {
@@ -3588,69 +3621,9 @@ function InspeccionView({ canAdmin = false }) {
     const report = document.getElementById("informe5s-preview");
     if (!report) return;
 
-    const styles = Array.from(document.styleSheets)
-      .map((sheet) => {
-        try {
-          return Array.from(sheet.cssRules || []).map((rule) => rule.cssText).join("\n");
-        } catch {
-          return "";
-        }
-      })
-      .filter(Boolean)
-      .join("\n");
-
     openPrintable5SDocument({
       title: `Informe 5S - ${selectedBodega}`,
-      styles,
-      bodyHtml: report.outerHTML,
-      extraCss: `
-        @page { size: Letter; margin: 0; }
-        html, body {
-          width: 8.5in;
-          min-height: 11in;
-          margin: 0 !important;
-          background: #ffffff !important;
-          font-family: Inter, Arial, sans-serif;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-        body {
-          display: block !important;
-        }
-        .report-book {
-          width: 8.5in !important;
-          margin: 0 !important;
-          background: #ffffff !important;
-          transform: none !important;
-          transform-origin: top left !important;
-        }
-        .letter-report-page,
-        #informe5s-preview {
-          transform: none !important;
-          transform-origin: top left !important;
-          margin-bottom: 0 !important;
-        }
-        .report-sheet {
-          width: 8.5in !important;
-          height: 11in !important;
-          min-height: 11in !important;
-          margin: 0 !important;
-          border: 0 !important;
-          border-radius: 0 !important;
-          box-shadow: none !important;
-          page-break-after: always;
-          break-after: page;
-        }
-        .report-sheet:last-child {
-          page-break-after: auto;
-          break-after: auto;
-        }
-        .table-tools-bar,
-        .report-actions-screen {
-          display: none !important;
-        }
-        img { max-width: 100%; }
-      `,
+      reportElement: report,
     });
   }
 
@@ -3722,61 +3695,9 @@ function InspeccionView({ canAdmin = false }) {
     const report = document.getElementById("inspection-history-report");
     if (!report || !historyReport) return;
 
-    const styles = Array.from(document.styleSheets)
-      .map((sheet) => {
-        try {
-          return Array.from(sheet.cssRules || []).map((rule) => rule.cssText).join("\n");
-        } catch {
-          return "";
-        }
-      })
-      .filter(Boolean)
-      .join("\n");
-
     openPrintable5SDocument({
       title: `Informe 5S - ${historyReport.bodega}`,
-      styles,
-      bodyHtml: report.outerHTML,
-      extraCss: `
-        @page { size: Letter; margin: 0; }
-        html, body {
-          width: 8.5in;
-          min-height: 11in;
-          margin: 0 !important;
-          background: #ffffff !important;
-          font-family: Inter, Arial, sans-serif;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-        .report-book {
-          width: 8.5in !important;
-          margin: 0 !important;
-          background: #ffffff !important;
-          transform: none !important;
-          transform-origin: top left !important;
-        }
-        .report-sheet,
-        .dashboard-print-report {
-          width: 8.5in !important;
-          height: 11in !important;
-          min-height: 11in !important;
-          margin: 0 !important;
-          border: 0 !important;
-          border-radius: 0 !important;
-          box-shadow: none !important;
-          page-break-after: always;
-          break-after: page;
-        }
-        .report-sheet:last-child {
-          page-break-after: auto;
-          break-after: auto;
-        }
-        img { max-width: 100%; }
-        .table-tools-bar,
-        .report-actions-screen {
-          display: none !important;
-        }
-      `,
+      reportElement: report,
     });
   }
 
@@ -4962,41 +4883,9 @@ function DashboardView() {
     const report = document.getElementById("dashboard-inspection-report");
     if (!report || !selectedInspection) return;
 
-    const styles = Array.from(document.styleSheets)
-      .map((sheet) => {
-        try {
-          return Array.from(sheet.cssRules || []).map((rule) => rule.cssText).join("\n");
-        } catch {
-          return "";
-        }
-      })
-      .filter(Boolean)
-      .join("\n");
-
     openPrintable5SDocument({
       title: `Informe 5S - ${selectedInspection.bodega}`,
-      styles,
-      bodyHtml: report.outerHTML,
-      extraCss: `
-        @page { size: Letter; margin: 0; }
-        html, body {
-          width: 8.5in;
-          min-height: 11in;
-          margin: 0 !important;
-          background: #ffffff !important;
-          font-family: Inter, Arial, sans-serif;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-        .dashboard-print-report {
-          width: 8.5in !important;
-          min-height: 11in !important;
-          margin: 0 !important;
-          border: 0 !important;
-          border-radius: 0 !important;
-          box-shadow: none !important;
-        }
-      `,
+      reportElement: report,
     });
   }
 
