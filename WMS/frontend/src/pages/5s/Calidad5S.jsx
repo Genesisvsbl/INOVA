@@ -132,6 +132,66 @@ function preloadImages(sources) {
   );
 }
 
+function openPrintable5SDocument({ title, styles, bodyHtml, extraCss = "" }) {
+  const printableHtml = `<!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>${title}</title>
+        <base href="${window.location.origin}/">
+        <style>
+          ${styles}
+          ${extraCss}
+        </style>
+      </head>
+      <body>
+        ${bodyHtml}
+        <script>
+          (async function () {
+            try {
+              if (document.fonts && document.fonts.ready) {
+                await document.fonts.ready;
+              }
+              await Promise.all(Array.from(document.images).map(function (img) {
+                if (img.complete) return Promise.resolve();
+                return new Promise(function (resolve) {
+                  img.onload = resolve;
+                  img.onerror = resolve;
+                });
+              }));
+              await new Promise(function (resolve) {
+                requestAnimationFrame(function () {
+                  requestAnimationFrame(resolve);
+                });
+              });
+              setTimeout(function () {
+                window.focus();
+                window.print();
+              }, 350);
+            } catch (error) {
+              setTimeout(function () {
+                window.focus();
+                window.print();
+              }, 500);
+            }
+          })();
+        </script>
+      </body>
+    </html>`;
+
+  const blob = new Blob([printableHtml], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, "_blank", "width=1100,height=800");
+
+  if (!win) {
+    URL.revokeObjectURL(url);
+    alert("No se pudo abrir la ventana de impresión. Revisa si el navegador bloqueó ventanas emergentes.");
+    return;
+  }
+
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 function useViewport() {
   const [width, setWidth] = useState(() =>
     typeof window === "undefined" ? 1440 : window.innerWidth
@@ -3539,83 +3599,59 @@ function InspeccionView({ canAdmin = false }) {
       .filter(Boolean)
       .join("\n");
 
-    const win = window.open("", "_blank", "width=1100,height=800");
-    win.document.write(`
-      <html>
-        <head>
-          <title>Informe 5S - ${selectedBodega}</title>
-          <base href="${window.location.origin}/">
-          <style>
-            ${styles}
-            @page { size: Letter; margin: 0; }
-            html, body {
-              width: 8.5in;
-              min-height: 11in;
-              margin: 0 !important;
-              background: #ffffff !important;
-              font-family: Inter, Arial, sans-serif;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            body {
-              display: block !important;
-            }
-            .report-book {
-              width: 8.5in !important;
-              margin: 0 !important;
-              background: #ffffff !important;
-              transform: none !important;
-              transform-origin: top left !important;
-            }
-            .letter-report-page,
-            #informe5s-preview {
-              transform: none !important;
-              transform-origin: top left !important;
-              margin-bottom: 0 !important;
-            }
-            .report-sheet {
-              width: 8.5in !important;
-              height: 11in !important;
-              min-height: 11in !important;
-              margin: 0 !important;
-              border: 0 !important;
-              border-radius: 0 !important;
-              box-shadow: none !important;
-              page-break-after: always;
-              break-after: page;
-            }
-            .report-sheet:last-child {
-              page-break-after: auto;
-              break-after: auto;
-            }
-            .table-tools-bar,
-            .report-actions-screen {
-              display: none !important;
-            }
-            img { max-width: 100%; }
-          </style>
-        </head>
-        <body>${report.outerHTML}</body>
-      </html>
-    `);
-    win.document.close();
-
-    const waitForImages = Array.from(win.document.images).map((img) => {
-      if (img.complete) return Promise.resolve();
-      return new Promise((resolve) => {
-        img.onload = resolve;
-        img.onerror = resolve;
-      });
+    openPrintable5SDocument({
+      title: `Informe 5S - ${selectedBodega}`,
+      styles,
+      bodyHtml: report.outerHTML,
+      extraCss: `
+        @page { size: Letter; margin: 0; }
+        html, body {
+          width: 8.5in;
+          min-height: 11in;
+          margin: 0 !important;
+          background: #ffffff !important;
+          font-family: Inter, Arial, sans-serif;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        body {
+          display: block !important;
+        }
+        .report-book {
+          width: 8.5in !important;
+          margin: 0 !important;
+          background: #ffffff !important;
+          transform: none !important;
+          transform-origin: top left !important;
+        }
+        .letter-report-page,
+        #informe5s-preview {
+          transform: none !important;
+          transform-origin: top left !important;
+          margin-bottom: 0 !important;
+        }
+        .report-sheet {
+          width: 8.5in !important;
+          height: 11in !important;
+          min-height: 11in !important;
+          margin: 0 !important;
+          border: 0 !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          page-break-after: always;
+          break-after: page;
+        }
+        .report-sheet:last-child {
+          page-break-after: auto;
+          break-after: auto;
+        }
+        .table-tools-bar,
+        .report-actions-screen {
+          display: none !important;
+        }
+        img { max-width: 100%; }
+      `,
     });
-
-    await Promise.all([
-      win.document.fonts?.ready || Promise.resolve(),
-      ...waitForImages,
-      new Promise((resolve) => setTimeout(resolve, 350)),
-    ]);
-
-    win.focus();
-    win.print();
   }
 
   function updateHistoryPeriod(periodo) {
@@ -3697,71 +3733,51 @@ function InspeccionView({ canAdmin = false }) {
       .filter(Boolean)
       .join("\n");
 
-    const win = window.open("", "_blank", "width=1100,height=800");
-    win.document.write(`
-      <html>
-        <head>
-          <title>Informe 5S - ${historyReport.bodega}</title>
-          <base href="${window.location.origin}/">
-          <style>
-            ${styles}
-            @page { size: Letter; margin: 0; }
-            html, body {
-              width: 8.5in;
-              min-height: 11in;
-              margin: 0 !important;
-              background: #ffffff !important;
-              font-family: Inter, Arial, sans-serif;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            .report-book {
-              width: 8.5in !important;
-              margin: 0 !important;
-              background: #ffffff !important;
-              transform: none !important;
-              transform-origin: top left !important;
-            }
-            .report-sheet,
-            .dashboard-print-report {
-              width: 8.5in !important;
-              height: 11in !important;
-              min-height: 11in !important;
-              margin: 0 !important;
-              border: 0 !important;
-              border-radius: 0 !important;
-              box-shadow: none !important;
-              page-break-after: always;
-              break-after: page;
-            }
-            .report-sheet:last-child {
-              page-break-after: auto;
-              break-after: auto;
-            }
-            img { max-width: 100%; }
-            .table-tools-bar,
-            .report-actions-screen {
-              display: none !important;
-            }
-          </style>
-        </head>
-        <body>${report.outerHTML}</body>
-      </html>
-    `);
-    win.document.close();
-    await Promise.all([
-      win.document.fonts?.ready || Promise.resolve(),
-      ...Array.from(win.document.images).map((img) => {
-        if (img.complete) return Promise.resolve();
-        return new Promise((resolve) => {
-          img.onload = resolve;
-          img.onerror = resolve;
-        });
-      }),
-      new Promise((resolve) => setTimeout(resolve, 300)),
-    ]);
-    win.focus();
-    win.print();
+    openPrintable5SDocument({
+      title: `Informe 5S - ${historyReport.bodega}`,
+      styles,
+      bodyHtml: report.outerHTML,
+      extraCss: `
+        @page { size: Letter; margin: 0; }
+        html, body {
+          width: 8.5in;
+          min-height: 11in;
+          margin: 0 !important;
+          background: #ffffff !important;
+          font-family: Inter, Arial, sans-serif;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        .report-book {
+          width: 8.5in !important;
+          margin: 0 !important;
+          background: #ffffff !important;
+          transform: none !important;
+          transform-origin: top left !important;
+        }
+        .report-sheet,
+        .dashboard-print-report {
+          width: 8.5in !important;
+          height: 11in !important;
+          min-height: 11in !important;
+          margin: 0 !important;
+          border: 0 !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          page-break-after: always;
+          break-after: page;
+        }
+        .report-sheet:last-child {
+          page-break-after: auto;
+          break-after: auto;
+        }
+        img { max-width: 100%; }
+        .table-tools-bar,
+        .report-actions-screen {
+          display: none !important;
+        }
+      `,
+    });
   }
 
   useEffect(() => {
@@ -4957,44 +4973,31 @@ function DashboardView() {
       .filter(Boolean)
       .join("\n");
 
-    const win = window.open("", "_blank", "width=1100,height=800");
-    win.document.write(`
-      <html>
-        <head>
-          <title>Informe 5S - ${selectedInspection.bodega}</title>
-          <base href="${window.location.origin}/">
-          <style>
-            ${styles}
-            @page { size: Letter; margin: 0; }
-            html, body {
-              width: 8.5in;
-              min-height: 11in;
-              margin: 0 !important;
-              background: #ffffff !important;
-              font-family: Inter, Arial, sans-serif;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            .dashboard-print-report {
-              width: 8.5in !important;
-              min-height: 11in !important;
-              margin: 0 !important;
-              border: 0 !important;
-              border-radius: 0 !important;
-              box-shadow: none !important;
-            }
-          </style>
-        </head>
-        <body>${report.outerHTML}</body>
-      </html>
-    `);
-    win.document.close();
-    await Promise.all([
-      win.document.fonts?.ready || Promise.resolve(),
-      new Promise((resolve) => setTimeout(resolve, 300)),
-    ]);
-    win.focus();
-    win.print();
+    openPrintable5SDocument({
+      title: `Informe 5S - ${selectedInspection.bodega}`,
+      styles,
+      bodyHtml: report.outerHTML,
+      extraCss: `
+        @page { size: Letter; margin: 0; }
+        html, body {
+          width: 8.5in;
+          min-height: 11in;
+          margin: 0 !important;
+          background: #ffffff !important;
+          font-family: Inter, Arial, sans-serif;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        .dashboard-print-report {
+          width: 8.5in !important;
+          min-height: 11in !important;
+          margin: 0 !important;
+          border: 0 !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+        }
+      `,
+    });
   }
 
   const inspecciones = dashboard?.inspecciones || [];
