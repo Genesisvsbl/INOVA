@@ -620,6 +620,16 @@ export async function getDashboard5S() {
     getConfig5S(),
     getPlanesAccion5S().catch(() => []),
   ]);
+  const checklistItems = await getChecklist5S({ activeOnly: true }).catch(() => []);
+  const inspectionIds = inspecciones.map((item) => item.id).filter(Boolean);
+  const inspectionItems = inspectionIds.length
+    ? await selectRows("5s", "inspeccion_items_5s", {
+      empresa_id: `eq.${empresaId}`,
+      inspeccion_id: `in.(${inspectionIds.join(",")})`,
+      select: "*",
+      order: "id.asc",
+    }).catch(() => [])
+    : [];
 
   const metaGeneral = Number(config?.meta_general || 90);
   const metaBodega = Number(config?.meta_bodega || 90);
@@ -674,6 +684,8 @@ export async function getDashboard5S() {
     por_bodega: porBodega,
     por_responsable: porResponsable,
     inspecciones,
+    inspeccion_items: inspectionItems,
+    checklist_items: checklistItems,
     planes_accion: planes,
   };
 }

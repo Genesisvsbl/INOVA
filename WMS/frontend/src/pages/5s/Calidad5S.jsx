@@ -19,6 +19,7 @@ import {
   ArrowRight,
   BarChart3,
   Bell,
+  Boxes,
   Trash2,
   Save,
   Printer,
@@ -31,6 +32,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Circle,
+  ClipboardList,
   ClipboardCheck,
   Clock3,
   Database,
@@ -38,6 +40,7 @@ import {
   Filter,
   Home,
   LayoutDashboard,
+  Layers3,
   LogOut,
   MapPin,
   Menu,
@@ -48,10 +51,12 @@ import {
   RefreshCw,
   Settings,
   ShieldCheck,
+  Sparkles,
   Target,
   UserRound,
   Users,
   Warehouse,
+  Wrench,
   X,
 } from "lucide-react";
 import {
@@ -114,6 +119,81 @@ function reportStatus(score) {
   if (score >= 90) return "status-ok";
   if (score >= 80) return "status-warning";
   return "status-critical";
+}
+
+const SUPPLY_RULES_5S = [
+  {
+    keywords: ["limpieza", "sucio", "polvo", "residuo", "basura", "derrame"],
+    insumo: "Kit de limpieza",
+    actividad: "Seiso / limpieza profunda",
+  },
+  {
+    keywords: ["demarc", "señal", "senal", "rotulo", "rótulo", "identific"],
+    insumo: "Cinta, rótulos y señalización",
+    actividad: "Seiton / estándar visual",
+  },
+  {
+    keywords: ["herramienta", "equipo", "utensilio", "organizador", "estante"],
+    insumo: "Organizadores y soportes",
+    actividad: "Seiton / ubicación fija",
+  },
+  {
+    keywords: ["epp", "seguridad", "guante", "casco", "proteccion", "protección"],
+    insumo: "EPP y elementos de control",
+    actividad: "Seguridad operacional",
+  },
+  {
+    keywords: ["documento", "registro", "formato", "procedimiento", "instructivo"],
+    insumo: "Formato o estándar documental",
+    actividad: "Seiketsu / estandarización",
+  },
+];
+
+function clampScore(value) {
+  return Math.max(0, Math.min(100, Math.round(Number(value || 0))));
+}
+
+function normalizeKey(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function maturityLabel5S(score, openPlans, overduePlans) {
+  if (score >= 92 && openPlans === 0) return "Clase mundial";
+  if (score >= 88 && overduePlans === 0) return "Controlado";
+  if (score >= 80) return "En estabilización";
+  if (score > 0) return "Reactivo";
+  return "Sin línea base";
+}
+
+function inferSupplyNeeds5S(planes = []) {
+  const map = new Map();
+  planes.forEach((plan) => {
+    const text = normalizeKey(`${plan.punto || ""} ${plan.hallazgo || ""} ${plan.accion || ""}`);
+    const rule = SUPPLY_RULES_5S.find((item) => item.keywords.some((word) => text.includes(normalizeKey(word)))) || {
+      insumo: "Recurso de mejora 5S",
+      actividad: "Acción correctiva",
+    };
+    const key = rule.insumo;
+    if (!map.has(key)) map.set(key, { ...rule, cantidad: 0, bodegas: new Set(), criticidad: 0 });
+    const current = map.get(key);
+    current.cantidad += 1;
+    if (plan.bodega) current.bodegas.add(plan.bodega);
+    if (/alta|crit/i.test(String(plan.severidad || ""))) current.criticidad += 1;
+  });
+
+  return [...map.values()]
+    .map((item) => ({
+      ...item,
+      bodegas: [...item.bodegas],
+      prioridad: item.criticidad > 0 || item.cantidad > 2 ? "Alta" : "Media",
+    }))
+    .sort((a, b) => b.cantidad - a.cantidad)
+    .slice(0, 6);
 }
 
 function preloadImages(sources) {
@@ -3155,6 +3235,7 @@ function InspeccionView({ canAdmin = false }) {
   const [area, setArea] = useState("");
   const [editingChecklist, setEditingChecklist] = useState(false);
   const [newQuestion, setNewQuestion] = useState("");
+  const [checklistRefreshKey, setChecklistRefreshKey] = useState(0);
 
   const checklist = checklistItems.map((item) => item.pregunta);
   const severidades = config5S?.severidades || [];
@@ -3163,6 +3244,32 @@ function InspeccionView({ canAdmin = false }) {
   const defaultPilar = pilares[0] || "";
 
   const [answers, setAnswers] = useState([]);
+
+  function buildAnswersFromChecklist(nextItems, currentAnswers = []) {
+    const currentById = new Map(currentAnswers.map((item) => [String(item.id), item]));
+    return nextItems.map((item, index) => {
+      const current = currentById.get(String(item.id));
+      return {
+        id: item.id,
+        checklist_item_id: item.id,
+        orden: item.orden || index + 1,
+        pilar: item.pilar || defaultPilar,
+        pregunta: item.pregunta,
+        peso: item.peso || 1,
+        requiere_evidencia: item.requiere_evidencia,
+        estado: current?.estado || "na",
+        severidad: current?.severidad || defaultSeveridad,
+        observacion: current?.observacion || "",
+        evidencias: current?.evidencias || [],
+      };
+    });
+  }
+
+  function notifyChecklistUpdated() {
+    setChecklistRefreshKey((value) => value + 1);
+    window.dispatchEvent(new Event("calidad5s:checklist-updated"));
+    window.dispatchEvent(new Event("calidad5s:refresh-alerts"));
+  }
 
   useEffect(() => {
     let active = true;
@@ -3319,18 +3426,7 @@ function InspeccionView({ canAdmin = false }) {
         if (!active) return;
         const nextItems = (rows || []).map(normalizeChecklistItem5S);
         setChecklistItems(nextItems);
-        setAnswers(nextItems.map((item, index) => ({
-          id: item.id,
-          orden: item.orden || index + 1,
-          pilar: item.pilar || defaultPilar,
-          pregunta: item.pregunta,
-          peso: item.peso || 1,
-          requiere_evidencia: item.requiere_evidencia,
-          estado: "na",
-          severidad: defaultSeveridad,
-          observacion: "",
-          evidencias: [],
-        })));
+        setAnswers((prev) => buildAnswersFromChecklist(nextItems, prev));
       })
       .catch((error) => {
         console.error("No se pudo cargar el checklist 5S:", error);
@@ -3347,7 +3443,7 @@ function InspeccionView({ canAdmin = false }) {
     return () => {
       active = false;
     };
-  }, [selectedBodega, defaultSeveridad, defaultPilar]);
+  }, [selectedBodega, defaultSeveridad, defaultPilar, checklistRefreshKey]);
 
   const total = answers.length;
   const conformes = answers.filter((item) => item.estado === "cumple").length;
@@ -3453,6 +3549,7 @@ function InspeccionView({ canAdmin = false }) {
           current.id === item.id ? { ...current, ...normalizeChecklistItem5S(updated) } : current
         )
       );
+      notifyChecklistUpdated();
     } catch (error) {
       console.error("No se pudo actualizar el punto 5S:", error);
       setBodegaError(error.message || "No se pudo actualizar el checklist en la base de datos.");
@@ -3500,6 +3597,7 @@ function InspeccionView({ canAdmin = false }) {
         },
       ]);
       setNewQuestion("");
+      notifyChecklistUpdated();
     } catch (error) {
       console.error("No se pudo crear el punto 5S:", error);
       setBodegaError(error.message || "No se pudo guardar el checklist en la base de datos.");
@@ -3516,6 +3614,7 @@ function InspeccionView({ canAdmin = false }) {
       await eliminarChecklistItem5S(item.id);
       setChecklistItems((prev) => prev.filter((_, idx) => idx !== index));
       setAnswers((prev) => prev.filter((_, idx) => idx !== index));
+      notifyChecklistUpdated();
     } catch (error) {
       console.error("No se pudo eliminar el punto 5S:", error);
       setBodegaError(error.message || "No se pudo eliminar el checklist en la base de datos.");
@@ -3545,6 +3644,8 @@ function InspeccionView({ canAdmin = false }) {
       cumplimiento,
       meta_bodega: 90,
       items: evaluados.map((item) => ({
+        id: item.checklist_item_id || item.id,
+        checklist_item_id: item.checklist_item_id || item.id,
         punto: item.pregunta,
         pilar: item.pilar || null,
         peso: Number(item.peso || 1),
@@ -3944,8 +4045,9 @@ function InspeccionView({ canAdmin = false }) {
             <div>
               <span className="portal-panel-kicker">CHECKLIST EDITABLE</span>
               <h3>Preguntas asociadas a {selectedBodega}</h3>
-              <p>Edita, agrega o elimina puntos de control para esta bodega.</p>
+              <p>Matriz viva: los cambios aplican a nuevas inspecciones y el histórico conserva la matriz evaluada.</p>
             </div>
+            <span className="portal-status-pill status-ok">{checklistItems.length} puntos activos</span>
           </div>
 
           <div className="checklist-edit-list">
@@ -4848,6 +4950,15 @@ function DashboardView() {
   }, []);
 
   useEffect(() => {
+    window.addEventListener("calidad5s:checklist-updated", loadDashboard);
+    window.addEventListener("calidad5s:refresh-alerts", loadDashboard);
+    return () => {
+      window.removeEventListener("calidad5s:checklist-updated", loadDashboard);
+      window.removeEventListener("calidad5s:refresh-alerts", loadDashboard);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!selectedInspection) return undefined;
 
     const previousOverflow = document.body.style.overflow;
@@ -4891,6 +5002,8 @@ function DashboardView() {
 
   const inspecciones = dashboard?.inspecciones || [];
   const planesAccion = dashboard?.planes_accion || [];
+  const inspectionItemDetails = dashboard?.inspeccion_items || [];
+  const checklistMasterItems = dashboard?.checklist_items || [];
   const bodegasFiltro = useMemo(
     () => ["Todas", ...new Set(inspecciones.map((item) => item.bodega).filter(Boolean))],
     [inspecciones]
@@ -4931,6 +5044,86 @@ function DashboardView() {
   const mejores = [...filteredInspections].sort((a, b) => Number(b.cumplimiento || 0) - Number(a.cumplimiento || 0)).slice(0, 3);
   const planesAbiertos = filteredPlanes.filter((item) => !["Cerrado", "Cerrada", "Finalizado", "Finalizada"].includes(String(item.estado || ""))).length;
   const planesVencidos = filteredPlanes.filter((item) => item.fecha_compromiso && item.fecha_compromiso < todayISO() && !["Cerrado", "Cerrada", "Finalizado", "Finalizada"].includes(String(item.estado || ""))).length;
+  const planesCerrados = filteredPlanes.length - planesAbiertos;
+  const cierreScore = filteredPlanes.length ? Math.round((planesCerrados / filteredPlanes.length) * 100) : 100;
+  const filteredInspectionIds = useMemo(
+    () => new Set(filteredInspections.map((item) => String(item.id))),
+    [filteredInspections]
+  );
+  const filteredMatrixItems = useMemo(
+    () => inspectionItemDetails.filter((item) => filteredInspectionIds.has(String(item.inspeccion_id))),
+    [inspectionItemDetails, filteredInspectionIds]
+  );
+  const matrizPorPilar = useMemo(() => {
+    const map = new Map();
+    filteredMatrixItems.forEach((item) => {
+      const key = item.pilar || "Sin pilar";
+      if (!map.has(key)) map.set(key, { pilar: key, total: 0, conformes: 0, hallazgos: 0, peso: 0, pesoConforme: 0 });
+      const current = map.get(key);
+      const peso = Number(item.peso || 1);
+      current.total += 1;
+      current.peso += peso;
+      if (item.cumple) {
+        current.conformes += 1;
+        current.pesoConforme += peso;
+      } else {
+        current.hallazgos += 1;
+      }
+    });
+    return [...map.values()].map((item) => ({
+      ...item,
+      cumplimiento: item.peso ? Math.round((item.pesoConforme / item.peso) * 1000) / 10 : 0,
+    })).sort((a, b) => a.cumplimiento - b.cumplimiento);
+  }, [filteredMatrixItems]);
+  const matrizMaestra = useMemo(() => {
+    const map = new Map();
+    checklistMasterItems.forEach((item) => {
+      const key = item.pilar || "Sin pilar";
+      if (!map.has(key)) map.set(key, { pilar: key, preguntas: 0, peso: 0, evidencia: 0, bodegas: new Set() });
+      const current = map.get(key);
+      current.preguntas += 1;
+      current.peso += Number(item.peso || 1);
+      if (item.requiere_evidencia) current.evidencia += 1;
+      if (item.bodega) current.bodegas.add(item.bodega);
+    });
+    return [...map.values()].map((item) => ({
+      ...item,
+      bodegas: [...item.bodegas],
+    })).sort((a, b) => b.preguntas - a.preguntas);
+  }, [checklistMasterItems]);
+  const hallazgosRecurrentes = useMemo(() => {
+    const map = new Map();
+    filteredPlanes.forEach((plan) => {
+      const key = normalizeKey(plan.punto || plan.hallazgo || "Hallazgo 5S");
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          punto: plan.punto || plan.hallazgo || "Hallazgo 5S",
+          cantidad: 0,
+          bodegas: new Set(),
+          responsables: new Set(),
+          severidad: plan.severidad || "Media",
+        });
+      }
+      const current = map.get(key);
+      current.cantidad += 1;
+      if (plan.bodega) current.bodegas.add(plan.bodega);
+      if (plan.responsable) current.responsables.add(plan.responsable);
+      if (/alta|crit/i.test(String(plan.severidad || ""))) current.severidad = plan.severidad;
+    });
+    return [...map.values()]
+      .map((item) => ({ ...item, bodegas: [...item.bodegas], responsables: [...item.responsables] }))
+      .sort((a, b) => b.cantidad - a.cantidad)
+      .slice(0, 5);
+  }, [filteredPlanes]);
+  const insumosSugeridos = useMemo(() => inferSupplyNeeds5S(filteredPlanes), [filteredPlanes]);
+  const riesgoOperativo = clampScore((100 - promedio) * 0.45 + criticas * 14 + planesVencidos * 18 + planesAbiertos * 4);
+  const madurez5S = maturityLabel5S(promedio, planesAbiertos, planesVencidos);
+  const readinessScore = clampScore(promedio * 0.55 + cierreScore * 0.25 + Math.max(0, 100 - riesgoOperativo) * 0.2);
+  const pilarCritico = matrizPorPilar[0]?.pilar || "Sin datos";
+  const matrizCobertura = checklistMasterItems.length
+    ? Math.round((new Set(checklistMasterItems.map((item) => item.bodega).filter(Boolean)).size || 1) * 10) / 10
+    : 0;
 
   const porBodega = useMemo(() => {
     const map = new Map();
@@ -5183,6 +5376,112 @@ function DashboardView() {
           <strong>{planesAbiertos}</strong>
           <small>{planesVencidos} vencidos por cerrar</small>
         </article>
+      </section>
+
+      <section className="portal-panel control-tower-5s">
+        <div className="portal-panel-head">
+          <div>
+            <span className="portal-panel-kicker">CENTRO DE CONTROL 5S</span>
+            <h3>Auditoría, matriz, insumos y riesgo operativo</h3>
+            <p>Lectura ejecutiva construida con inspecciones, matriz/checklist, planes de acción e histórico actual.</p>
+          </div>
+          <span className={`portal-status-pill ${reportStatus(readinessScore)}`}>Preparación {readinessScore}%</span>
+        </div>
+
+        <div className="control-tower-grid">
+          <article className="control-tower-card primary">
+            <div className="control-tower-icon"><Sparkles size={20} /></div>
+            <span>Madurez 5S</span>
+            <strong>{madurez5S}</strong>
+            <p>{promedio}% de cumplimiento, {cierreScore}% de cierre y {planesVencidos} vencidos.</p>
+          </article>
+
+          <article className="control-tower-card">
+            <div className="control-tower-icon"><ShieldCheck size={20} /></div>
+            <span>Riesgo operativo</span>
+            <strong>{riesgoOperativo}%</strong>
+            <p>{criticas} críticas, {planesAbiertos} planes abiertos y {bajoMeta} bajo meta.</p>
+          </article>
+
+          <article className="control-tower-card">
+            <div className="control-tower-icon"><Layers3 size={20} /></div>
+            <span>Matriz viva</span>
+            <strong>{checklistMasterItems.length}</strong>
+            <p>{matrizMaestra.length} pilares activos en {matrizCobertura} alcance(s).</p>
+          </article>
+
+          <article className="control-tower-card">
+            <div className="control-tower-icon"><Target size={20} /></div>
+            <span>Pilar crítico</span>
+            <strong>{pilarCritico}</strong>
+            <p>{matrizPorPilar[0] ? `${matrizPorPilar[0].cumplimiento}% de cumplimiento ponderado.` : "Aún sin matriz evaluada."}</p>
+          </article>
+        </div>
+
+        <div className="control-tower-detail-grid">
+          <article className="control-detail-panel">
+            <div className="control-detail-head">
+              <ClipboardList size={18} />
+              <div>
+                <strong>Matriz por pilar</strong>
+                <span>Detecta dónde se rompe el estándar.</span>
+              </div>
+            </div>
+            <div className="matrix-health-list">
+              {matrizPorPilar.slice(0, 6).map((item) => (
+                <div key={item.pilar} className="matrix-health-row">
+                  <div>
+                    <b>{item.pilar}</b>
+                    <small>{item.total} puntos evaluados · {item.hallazgos} hallazgos</small>
+                  </div>
+                  <span className={`portal-status-pill ${reportStatus(item.cumplimiento)}`}>{item.cumplimiento}%</span>
+                </div>
+              ))}
+              {!matrizPorPilar.length && <div className="dashboard-empty compact">Las próximas inspecciones alimentarán esta matriz.</div>}
+            </div>
+          </article>
+
+          <article className="control-detail-panel">
+            <div className="control-detail-head">
+              <Boxes size={18} />
+              <div>
+                <strong>Insumos sugeridos</strong>
+                <span>Necesidades inferidas por hallazgos, sin mover inventario.</span>
+              </div>
+            </div>
+            <div className="supply-list-5s">
+              {insumosSugeridos.map((item) => (
+                <div key={item.insumo} className="supply-row-5s">
+                  <div>
+                    <b>{item.insumo}</b>
+                    <small>{item.actividad} · {item.bodegas.length || 1} zona(s)</small>
+                  </div>
+                  <span className={`portal-status-pill ${item.prioridad === "Alta" ? "status-critical" : "status-warning"}`}>{item.cantidad}</span>
+                </div>
+              ))}
+              {!insumosSugeridos.length && <div className="dashboard-empty compact">Sin faltantes inferidos en el filtro actual.</div>}
+            </div>
+          </article>
+
+          <article className="control-detail-panel">
+            <div className="control-detail-head">
+              <Wrench size={18} />
+              <div>
+                <strong>Hallazgos recurrentes</strong>
+                <span>Patrones que deben convertirse en acciones de auditoría.</span>
+              </div>
+            </div>
+            <div className="recurrence-list-5s">
+              {hallazgosRecurrentes.map((item) => (
+                <div key={item.key} className="recurrence-row-5s">
+                  <b>{item.punto}</b>
+                  <small>{item.cantidad} vez/veces · {item.bodegas.join(", ") || "Sin bodega"}</small>
+                </div>
+              ))}
+              {!hallazgosRecurrentes.length && <div className="dashboard-empty compact">No hay reincidencias dentro del filtro.</div>}
+            </div>
+          </article>
+        </div>
       </section>
 
       <section className="dashboard-chart-grid">
