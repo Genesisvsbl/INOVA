@@ -547,6 +547,8 @@ function normalizeCronograma5S(item) {
     prioridad: item.prioridad || "",
     meta_bodega: Number(item.meta_bodega || 0),
     observacion: item.observacion || "",
+    inspeccion_id: item.inspeccion_id || item.inspeccionId || null,
+    fecha_ejecucion: item.fecha_ejecucion || item.fechaEjecucion || "",
   };
 }
 
@@ -4916,8 +4918,9 @@ function InspeccionView({ canAdmin = false }) {
   );
 }
 
-function AuditoriasView() {
+function AuditoriasView({ setTab }) {
   const [dashboard, setDashboard] = useState(null);
+  const [cronograma, setCronograma] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filters, setFilters] = useState({
@@ -4930,8 +4933,14 @@ function AuditoriasView() {
   function loadAuditorias() {
     setLoading(true);
     setError("");
-    getDashboard5S()
-      .then((data) => setDashboard(data))
+    Promise.all([
+      getDashboard5S(),
+      getCronograma5S(),
+    ])
+      .then(([data, cronogramaRows]) => {
+        setDashboard(data);
+        setCronograma((cronogramaRows || []).map(normalizeCronograma5S));
+      })
       .catch((loadError) => {
         console.error("No se pudieron cargar las auditorías 5S:", loadError);
         setError(loadError.message || "No se pudieron cargar las auditorías desde base de datos.");
@@ -4954,8 +4963,8 @@ function AuditoriasView() {
   const matrixItems = dashboard?.inspeccion_items || [];
   const checklistItems = dashboard?.checklist_items || [];
   const bodegasFiltro = useMemo(
-    () => ["Todas", ...new Set(inspecciones.map((item) => item.bodega).filter(Boolean))],
-    [inspecciones]
+    () => ["Todas", ...new Set([...inspecciones, ...cronograma].map((item) => item.bodega).filter(Boolean))],
+    [inspecciones, cronograma]
   );
 
   const filteredInspections = useMemo(() => {
@@ -4967,9 +4976,62 @@ function AuditoriasView() {
     });
   }, [inspecciones, filters]);
 
+  const filteredCronograma = useMemo(() => {
+    return cronograma.filter((item) => {
+      const okFecha = item.fechaInicio && item.fechaInicio <= filters.hasta && item.fechaFin >= filters.desde;
+      const okBodega = filters.bodega === "Todas" || item.bodega === filters.bodega;
+      return okFecha && okBodega;
+    });
+  }, [cronograma, filters]);
+
+  function findInspectionForProgram(programacion, inspectionRows = filteredInspections) {
+    if (programacion.inspeccion_id) {
+      const direct = inspectionRows.find((item) => String(item.id) === String(programacion.inspeccion_id));
+      if (direct) return direct;
+    }
+
+    return inspectionRows.find((item) => {
+      const fecha = item.fecha || item.created_at?.slice(0, 10) || "";
+      const sameBodega = normalizeText(item.bodega) === normalizeText(programacion.bodega);
+      const sameResponsable = !programacion.responsable || normalizeText(item.responsable) === normalizeText(programacion.responsable);
+      return sameBodega && sameResponsable && fecha >= programacion.fechaInicio && fecha <= programacion.fechaFin;
+    });
+  }
+
+  function startInspectionFromAudit(programacion) {
+    sessionStorage.setItem("calidad5s:selected-program-id", String(programacion.id));
+    window.dispatchEvent(new Event("calidad5s:select-program"));
+    setTab("inspeccion");
+  }
+
   const auditCycles = useMemo(() => {
     const map = new Map();
+
+    filteredCronograma.forEach((programacion) => {
+      const semana = weekLabel(programacion.fechaInicio || todayISO());
+      const key = `programa-${programacion.id}`;
+      const inspection = findInspectionForProgram(programacion);
+      map.set(key, {
+        key,
+        codigo: `AUD-5S-${semana}-${normalizeKey(programacion.bodega || "general").replace(/\s+/g, "-").toUpperCase()}`,
+        semana,
+        bodega: programacion.bodega || "Sin bodega",
+        responsable: programacion.responsable || "Sin responsable",
+        actividad: programacion.actividad || "Auditoría 5S",
+        fechaInicio: programacion.fechaInicio,
+        fechaFin: programacion.fechaFin,
+        programacion,
+        inspecciones: inspection ? [inspection] : [],
+        cumplimiento: 0,
+        soporte: 0,
+        planesAbiertos: 0,
+        estado: "Programada",
+      });
+    });
+
     filteredInspections.forEach((item) => {
+      const linked = [...map.values()].some((audit) => audit.inspecciones.some((row) => String(row.id) === String(item.id)));
+      if (linked) return;
       const semana = item.semana || weekLabel(item.fecha || item.created_at?.slice(0, 10) || todayISO());
       const key = `${semana}__${item.bodega || "Sin bodega"}`;
       if (!map.has(key)) {
@@ -4979,6 +5041,10 @@ function AuditoriasView() {
           semana,
           bodega: item.bodega || "Sin bodega",
           responsable: item.responsable || "Sin responsable",
+          actividad: "Auditoría derivada",
+          fechaInicio: item.fecha || item.created_at?.slice(0, 10) || "",
+          fechaFin: item.fecha || item.created_at?.slice(0, 10) || "",
+          programacion: null,
           inspecciones: [],
           cumplimiento: 0,
           soporte: 0,
@@ -4999,15 +5065,18 @@ function AuditoriasView() {
         const cerrado = ["Cerrado", "Cerrada", "Finalizado", "Finalizada"].includes(String(plan.estado || ""));
         return !cerrado && (!plan.bodega || plan.bodega === audit.bodega);
       }).length;
+      const programada = Boolean(audit.programacion);
+      const ejecutada = Boolean(audit.inspecciones.length);
       return {
         ...audit,
         cumplimiento,
         soporte,
         planesAbiertos,
-        estado: planesAbiertos ? "Con hallazgos" : scoreLevel(cumplimiento),
+        estado: !ejecutada ? "Pendiente de inspección" : planesAbiertos ? "Con hallazgos" : scoreLevel(cumplimiento),
+        origen: programada ? "Gantt" : "Inspección libre",
       };
     }).sort((a, b) => String(b.semana).localeCompare(String(a.semana)) || a.bodega.localeCompare(b.bodega));
-  }, [filteredInspections, matrixItems, planes]);
+  }, [filteredCronograma, filteredInspections, matrixItems, planes]);
 
   const promedioAuditorias = auditCycles.length
     ? Math.round((auditCycles.reduce((sum, item) => sum + item.cumplimiento, 0) / auditCycles.length) * 10) / 10
@@ -5015,6 +5084,7 @@ function AuditoriasView() {
   const soporteTotal = auditCycles.reduce((sum, item) => sum + item.soporte, 0);
   const abiertas = auditCycles.filter((item) => item.planesAbiertos > 0).length;
   const cerradas = auditCycles.filter((item) => item.planesAbiertos === 0 && item.inspecciones.length).length;
+  const pendientes = auditCycles.filter((item) => !item.inspecciones.length).length;
   const coberturaMatriz = checklistItems.length;
 
   return (
@@ -5043,11 +5113,11 @@ function AuditoriasView() {
             </div>
             <div className="portal-status-body">
               <strong>{promedioAuditorias}%</strong>
-              <p>Promedio de auditorías construidas desde inspecciones reales.</p>
+            <p>Promedio de auditorías programadas en Gantt y soportadas por inspecciones.</p>
             </div>
             <div className="portal-status-grid">
               <div><small>Auditorías</small><b>{auditCycles.length}</b></div>
-              <div><small>Inspecciones soporte</small><b>{filteredInspections.length}</b></div>
+              <div><small>Programadas</small><b>{filteredCronograma.length}</b></div>
               <div><small>Matriz</small><b>{coberturaMatriz}</b></div>
               <div><small>Abiertas</small><b>{abiertas}</b></div>
             </div>
@@ -5062,7 +5132,7 @@ function AuditoriasView() {
           <div>
             <span className="portal-panel-kicker">CONTROL DE AUDITORÍA</span>
             <h3>Alcance y periodo</h3>
-            <p>Las auditorías se generan sin afectar datos: se agrupan inspecciones por semana y bodega.</p>
+            <p>La auditoría nace del Gantt, toma la matriz/checklist y se cierra con las inspecciones ejecutadas.</p>
           </div>
         </div>
         <div className="dashboard-filter-grid auditorias-filter-grid">
@@ -5092,11 +5162,11 @@ function AuditoriasView() {
       <section className="auditoria-board-grid">
         <article className="portal-panel auditoria-board-card">
           <span className="portal-panel-kicker">CICLO DE AUDITORÍA</span>
-          <h3>De inspección a auditoría</h3>
+          <h3>Relación real del flujo</h3>
           <div className="audit-flow">
-            <div><ClipboardCheck size={18} /><strong>Inspección</strong><small>{filteredInspections.length} registros</small></div>
-            <div><Layers3 size={18} /><strong>Matriz</strong><small>{soporteTotal} puntos soporte</small></div>
-            <div><Wrench size={18} /><strong>Hallazgos</strong><small>{planes.length} planes</small></div>
+            <div><CalendarDays size={18} /><strong>Gantt</strong><small>{filteredCronograma.length} programadas</small></div>
+            <div><Layers3 size={18} /><strong>Matriz</strong><small>{coberturaMatriz} puntos disponibles</small></div>
+            <div><ClipboardCheck size={18} /><strong>Inspecciones</strong><small>{filteredInspections.length} ejecutadas</small></div>
             <div><ShieldCheck size={18} /><strong>Auditoría</strong><small>{cerradas} cerradas</small></div>
           </div>
         </article>
@@ -5107,7 +5177,7 @@ function AuditoriasView() {
           <div className="audit-score-grid">
             <div><strong>{auditCycles.length}</strong><small>Ciclos generados</small></div>
             <div><strong>{abiertas}</strong><small>Con hallazgos abiertos</small></div>
-            <div><strong>{cerradas}</strong><small>Sin pendientes</small></div>
+            <div><strong>{pendientes}</strong><small>Pendientes de inspección</small></div>
           </div>
         </article>
       </section>
@@ -5117,7 +5187,7 @@ function AuditoriasView() {
           <div>
             <span className="portal-panel-kicker">AUDITORÍAS OPERATIVAS</span>
             <h3>Ciclos generados desde inspecciones</h3>
-            <p>Cada fila representa una auditoría de control soportada por las inspecciones del periodo.</p>
+            <p>Programación, matriz e inspección quedan en una misma línea para entender qué soporta cada auditoría.</p>
           </div>
         </div>
 
@@ -5126,26 +5196,40 @@ function AuditoriasView() {
             <thead>
               <tr>
                 <th>Código</th>
+                <th>Origen</th>
                 <th>Semana</th>
                 <th>Bodega</th>
+                <th>Programación</th>
                 <th>Inspecciones</th>
                 <th>Matriz soporte</th>
                 <th>Cumplimiento</th>
                 <th>Hallazgos</th>
                 <th>Estado</th>
+                <th>Acción</th>
               </tr>
             </thead>
             <tbody>
               {auditCycles.map((audit) => (
                 <tr key={audit.key}>
                   <td><b>{audit.codigo}</b></td>
+                  <td>{audit.origen}</td>
                   <td>{audit.semana}</td>
                   <td>{audit.bodega}</td>
+                  <td>{audit.fechaInicio ? `${formatShortDate(audit.fechaInicio)} - ${formatShortDate(audit.fechaFin || audit.fechaInicio)}` : "Sin Gantt"}</td>
                   <td>{audit.inspecciones.length}</td>
                   <td>{audit.soporte}</td>
-                  <td><b>{audit.cumplimiento}%</b></td>
+                  <td><b>{audit.inspecciones.length ? `${audit.cumplimiento}%` : "Pendiente"}</b></td>
                   <td>{audit.planesAbiertos}</td>
-                  <td><span className={`portal-status-pill ${audit.planesAbiertos ? "status-warning" : reportStatus(audit.cumplimiento)}`}>{audit.estado}</span></td>
+                  <td><span className={`portal-status-pill ${!audit.inspecciones.length ? "status-warning" : audit.planesAbiertos ? "status-warning" : reportStatus(audit.cumplimiento)}`}>{audit.estado}</span></td>
+                  <td>
+                    {audit.programacion && !audit.inspecciones.length ? (
+                      <button type="button" className="dashboard-eye-btn" onClick={() => startInspectionFromAudit(audit.programacion)} title="Ejecutar inspección desde esta auditoría">
+                        <ArrowRight size={16} />
+                      </button>
+                    ) : (
+                      <span className="dashboard-muted">Relacionado</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -6846,7 +6930,7 @@ export default function Calidad5S() {
     }
 
     if (tab === "auditorias") {
-      return <AuditoriasView />;
+      return <AuditoriasView setTab={setTab} />;
     }
 
     if (tab === "dashboard") {
