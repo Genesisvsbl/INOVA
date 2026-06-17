@@ -1292,6 +1292,9 @@ export default function Recibo() {
             }
 
             .receipt-page {
+              position: relative;
+              min-height: 186mm;
+              padding-bottom: 42mm;
               page-break-after: always;
             }
 
@@ -1420,9 +1423,11 @@ export default function Recibo() {
 
             .receipt-novelty-wrap {
               width: 48%;
-              margin: 8mm 0 0 auto;
+              margin: 0;
               padding-top: 12px;
-              position: relative;
+              position: absolute;
+              right: 0;
+              bottom: 14mm;
               page-break-inside: avoid;
               break-inside: avoid;
             }
@@ -1501,7 +1506,10 @@ export default function Recibo() {
             }
 
             .receipt-footer {
-              margin-top: 7px;
+              position: absolute;
+              left: 0;
+              bottom: 8mm;
+              margin: 0;
               font-size: 8px;
               line-height: 1.1;
               color: #0f2744;
