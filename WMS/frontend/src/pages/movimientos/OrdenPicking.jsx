@@ -90,14 +90,17 @@ function Chip({ label, tone = "neutral" }) {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        padding: "5px 10px",
-        borderRadius: 999,
+        justifyContent: "center",
+        minHeight: 23,
+        padding: "0 8px",
+        borderRadius: 7,
         background: t.bg,
         border: `1px solid ${t.bd}`,
         color: t.tx,
-        fontSize: 12,
-        fontWeight: 800,
+        fontSize: 10,
+        fontWeight: 850,
         whiteSpace: "nowrap",
+        lineHeight: 1,
       }}
     >
       {label}
@@ -265,6 +268,34 @@ function DeliveryEvidenceBadge({ estado, diferencia }) {
   );
 }
 
+function QuantityMetaBox({ sugerido, maximo, exceso }) {
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        minHeight: 24,
+        marginTop: 5,
+        padding: "0 8px",
+        borderRadius: 6,
+        border: `1px solid ${exceso > 0 ? colors.badBd : colors.border}`,
+        background: exceso > 0 ? colors.badBg : colors.soft,
+        color: exceso > 0 ? colors.bad : colors.muted,
+        fontSize: 10,
+        fontWeight: 850,
+        whiteSpace: "nowrap",
+        lineHeight: 1,
+      }}
+    >
+      <span>Sug: {formatQty(sugerido)}</span>
+      <span>Max: {formatQty(maximo)}</span>
+      {exceso > 0 && <span>Exc: {formatQty(exceso)}</span>}
+    </div>
+  );
+}
+
 const shellCardStyle = {
   background: colors.card,
   border: `1px solid ${colors.border}`,
@@ -361,6 +392,15 @@ const dangerOutlineButtonStyle = {
   border: `1px solid ${colors.badBd}`,
   background: "#fff",
   color: colors.bad,
+};
+
+const compactRowButtonStyle = {
+  height: 28,
+  padding: "0 8px",
+  borderRadius: 7,
+  gap: 5,
+  fontSize: 11,
+  fontWeight: 850,
 };
 
 const tableWrapStyle = {
@@ -1720,7 +1760,7 @@ export default function OrdenPicking() {
           </div>
 
           <div style={tableWrapStyle}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 3200 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 2360 }}>
               <thead>
                 <tr>
                   <th style={thStyle}>Comprometer</th>
@@ -1791,6 +1831,12 @@ export default function OrdenPicking() {
                             type="checkbox"
                             checked={!!seleccionados[r.id]}
                             onChange={() => onToggleSeleccion(r.id)}
+                            style={{
+                              width: 18,
+                              height: 18,
+                              cursor: "pointer",
+                              accentColor: colors.blue,
+                            }}
                           />
                         </td>
 
@@ -1804,7 +1850,7 @@ export default function OrdenPicking() {
 
                         <td style={{ ...tdStyle, fontWeight: 800 }}>{r.sku || ""}</td>
 
-                        <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: "normal", minWidth: 220 }}>
+                        <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: "normal", minWidth: 190 }}>
                           {r.texto_breve || ""}
                         </td>
 
@@ -1825,71 +1871,35 @@ export default function OrdenPicking() {
                             onChange={(e) => onChangeCantidad(r.id, e.target.value, maximoCantidad)}
                             disabled={!seleccionados[r.id]}
                             style={{
-                              width: 120,
-                              height: 38,
-                              padding: "0 10px",
-                              borderRadius: 10,
+                              width: 104,
+                              height: 30,
+                              padding: "0 8px",
+                              borderRadius: 7,
                               border:
                                 cantidadActual > cantidadSugeridaVisual
                                   ? `1px solid ${colors.bad}`
                                   : `1px solid ${colors.border}`,
                               textAlign: "right",
                               fontWeight: 800,
+                              fontSize: 11,
                               color: cantidadActual > cantidadSugeridaVisual ? colors.bad : colors.text,
                               background: !seleccionados[r.id] ? "#f8fafc" : "#fff",
                             }}
                           />
 
-                          {cantidadActual > 0 && excesoSobreSugerido > 0 && (
-                            <div
-                              style={{
-                                marginTop: 6,
-                                fontSize: 11,
-                                fontWeight: 900,
-                                color: colors.bad,
-                              }}
-                            >
-                              Exceso sobre sugerido: {formatQty(excesoSobreSugerido)}
-                            </div>
-                          )}
-
-                          <div
-                            style={{
-                              marginTop: 4,
-                              fontSize: 11,
-                              fontWeight: 800,
-                              color: colors.muted,
-                            }}
-                          >
-                            Sugerido: {formatQty(cantidadSugeridaVisual)} · Máx disp.: {formatQty(maximoCantidad)}
-                          </div>
+                          <QuantityMetaBox
+                            sugerido={cantidadSugeridaVisual}
+                            maximo={maximoCantidad}
+                            exceso={cantidadActual > 0 ? excesoSobreSugerido : 0}
+                          />
                         </td>
 
-                        <td style={{ ...tdStyle, minWidth: 180, whiteSpace: "normal" }}>
+                        <td style={{ ...tdStyle, minWidth: 220, whiteSpace: "nowrap" }}>
                           {cantidadActual > 0 ? (
-                            <div style={{ display: "grid", gap: 6 }}>
-                              <Chip
-                                label={estadoEntrega.label}
-                                tone={
-                                  estadoEntrega.key === "sobre"
-                                    ? "red"
-                                    : estadoEntrega.key === "igual"
-                                    ? "green"
-                                    : estadoEntrega.key === "debajo"
-                                    ? "amber"
-                                    : "neutral"
-                                }
-                              />
-                              <div
-                                style={{
-                                  fontSize: 12,
-                                  fontWeight: 900,
-                                  color: estadoEntrega.color,
-                                }}
-                              >
-                                Dif.: {formatQty(cantidadActual - cantidadSugeridaVisual)}
-                              </div>
-                            </div>
+                            <DeliveryEvidenceBadge
+                              estado={estadoEntrega}
+                              diferencia={cantidadActual - cantidadSugeridaVisual}
+                            />
                           ) : (
                             <span style={{ color: colors.muted }}>Sin definir</span>
                           )}
@@ -1897,7 +1907,7 @@ export default function OrdenPicking() {
 
                         <td style={{ ...tdStyle, fontWeight: 700 }}>{r.ubicacion || ""}</td>
 
-                        <td style={{ ...tdStyle, fontWeight: 700, whiteSpace: "normal", minWidth: 170 }}>
+                        <td style={{ ...tdStyle, fontWeight: 700, whiteSpace: "normal", minWidth: 130 }}>
                           {usandoAlternativa ? (
                             <div style={{ color: colors.bad, fontWeight: 900 }}>
                               {alternativa?.ubicacion || "Pendiente definir"}
@@ -1907,13 +1917,13 @@ export default function OrdenPicking() {
                           )}
                         </td>
 
-                        <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: "normal", minWidth: 150 }}>
+                        <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: "normal", minWidth: 125 }}>
                           {usandoAlternativa
                             ? alternativa?.lote_almacen || ""
                             : r.lote_almacen || ""}
                         </td>
 
-                        <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: "normal", minWidth: 150 }}>
+                        <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: "normal", minWidth: 125 }}>
                           {usandoAlternativa
                             ? alternativa?.lote_proveedor || ""
                             : r.lote_proveedor || ""}
@@ -1932,38 +1942,41 @@ export default function OrdenPicking() {
                           />
                         </td>
 
-                        <td style={{ ...tdStyle, minWidth: 230, whiteSpace: "normal" }}>
-                          <div style={{ display: "grid", gap: 8 }}>
+                        <td style={{ ...tdStyle, minWidth: 170, whiteSpace: "normal" }}>
+                          <div style={{ display: "grid", gap: 6 }}>
                             <button
                               onClick={() => abrirModalIncumplimiento(r)}
                               type="button"
-                              style={usandoAlternativa ? warnButtonStyle : dangerOutlineButtonStyle}
+                              style={{
+                                ...(usandoAlternativa ? warnButtonStyle : dangerOutlineButtonStyle),
+                                ...compactRowButtonStyle,
+                              }}
                             >
-                              <GitCompareArrows size={15} />
-                              {usandoAlternativa ? "Editar alternativa" : "Registrar incumplimiento"}
+                              <GitCompareArrows size={13} />
+                              {usandoAlternativa ? "Editar" : "Incumplimiento"}
                             </button>
 
                             {usandoAlternativa && (
                               <button
                                 type="button"
                                 onClick={() => limpiarIncumplimiento(r.id, cantidadSugeridaVisual)}
-                                style={dangerOutlineButtonStyle}
+                                style={{ ...dangerOutlineButtonStyle, ...compactRowButtonStyle }}
                               >
-                                <X size={15} />
-                                Quitar incumplimiento
+                                <X size={13} />
+                                Quitar
                               </button>
                             )}
                           </div>
                         </td>
 
-                        <td style={{ ...tdStyle, minWidth: 130 }}>
+                        <td style={{ ...tdStyle, minWidth: 90 }}>
                           {esManual ? (
                             <button
                               type="button"
                               onClick={() => eliminarSkuManual(r.id)}
-                              style={dangerOutlineButtonStyle}
+                              style={{ ...dangerOutlineButtonStyle, ...compactRowButtonStyle }}
                             >
-                              <Trash2 size={15} />
+                              <Trash2 size={13} />
                               Eliminar
                             </button>
                           ) : (
@@ -1971,31 +1984,30 @@ export default function OrdenPicking() {
                           )}
                         </td>
 
-                        <td style={{ ...tdStyle, minWidth: 320, whiteSpace: "normal" }}>
+                        <td style={{ ...tdStyle, minWidth: 210, whiteSpace: "normal" }}>
                           {usandoAlternativa ? (
                             <div
                               style={{
                                 display: "flex",
                                 alignItems: "flex-start",
-                                gap: 8,
-                                padding: 10,
-                                borderRadius: 10,
+                                gap: 6,
+                                padding: "6px 8px",
+                                borderRadius: 7,
                                 background: colors.badBg,
                                 border: `1px solid ${colors.badBd}`,
                                 color: colors.bad,
-                                fontWeight: 900,
-                                lineHeight: 1.35,
+                                fontWeight: 850,
+                                lineHeight: 1.25,
+                                fontSize: 11,
                               }}
                             >
-                              <AlertTriangle size={16} style={{ flex: "0 0 auto", marginTop: 1 }} />
+                              <AlertTriangle size={13} style={{ flex: "0 0 auto", marginTop: 1 }} />
                               <div>
-                                <div style={{ marginBottom: 4 }}>
+                                <div style={{ marginBottom: 3 }}>
                                   {buildMotivoRotacion(motivosRotacion[r.id]) ||
                                     "Incumplimiento de rotacion debido a ..."}
                                 </div>
-                                <div style={{ fontSize: 12 }}>
-                                  Alternativa: {alternativa?.ubicacion || "Pendiente"}
-                                </div>
+                                <div>Alt: {alternativa?.ubicacion || "Pendiente"}</div>
                               </div>
                             </div>
                           ) : (
