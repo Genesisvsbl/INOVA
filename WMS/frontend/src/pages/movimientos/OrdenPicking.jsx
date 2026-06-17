@@ -1241,7 +1241,7 @@ export default function OrdenPicking() {
 
   @page {
     size: Letter landscape;
-    margin: 4mm;
+    margin: 3mm;
   }
 
   @media print {
@@ -1284,7 +1284,7 @@ export default function OrdenPicking() {
     .print-inner {
       width: 100% !important;
       margin: 0 !important;
-      padding: 4mm !important;
+      padding: 2mm !important;
       box-sizing: border-box !important;
     }
 
@@ -1292,8 +1292,8 @@ export default function OrdenPicking() {
       display: flex !important;
       justify-content: space-between !important;
       align-items: flex-start !important;
-      gap: 12px !important;
-      margin-bottom: 6px !important;
+      gap: 8px !important;
+      margin-bottom: 4px !important;
       page-break-inside: avoid !important;
       break-inside: avoid !important;
     }
@@ -1301,13 +1301,13 @@ export default function OrdenPicking() {
     .print-header-left {
       display: flex !important;
       align-items: center !important;
-      gap: 10px !important;
+      gap: 7px !important;
       min-width: 0 !important;
     }
 
     .print-logo {
-      width: 26px !important;
-      height: 26px !important;
+      width: 22px !important;
+      height: 22px !important;
       object-fit: contain !important;
       flex: 0 0 auto !important;
       display: block !important;
@@ -1315,7 +1315,7 @@ export default function OrdenPicking() {
 
     .print-title {
       margin: 0 !important;
-      font-size: 15px !important;
+      font-size: 13px !important;
       line-height: 1.05 !important;
       font-weight: 900 !important;
       color: #133454 !important;
@@ -1323,14 +1323,14 @@ export default function OrdenPicking() {
 
     .print-subtitle {
       margin-top: 2px !important;
-      font-size: 7px !important;
+      font-size: 6px !important;
       color: #5b6b7c !important;
       font-weight: 700 !important;
     }
 
     .print-meta {
-      font-size: 7px !important;
-      line-height: 1.3 !important;
+      font-size: 6px !important;
+      line-height: 1.15 !important;
       text-align: right !important;
       color: #0f172a !important;
       font-weight: 700 !important;
@@ -1346,18 +1346,18 @@ export default function OrdenPicking() {
     .print-card {
       border: 1px solid #c8d1dc !important;
       border-radius: 4px !important;
-      margin: 0 0 6px 0 !important;
+      margin: 0 0 3px 0 !important;
       background: #ffffff !important;
       page-break-inside: auto !important;
     }
 
     .print-section-title {
-      font-size: 8px !important;
+      font-size: 7px !important;
       font-weight: 900 !important;
-      padding: 5px 8px !important;
-      background: #f9fbfd !important;
-      border-bottom: 1px solid #d9e1ea !important;
-      color: #133454 !important;
+      padding: 3px 6px !important;
+      background: #133454 !important;
+      border-bottom: 1px solid #0b223b !important;
+      color: #ffffff !important;
     }
 
     .print-table-wrap {
@@ -1379,15 +1379,17 @@ export default function OrdenPicking() {
     .print-table th,
     .print-table td {
       border: 1px solid #c8d1dc !important;
-      padding: 2px 4px !important;
-      font-size: 7px !important;
-      line-height: 1.12 !important;
+      padding: 1px 3px !important;
+      font-size: 5.8px !important;
+      line-height: 1.05 !important;
       vertical-align: top !important;
     }
 
     .print-table th {
       font-weight: 900 !important;
-      background: #f3f6f9 !important;
+      background: #133454 !important;
+      color: #ffffff !important;
+      border-color: #0b223b !important;
     }
 
     .print-wrap {
@@ -1403,7 +1405,7 @@ export default function OrdenPicking() {
       margin-top: 3px !important;
       color: #c62828 !important;
       font-weight: 800 !important;
-      font-size: 7px !important;
+      font-size: 6px !important;
     }
   }
 `}</style>
