@@ -165,10 +165,19 @@ const fmtCO = new Intl.NumberFormat("es-CO", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+const fmtMilesCO = new Intl.NumberFormat("es-CO", {
+  maximumFractionDigits: 0,
+});
 function formatMoney(n) {
   const x = Number(n);
   if (!Number.isFinite(x)) return "";
   return fmtCO.format(x);
+}
+
+function formatMiles(value) {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  if (!digits) return "";
+  return fmtMilesCO.format(Number(digits));
 }
 
 const EMPAQUES = [
@@ -207,6 +216,15 @@ function createEmptyLinea() {
     certificado_tipo: "",
     certificado_data_url: "",
     certificado_fecha: "",
+  };
+}
+
+function createEmptyNovedad() {
+  return {
+    lineaIndex: "",
+    empaque: "",
+    hallazgo: "",
+    cantidad: "",
   };
 }
 
@@ -501,6 +519,9 @@ export default function Recibo() {
   const [header, setHeader] = useState(createInitialHeader());
   const [materiales, setMateriales] = useState([]);
   const [lineas, setLineas] = useState([createEmptyLinea()]);
+  const [novedades, setNovedades] = useState(
+    Array.from({ length: 5 }, () => createEmptyNovedad())
+  );
   const [errores, setErrores] = useState({});
 
   useEffect(() => {
@@ -654,6 +675,17 @@ export default function Recibo() {
     }
   }, [tipoRecibo]);
 
+  useEffect(() => {
+    setNovedades((prev) =>
+      prev.map((nov) => {
+        if (nov.lineaIndex === "") return nov;
+        const idx = Number(nov.lineaIndex);
+        const linea = Number.isInteger(idx) ? lineas[idx] : null;
+        return { ...nov, empaque: linea?.empaque || nov.empaque || "" };
+      })
+    );
+  }, [lineas]);
+
   const totalRecibo = useMemo(
     () => lineas.reduce((acc, ln) => acc + (Number(ln.total) || 0), 0),
     [lineas]
@@ -709,6 +741,25 @@ export default function Recibo() {
 
   const removeLinea = (idx) =>
     setLineas((prev) => prev.filter((_, i) => i !== idx));
+
+  const setNovedad = (idx, patch) => {
+    setNovedades((prev) =>
+      prev.map((item, i) => (i === idx ? { ...item, ...patch } : item))
+    );
+  };
+
+  const onNovedadItemChange = (idx, value) => {
+    const lineIndex = value === "" ? "" : Number(value);
+    const linea = Number.isInteger(lineIndex) ? lineas[lineIndex] : null;
+    setNovedad(idx, {
+      lineaIndex: value,
+      empaque: linea?.empaque || "",
+    });
+  };
+
+  const onNovedadCantidadChange = (idx, value) => {
+    setNovedad(idx, { cantidad: formatMiles(value) });
+  };
 
   const onCertificadoChange = async (idx, file) => {
     if (!file) return;
@@ -1019,6 +1070,35 @@ export default function Recibo() {
       .join("");
   };
 
+  const buildNovedadesRowsHtml = () => {
+    const rows = novedades.map((nov) => {
+      const idx = nov.lineaIndex === "" ? null : Number(nov.lineaIndex);
+      const linea = Number.isInteger(idx) ? lineas[idx] : null;
+      return {
+        item: linea ? idx + 1 : "",
+        hallazgo: nov.hallazgo || "",
+        empaque: nov.empaque || linea?.empaque || "",
+        cantidad: nov.cantidad || "",
+      };
+    });
+
+    while (rows.length < 5) {
+      rows.push({ item: "", hallazgo: "", empaque: "", cantidad: "" });
+    }
+
+    return rows
+      .slice(0, 5)
+      .map((row) => `
+        <tr>
+          <td>${escapeHtml(row.item)}</td>
+          <td>${escapeHtml(row.hallazgo)}</td>
+          <td>${escapeHtml(row.empaque)}</td>
+          <td style="text-align:right;">${escapeHtml(row.cantidad)}</td>
+        </tr>
+      `)
+      .join("");
+  };
+
   const buildTarjetasHtml = () => {
     return lineas
       .map((ln, idx) => {
@@ -1164,6 +1244,7 @@ export default function Recibo() {
       "";
 
     const reciboRowsHtml = buildReciboRowsHtml();
+    const novedadesRowsHtml = buildNovedadesRowsHtml();
     const tarjetasHtml = buildTarjetasHtml();
     const barcodeScript = buildBarcodeScript();
 
@@ -1324,6 +1405,55 @@ export default function Recibo() {
             .receipt-table td {
               color: #0f172a;
               font-weight: 700;
+            }
+
+            .receipt-novelty-wrap {
+              width: 58%;
+              margin: 7mm 0 0 auto;
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+
+            .receipt-novelty-title {
+              height: 20px;
+              display: grid;
+              place-items: center;
+              border: 1px solid #001b3f;
+              border-bottom: 0;
+              color: #ffffff;
+              background: #082f73;
+              font-size: 12px;
+              line-height: 1;
+              font-weight: 900;
+              letter-spacing: .02em;
+              text-transform: uppercase;
+            }
+
+            .receipt-novelty-table {
+              width: 100%;
+              table-layout: fixed;
+              border-collapse: collapse;
+              font-size: 10px;
+              line-height: 1.1;
+            }
+
+            .receipt-novelty-table th,
+            .receipt-novelty-table td {
+              height: 23px;
+              border: 1px solid #111827;
+              padding: 3px 5px;
+              color: #0f172a;
+              background: #ffffff;
+              vertical-align: middle;
+              font-weight: 800;
+            }
+
+            .receipt-novelty-table th {
+              height: 20px;
+              text-align: center;
+              font-size: 10px;
+              font-weight: 900;
+              text-transform: uppercase;
             }
 
             .receipt-footer {
@@ -1628,6 +1758,31 @@ export default function Recibo() {
                 ${reciboRowsHtml}
               </tbody>
             </table>
+
+            ${tipoRecibo === "recibo" ? `
+              <div class="receipt-novelty-wrap">
+                <div class="receipt-novelty-title">NOVEDAD POR ITEM DETECTADA EN EL RECIBO FÍSICO</div>
+                <table class="receipt-novelty-table">
+                  <colgroup>
+                    <col style="width: 18%" />
+                    <col style="width: 32%" />
+                    <col style="width: 28%" />
+                    <col style="width: 22%" />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>No. Item</th>
+                      <th>Hallazgo</th>
+                      <th>Tipo de empaque</th>
+                      <th>Cantidad</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${novedadesRowsHtml}
+                  </tbody>
+                </table>
+              </div>
+            ` : ""}
 
             <div class="receipt-footer">
               Documento generado desde WMS INOVA para control de recibo y trazabilidad.
@@ -2567,6 +2722,113 @@ export default function Recibo() {
                   </option>
                 ))}
               </datalist>
+
+              {tipoRecibo === "recibo" && (
+                <div
+                  style={{
+                    width: "58%",
+                    margin: "18px 0 0 auto",
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: 12,
+                    overflow: "hidden",
+                    background: "#fff",
+                    boxShadow: "0 12px 28px rgba(15,39,68,.08)",
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: "10px 12px",
+                      background: colors.navy,
+                      color: "#fff",
+                      fontSize: 12,
+                      fontWeight: 950,
+                      letterSpacing: ".04em",
+                      textTransform: "uppercase",
+                      textAlign: "center",
+                    }}
+                  >
+                    Novedad por item detectada en el recibo fisico
+                  </div>
+                  <table
+                    style={{
+                      width: "100%",
+                      borderCollapse: "collapse",
+                      tableLayout: "fixed",
+                    }}
+                  >
+                    <colgroup>
+                      <col style={{ width: "18%" }} />
+                      <col style={{ width: "32%" }} />
+                      <col style={{ width: "28%" }} />
+                      <col style={{ width: "22%" }} />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th style={thStyle}>No. item</th>
+                        <th style={thStyle}>Hallazgo</th>
+                        <th style={thStyle}>Tipo de empaque</th>
+                        <th style={thStyle}>Cantidad</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {novedades.map((nov, idx) => (
+                        <tr key={`novedad-${idx}`}>
+                          <td style={tdStyle}>
+                            <select
+                              value={nov.lineaIndex}
+                              onChange={(e) => onNovedadItemChange(idx, e.target.value)}
+                              style={detailSelectStyle}
+                            >
+                              <option value="">Item...</option>
+                              {lineas.map((ln, lineIdx) => (
+                                <option key={`nov-item-${lineIdx}`} value={lineIdx}>
+                                  {lineIdx + 1}{ln.codigo ? ` - ${ln.codigo}` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td style={tdStyle}>
+                            <input
+                              value={nov.hallazgo}
+                              onChange={(e) => setNovedad(idx, { hallazgo: e.target.value })}
+                              placeholder="Hallazgo"
+                              style={detailInputStyle}
+                            />
+                          </td>
+                          <td style={tdStyle}>
+                            <input
+                              value={nov.empaque}
+                              readOnly
+                              placeholder="Auto"
+                              style={detailReadOnlyInputStyle}
+                            />
+                          </td>
+                          <td style={tdStyle}>
+                            <input
+                              value={nov.cantidad}
+                              onChange={(e) => onNovedadCantidadChange(idx, e.target.value)}
+                              placeholder="0"
+                              inputMode="numeric"
+                              style={{ ...detailInputStyle, textAlign: "right" }}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div
+                    style={{
+                      padding: "8px 12px",
+                      color: colors.muted,
+                      fontSize: 11,
+                      fontWeight: 800,
+                      background: "#f8fafc",
+                    }}
+                  >
+                    Solo se usa para impresion del recibo ciego. No afecta inventario, certificados ni guardado.
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
