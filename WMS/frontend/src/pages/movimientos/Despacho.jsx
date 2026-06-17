@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  crearReservaAdicionalDespacho,
   eliminarReserva as eliminarReservaSupabase,
   generarPicking,
   getDespachos,
@@ -16,6 +17,12 @@ import {
   Lock,
   Unlock,
   Trash2,
+  PackagePlus,
+  X,
+  CheckCircle2,
+  AlertTriangle,
+  ClipboardList,
+  ArrowRight,
 } from "lucide-react";
 
 const colors = {
@@ -47,11 +54,29 @@ const fmtCO = new Intl.NumberFormat("es-CO", {
 });
 
 const STORAGE_KEY = "wms_reservas_cierre_local";
+const ADDITIONAL_STORAGE_KEY = "wms_reservas_adicionales_local";
 
 function formatQty(n) {
   const x = Number(n);
   if (!Number.isFinite(x)) return "";
   return fmtCO.format(x);
+}
+
+function parseQtyCO(value) {
+  const cleaned = String(value || "")
+    .replace(/\s/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function formatInputQty(value) {
+  const n = parseQtyCO(value);
+  if (!n) return "";
+  return new Intl.NumberFormat("es-CO", {
+    maximumFractionDigits: 2,
+  }).format(n);
 }
 
 function formatPct(n) {
@@ -89,6 +114,10 @@ function fmtDateTime(v) {
   const hh = String(d.getHours()).padStart(2, "0");
   const mi = String(d.getMinutes()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+}
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function Chip({ label, tone = "neutral" }) {
@@ -143,6 +172,20 @@ function getReservaStore() {
 
 function saveReservaStore(data) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function getAdditionalStore() {
+  try {
+    const raw = localStorage.getItem(ADDITIONAL_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveAdditionalStore(data) {
+  localStorage.setItem(ADDITIONAL_STORAGE_KEY, JSON.stringify(data));
 }
 
 function withinDateRange(dateValue, desde, hasta) {
@@ -254,6 +297,39 @@ const subtleRedButtonStyle = {
   color: colors.bad,
 };
 
+const iconToolButtonStyle = {
+  width: 42,
+  height: 42,
+  borderRadius: 10,
+  border: `1px solid ${colors.infoBd}`,
+  background: "#f7fbff",
+  color: colors.blue,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+};
+
+const overlayStyle = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(15, 23, 42, 0.42)",
+  zIndex: 80,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 18,
+};
+
+const modalStyle = {
+  width: "min(720px, 100%)",
+  background: "#fff",
+  border: `1px solid ${colors.border}`,
+  borderRadius: 16,
+  boxShadow: "0 24px 70px rgba(15, 23, 42, 0.24)",
+  overflow: "hidden",
+};
+
 const tableWrapStyle = {
   width: "100%",
   overflowX: "auto",
@@ -347,12 +423,26 @@ export default function Despacho() {
   const [soloPendientes, setSoloPendientes] = useState(false);
   const [soloCerradas, setSoloCerradas] = useState(false);
   const [reservaActiva, setReservaActiva] = useState("");
+  const [adicionalOpen, setAdicionalOpen] = useState(false);
+  const [guardandoAdicional, setGuardandoAdicional] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [adicionalForm, setAdicionalForm] = useState({
+    reserva: "",
+    sku: "",
+    cantidad: "",
+    fecha_necesidad: todayISO(),
+  });
 
   const [storeVersion, setStoreVersion] = useState(0);
 
   const reservasStore = useMemo(() => getReservaStore(), [storeVersion]);
+  const adicionalesStore = useMemo(() => getAdditionalStore(), [storeVersion]);
 
   const forceRefreshStore = () => setStoreVersion((v) => v + 1);
+
+  const showToast = (next) => {
+    setToast(next);
+  };
 
   const loadDespachos = async (reservaBuscar = "") => {
     setLoading(true);
@@ -393,7 +483,11 @@ export default function Despacho() {
 
   const onImportar = async () => {
     if (!file) {
-      alert("Selecciona un archivo Excel.");
+      showToast({
+        type: "warn",
+        title: "Selecciona un archivo",
+        message: "Primero carga el Excel de despacho para importarlo.",
+      });
       return;
     }
 
@@ -404,9 +498,11 @@ export default function Despacho() {
       const data = await importarDespachos(file);
       setUltimaCargaId(data?.carga_id || null);
 
-      alert(
-        `✅ Importación OK\nCarga ID: ${data?.carga_id}\nRegistros: ${data?.total_registros}`
-      );
+      showToast({
+        type: "success",
+        title: "Importacion completada",
+        message: `Carga ID ${data?.carga_id || "-"} con ${data?.total_registros || 0} registros.`,
+      });
 
       await loadDespachos("");
       setReserva("");
@@ -417,9 +513,80 @@ export default function Despacho() {
       const input = document.getElementById("input-despacho-excel");
       if (input) input.value = "";
     } catch (e) {
-      alert("❌ Error importando despacho:\n" + (e?.message || e));
+      showToast({
+        type: "error",
+        title: "No se pudo importar",
+        message: e?.message || String(e),
+      });
     } finally {
       setSubiendo(false);
+    }
+  };
+
+  const onCrearReservaAdicional = async ({ generarOrden = false } = {}) => {
+    const reservaManual = String(adicionalForm.reserva || "").trim();
+    const skuManual = String(adicionalForm.sku || "").trim();
+    const cantidad = parseQtyCO(adicionalForm.cantidad);
+
+    if (!reservaManual || !skuManual || cantidad <= 0) {
+      showToast({
+        type: "warn",
+        title: "Reserva adicional incompleta",
+        message: "Completa numero de reserva, SKU y cantidad requerida mayor a cero.",
+      });
+      return;
+    }
+
+    setGuardandoAdicional(true);
+    setErr("");
+
+    try {
+      await crearReservaAdicionalDespacho({
+        reserva: reservaManual,
+        sku: skuManual,
+        cantidad,
+        fecha_necesidad: adicionalForm.fecha_necesidad || todayISO(),
+      });
+
+      const actual = getAdditionalStore();
+      actual[reservaManual] = {
+        adicional: true,
+        fecha: new Date().toISOString(),
+      };
+      saveAdditionalStore(actual);
+      forceRefreshStore();
+
+      setReserva(reservaManual);
+      setReservaActiva(reservaManual);
+      setAdicionalOpen(false);
+      setAdicionalForm({
+        reserva: "",
+        sku: "",
+        cantidad: "",
+        fecha_necesidad: todayISO(),
+      });
+
+      await loadDespachos(reservaManual);
+      await loadPicking(reservaManual);
+
+      showToast({
+        type: "success",
+        title: "Reserva adicional creada",
+        message: `Reserva ${reservaManual} marcada como ADICIONAL por ${formatQty(cantidad)} unidades.`,
+        meta: generarOrden ? "Generando orden de picking..." : "Lista para generar picking.",
+      });
+
+      if (generarOrden) {
+        await onGenerarPicking(reservaManual, { stayOnPage: false });
+      }
+    } catch (e) {
+      showToast({
+        type: "error",
+        title: "No se pudo crear la reserva adicional",
+        message: e?.message || String(e),
+      });
+    } finally {
+      setGuardandoAdicional(false);
     }
   };
 
@@ -442,25 +609,19 @@ export default function Despacho() {
     await loadDespachos("");
   };
 
-  const onGenerarPicking = async (reservaTarget = "") => {
+  const onGenerarPicking = async (reservaTarget = "", options = {}) => {
     const reservaFinal = (reservaTarget || reserva || reservaActiva || "").trim();
     if (!reservaFinal) {
-      alert("Escribe o selecciona una reserva para generar el picking.");
+      showToast({
+        type: "warn",
+        title: "Selecciona una reserva",
+        message: "Escribe o selecciona una reserva para generar la orden de picking.",
+      });
       return;
     }
 
     try {
       const data = await generarPicking(reservaFinal);
-
-      alert(
-        `✅ Picking generado\n\n` +
-          `Reserva: ${data.reserva}\n` +
-          `Total requerido: ${formatQty(data.total_requerido)}\n` +
-          `Total retirado: ${formatQty(data.total_retirado)}\n` +
-          `% cumplimiento: ${data.pct_cumplimiento_reserva}%\n` +
-          `Clasificación: ${data.clasificacion_final}\n` +
-          `Líneas picking: ${data.lineas_picking}`
-      );
 
       setReserva(reservaFinal);
       setReservaActiva(reservaFinal);
@@ -468,9 +629,24 @@ export default function Despacho() {
       await loadDespachos(reservaFinal);
       await loadPicking(reservaFinal);
 
-      navigate(`/movimientos/orden-picking/${encodeURIComponent(reservaFinal)}`);
+      showToast({
+        type: "success",
+        title: "Orden picking generada",
+        message: `Reserva ${data.reserva} · Req ${formatQty(data.total_requerido)} · Ret ${formatQty(
+          data.total_retirado
+        )} · ${data.pct_cumplimiento_reserva}%`,
+        meta: `${data.clasificacion_final} · ${data.lineas_picking} lineas picking`,
+      });
+
+      if (!options.stayOnPage) {
+        navigate(`/movimientos/orden-picking/${encodeURIComponent(reservaFinal)}`);
+      }
     } catch (e) {
-      alert("❌ Error generando picking:\n" + (e?.message || e));
+      showToast({
+        type: "error",
+        title: "No se pudo generar el picking",
+        message: e?.message || String(e),
+      });
     }
   };
 
@@ -557,6 +733,7 @@ export default function Despacho() {
           cerrada: false,
           fecha_cierre: "",
           nota_cierre: "",
+          adicional: false,
         });
       }
 
@@ -568,6 +745,10 @@ export default function Despacho() {
       item.total_retirado += Number(r.cantidad_retirada || 0);
       item.total_diferencia += Number(r.diferencia || 0);
       item.lineas_usadas += Number(r.lineas_usadas || 0);
+      item.adicional =
+        item.adicional ||
+        !!adicionalesStore[key]?.adicional ||
+        String(r.origen || "").toUpperCase() === "ADICIONAL";
 
       if (fechaActual) {
         if (!item.fecha_necesidad_min || fechaActual < item.fecha_necesidad_min) {
@@ -605,7 +786,7 @@ export default function Despacho() {
       if (fa !== fb) return fa.localeCompare(fb);
       return a.reserva.localeCompare(b.reserva);
     });
-  }, [rows, reservasStore]);
+  }, [rows, reservasStore, adicionalesStore]);
 
   const reservasFiltradas = useMemo(() => {
     return reservasResumen.filter((r) => {
@@ -752,7 +933,7 @@ export default function Despacho() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1.8fr auto auto",
+              gridTemplateColumns: "1.8fr auto auto auto",
               gap: 12,
               alignItems: "end",
             }}
@@ -774,6 +955,16 @@ export default function Despacho() {
             <button onClick={onImportar} disabled={subiendo} style={secondaryButtonStyle}>
               <Upload size={15} />
               {subiendo ? "Importando..." : "Importar"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAdicionalOpen(true)}
+              style={iconToolButtonStyle}
+              title="Crear reserva adicional"
+              aria-label="Crear reserva adicional"
+            >
+              <PackagePlus size={19} />
             </button>
 
             <div
@@ -993,21 +1184,24 @@ export default function Despacho() {
                     </td>
 
                     <td style={tdStyle}>
-                      <button
-                        onClick={() => seleccionarReservaDesdeResumen(r.reserva)}
-                        style={{
-                          border: "none",
-                          background: "transparent",
-                          padding: 0,
-                          margin: 0,
-                          color: colors.blue,
-                          fontWeight: 800,
-                          cursor: "pointer",
-                        }}
-                        title={`Seleccionar reserva ${r.reserva}`}
-                      >
-                        {r.reserva}
-                      </button>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          onClick={() => seleccionarReservaDesdeResumen(r.reserva)}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            padding: 0,
+                            margin: 0,
+                            color: colors.blue,
+                            fontWeight: 800,
+                            cursor: "pointer",
+                          }}
+                          title={`Seleccionar reserva ${r.reserva}`}
+                        >
+                          {r.reserva}
+                        </button>
+                        {r.adicional && <Chip label="ADICIONAL" tone="blue" />}
+                      </div>
                     </td>
 
                     <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>{r.total_skus}</td>
@@ -1113,6 +1307,7 @@ export default function Despacho() {
               <tr>
                 <th style={thStyle}>Fecha necesidad</th>
                 <th style={thStyle}>Reserva</th>
+                <th style={thStyle}>Origen</th>
                 <th style={thStyle}>SKU</th>
                 <th style={thStyle}>Texto breve</th>
                 <th style={{ ...thStyle, textAlign: "right" }}>Cantidad requerida</th>
@@ -1129,7 +1324,7 @@ export default function Despacho() {
             <tbody>
               {!loading && rowsFiltradas.length === 0 && (
                 <tr>
-                  <td colSpan={12} style={{ padding: 18, color: colors.muted, fontWeight: 700 }}>
+                  <td colSpan={13} style={{ padding: 18, color: colors.muted, fontWeight: 700 }}>
                     No hay registros cargados con esos filtros.
                   </td>
                 </tr>
@@ -1146,6 +1341,14 @@ export default function Despacho() {
                   <td style={{ ...tdStyle, fontWeight: 800 }}>{fmtDate(r.fecha_necesidad)}</td>
                   <td style={{ ...tdStyle, fontWeight: 800, color: colors.blue }}>
                     {r.reserva || ""}
+                  </td>
+                  <td style={tdStyle}>
+                    {(adicionalesStore[r.reserva]?.adicional ||
+                      String(r.origen || "").toUpperCase() === "ADICIONAL") ? (
+                      <Chip label="ADICIONAL" tone="blue" />
+                    ) : (
+                      <Chip label="EXCEL" tone="neutral" />
+                    )}
                   </td>
                   <td style={{ ...tdStyle, fontWeight: 800 }}>{r.sku || ""}</td>
                   <td
@@ -1297,6 +1500,267 @@ export default function Despacho() {
           </table>
         </div>
       </div>
+
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            right: 22,
+            bottom: 22,
+            zIndex: 90,
+            width: "min(420px, calc(100vw - 44px))",
+            background: "#fff",
+            border: `1px solid ${
+              toast.type === "error"
+                ? colors.badBd
+                : toast.type === "warn"
+                ? colors.warnBd
+                : colors.infoBd
+            }`,
+            borderRadius: 14,
+            boxShadow: "0 18px 44px rgba(15, 23, 42, 0.16)",
+            padding: 14,
+          }}
+        >
+          <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 10,
+                display: "grid",
+                placeItems: "center",
+                color:
+                  toast.type === "error"
+                    ? colors.bad
+                    : toast.type === "warn"
+                    ? colors.warn
+                    : colors.good,
+                background:
+                  toast.type === "error"
+                    ? colors.badBg
+                    : toast.type === "warn"
+                    ? colors.warnBg
+                    : colors.goodBg,
+                border: `1px solid ${
+                  toast.type === "error"
+                    ? colors.badBd
+                    : toast.type === "warn"
+                    ? colors.warnBd
+                    : colors.goodBd
+                }`,
+              }}
+            >
+              {toast.type === "error" || toast.type === "warn" ? (
+                <AlertTriangle size={18} />
+              ) : (
+                <CheckCircle2 size={18} />
+              )}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ color: colors.navy, fontWeight: 900, fontSize: 14 }}>
+                {toast.title}
+              </div>
+              <div style={{ color: colors.text, fontWeight: 700, fontSize: 12, marginTop: 4 }}>
+                {toast.message}
+              </div>
+              {toast.meta && (
+                <div style={{ color: colors.muted, fontWeight: 800, fontSize: 11, marginTop: 6 }}>
+                  {toast.meta}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setToast(null)}
+              style={{
+                border: "none",
+                background: "transparent",
+                color: colors.muted,
+                cursor: "pointer",
+                padding: 2,
+              }}
+              aria-label="Cerrar mensaje"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {adicionalOpen && (
+        <div style={overlayStyle} role="dialog" aria-modal="true">
+          <div style={modalStyle}>
+            <div
+              style={{
+                padding: "16px 18px",
+                borderBottom: `1px solid ${colors.border}`,
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                alignItems: "center",
+                background: "#fbfdff",
+              }}
+            >
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 12,
+                    display: "grid",
+                    placeItems: "center",
+                    background: colors.infoBg,
+                    border: `1px solid ${colors.infoBd}`,
+                    color: colors.blue,
+                  }}
+                >
+                  <ClipboardList size={20} />
+                </div>
+                <div>
+                  <div
+                    style={{
+                      color: colors.muted,
+                      fontWeight: 900,
+                      fontSize: 11,
+                      letterSpacing: ".08em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Toolbox despacho
+                  </div>
+                  <div style={{ color: colors.navy, fontWeight: 900, fontSize: 18 }}>
+                    Reserva adicional
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAdicionalOpen(false)}
+                style={secondaryButtonStyle}
+              >
+                <X size={15} />
+                Cerrar
+              </button>
+            </div>
+
+            <div style={{ padding: 18, display: "grid", gap: 14 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12,
+                }}
+              >
+                <div>
+                  <div style={labelStyle}>Reserva</div>
+                  <input
+                    value={adicionalForm.reserva}
+                    onChange={(e) =>
+                      setAdicionalForm((prev) => ({ ...prev, reserva: e.target.value }))
+                    }
+                    placeholder="Ej: 180991999"
+                    style={inputStyle}
+                  />
+                </div>
+                <div>
+                  <div style={labelStyle}>Fecha</div>
+                  <input
+                    type="date"
+                    value={adicionalForm.fecha_necesidad}
+                    onChange={(e) =>
+                      setAdicionalForm((prev) => ({ ...prev, fecha_necesidad: e.target.value }))
+                    }
+                    style={inputStyle}
+                  />
+                </div>
+                <div>
+                  <div style={labelStyle}>SKU</div>
+                  <input
+                    value={adicionalForm.sku}
+                    onChange={(e) =>
+                      setAdicionalForm((prev) => ({ ...prev, sku: e.target.value }))
+                    }
+                    placeholder="Codigo material"
+                    style={inputStyle}
+                  />
+                </div>
+                <div>
+                  <div style={labelStyle}>Cantidad requerida</div>
+                  <input
+                    value={adicionalForm.cantidad}
+                    onChange={(e) =>
+                      setAdicionalForm((prev) => ({ ...prev, cantidad: e.target.value }))
+                    }
+                    onBlur={() =>
+                      setAdicionalForm((prev) => ({
+                        ...prev,
+                        cantidad: formatInputQty(prev.cantidad) || prev.cantidad,
+                      }))
+                    }
+                    placeholder="0"
+                    style={{ ...inputStyle, textAlign: "right" }}
+                  />
+                </div>
+              </div>
+
+              <div
+                style={{
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 12,
+                  background: colors.soft,
+                  padding: 12,
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                  gap: 10,
+                }}
+              >
+                <SummaryBox label="Origen" value="Adicional" tone="blue" />
+                <SummaryBox label="Reserva" value={adicionalForm.reserva || "-"} tone="default" />
+                <SummaryBox label="SKU" value={adicionalForm.sku || "-"} tone="default" />
+                <SummaryBox
+                  label="Cantidad"
+                  value={formatQty(parseQtyCO(adicionalForm.cantidad) || 0)}
+                  tone="amber"
+                />
+              </div>
+
+              <div
+                style={{
+                  color: colors.muted,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  lineHeight: 1.45,
+                }}
+              >
+                Al aceptar se crea como reserva adicional en despacho. La salida de inventario se descuenta
+                cuando se confirme la orden en el modulo de picking, usando el mismo flujo trazable del WMS.
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => onCrearReservaAdicional({ generarOrden: false })}
+                  disabled={guardandoAdicional}
+                  style={secondaryButtonStyle}
+                >
+                  <CheckCircle2 size={15} />
+                  {guardandoAdicional ? "Guardando..." : "Aceptar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onCrearReservaAdicional({ generarOrden: true })}
+                  disabled={guardandoAdicional}
+                  style={primaryButtonStyle}
+                >
+                  <ArrowRight size={15} />
+                  Guardar y generar orden
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

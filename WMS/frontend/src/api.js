@@ -956,6 +956,58 @@ export function importarDespachos(file) {
   });
 }
 
+export async function crearReservaAdicionalDespacho(payload = {}) {
+  if (!supabaseEnabled) throw new Error("Supabase no esta configurado.");
+
+  const reserva = String(payload.reserva || "").trim();
+  const sku = String(payload.sku || "").trim();
+  const cantidad = toNumber(payload.cantidad);
+  if (!reserva) throw new Error("Numero de reserva obligatorio.");
+  if (!sku) throw new Error("SKU obligatorio.");
+  if (cantidad <= 0) throw new Error("Cantidad requerida debe ser mayor a cero.");
+
+  const material =
+    (await findOne("materiales", {
+      empresa_id: `eq.${empresaId}`,
+      codigo: `eq.${sku}`,
+      select: "*",
+    }).catch(() => null)) || null;
+
+  const baseRow = compactObject({
+    empresa_id: empresaId,
+    carga_id: null,
+    material_id: material?.id || null,
+    fecha_necesidad: payload.fecha_necesidad || todayISO(),
+    reserva,
+    sku,
+    texto_breve: String(payload.texto_breve || material?.descripcion || "Reserva adicional").trim(),
+    cantidad,
+    cantidad_retirada: 0,
+    diferencia: cantidad,
+    lineas_usadas: 0,
+    pct_cumplimiento_sku: 0,
+    pct_cumplimiento_reserva: 0,
+    clasificacion_sku: "NO CUMPLIDA",
+    clasificacion_final: "NO CUMPLIDA",
+    estado_operativo: "ABIERTA",
+    cerrada: false,
+  });
+
+  try {
+    const saved = await insertRow("wms", "despacho_detalles", {
+      ...baseRow,
+      origen: "ADICIONAL",
+      observacion: "Reserva adicional creada manualmente desde despacho.",
+    });
+    return Array.isArray(saved) ? saved[0] : saved;
+  } catch (error) {
+    const message = String(error?.message || error || "");
+    if (!/origen|observacion|column|schema cache/i.test(message)) throw error;
+    const saved = await insertRow("wms", "despacho_detalles", baseRow);
+    return Array.isArray(saved) ? saved[0] : saved;
+  }
+}
+
 export function getDespachos(params = {}) {
   const query = {
     empresa_id: `eq.${empresaId}`,
