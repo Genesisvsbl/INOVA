@@ -2183,11 +2183,14 @@ export default function OrdenPicking() {
                   <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
                     <thead>
                       <tr>
-                        <th style={{ ...thStyle, width: 110 }}>SKU</th>
+                        <th style={{ ...thStyle, width: 90 }}>SKU</th>
                         <th style={thStyle}>Material</th>
-                        <th style={{ ...thStyle, width: 120, textAlign: "right" }}>Sugerida</th>
-                        <th style={{ ...thStyle, width: 120, textAlign: "right" }}>Tomar</th>
-                        <th style={{ ...thStyle, width: 120 }}>Ubicacion</th>
+                        <th style={{ ...thStyle, width: 90, textAlign: "right" }}>Sugerida</th>
+                        <th style={{ ...thStyle, width: 90, textAlign: "right" }}>Tomar</th>
+                        <th style={{ ...thStyle, width: 105 }}>Ubicacion</th>
+                        <th style={{ ...thStyle, width: 125 }}>Lote almacen</th>
+                        <th style={{ ...thStyle, width: 125 }}>Lote proveedor</th>
+                        <th style={{ ...thStyle, width: 105 }}>Vencimiento</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2205,11 +2208,14 @@ export default function OrdenPicking() {
                               {formatQty(cantidades[row.id] ?? 0)}
                             </td>
                             <td style={{ ...tdStyle, fontWeight: 800 }}>{row.ubicacion || ""}</td>
+                            <td style={{ ...tdStyle, fontWeight: 700 }}>{row.lote_almacen || ""}</td>
+                            <td style={{ ...tdStyle, fontWeight: 700 }}>{row.lote_proveedor || ""}</td>
+                            <td style={{ ...tdStyle, fontWeight: 700 }}>{fmtDate(row.fecha_vencimiento)}</td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={5} style={{ padding: 14, color: colors.muted, fontWeight: 800 }}>
+                          <td colSpan={8} style={{ padding: 14, color: colors.muted, fontWeight: 800 }}>
                             No hay lineas de picking generadas para imprimir.
                           </td>
                         </tr>
@@ -2901,7 +2907,7 @@ export default function OrdenPicking() {
         <div className="print-inner">
           <div className="print-header">
             <div className="print-header-left">
-              <img src="/INOVA2026.png" alt="INOVA" className="print-logo" />
+              <img src="/favicon1.ico" alt="INOVA" className="print-logo" />
               <div>
                 <h1 className="print-title">
                   {modoImpresion === "final" ? "RESULTADO FINAL DE DESPACHO" : "ORDEN DE PICKING"}
