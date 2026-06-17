@@ -1174,7 +1174,7 @@ export default function Despacho() {
         </div>
 
         <div style={tableWrapStyle}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1500 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1580 }}>
             <thead>
               <tr>
                 <th style={thStyle}>Fecha necesidad</th>
@@ -1194,7 +1194,7 @@ export default function Despacho() {
             <tbody>
               {!loading && reservasFiltradas.length === 0 && (
                 <tr>
-                  <td colSpan={11} style={{ padding: 18, color: colors.muted, fontWeight: 700 }}>
+                  <td colSpan={12} style={{ padding: 18, color: colors.muted, fontWeight: 700 }}>
                     No hay reservas con esos filtros.
                   </td>
                 </tr>
@@ -1226,24 +1226,28 @@ export default function Despacho() {
                     </td>
 
                     <td style={tdStyle}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <button
-                          onClick={() => seleccionarReservaDesdeResumen(r.reserva)}
-                          style={{
-                            border: "none",
-                            background: "transparent",
-                            padding: 0,
-                            margin: 0,
-                            color: colors.blue,
-                            fontWeight: 800,
-                            cursor: "pointer",
-                          }}
-                          title={`Seleccionar reserva ${r.reserva}`}
-                        >
-                          {r.reserva}
-                        </button>
-                        {r.adicional && <Chip label="ADICIONAL" tone="blue" />}
-                      </div>
+                      <button
+                        onClick={() => seleccionarReservaDesdeResumen(r.reserva)}
+                        style={{
+                          border: "none",
+                          background: "transparent",
+                          padding: 0,
+                          margin: 0,
+                          color: colors.blue,
+                          fontWeight: 800,
+                          cursor: "pointer",
+                        }}
+                        title={`Seleccionar reserva ${r.reserva}`}
+                      >
+                        {r.reserva}
+                      </button>
+                    </td>
+
+                    <td style={tdStyle}>
+                      <Chip
+                        label={r.adicional ? "Adicional" : "Inicial"}
+                        tone={r.adicional ? "blue" : "neutral"}
+                      />
                     </td>
 
                     <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>{r.total_skus}</td>
@@ -1348,7 +1352,8 @@ export default function Despacho() {
             <thead>
               <tr>
                 <th style={thStyle}>Fecha necesidad</th>
-                <th style={thStyle}>Reserva</th>
+                <th style={thStyle}>N° de reserva</th>
+                <th style={thStyle}>Tipo</th>
                 <th style={thStyle}>Origen</th>
                 <th style={thStyle}>SKU</th>
                 <th style={thStyle}>Texto breve</th>
