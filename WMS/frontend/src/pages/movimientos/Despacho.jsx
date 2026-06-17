@@ -521,6 +521,15 @@ export default function Despacho() {
       const data = await importarDespachos(file);
       setUltimaCargaId(data?.carga_id || null);
 
+      if (Array.isArray(data?.reservas) && data.reservas.length) {
+        const actualAdicionales = getAdditionalStore();
+        data.reservas.forEach((reservaImportada) => {
+          delete actualAdicionales[String(reservaImportada || "").trim()];
+        });
+        saveAdditionalStore(actualAdicionales);
+        forceRefreshStore();
+      }
+
       showToast({
         type: "success",
         title: "Importacion completada",

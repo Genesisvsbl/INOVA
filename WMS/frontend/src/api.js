@@ -946,13 +946,17 @@ export function importarDespachos(file) {
     const reservas = Array.from(new Set(mapped.map((row) => row.reserva).filter(Boolean)));
     await Promise.all(
       reservas.map(async (reserva) => {
-        const existentes = await getDespachos({ reserva }).catch(() => []);
+        const [existentes, picks] = await Promise.all([
+          getDespachos({ reserva }).catch(() => []),
+          verPicking(reserva).catch(() => []),
+        ]);
+        await Promise.all((picks || []).map((row) => deleteById("wms", "picking_detalle", row.id)));
         await Promise.all((existentes || []).map((row) => deleteById("wms", "despacho_detalles", row.id)));
       })
     );
 
     await insertRow("wms", "despacho_detalles", mapped);
-    return importResult(mapped.length, rows.length - mapped.length);
+    return { ...importResult(mapped.length, rows.length - mapped.length), reservas };
   });
 }
 
