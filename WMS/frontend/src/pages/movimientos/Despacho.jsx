@@ -137,15 +137,17 @@ function Chip({ label, tone = "neutral" }) {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        minHeight: 28,
-        padding: "0 10px",
-        borderRadius: 8,
+        justifyContent: "center",
+        minHeight: 23,
+        padding: "0 8px",
+        borderRadius: 7,
         background: t.bg,
         border: `1px solid ${t.bd}`,
         color: t.tx,
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: 850,
         whiteSpace: "nowrap",
+        lineHeight: 1,
       }}
     >
       {label}
@@ -263,6 +265,15 @@ const secondaryButtonStyle = {
   color: colors.text,
 };
 
+const compactActionButtonStyle = {
+  ...buttonBase,
+  height: 28,
+  padding: "0 9px",
+  borderRadius: 7,
+  gap: 5,
+  fontSize: 11,
+};
+
 const primaryButtonStyle = {
   ...buttonBase,
   border: "1px solid #0b57d0",
@@ -342,9 +353,9 @@ const tableWrapStyle = {
 };
 
 const thStyle = {
-  padding: "11px 12px",
+  padding: "9px 10px",
   color: "#607080",
-  fontSize: 12,
+  fontSize: 11,
   fontWeight: 800,
   textAlign: "left",
   borderBottom: `1px solid ${colors.border}`,
@@ -353,12 +364,12 @@ const thStyle = {
 };
 
 const tdStyle = {
-  padding: "12px",
+  padding: "9px 10px",
   borderBottom: `1px solid #edf2f7`,
   color: colors.text,
   fontWeight: 700,
   whiteSpace: "nowrap",
-  fontSize: 13,
+  fontSize: 12,
   verticalAlign: "top",
 };
 
@@ -1174,11 +1185,12 @@ export default function Despacho() {
         </div>
 
         <div style={tableWrapStyle}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1580 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1500 }}>
             <thead>
               <tr>
                 <th style={thStyle}>Fecha necesidad</th>
-                <th style={thStyle}>Reserva</th>
+                <th style={thStyle}>N° de reserva</th>
+                <th style={thStyle}>Tipo</th>
                 <th style={{ ...thStyle, textAlign: "right" }}>SKUs</th>
                 <th style={{ ...thStyle, textAlign: "right" }}>Requerido</th>
                 <th style={{ ...thStyle, textAlign: "right" }}>Retirado</th>
@@ -1291,43 +1303,43 @@ export default function Despacho() {
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <button
                           onClick={() => verReserva(r.reserva)}
-                          style={secondaryButtonStyle}
+                          style={{ ...secondaryButtonStyle, ...compactActionButtonStyle }}
                         >
-                          <Eye size={14} />
+                          <Eye size={13} />
                           Ver
                         </button>
 
                         <button
                           onClick={() => onGenerarPicking(r.reserva)}
-                          style={subtleBlueButtonStyle}
+                          style={{ ...subtleBlueButtonStyle, ...compactActionButtonStyle }}
                         >
-                          <Settings2 size={14} />
+                          <Settings2 size={13} />
                           Picking
                         </button>
 
                         {!r.cerrada ? (
                           <button
                             onClick={() => cerrarReserva(r.reserva, r.clasificacion_base)}
-                            style={subtleWarnButtonStyle}
+                            style={{ ...subtleWarnButtonStyle, ...compactActionButtonStyle }}
                           >
-                            <Lock size={14} />
+                            <Lock size={13} />
                             Cerrar
                           </button>
                         ) : (
                           <button
                             onClick={() => reabrirReserva(r.reserva)}
-                            style={subtleGreenButtonStyle}
+                            style={{ ...subtleGreenButtonStyle, ...compactActionButtonStyle }}
                           >
-                            <Unlock size={14} />
+                            <Unlock size={13} />
                             Reabrir
                           </button>
                         )}
 
                         <button
                           onClick={() => eliminarReserva(r.reserva)}
-                          style={subtleRedButtonStyle}
+                          style={{ ...subtleRedButtonStyle, ...compactActionButtonStyle }}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                           Eliminar
                         </button>
                       </div>
@@ -1354,7 +1366,6 @@ export default function Despacho() {
                 <th style={thStyle}>Fecha necesidad</th>
                 <th style={thStyle}>N° de reserva</th>
                 <th style={thStyle}>Tipo</th>
-                <th style={thStyle}>Origen</th>
                 <th style={thStyle}>SKU</th>
                 <th style={thStyle}>Texto breve</th>
                 <th style={{ ...thStyle, textAlign: "right" }}>Cantidad requerida</th>
@@ -1392,9 +1403,9 @@ export default function Despacho() {
                   <td style={tdStyle}>
                     {(adicionalesStore[r.reserva]?.adicional ||
                       String(r.origen || "").toUpperCase() === "ADICIONAL") ? (
-                      <Chip label="ADICIONAL" tone="blue" />
+                      <Chip label="Adicional" tone="blue" />
                     ) : (
-                      <Chip label="EXCEL" tone="neutral" />
+                      <Chip label="Inicial" tone="neutral" />
                     )}
                   </td>
                   <td style={{ ...tdStyle, fontWeight: 800 }}>{r.sku || ""}</td>
