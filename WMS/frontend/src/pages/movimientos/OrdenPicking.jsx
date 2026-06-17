@@ -1355,9 +1355,9 @@ export default function OrdenPicking() {
       font-size: 7px !important;
       font-weight: 900 !important;
       padding: 3px 6px !important;
-      background: #133454 !important;
-      border-bottom: 1px solid #0b223b !important;
-      color: #ffffff !important;
+      background: #ffffff !important;
+      border-bottom: 1px solid #c8d1dc !important;
+      color: #133454 !important;
     }
 
     .print-table-wrap {
@@ -1387,9 +1387,9 @@ export default function OrdenPicking() {
 
     .print-table th {
       font-weight: 900 !important;
-      background: #133454 !important;
-      color: #ffffff !important;
-      border-color: #0b223b !important;
+      background: #ffffff !important;
+      color: #133454 !important;
+      border-color: #c8d1dc !important;
     }
 
     .print-wrap {
