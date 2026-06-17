@@ -5,6 +5,7 @@ import {
   eliminarReserva as eliminarReservaSupabase,
   generarPicking,
   getDespachos,
+  getMateriales,
   importarDespachos,
   verPicking,
 } from "../../api";
@@ -297,9 +298,9 @@ const subtleRedButtonStyle = {
   color: colors.bad,
 };
 
-const iconToolButtonStyle = {
-  width: 42,
+const additionalActionButtonStyle = {
   height: 42,
+  padding: "0 14px",
   borderRadius: 10,
   border: `1px solid ${colors.infoBd}`,
   background: "#f7fbff",
@@ -307,7 +308,11 @@ const iconToolButtonStyle = {
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
+  gap: 8,
   cursor: "pointer",
+  fontSize: 12,
+  fontWeight: 900,
+  whiteSpace: "nowrap",
 };
 
 const overlayStyle = {
@@ -409,9 +414,11 @@ export default function Despacho() {
 
   const [rows, setRows] = useState([]);
   const [pickingRows, setPickingRows] = useState([]);
+  const [materiales, setMateriales] = useState([]);
 
   const [loading, setLoading] = useState(false);
   const [loadingPicking, setLoadingPicking] = useState(false);
+  const [loadingMateriales, setLoadingMateriales] = useState(false);
   const [err, setErr] = useState("");
 
   const [reserva, setReserva] = useState("");
@@ -477,8 +484,24 @@ export default function Despacho() {
     }
   };
 
+  const loadMateriales = async () => {
+    setLoadingMateriales(true);
+    try {
+      const data = await getMateriales();
+      const sorted = (Array.isArray(data) ? data : [])
+        .filter((m) => String(m.codigo || "").trim())
+        .sort((a, b) => String(a.codigo || "").localeCompare(String(b.codigo || "")));
+      setMateriales(sorted);
+    } catch {
+      setMateriales([]);
+    } finally {
+      setLoadingMateriales(false);
+    }
+  };
+
   useEffect(() => {
     loadDespachos("");
+    loadMateriales();
   }, []);
 
   const onImportar = async () => {
@@ -533,6 +556,15 @@ export default function Despacho() {
         type: "warn",
         title: "Reserva adicional incompleta",
         message: "Completa numero de reserva, SKU y cantidad requerida mayor a cero.",
+      });
+      return;
+    }
+
+    if (!/^\d{1,10}$/.test(reservaManual)) {
+      showToast({
+        type: "warn",
+        title: "Reserva invalida",
+        message: "El numero de reserva debe tener solo digitos y maximo 10 caracteres.",
       });
       return;
     }
@@ -960,11 +992,12 @@ export default function Despacho() {
             <button
               type="button"
               onClick={() => setAdicionalOpen(true)}
-              style={iconToolButtonStyle}
+              style={additionalActionButtonStyle}
               title="Crear reserva adicional"
               aria-label="Crear reserva adicional"
             >
-              <PackagePlus size={19} />
+              <PackagePlus size={17} />
+              Reserva adicional
             </button>
 
             <div
@@ -1657,9 +1690,14 @@ export default function Despacho() {
                   <input
                     value={adicionalForm.reserva}
                     onChange={(e) =>
-                      setAdicionalForm((prev) => ({ ...prev, reserva: e.target.value }))
+                      setAdicionalForm((prev) => ({
+                        ...prev,
+                        reserva: e.target.value.replace(/\D/g, "").slice(0, 10),
+                      }))
                     }
-                    placeholder="Ej: 180991999"
+                    placeholder="Max. 10 digitos"
+                    inputMode="numeric"
+                    maxLength={10}
                     style={inputStyle}
                   />
                 </div>
@@ -1668,22 +1706,34 @@ export default function Despacho() {
                   <input
                     type="date"
                     value={adicionalForm.fecha_necesidad}
-                    onChange={(e) =>
-                      setAdicionalForm((prev) => ({ ...prev, fecha_necesidad: e.target.value }))
-                    }
-                    style={inputStyle}
+                    readOnly
+                    disabled
+                    style={{ ...inputStyle, background: colors.soft, cursor: "not-allowed" }}
                   />
                 </div>
                 <div>
                   <div style={labelStyle}>SKU</div>
-                  <input
+                  <select
                     value={adicionalForm.sku}
                     onChange={(e) =>
                       setAdicionalForm((prev) => ({ ...prev, sku: e.target.value }))
                     }
-                    placeholder="Codigo material"
                     style={inputStyle}
-                  />
+                    disabled={loadingMateriales || materiales.length === 0}
+                  >
+                    <option value="">
+                      {loadingMateriales
+                        ? "Cargando materiales..."
+                        : materiales.length
+                        ? "Seleccione SKU..."
+                        : "Sin materiales disponibles"}
+                    </option>
+                    {materiales.map((material) => (
+                      <option key={material.id || material.codigo} value={material.codigo}>
+                        {material.codigo} - {material.descripcion || "Sin descripcion"}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <div style={labelStyle}>Cantidad requerida</div>
