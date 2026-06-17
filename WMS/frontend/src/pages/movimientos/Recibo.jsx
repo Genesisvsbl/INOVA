@@ -1424,58 +1424,52 @@ export default function Recibo() {
             .receipt-novelty-wrap {
               width: 48%;
               margin: 0;
-              padding-top: 12px;
               position: absolute;
               right: 0;
               bottom: 14mm;
+              border: 1px solid #d9e2ec;
+              border-radius: 8px;
+              overflow: hidden;
+              background: #ffffff;
               page-break-inside: avoid;
               break-inside: avoid;
             }
 
             .receipt-novelty-title {
-              min-width: 72%;
-              height: 28px;
-              display: inline-grid;
+              height: 24px;
+              display: grid;
               place-items: center;
-              position: absolute;
-              left: 50%;
-              top: 0;
-              transform: translateX(-50%);
-              padding: 0 14px;
-              border-radius: 10px 10px 0 0;
-              color: #ffffff;
-              background: #0f2744;
-              font-size: 10.5px;
+              padding: 0 8px;
+              border-bottom: 1px solid #d9e2ec;
+              color: #0f2744;
+              background: #f8fafc;
+              font-size: 9.4px;
               line-height: 1;
               font-weight: 900;
               letter-spacing: .02em;
               text-transform: uppercase;
-              box-shadow: 0 2px 6px rgba(15, 39, 68, .18);
-              z-index: 2;
+              text-align: center;
             }
 
             .receipt-novelty-table {
               width: 100%;
               table-layout: fixed;
-              border-collapse: separate;
-              border-spacing: 0;
-              border: 1.4px solid #0f2744;
-              border-radius: 8px;
-              overflow: hidden;
-              font-size: 9.4px;
+              border-collapse: collapse;
+              font-size: 8.6px;
               line-height: 1.1;
             }
 
             .receipt-novelty-table th,
             .receipt-novelty-table td {
-              height: 23px;
-              border-right: 1px solid #cbd5e1;
-              border-bottom: 1px dashed #cbd5e1;
-              padding: 4px 6px;
+              height: 20px;
+              border-right: 1px solid #d9e2ec;
+              border-bottom: 1px solid #d9e2ec;
+              padding: 3px 5px;
               color: #0f172a;
               background: #ffffff;
               vertical-align: middle;
               font-weight: 800;
+              text-align: center;
             }
 
             .receipt-novelty-table th:last-child,
@@ -1488,21 +1482,18 @@ export default function Recibo() {
             }
 
             .receipt-novelty-table th {
-              height: 34px;
+              height: 22px;
               text-align: center;
-              font-size: 9.2px;
+              font-size: 8.4px;
               font-weight: 900;
               color: #0f2744;
-              background: linear-gradient(180deg, #ffffff 0%, #f3f7fb 100%);
+              background: #ffffff;
               border-bottom: 1px solid #cbd5e1;
+              text-transform: uppercase;
             }
 
             .receipt-novelty-table .nov-icon {
-              display: inline-block;
-              margin-right: 5px;
-              color: #0f2744;
-              font-size: 13px;
-              vertical-align: -1px;
+              display: none;
             }
 
             .receipt-footer {
@@ -1823,10 +1814,10 @@ export default function Recibo() {
                   </colgroup>
                   <thead>
                     <tr>
-                      <th><span class="nov-icon">▣</span>No. Item</th>
-                      <th><span class="nov-icon">⌕</span>Hallazgo</th>
-                      <th><span class="nov-icon">▧</span>Tipo de empaque</th>
-                      <th><span class="nov-icon">#</span>Cantidad</th>
+                      <th>No. Item</th>
+                      <th>Hallazgo</th>
+                      <th>Empaque</th>
+                      <th>Cantidad</th>
                     </tr>
                   </thead>
                   <tbody>
