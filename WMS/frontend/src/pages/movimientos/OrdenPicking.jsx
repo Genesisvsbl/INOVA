@@ -297,6 +297,16 @@ function QuantityMetaBox({ sugerido, maximo, exceso }) {
   );
 }
 
+function isReservaAdicionalLocal(reserva) {
+  try {
+    const raw = localStorage.getItem("wms_reservas_adicionales_local");
+    const data = raw ? JSON.parse(raw) : {};
+    return !!data?.[String(reserva || "").trim()]?.adicional;
+  } catch {
+    return false;
+  }
+}
+
 const shellCardStyle = {
   background: colors.card,
   border: `1px solid ${colors.border}`,
@@ -456,6 +466,8 @@ export default function OrdenPicking() {
   const [motivosRotacion, setMotivosRotacion] = useState({});
 
   const [modalRow, setModalRow] = useState(null);
+  const [toolboxPickingOpen, setToolboxPickingOpen] = useState(false);
+  const [toolboxMessage, setToolboxMessage] = useState("");
 
   const [maximosManuales, setMaximosManuales] = useState({});
   const [itemsManualExtra, setItemsManualExtra] = useState([]);
@@ -469,6 +481,9 @@ export default function OrdenPicking() {
   const printTimeoutRef = useRef(null);
   const skuSearchTimeoutRef = useRef(null);
   const modalContentRef = useRef(null);
+  const toolboxOpenedRef = useRef(false);
+
+  const reservaAdicional = useMemo(() => isReservaAdicionalLocal(reserva), [reserva]);
 
   const buildMotivoRotacion = (texto) => {
     const limpio = String(texto || "").trim();
@@ -959,7 +974,7 @@ export default function OrdenPicking() {
     printTimeoutRef.current = setTimeout(() => window.print(), 300);
   };
 
-  const guardarDespacho = async () => {
+  const guardarDespacho = async ({ silent = false } = {}) => {
     if (!rowsPendientesFull.length) {
       alert("No hay líneas pendientes para guardar.");
       return;
@@ -1048,18 +1063,22 @@ export default function OrdenPicking() {
 
       const data = await confirmarPicking(reserva, payload);
 
-      alert(
-        `Despacho guardado correctamente\n\n` +
-          `Reserva: ${data.reserva}\n` +
-          `Total guardado: ${formatQty(data.total_guardado)}\n` +
-          `Total retirado: ${formatQty(data.total_retirado)}\n` +
-          `% cumplimiento reserva: ${data.pct_cumplimiento_reserva}%`
-      );
+      if (!silent) {
+        alert(
+          `Despacho guardado correctamente\n\n` +
+            `Reserva: ${data.reserva}\n` +
+            `Total guardado: ${formatQty(data.total_guardado)}\n` +
+            `Total retirado: ${formatQty(data.total_retirado)}\n` +
+            `% cumplimiento reserva: ${data.pct_cumplimiento_reserva}%`
+        );
+      }
 
       setItemsManualExtra([]);
       await loadData();
+      return data;
     } catch (e) {
       alert("Error guardando picking:\n" + (e?.message || e));
+      throw e;
     } finally {
       setGuardando(false);
     }
@@ -1079,6 +1098,30 @@ export default function OrdenPicking() {
           motivo_rotacion_impresion: buildMotivoRotacion(motivosRotacion[r.id]),
           alternativa_impresion: alternativaElegida[r.id] || null,
         }));
+
+  useEffect(() => {
+    if (!reservaAdicional || loading || toolboxOpenedRef.current) return;
+    if (!detallesReserva.length && !rowsPendientesFull.length) return;
+    toolboxOpenedRef.current = true;
+    setModoImpresion("seleccionados");
+    setToolboxPickingOpen(true);
+  }, [reservaAdicional, loading, detallesReserva.length, rowsPendientesFull.length]);
+
+  const imprimirDesdeToolbox = async () => {
+    setToolboxMessage("");
+    await imprimirSeleccionados();
+    setToolboxMessage("Orden enviada a impresion. Luego puedes guardar el despacho.");
+  };
+
+  const guardarDesdeToolbox = async () => {
+    setToolboxMessage("");
+    const data = await guardarDespacho({ silent: true });
+    if (!data) return;
+    setToolboxMessage(
+      `Guardado. Retirado ${formatQty(data.total_retirado)} · Cumplimiento ${data.pct_cumplimiento_reserva}%`
+    );
+    setToolboxPickingOpen(false);
+  };
 
   const currentModalAlternativas = modalRow ? alternativasPorRow[modalRow.id] || [] : [];
   const currentModalAlternativa = modalRow ? alternativaElegida[modalRow.id] : null;
@@ -2042,6 +2085,174 @@ export default function OrdenPicking() {
           </div>
         </div>
       </div>
+
+      {toolboxPickingOpen && (
+        <div
+          onClick={() => setToolboxPickingOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: colors.overlay,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "center",
+            padding: "22px 18px",
+            zIndex: 9998,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(980px, 96vw)",
+              maxHeight: "92vh",
+              overflow: "auto",
+              background: "#fff",
+              borderRadius: 16,
+              border: `1px solid ${colors.border}`,
+              boxShadow: "0 24px 80px rgba(15,23,42,.22)",
+            }}
+          >
+            <div
+              style={{
+                padding: "14px 16px",
+                borderBottom: `1px solid ${colors.border}`,
+                background: colors.soft,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: colors.blue,
+                    fontWeight: 900,
+                    fontSize: 11,
+                    letterSpacing: ".08em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Toolbox reserva adicional
+                </div>
+                <div style={{ color: colors.navy, fontSize: 19, fontWeight: 900 }}>
+                  Orden de picking · Reserva {reserva}
+                </div>
+              </div>
+              <button type="button" onClick={() => setToolboxPickingOpen(false)} style={secondaryButtonStyle}>
+                <X size={15} />
+                Cerrar
+              </button>
+            </div>
+
+            <div style={{ padding: 16, display: "grid", gap: 14 }}>
+              <div
+                style={{
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 10,
+                  background: "#fff",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    padding: 14,
+                    borderBottom: `1px solid ${colors.border}`,
+                    background: "#fbfdff",
+                    gap: 12,
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 900, color: colors.muted, letterSpacing: ".08em" }}>
+                      ORDEN PICKING
+                    </div>
+                    <div style={{ fontSize: 24, fontWeight: 900, color: colors.navy }}>
+                      Reserva {reserva}
+                    </div>
+                    <div style={{ marginTop: 4, color: colors.muted, fontSize: 12, fontWeight: 700 }}>
+                      Usuario {usuario || "DESPACHO"} · Documento {documento || "Pendiente"}
+                    </div>
+                  </div>
+                  <Chip label="ADICIONAL" tone="blue" />
+                </div>
+
+                <div style={{ padding: 12 }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+                    <thead>
+                      <tr>
+                        <th style={{ ...thStyle, width: 110 }}>SKU</th>
+                        <th style={thStyle}>Material</th>
+                        <th style={{ ...thStyle, width: 120, textAlign: "right" }}>Sugerida</th>
+                        <th style={{ ...thStyle, width: 120, textAlign: "right" }}>Tomar</th>
+                        <th style={{ ...thStyle, width: 120 }}>Ubicacion</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rowsPendientesFull.length ? (
+                        rowsPendientesFull.slice(0, 12).map((row) => (
+                          <tr key={`toolbox-${row.id}`} style={{ borderBottom: `1px solid ${colors.border}` }}>
+                            <td style={{ ...tdStyle, fontWeight: 900 }}>{row.sku || ""}</td>
+                            <td style={{ ...tdStyle, whiteSpace: "normal", fontWeight: 700 }}>
+                              {row.texto_breve || ""}
+                            </td>
+                            <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                              {formatQty(row.cantidad_sugerida || 0)}
+                            </td>
+                            <td style={{ ...tdStyle, textAlign: "right", fontWeight: 900, color: colors.good }}>
+                              {formatQty(cantidades[row.id] ?? 0)}
+                            </td>
+                            <td style={{ ...tdStyle, fontWeight: 800 }}>{row.ubicacion || ""}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={5} style={{ padding: 14, color: colors.muted, fontWeight: 800 }}>
+                            No hay lineas de picking generadas para imprimir.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                  {rowsPendientesFull.length > 12 && (
+                    <div style={{ marginTop: 8, color: colors.muted, fontSize: 11, fontWeight: 800 }}>
+                      Mostrando 12 de {rowsPendientesFull.length} lineas. La impresion incluye las lineas seleccionadas.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {toolboxMessage && (
+                <div
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    background: colors.goodBg,
+                    border: `1px solid ${colors.goodBd}`,
+                    color: colors.good,
+                    fontWeight: 850,
+                  }}
+                >
+                  {toolboxMessage}
+                </div>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
+                <button type="button" onClick={imprimirDesdeToolbox} style={secondaryButtonStyle}>
+                  <Printer size={15} />
+                  Imprimir orden
+                </button>
+                <button type="button" onClick={guardarDesdeToolbox} disabled={guardando} style={greenButtonStyle}>
+                  <Save size={15} />
+                  {guardando ? "Guardando..." : "Guardar despacho"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modalRow && (
         <div
