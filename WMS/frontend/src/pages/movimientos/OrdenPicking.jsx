@@ -275,12 +275,13 @@ function QuantityMetaBox({ sugerido, maximo, exceso }) {
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: 8,
-        minHeight: 24,
-        marginTop: 5,
+        gap: 6,
+        width: 190,
+        height: 30,
         padding: "0 8px",
-        borderRadius: 6,
+        borderRadius: "0 7px 7px 0",
         border: `1px solid ${exceso > 0 ? colors.badBd : colors.border}`,
+        borderLeft: "none",
         background: exceso > 0 ? colors.badBg : colors.soft,
         color: exceso > 0 ? colors.bad : colors.muted,
         fontSize: 10,
@@ -467,6 +468,7 @@ export default function OrdenPicking() {
 
   const printTimeoutRef = useRef(null);
   const skuSearchTimeoutRef = useRef(null);
+  const modalContentRef = useRef(null);
 
   const buildMotivoRotacion = (texto) => {
     const limpio = String(texto || "").trim();
@@ -476,6 +478,14 @@ export default function OrdenPicking() {
   const closeModal = () => {
     setModalRow(null);
   };
+
+  useEffect(() => {
+    if (!modalRow) return;
+    requestAnimationFrame(() => {
+      modalContentRef.current?.scrollTo({ top: 0, left: 0 });
+      window.scrollTo({ top: 0, left: 0 });
+    });
+  }, [modalRow]);
 
   const loadAlternativas = async (row) => {
     if (!row?.id || String(row.id).startsWith("manual-")) return;
@@ -1862,36 +1872,45 @@ export default function OrdenPicking() {
                           {formatQty(cantidadSugeridaVisual)}
                         </td>
 
-                        <td style={{ ...tdStyle, textAlign: "right" }}>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={cantidades[r.id] ?? 0}
-                            onChange={(e) => onChangeCantidad(r.id, e.target.value, maximoCantidad)}
-                            disabled={!seleccionados[r.id]}
+                        <td style={{ ...tdStyle, textAlign: "right", minWidth: 300 }}>
+                          <div
                             style={{
-                              width: 104,
-                              height: 30,
-                              padding: "0 8px",
-                              borderRadius: 7,
-                              border:
-                                cantidadActual > cantidadSugeridaVisual
-                                  ? `1px solid ${colors.bad}`
-                                  : `1px solid ${colors.border}`,
-                              textAlign: "right",
-                              fontWeight: 800,
-                              fontSize: 11,
-                              color: cantidadActual > cantidadSugeridaVisual ? colors.bad : colors.text,
-                              background: !seleccionados[r.id] ? "#f8fafc" : "#fff",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "flex-end",
+                              whiteSpace: "nowrap",
                             }}
-                          />
+                          >
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={cantidades[r.id] ?? 0}
+                              onChange={(e) => onChangeCantidad(r.id, e.target.value, maximoCantidad)}
+                              disabled={!seleccionados[r.id]}
+                              style={{
+                                width: 104,
+                                height: 30,
+                                padding: "0 8px",
+                                borderRadius: "7px 0 0 7px",
+                                border:
+                                  cantidadActual > cantidadSugeridaVisual
+                                    ? `1px solid ${colors.bad}`
+                                    : `1px solid ${colors.border}`,
+                                textAlign: "right",
+                                fontWeight: 800,
+                                fontSize: 11,
+                                color: cantidadActual > cantidadSugeridaVisual ? colors.bad : colors.text,
+                                background: !seleccionados[r.id] ? "#f8fafc" : "#fff",
+                              }}
+                            />
 
-                          <QuantityMetaBox
-                            sugerido={cantidadSugeridaVisual}
-                            maximo={maximoCantidad}
-                            exceso={cantidadActual > 0 ? excesoSobreSugerido : 0}
-                          />
+                            <QuantityMetaBox
+                              sugerido={cantidadSugeridaVisual}
+                              maximo={maximoCantidad}
+                              exceso={cantidadActual > 0 ? excesoSobreSugerido : 0}
+                            />
+                          </div>
                         </td>
 
                         <td style={{ ...tdStyle, minWidth: 220, whiteSpace: "nowrap" }}>
@@ -2032,13 +2051,14 @@ export default function OrdenPicking() {
             inset: 0,
             background: colors.overlay,
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "center",
-            padding: 18,
+            padding: "24px 18px",
             zIndex: 9999,
           }}
         >
           <div
+            ref={modalContentRef}
             onClick={(e) => e.stopPropagation()}
             style={{
               width: "min(1100px, 96vw)",
