@@ -2786,7 +2786,7 @@ export default function Recibo() {
               {tipoRecibo === "recibo" && novedadOpen && (
                 <div
                   style={{
-                    width: "min(620px, 48%)",
+                    width: "min(760px, 58%)",
                     margin: "12px 0 0 auto",
                     border: `1px solid ${colors.border}`,
                     borderRadius: 10,
@@ -2810,9 +2810,12 @@ export default function Recibo() {
                       alignItems: "center",
                       justifyContent: "space-between",
                       gap: 8,
+                      position: "relative",
                     }}
                   >
-                    <span>Novedad por item detectada en el recibo fisico</span>
+                    <span style={{ flex: 1, textAlign: "center" }}>
+                      Novedad por item detectada en el recibo fisico
+                    </span>
                     <button
                       type="button"
                       onClick={addNovedad}
@@ -2828,6 +2831,8 @@ export default function Recibo() {
                         placeItems: "center",
                         cursor: "pointer",
                         padding: 0,
+                        position: "absolute",
+                        right: 8,
                       }}
                     >
                       <Plus size={13} />
@@ -2836,7 +2841,7 @@ export default function Recibo() {
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "74px minmax(0, 1fr) 122px 96px 28px",
+                      gridTemplateColumns: "112px minmax(0, 1fr) 122px 96px 28px",
                       gap: 0,
                       background: colors.border,
                       fontSize: 10,
@@ -2845,10 +2850,10 @@ export default function Recibo() {
                       color: colors.navy,
                     }}
                   >
-                    <div style={{ background: "#f8fafc", padding: "6px 7px" }}>No. item</div>
-                    <div style={{ background: "#f8fafc", padding: "6px 7px" }}>Hallazgo</div>
-                    <div style={{ background: "#f8fafc", padding: "6px 7px" }}>Empaque</div>
-                    <div style={{ background: "#f8fafc", padding: "6px 7px" }}>Cantidad</div>
+                    <div style={{ background: "#f8fafc", padding: "6px 7px", textAlign: "center" }}>No. item</div>
+                    <div style={{ background: "#f8fafc", padding: "6px 7px", textAlign: "center" }}>Hallazgo</div>
+                    <div style={{ background: "#f8fafc", padding: "6px 7px", textAlign: "center" }}>Empaque</div>
+                    <div style={{ background: "#f8fafc", padding: "6px 7px", textAlign: "center" }}>Cantidad</div>
                     <div style={{ background: "#f8fafc", padding: "6px 4px" }} />
                   </div>
 
@@ -2858,7 +2863,7 @@ export default function Recibo() {
                         key={`novedad-${idx}`}
                         style={{
                           display: "grid",
-                          gridTemplateColumns: "74px minmax(0, 1fr) 122px 96px 28px",
+                          gridTemplateColumns: "112px minmax(0, 1fr) 122px 96px 28px",
                           gap: 0,
                           background: "#fff",
                         }}
