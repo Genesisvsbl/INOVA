@@ -226,6 +226,45 @@ function getEstadoEntrega(cantidad, sugerida) {
   };
 }
 
+function DeliveryEvidenceBadge({ estado, diferencia }) {
+  const tone =
+    estado.key === "sobre"
+      ? { bg: colors.badBg, bd: colors.badBd, tx: colors.bad }
+      : estado.key === "igual"
+      ? { bg: colors.goodBg, bd: colors.goodBd, tx: colors.good }
+      : estado.key === "debajo"
+      ? { bg: colors.warnBg, bd: colors.warnBd, tx: colors.warn }
+      : { bg: "#eef2f6", bd: "#dbe4ec", tx: colors.muted };
+
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 10,
+        width: 210,
+        maxWidth: "100%",
+        minHeight: 28,
+        padding: "0 9px",
+        borderRadius: 6,
+        background: tone.bg,
+        border: `1px solid ${tone.bd}`,
+        color: tone.tx,
+        boxSizing: "border-box",
+        lineHeight: 1,
+      }}
+    >
+      <span style={{ fontSize: 11, fontWeight: 900, whiteSpace: "nowrap" }}>
+        {estado.label}
+      </span>
+      <span style={{ fontSize: 10, fontWeight: 850, whiteSpace: "nowrap" }}>
+        Dif: {formatQty(diferencia)}
+      </span>
+    </div>
+  );
+}
+
 const shellCardStyle = {
   background: colors.card,
   border: `1px solid ${colors.border}`,
@@ -1546,7 +1585,7 @@ export default function OrdenPicking() {
           </div>
 
           <div style={tableWrapStyle}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 2550 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 2380 }}>
               <thead>
                 <tr>
                   <th style={thStyle}>Reserva</th>
@@ -1611,30 +1650,8 @@ export default function OrdenPicking() {
                         >
                           {formatQty(r.cantidad_confirmada || 0)}
                         </td>
-                        <td style={{ ...tdStyle, minWidth: 180, whiteSpace: "normal" }}>
-                          <div style={{ display: "grid", gap: 6 }}>
-                            <Chip
-                              label={estadoEntrega.label}
-                              tone={
-                                estadoEntrega.key === "sobre"
-                                  ? "red"
-                                  : estadoEntrega.key === "igual"
-                                  ? "green"
-                                  : estadoEntrega.key === "debajo"
-                                  ? "amber"
-                                  : "neutral"
-                              }
-                            />
-                            <div
-                              style={{
-                                fontSize: 12,
-                                fontWeight: 900,
-                                color: estadoEntrega.color,
-                              }}
-                            >
-                              Dif. vs sugerido: {formatQty(dif)}
-                            </div>
-                          </div>
+                        <td style={{ ...tdStyle, minWidth: 220, whiteSpace: "nowrap" }}>
+                          <DeliveryEvidenceBadge estado={estadoEntrega} diferencia={dif} />
                         </td>
                         <td style={{ ...tdStyle, fontWeight: 700 }}>
                           {r.ubicacion_alternativa || r.ubicacion || ""}
