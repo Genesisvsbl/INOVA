@@ -519,9 +519,7 @@ export default function Recibo() {
   const [header, setHeader] = useState(createInitialHeader());
   const [materiales, setMateriales] = useState([]);
   const [lineas, setLineas] = useState([createEmptyLinea()]);
-  const [novedades, setNovedades] = useState(
-    Array.from({ length: 5 }, () => createEmptyNovedad())
-  );
+  const [novedades, setNovedades] = useState([createEmptyNovedad()]);
   const [errores, setErrores] = useState({});
 
   useEffect(() => {
@@ -759,6 +757,17 @@ export default function Recibo() {
 
   const onNovedadCantidadChange = (idx, value) => {
     setNovedad(idx, { cantidad: formatMiles(value) });
+  };
+
+  const addNovedad = () => {
+    setNovedades((prev) => [...prev, createEmptyNovedad()]);
+  };
+
+  const removeNovedad = (idx) => {
+    setNovedades((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((_, i) => i !== idx);
+    });
   };
 
   const onCertificadoChange = async (idx, file) => {
@@ -1082,12 +1091,7 @@ export default function Recibo() {
       };
     });
 
-    while (rows.length < 5) {
-      rows.push({ item: "", hallazgo: "", empaque: "", cantidad: "" });
-    }
-
     return rows
-      .slice(0, 5)
       .map((row) => `
         <tr>
           <td>${escapeHtml(row.item)}</td>
@@ -2726,106 +2730,157 @@ export default function Recibo() {
               {tipoRecibo === "recibo" && (
                 <div
                   style={{
-                    width: "58%",
-                    margin: "18px 0 0 auto",
+                    width: "min(620px, 48%)",
+                    margin: "12px 0 0 auto",
                     border: `1px solid ${colors.border}`,
-                    borderRadius: 12,
+                    borderRadius: 10,
                     overflow: "hidden",
                     background: "#fff",
-                    boxShadow: "0 12px 28px rgba(15,39,68,.08)",
+                    boxShadow: "0 8px 18px rgba(15,39,68,.06)",
                   }}
                 >
                   <div
                     style={{
-                      padding: "10px 12px",
+                      minHeight: 28,
+                      padding: "6px 9px",
                       background: colors.navy,
                       color: "#fff",
-                      fontSize: 12,
+                      fontSize: 10,
                       fontWeight: 950,
                       letterSpacing: ".04em",
                       textTransform: "uppercase",
-                      textAlign: "center",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
                     }}
                   >
-                    Novedad por item detectada en el recibo fisico
+                    <span>Novedad por item detectada en el recibo fisico</span>
+                    <button
+                      type="button"
+                      onClick={addNovedad}
+                      title="Agregar novedad"
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 7,
+                        border: "1px solid rgba(255,255,255,.38)",
+                        background: "rgba(255,255,255,.12)",
+                        color: "#fff",
+                        display: "grid",
+                        placeItems: "center",
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                    >
+                      <Plus size={13} />
+                    </button>
                   </div>
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      tableLayout: "fixed",
-                    }}
-                  >
-                    <colgroup>
-                      <col style={{ width: "18%" }} />
-                      <col style={{ width: "32%" }} />
-                      <col style={{ width: "28%" }} />
-                      <col style={{ width: "22%" }} />
-                    </colgroup>
-                    <thead>
-                      <tr>
-                        <th style={thStyle}>No. item</th>
-                        <th style={thStyle}>Hallazgo</th>
-                        <th style={thStyle}>Tipo de empaque</th>
-                        <th style={thStyle}>Cantidad</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {novedades.map((nov, idx) => (
-                        <tr key={`novedad-${idx}`}>
-                          <td style={tdStyle}>
-                            <select
-                              value={nov.lineaIndex}
-                              onChange={(e) => onNovedadItemChange(idx, e.target.value)}
-                              style={detailSelectStyle}
-                            >
-                              <option value="">Item...</option>
-                              {lineas.map((ln, lineIdx) => (
-                                <option key={`nov-item-${lineIdx}`} value={lineIdx}>
-                                  {lineIdx + 1}{ln.codigo ? ` - ${ln.codigo}` : ""}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td style={tdStyle}>
-                            <input
-                              value={nov.hallazgo}
-                              onChange={(e) => setNovedad(idx, { hallazgo: e.target.value })}
-                              placeholder="Hallazgo"
-                              style={detailInputStyle}
-                            />
-                          </td>
-                          <td style={tdStyle}>
-                            <input
-                              value={nov.empaque}
-                              readOnly
-                              placeholder="Auto"
-                              style={detailReadOnlyInputStyle}
-                            />
-                          </td>
-                          <td style={tdStyle}>
-                            <input
-                              value={nov.cantidad}
-                              onChange={(e) => onNovedadCantidadChange(idx, e.target.value)}
-                              placeholder="0"
-                              inputMode="numeric"
-                              style={{ ...detailInputStyle, textAlign: "right" }}
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
                   <div
                     style={{
-                      padding: "8px 12px",
+                      display: "grid",
+                      gridTemplateColumns: "74px minmax(0, 1fr) 122px 96px 28px",
+                      gap: 0,
+                      background: colors.border,
+                      fontSize: 10,
+                      fontWeight: 900,
+                      textTransform: "uppercase",
+                      color: colors.navy,
+                    }}
+                  >
+                    <div style={{ background: "#f8fafc", padding: "6px 7px" }}>No. item</div>
+                    <div style={{ background: "#f8fafc", padding: "6px 7px" }}>Hallazgo</div>
+                    <div style={{ background: "#f8fafc", padding: "6px 7px" }}>Empaque</div>
+                    <div style={{ background: "#f8fafc", padding: "6px 7px" }}>Cantidad</div>
+                    <div style={{ background: "#f8fafc", padding: "6px 4px" }} />
+                  </div>
+
+                  <div style={{ display: "grid", gap: 1, background: colors.border }}>
+                    {novedades.map((nov, idx) => (
+                      <div
+                        key={`novedad-${idx}`}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "74px minmax(0, 1fr) 122px 96px 28px",
+                          gap: 0,
+                          background: "#fff",
+                        }}
+                      >
+                        <div style={{ padding: 5 }}>
+                          <select
+                            value={nov.lineaIndex}
+                            onChange={(e) => onNovedadItemChange(idx, e.target.value)}
+                            style={{ ...detailSelectStyle, minHeight: 28, fontSize: 11, padding: "0 7px" }}
+                          >
+                            <option value="">Item</option>
+                            {lineas.map((ln, lineIdx) => (
+                              <option key={`nov-item-${lineIdx}`} value={lineIdx}>
+                                {lineIdx + 1}{ln.codigo ? ` - ${ln.codigo}` : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div style={{ padding: 5 }}>
+                          <input
+                            value={nov.hallazgo}
+                            onChange={(e) => setNovedad(idx, { hallazgo: e.target.value })}
+                            placeholder="Hallazgo"
+                            style={{ ...detailInputStyle, minHeight: 28, fontSize: 11, padding: "0 8px" }}
+                          />
+                        </div>
+                        <div style={{ padding: 5 }}>
+                          <input
+                            value={nov.empaque}
+                            readOnly
+                            placeholder="Auto"
+                            style={{ ...detailReadOnlyInputStyle, minHeight: 28, fontSize: 11, padding: "0 8px" }}
+                          />
+                        </div>
+                        <div style={{ padding: 5 }}>
+                          <input
+                            value={nov.cantidad}
+                            onChange={(e) => onNovedadCantidadChange(idx, e.target.value)}
+                            placeholder="0"
+                            inputMode="numeric"
+                            style={{ ...detailInputStyle, minHeight: 28, fontSize: 11, padding: "0 8px", textAlign: "right" }}
+                          />
+                        </div>
+                        <div style={{ padding: 5, display: "grid", placeItems: "center" }}>
+                          <button
+                            type="button"
+                            onClick={() => removeNovedad(idx)}
+                            disabled={novedades.length === 1}
+                            title="Quitar novedad"
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: 7,
+                              border: `1px solid ${colors.border}`,
+                              background: "#fff",
+                              color: novedades.length === 1 ? colors.muted : colors.bad,
+                              display: "grid",
+                              placeItems: "center",
+                              cursor: novedades.length === 1 ? "not-allowed" : "pointer",
+                              opacity: novedades.length === 1 ? 0.45 : 1,
+                              padding: 0,
+                            }}
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div
+                    style={{
+                      padding: "6px 9px",
                       color: colors.muted,
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: 800,
                       background: "#f8fafc",
                     }}
                   >
-                    Solo se usa para impresion del recibo ciego. No afecta inventario, certificados ni guardado.
+                    Solo para impresión. No afecta inventario ni guardado.
                   </div>
                 </div>
               )}
