@@ -12,6 +12,7 @@ import {
   CalendarDays,
   Camera,
   FileCheck,
+  ClipboardList,
   X,
 } from "lucide-react";
 
@@ -271,7 +272,7 @@ const panelStyle = {
 };
 
 const panelHeaderStyle = {
-  padding: "12px 14px",
+  padding: "9px 12px",
   borderBottom: `1px solid ${colors.border}`,
   background: colors.soft,
   fontWeight: 700,
@@ -280,22 +281,22 @@ const panelHeaderStyle = {
 };
 
 const panelBodyStyle = {
-  padding: 16,
+  padding: 12,
 };
 
 const fieldLabelStyle = {
-  fontSize: 11,
+  fontSize: 10,
   fontWeight: 800,
   color: "#7a8797",
   letterSpacing: ".04em",
-  marginBottom: 6,
+  marginBottom: 4,
   textTransform: "uppercase",
 };
 
 const inputStyle = {
   width: "100%",
-  height: 38,
-  padding: "0 12px",
+  height: 34,
+  padding: "0 10px",
   borderRadius: 8,
   border: `1px solid ${colors.border}`,
   outline: "none",
@@ -520,6 +521,7 @@ export default function Recibo() {
   const [materiales, setMateriales] = useState([]);
   const [lineas, setLineas] = useState([createEmptyLinea()]);
   const [novedades, setNovedades] = useState([createEmptyNovedad()]);
+  const [novedadOpen, setNovedadOpen] = useState(false);
   const [errores, setErrores] = useState({});
 
   useEffect(() => {
@@ -1080,16 +1082,21 @@ export default function Recibo() {
   };
 
   const buildNovedadesRowsHtml = () => {
-    const rows = novedades.map((nov) => {
-      const idx = nov.lineaIndex === "" ? null : Number(nov.lineaIndex);
-      const linea = Number.isInteger(idx) ? lineas[idx] : null;
-      return {
-        item: linea ? idx + 1 : "",
-        hallazgo: nov.hallazgo || "",
-        empaque: nov.empaque || linea?.empaque || "",
-        cantidad: nov.cantidad || "",
-      };
-    });
+    const rows = novedades
+      .map((nov) => {
+        const idx = nov.lineaIndex === "" ? null : Number(nov.lineaIndex);
+        const linea = Number.isInteger(idx) ? lineas[idx] : null;
+        return {
+          item: linea ? idx + 1 : "",
+          hallazgo: nov.hallazgo || "",
+          empaque: nov.empaque || linea?.empaque || "",
+          cantidad: nov.cantidad || "",
+        };
+      })
+      .filter((row) => row.item || row.hallazgo || row.empaque || row.cantidad);
+
+    if (!rows.length) return "";
+    rows.push({ item: "", hallazgo: "", empaque: "", cantidad: "" });
 
     return rows
       .map((row) => `
@@ -1412,52 +1419,85 @@ export default function Recibo() {
             }
 
             .receipt-novelty-wrap {
-              width: 58%;
-              margin: 7mm 0 0 auto;
+              width: 48%;
+              margin: 8mm 0 0 auto;
+              padding-top: 12px;
+              position: relative;
               page-break-inside: avoid;
               break-inside: avoid;
             }
 
             .receipt-novelty-title {
-              height: 20px;
-              display: grid;
+              min-width: 72%;
+              height: 28px;
+              display: inline-grid;
               place-items: center;
-              border: 1px solid #001b3f;
-              border-bottom: 0;
+              position: absolute;
+              left: 50%;
+              top: 0;
+              transform: translateX(-50%);
+              padding: 0 14px;
+              border-radius: 10px 10px 0 0;
               color: #ffffff;
-              background: #082f73;
-              font-size: 12px;
+              background: #0f2744;
+              font-size: 10.5px;
               line-height: 1;
               font-weight: 900;
               letter-spacing: .02em;
               text-transform: uppercase;
+              box-shadow: 0 2px 6px rgba(15, 39, 68, .18);
+              z-index: 2;
             }
 
             .receipt-novelty-table {
               width: 100%;
               table-layout: fixed;
-              border-collapse: collapse;
-              font-size: 10px;
+              border-collapse: separate;
+              border-spacing: 0;
+              border: 1.4px solid #0f2744;
+              border-radius: 8px;
+              overflow: hidden;
+              font-size: 9.4px;
               line-height: 1.1;
             }
 
             .receipt-novelty-table th,
             .receipt-novelty-table td {
               height: 23px;
-              border: 1px solid #111827;
-              padding: 3px 5px;
+              border-right: 1px solid #cbd5e1;
+              border-bottom: 1px dashed #cbd5e1;
+              padding: 4px 6px;
               color: #0f172a;
               background: #ffffff;
               vertical-align: middle;
               font-weight: 800;
             }
 
+            .receipt-novelty-table th:last-child,
+            .receipt-novelty-table td:last-child {
+              border-right: 0;
+            }
+
+            .receipt-novelty-table tr:last-child td {
+              border-bottom: 0;
+            }
+
             .receipt-novelty-table th {
-              height: 20px;
+              height: 34px;
               text-align: center;
-              font-size: 10px;
+              font-size: 9.2px;
               font-weight: 900;
-              text-transform: uppercase;
+              color: #0f2744;
+              background: linear-gradient(180deg, #ffffff 0%, #f3f7fb 100%);
+              border-bottom: 1px solid #cbd5e1;
+            }
+
+            .receipt-novelty-table .nov-icon {
+              display: inline-block;
+              margin-right: 5px;
+              color: #0f2744;
+              font-size: 13px;
+              vertical-align: -1px;
             }
 
             .receipt-footer {
@@ -1763,7 +1803,7 @@ export default function Recibo() {
               </tbody>
             </table>
 
-            ${tipoRecibo === "recibo" ? `
+            ${tipoRecibo === "recibo" && novedadesRowsHtml ? `
               <div class="receipt-novelty-wrap">
                 <div class="receipt-novelty-title">NOVEDAD POR ITEM DETECTADA EN EL RECIBO FÍSICO</div>
                 <table class="receipt-novelty-table">
@@ -1775,10 +1815,10 @@ export default function Recibo() {
                   </colgroup>
                   <thead>
                     <tr>
-                      <th>No. Item</th>
-                      <th>Hallazgo</th>
-                      <th>Tipo de empaque</th>
-                      <th>Cantidad</th>
+                      <th><span class="nov-icon">▣</span>No. Item</th>
+                      <th><span class="nov-icon">⌕</span>Hallazgo</th>
+                      <th><span class="nov-icon">▧</span>Tipo de empaque</th>
+                      <th><span class="nov-icon">#</span>Cantidad</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2306,6 +2346,23 @@ export default function Recibo() {
               <div>Detalle de líneas</div>
 
               <div style={{ display: "flex", gap: 8 }}>
+                {tipoRecibo === "recibo" && (
+                  <button
+                    onClick={() => setNovedadOpen((value) => !value)}
+                    style={{
+                      ...secondaryButtonStyle,
+                      width: 38,
+                      padding: 0,
+                      justifyContent: "center",
+                      borderColor: novedadOpen ? colors.infoBd : colors.border,
+                      background: novedadOpen ? colors.infoBg : "#fff",
+                      color: novedadOpen ? colors.blue : colors.text,
+                    }}
+                    title="Reportar novedad por item"
+                  >
+                    <ClipboardList size={16} />
+                  </button>
+                )}
                 <button onClick={addLinea} style={secondaryButtonStyle}>
                   <Plus size={15} />
                   Agregar línea
@@ -2727,7 +2784,7 @@ export default function Recibo() {
                 ))}
               </datalist>
 
-              {tipoRecibo === "recibo" && (
+              {tipoRecibo === "recibo" && novedadOpen && (
                 <div
                   style={{
                     width: "min(620px, 48%)",
@@ -2743,8 +2800,9 @@ export default function Recibo() {
                     style={{
                       minHeight: 28,
                       padding: "6px 9px",
-                      background: colors.navy,
-                      color: "#fff",
+                      background: "#f8fafc",
+                      color: colors.navy,
+                      borderBottom: `1px solid ${colors.border}`,
                       fontSize: 10,
                       fontWeight: 950,
                       letterSpacing: ".04em",
@@ -2764,9 +2822,9 @@ export default function Recibo() {
                         width: 22,
                         height: 22,
                         borderRadius: 7,
-                        border: "1px solid rgba(255,255,255,.38)",
-                        background: "rgba(255,255,255,.12)",
-                        color: "#fff",
+                        border: `1px solid ${colors.border}`,
+                        background: "#fff",
+                        color: colors.blue,
                         display: "grid",
                         placeItems: "center",
                         cursor: "pointer",
