@@ -164,7 +164,7 @@ function buildReceiptPreviewHtml(row, allRows = []) {
           <div class="receipt-logo-box"><img src="/favicon1.ico" alt="INOVA" /></div>
           <div>
             <div class="receipt-title">RECIBO CIEGO</div>
-            <div class="receipt-subtitle">Formato de recepciÃ³n y trazabilidad de ingreso</div>
+            <div class="receipt-subtitle">Formato de recepción y trazabilidad de ingreso</div>
           </div>
         </div>
         <div class="receipt-meta">
@@ -177,7 +177,7 @@ function buildReceiptPreviewHtml(row, allRows = []) {
       <div class="receipt-summary">
         <div class="summary-card"><div class="summary-label">Proveedor</div><div class="summary-value">${escapeHtml(row?.proveedor || "-")}</div></div>
         <div class="summary-card"><div class="summary-label">Orden compra</div><div class="summary-value">${escapeHtml(row?.orden_compra || "-")}</div></div>
-        <div class="summary-card"><div class="summary-label">LÃ­neas</div><div class="summary-value">${receiptLines.length}</div></div>
+        <div class="summary-card"><div class="summary-label">Líneas</div><div class="summary-value">${receiptLines.length}</div></div>
         <div class="summary-card"><div class="summary-label">Total</div><div class="summary-value">${escapeHtml(formatQty(total))}</div></div>
       </div>
       <table class="receipt-table">
@@ -188,7 +188,7 @@ function buildReceiptPreviewHtml(row, allRows = []) {
         </colgroup>
         <thead>
           <tr>
-            <th>#</th><th>Item</th><th>Fecha recepciÃ³n</th><th>CÃ³digo</th><th>DescripciÃ³n</th><th>UM</th><th>Cantidad</th><th>Lote proveedor</th><th>FabricaciÃ³n</th><th>Vencimiento</th><th>Certificado</th>
+            <th>#</th><th>Item</th><th>Fecha recepción</th><th>Código</th><th>Descripción</th><th>UM</th><th>Cantidad</th><th>Lote proveedor</th><th>Fabricación</th><th>Vencimiento</th><th>Certificado</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -1302,7 +1302,7 @@ function FrescuraCard({ data }) {
       return {
         label: "Sin consulta",
         tone: "neutral",
-        text: "Consulta un material para analizar disponibilidad y condiciÃ³n operativa.",
+        text: "Consulta un material para analizar disponibilidad y condición operativa.",
       };
     }
 
@@ -1316,9 +1316,9 @@ function FrescuraCard({ data }) {
 
     if (stockAlmacenado > 0 && stockEnTransito > 0) {
       return {
-        label: "ReposiciÃ³n en curso",
+        label: "Reposición en curso",
         tone: "blue",
-        text: "El material tiene stock disponible y adicionalmente cuenta con inventario en trÃ¡nsito.",
+        text: "El material tiene stock disponible y adicionalmente cuenta con inventario en tránsito.",
       };
     }
 
@@ -1326,22 +1326,22 @@ function FrescuraCard({ data }) {
       return {
         label: "Disponible",
         tone: "green",
-        text: "El material tiene inventario disponible en almacÃ©n para operaciÃ³n.",
+        text: "El material tiene inventario disponible en almacén para operación.",
       };
     }
 
     if (stockEnTransito > 0) {
       return {
-        label: "Solo en trÃ¡nsito",
+        label: "Solo en tránsito",
         tone: "amber",
-        text: "El material no estÃ¡ almacenado aÃºn, pero existen unidades en trÃ¡nsito.",
+        text: "El material no está almacenado aún, pero existen unidades en tránsito.",
       };
     }
 
     return {
       label: "Sin visibilidad completa",
       tone: "neutral",
-      text: "Se encontrÃ³ informaciÃ³n parcial del material.",
+      text: "Se encontró información parcial del material.",
     };
   }, [data, stockActual, stockAlmacenado, stockEnTransito]);
 
@@ -1374,7 +1374,7 @@ function FrescuraCard({ data }) {
               color: colors.navy,
             }}
           >
-            Frescura / condiciÃ³n operativa
+            Frescura / condición operativa
           </div>
           <div
             style={{
@@ -1446,12 +1446,12 @@ function FrescuraCard({ data }) {
             }
           />
           <DataBox
-            label="CondiciÃ³n logÃ­stica"
+            label="Condición logística"
             value={
               stockEnTransito > 0 && stockAlmacenado > 0
                 ? "Mixta"
                 : stockEnTransito > 0
-                ? "En trÃ¡nsito"
+                ? "En tránsito"
                 : stockAlmacenado > 0
                 ? "Almacenado"
                 : "No disponible"
@@ -1462,8 +1462,8 @@ function FrescuraCard({ data }) {
             value="Pendiente de backend por lote/vencimiento"
           />
           <DataBox
-            label="ObservaciÃ³n"
-            value="Este mÃ³dulo ya quedÃ³ preparado para mostrar lotes, vencimientos y alertas de rotaciÃ³n."
+            label="Observación"
+            value="Este módulo ya quedó preparado para mostrar lotes, vencimientos y alertas de rotación."
           />
         </div>
       </div>
@@ -1481,7 +1481,7 @@ export default function Stock() {
   const consultar = async () => {
     const cod = codigo.trim();
     if (!cod) {
-      setErr("Debes escribir un cÃ³digo de material.");
+      setErr("Debes escribir un código de material.");
       setData(null);
       return;
     }
@@ -1633,7 +1633,7 @@ export default function Stock() {
                   textTransform: "uppercase",
                 }}
               >
-                CÃ³digo material
+                Código material
               </div>
 
               <div style={{ position: "relative" }}>
@@ -1758,24 +1758,24 @@ export default function Stock() {
         <SummaryBox
           label="Stock almacenado"
           value={formatQty(stockAlmacenado)}
-          helper="Disponible fÃ­sicamente en ubicaciÃ³n"
+          helper="Disponible físicamente en ubicación"
           icon={Warehouse}
           tone="green"
         />
         <SummaryBox
-          label="En trÃ¡nsito"
+          label="En tránsito"
           value={formatQty(stockTransito)}
           helper="Pendiente por ubicar o recibir"
           icon={Truck}
           tone="amber"
         />
         <SummaryBox
-          label="CondiciÃ³n"
+          label="Condición"
           value={
             !data
               ? "-"
               : totalStock <= 0
-              ? "CrÃ­tico"
+              ? "Crítico"
               : stockAlmacenado > 0
               ? "Operativo"
               : "Pendiente"
@@ -1824,7 +1824,7 @@ export default function Stock() {
                 marginTop: 4,
               }}
             >
-              Datos base del cÃ³digo consultado.
+              Datos base del código consultado.
             </div>
           </div>
 
@@ -1851,13 +1851,13 @@ export default function Stock() {
                   gap: 10,
                 }}
               >
-                <DataBox label="CÃ³digo" value={data.codigo} />
+                <DataBox label="Código" value={data.codigo} />
                 <DataBox label="Unidad de medida" value={data.unidad_medida} />
                 <DataBox label="Familia" value={data.familia} />
-                <DataBox label="DescripciÃ³n" value={data.descripcion} />
+                <DataBox label="Descripción" value={data.descripcion} />
                 <DataBox label="Stock actual" value={formatQty(data.stock_actual)} />
                 <DataBox label="Stock almacenado" value={formatQty(data.stock_almacenado)} />
-                <DataBox label="Stock en trÃ¡nsito" value={formatQty(data.stock_en_transito)} />
+                <DataBox label="Stock en tránsito" value={formatQty(data.stock_en_transito)} />
                 <DataBox
                   label="Balance operativo"
                   value={
