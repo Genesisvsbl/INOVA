@@ -973,9 +973,15 @@ export async function crearReservaAdicionalDespacho(payload = {}) {
       select: "*",
     }).catch(() => null)) || null;
 
+  const cargaRows = await insertRow("wms", "despacho_cargas", {
+    empresa_id: empresaId,
+    archivo_nombre: `reserva_adicional_${reserva}.manual`,
+  });
+  const carga = Array.isArray(cargaRows) ? cargaRows[0] : cargaRows;
+
   const baseRow = compactObject({
     empresa_id: empresaId,
-    carga_id: null,
+    carga_id: carga?.id,
     material_id: material?.id || null,
     fecha_necesidad: payload.fecha_necesidad || todayISO(),
     reserva,
