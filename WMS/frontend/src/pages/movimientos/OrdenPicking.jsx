@@ -245,11 +245,11 @@ function DeliveryEvidenceBadge({ estado, diferencia }) {
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "space-between",
-        gap: 5,
-        width: 148,
+        gap: 4,
+        width: 172,
         maxWidth: "100%",
-        minHeight: 21,
-        padding: "0 6px",
+        minHeight: 24,
+        padding: "0 7px",
         borderRadius: 6,
         background: tone.bg,
         border: `1px solid ${tone.bd}`,
@@ -261,7 +261,7 @@ function DeliveryEvidenceBadge({ estado, diferencia }) {
       <span style={{ fontSize: 9, fontWeight: 900, whiteSpace: "nowrap" }}>
         {estado.label}
       </span>
-      <span style={{ fontSize: 8, fontWeight: 850, whiteSpace: "nowrap" }}>
+      <span style={{ fontSize: 8, fontWeight: 850, whiteSpace: "nowrap", textAlign: "right" }}>
         Dif: {formatQty(diferencia)}
       </span>
     </div>
@@ -1488,7 +1488,7 @@ export default function OrdenPicking() {
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr auto auto auto auto auto",
-                gap: 5,
+                gap: 4,
                 alignItems: "end",
               }}
             >
@@ -1577,7 +1577,7 @@ export default function OrdenPicking() {
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(9, minmax(150px, 1fr))",
-            gap: 5,
+            gap: 4,
             marginTop: 14,
             marginBottom: 14,
           }}
@@ -2481,7 +2481,7 @@ export default function OrdenPicking() {
                 <div
                   style={{
                     display: "grid",
-                    gap: 5,
+                    gap: 4,
                     maxHeight: 320,
                     overflowY: "auto",
                     paddingRight: 2,
@@ -2593,7 +2593,7 @@ export default function OrdenPicking() {
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
-                  gap: 5,
+                  gap: 4,
                   flexWrap: "wrap",
                   paddingTop: 4,
                 }}
