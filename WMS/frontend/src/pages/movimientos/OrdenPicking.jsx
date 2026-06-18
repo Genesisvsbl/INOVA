@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { confirmarPicking, getDespachos, getStock, marcarPickingImpreso, verPicking } from "../../api";
 import {
@@ -245,11 +245,11 @@ function DeliveryEvidenceBadge({ estado, diferencia }) {
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "space-between",
-        gap: 10,
-        width: 210,
+        gap: 5,
+        width: 148,
         maxWidth: "100%",
-        minHeight: 28,
-        padding: "0 9px",
+        minHeight: 21,
+        padding: "0 6px",
         borderRadius: 6,
         background: tone.bg,
         border: `1px solid ${tone.bd}`,
@@ -258,10 +258,10 @@ function DeliveryEvidenceBadge({ estado, diferencia }) {
         lineHeight: 1,
       }}
     >
-      <span style={{ fontSize: 11, fontWeight: 900, whiteSpace: "nowrap" }}>
+      <span style={{ fontSize: 9, fontWeight: 900, whiteSpace: "nowrap" }}>
         {estado.label}
       </span>
-      <span style={{ fontSize: 10, fontWeight: 850, whiteSpace: "nowrap" }}>
+      <span style={{ fontSize: 8, fontWeight: 850, whiteSpace: "nowrap" }}>
         Dif: {formatQty(diferencia)}
       </span>
     </div>
@@ -421,9 +421,9 @@ const tableWrapStyle = {
 };
 
 const thStyle = {
-  padding: "11px 12px",
+  padding: "7px 8px",
   color: "#607080",
-  fontSize: 12,
+  fontSize: 10,
   fontWeight: 800,
   textAlign: "left",
   borderBottom: `1px solid ${colors.border}`,
@@ -432,12 +432,12 @@ const thStyle = {
 };
 
 const tdStyle = {
-  padding: "12px",
+  padding: "7px 8px",
   borderBottom: `1px solid #edf2f7`,
   color: colors.text,
   fontWeight: 700,
   whiteSpace: "nowrap",
-  fontSize: 13,
+  fontSize: 11,
   verticalAlign: "top",
 };
 
@@ -1488,7 +1488,7 @@ export default function OrdenPicking() {
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr auto auto auto auto auto",
-                gap: 10,
+                gap: 5,
                 alignItems: "end",
               }}
             >
@@ -1577,7 +1577,7 @@ export default function OrdenPicking() {
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(9, minmax(150px, 1fr))",
-            gap: 10,
+            gap: 5,
             marginTop: 14,
             marginBottom: 14,
           }}
@@ -1680,7 +1680,7 @@ export default function OrdenPicking() {
           </div>
 
           <div style={tableWrapStyle}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 2380 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1880 }}>
               <thead>
                 <tr>
                   <th style={thStyle}>Reserva</th>
@@ -1745,7 +1745,7 @@ export default function OrdenPicking() {
                         >
                           {formatQty(r.cantidad_confirmada || 0)}
                         </td>
-                        <td style={{ ...tdStyle, minWidth: 220, whiteSpace: "nowrap" }}>
+                        <td style={{ ...tdStyle, minWidth: 160, whiteSpace: "nowrap" }}>
                           <DeliveryEvidenceBadge estado={estadoEntrega} diferencia={dif} />
                         </td>
                         <td style={{ ...tdStyle, fontWeight: 700 }}>
@@ -1760,7 +1760,7 @@ export default function OrdenPicking() {
                         <td style={{ ...tdStyle, fontWeight: 700 }}>
                           {fmtDate(r.fecha_vencimiento_alternativa || r.fecha_vencimiento)}
                         </td>
-                        <td style={{ ...tdStyle, whiteSpace: "normal", minWidth: 340 }}>
+                        <td style={{ ...tdStyle, whiteSpace: "normal", minWidth: 240 }}>
                           {r.motivo_rotacion ? (
                             <div
                               style={{
@@ -1815,7 +1815,7 @@ export default function OrdenPicking() {
           </div>
 
           <div style={tableWrapStyle}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 2360 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1980 }}>
               <thead>
                 <tr>
                   <th style={thStyle}>Comprometer</th>
@@ -1958,7 +1958,7 @@ export default function OrdenPicking() {
                           </div>
                         </td>
 
-                        <td style={{ ...tdStyle, minWidth: 220, whiteSpace: "nowrap" }}>
+                        <td style={{ ...tdStyle, minWidth: 160, whiteSpace: "nowrap" }}>
                           {cantidadActual > 0 ? (
                             <DeliveryEvidenceBadge
                               estado={estadoEntrega}
@@ -2481,7 +2481,7 @@ export default function OrdenPicking() {
                 <div
                   style={{
                     display: "grid",
-                    gap: 10,
+                    gap: 5,
                     maxHeight: 320,
                     overflowY: "auto",
                     paddingRight: 2,
@@ -2593,7 +2593,7 @@ export default function OrdenPicking() {
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
-                  gap: 10,
+                  gap: 5,
                   flexWrap: "wrap",
                   paddingTop: 4,
                 }}
