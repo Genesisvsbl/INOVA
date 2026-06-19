@@ -980,8 +980,12 @@ export default function Recibo() {
       if ((ln.lote_proveedor ?? "").toString().trim().length !== 10) {
         errs[`loteprov_${idx}`] = "Lote proveedor debe ser exactamente 10.";
       }
-      if (!ln.fecha_vencimiento)
+      if (!ln.fecha_fabricacion) {
+        errs[`ff_${idx}`] = "Fecha fabricacion obligatoria.";
+      }
+      if (!ln.fecha_vencimiento) {
         errs[`fv_${idx}`] = "Fecha vencimiento obligatoria.";
+      }
     });
 
     setErrores(errs);

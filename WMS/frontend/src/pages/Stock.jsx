@@ -395,6 +395,28 @@ function readFileAsDataUrl(file) {
 }
 
 
+function forcePreviewViewportTop() {
+  const scrollTop = () => {
+    const targets = [
+      document.scrollingElement,
+      document.documentElement,
+      document.body,
+      ...Array.from(document.querySelectorAll("main, section, [style*='overflow'], [class*='content'], [class*='layout']")),
+    ].filter(Boolean);
+
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    for (const target of targets) {
+      if (target && target.scrollHeight > target.clientHeight) {
+        target.scrollTop = 0;
+        target.scrollLeft = 0;
+      }
+    }
+  };
+
+  scrollTop();
+  window.requestAnimationFrame(scrollTop);
+  [80, 180, 360].forEach((delay) => window.setTimeout(scrollTop, delay));
+}
 function printCertificatePreview(doc) {
   if (!doc?.dataUrl) return;
   const frame = document.createElement("iframe");
@@ -445,7 +467,7 @@ function CertificatePreviewModal({ doc, onClose }) {
   useEffect(() => {
     const reset = () => {
       viewerRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
-      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      forcePreviewViewportTop();
     };
     reset();
     const id = window.setTimeout(reset, 80);
@@ -548,7 +570,7 @@ function DocumentPreviewModal({ doc, onClose }) {
   useEffect(() => {
     if (!doc?.html) return undefined;
     const reset = () => {
-      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      forcePreviewViewportTop();
       const win = frameRef.current?.contentWindow;
       const body = frameRef.current?.contentDocument?.body;
       const root = frameRef.current?.contentDocument?.documentElement;
@@ -984,8 +1006,10 @@ function CertificadosCalidadView() {
   };
 
   const openReceiptPreview = (row) => {
+    forcePreviewViewportTop();
     const html = getReceiptPreviewHtml(row, rowsWithLife);
     setPreviewDoc({ title: `Recibo ciego ${row.recibo_serial || row.documento || ""}`, html });
+    forcePreviewViewportTop();
   };
 
   const openCertificatePreview = (row) => {
@@ -993,11 +1017,13 @@ function CertificadosCalidadView() {
       setNotice({ tone: "info", title: "Certificado pendiente", message: "Este lote todavia no tiene evidencia anexada." });
       return;
     }
+    forcePreviewViewportTop();
     setPreviewDoc({
       title: `Certificado ${row.lote_proveedor || row.codigo_material || ""}`,
       dataUrl: row.certificado_data_url,
       type: row.certificado_mime || "image",
     });
+    forcePreviewViewportTop();
   };
 
   const clearFilters = () => {
