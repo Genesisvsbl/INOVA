@@ -663,6 +663,9 @@ export function getStock(codigo) {
     const transito = rows
       .filter((m) => normalizeText(m.estado) === "EN_TRANSITO")
       .reduce((acc, m) => acc + toNumber(m.cantidad_r ?? m.cantidad), 0);
+    const bloqueado = rows
+      .filter((m) => normalizeText(m.estado) === "PNC_BLOQUEADO")
+      .reduce((acc, m) => acc + toNumber(m.cantidad_r ?? m.cantidad), 0);
 
     return {
       codigo: material.codigo || codigo,

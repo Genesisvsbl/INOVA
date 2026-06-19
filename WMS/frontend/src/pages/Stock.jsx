@@ -762,9 +762,6 @@ function CertificadosCalidadView() {
   const [estado, setEstado] = useState("TODOS");
   const [vida, setVida] = useState("TODOS");
   const [loading, setLoading] = useState(false);
-  const [bloqueados, setBloqueados] = useState([]);
-  const [showBloqueados, setShowBloqueados] = useState(false);
-  const [bloqueadosLoading, setBloqueadosLoading] = useState(false);
   const [stockLoading, setStockLoading] = useState(false);
   const [stockIndex, setStockIndex] = useState({});
   const [savingId, setSavingId] = useState("");
@@ -1077,9 +1074,6 @@ function CertificadosCalidadView() {
               style={{ ...actionButton, justifyContent: "center", background: colors.purpleSoft, color: colors.purple }}
             >
               Limpiar
-            </button>
-            <button type="button" onClick={cargarBloqueados} disabled={bloqueadosLoading} style={{ height: 44, borderRadius: 12, border: `1px solid ${colors.badBd}`, background: colors.badBg, color: colors.bad, fontWeight: 950, padding: "0 14px", cursor: bloqueadosLoading ? "wait" : "pointer" }}>
-              {bloqueadosLoading ? "Consultando..." : "Ver bloqueados"}
             </button>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, color: colors.muted, fontSize: 13, fontWeight: 750 }}>
@@ -1483,6 +1477,9 @@ export default function Stock() {
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+  const [bloqueados, setBloqueados] = useState([]);
+  const [showBloqueados, setShowBloqueados] = useState(false);
+  const [bloqueadosLoading, setBloqueadosLoading] = useState(false);
 
   const cargarBloqueados = async () => {
     setBloqueadosLoading(true);
@@ -1644,7 +1641,7 @@ export default function Stock() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1.5fr auto auto",
+              gridTemplateColumns: "1.5fr auto auto auto",
               gap: 10,
               alignItems: "end",
             }}
@@ -1741,6 +1738,24 @@ export default function Stock() {
             >
               <RefreshCcw size={15} />
               Limpiar
+            </button>
+
+            <button
+              type="button"
+              onClick={cargarBloqueados}
+              disabled={bloqueadosLoading}
+              style={{
+                height: 42,
+                padding: "0 16px",
+                borderRadius: 10,
+                border: `1px solid ${colors.badBd}`,
+                background: colors.badBg,
+                color: colors.bad,
+                fontWeight: 800,
+                cursor: bloqueadosLoading ? "wait" : "pointer",
+              }}
+            >
+              {bloqueadosLoading ? "Consultando..." : "Bloqueados"}
             </button>
           </div>
 
