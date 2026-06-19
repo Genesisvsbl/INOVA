@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMateriales, getProveedores } from "../../api";
 import {
@@ -1028,6 +1028,24 @@ export default function Recibo() {
               documento: pad10WithStars(header.documento),
               orden_compra: pad10WithStars(header.orden_compra),
             };
+      const novedadesOperativas = tipoRecibo === "recibo"
+        ? novedades
+            .map((nov) => {
+              const idx = nov.lineaIndex === "" ? null : Number(nov.lineaIndex);
+              const linea = Number.isInteger(idx) ? lineas[idx] : null;
+              return {
+                lineaIndex: Number.isInteger(idx) ? idx : "",
+                item: Number.isInteger(idx) ? idx + 1 : "",
+                codigo: linea?.codigo || "",
+                descripcion: linea?.descripcion || "",
+                empaque: nov.empaque || linea?.empaque || "",
+                hallazgo: nov.hallazgo || "",
+                cantidad: nov.cantidad || "",
+              };
+            })
+            .filter((row) => row.item && (row.hallazgo || row.cantidad))
+        : [];
+
 
       const draft = {
         tipo: "ENTRADA",
@@ -1045,6 +1063,7 @@ export default function Recibo() {
           certificado_fecha: tipoRecibo === "devolucion" ? "" : ln.certificado_fecha || "",
         })),
         totalRecibo,
+        novedades: novedadesOperativas,
         createdAtISO: new Date().toISOString(),
       };
 

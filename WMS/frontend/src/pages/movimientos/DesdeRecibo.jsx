@@ -131,6 +131,14 @@ function formatQty(n) {
   return fmtCO.format(x);
 }
 
+function parseCantidadPNC(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return 0;
+  const normalized = raw.replace(/\./g, "").replace(/,/g, ".").replace(/[^0-9.-]/g, "");
+  const n = Number(normalized);
+  return Number.isFinite(n) ? Math.max(n, 0) : 0;
+}
+
 function Chip({ label, tone = "neutral" }) {
   const stylesByTone = {
     neutral: { bg: "#F1F5F9", bd: "#E2E8F0", tx: colors.text },
@@ -467,6 +475,7 @@ export default function DesdeRecibo() {
   const [guardando, setGuardando] = useState(false);
 
   const [ubicPorLinea, setUbicPorLinea] = useState({});
+  const [pncPorNovedad, setPncPorNovedad] = useState({});
   const [sugiriendoLinea, setSugiriendoLinea] = useState({});
   const [sugiriendoSecundaria, setSugiriendoSecundaria] = useState({});
 
@@ -544,6 +553,93 @@ export default function DesdeRecibo() {
   useEffect(() => {
     return () => cerrarScanner();
   }, []);
+  const novedadesPNC = useMemo(() => {
+    return (draft?.novedades || [])
+      .map((nov, idx) => {
+        const lineaIdx = nov.lineaIndex === "" ? null : Number(nov.lineaIndex);
+        const linea = Number.isInteger(lineaIdx) ? draft?.lineas?.[lineaIdx] : null;
+        return {
+          ...nov,
+          key: `pnc-${idx}-${Number.isInteger(lineaIdx) ? lineaIdx : "sin-linea"}`,
+          novedadIndex: idx,
+          lineaIndex: Number.isInteger(lineaIdx) ? lineaIdx : null,
+          item: nov.item || (Number.isInteger(lineaIdx) ? lineaIdx + 1 : ""),
+          codigo: nov.codigo || linea?.codigo || "",
+          descripcion: nov.descripcion || linea?.descripcion || "",
+          empaque: nov.empaque || linea?.empaque || "",
+          cantidadNumero: parseCantidadPNC(nov.cantidad),
+          linea,
+        };
+      })
+      .filter((nov) => Number.isInteger(nov.lineaIndex) && nov.linea && nov.cantidadNumero > 0);
+  }, [draft]);
+
+  const cantidadPncPorLinea = useMemo(() => {
+    const map = {};
+    novedadesPNC.forEach((nov) => {
+      map[nov.lineaIndex] = (map[nov.lineaIndex] || 0) + nov.cantidadNumero;
+    });
+    return map;
+  }, [novedadesPNC]);
+
+  const totalPnc = useMemo(
+    () => novedadesPNC.reduce((acc, nov) => acc + Number(nov.cantidadNumero || 0), 0),
+    [novedadesPNC]
+  );
+
+  const setPncDecision = (key, patch) => {
+    setPncPorNovedad((prev) => ({
+      ...prev,
+      [key]: {
+        destino: "UBICAR_PNC",
+        base: "",
+        posicion: "",
+        ubicacion: "",
+        ...prev[key],
+        ...patch,
+      },
+    }));
+  };
+
+  const onPncDestinoChange = (key, destino) => {
+    setPncDecision(key, {
+      destino,
+      ...(destino === "TRANSITO_PNC" ? { base: "", posicion: "", ubicacion: "" } : {}),
+    });
+  };
+
+  const onPncBaseChange = (key, base) => {
+    setPncDecision(key, { base, posicion: "", ubicacion: "" });
+  };
+
+  const onPncPosicionChange = (key, posicion) => {
+    setPncPorNovedad((prev) => {
+      const current = { destino: "UBICAR_PNC", base: "", posicion: "", ubicacion: "", ...prev[key] };
+      return {
+        ...prev,
+        [key]: {
+          ...current,
+          posicion,
+          ubicacion: current.base && posicion ? `${current.base}${posicion}`.toUpperCase() : "",
+        },
+      };
+    });
+  };
+
+  const validarPNC = () => {
+    for (const nov of novedadesPNC) {
+      const decision = { destino: "UBICAR_PNC", ...(pncPorNovedad[nov.key] || {}) };
+      const totalLinea = Number(nov.linea?.total || 0);
+      if (nov.cantidadNumero > totalLinea) {
+        return `La cantidad PNC del item ${nov.item} supera el total de la linea.`;
+      }
+      if (decision.destino === "UBICAR_PNC" && !(decision.ubicacion || "").trim()) {
+        return `Falta ubicacion PNC para el item ${nov.item}.`;
+      }
+    }
+    return "";
+  };
+
 
   const basesDisponibles = useMemo(() => {
     const set = new Set();
@@ -1347,6 +1443,9 @@ export default function DesdeRecibo() {
     const base = validarDatosBase();
     if (base) return base;
 
+    const pnc = validarPNC();
+    if (pnc) return pnc;
+
     for (let i = 0; i < (draft.lineas || []).length; i++) {
       const ln = draft.lineas[i];
       const conf = ubicPorLinea[i] || {};
@@ -1751,6 +1850,32 @@ export default function DesdeRecibo() {
   const postMovimiento = async (payload) => {
     await crearMovimiento(payload);
   };
+  const crearMovimientoPnc = async (nov) => {
+    const decision = { destino: "UBICAR_PNC", ...(pncPorNovedad[nov.key] || {}) };
+    const codigoUbicacion = decision.destino === "TRANSITO_PNC" ? null : decision.ubicacion;
+    await postMovimiento(
+      construirPayloadMovimiento(nov.linea, nov.lineaIndex, {
+        codigo_ubicacion: codigoUbicacion || null,
+        estado: "PNC_BLOQUEADO",
+        cantidad_r: nov.cantidadNumero,
+      })
+    );
+  };
+
+  const cantidadNormal = (linea, idx) => {
+    return Math.max(Number(linea.total || 0) - Number(cantidadPncPorLinea[idx] || 0), 0);
+  };
+
+  const distribuirCantidadNormalAuto = (linea, idx, cantidadBase) => {
+    const normalTotal = cantidadNormal(linea, idx);
+    let restante = normalTotal;
+    return () => {
+      if (restante <= 0) return 0;
+      const valor = Math.min(Number(cantidadBase || 0), restante);
+      restante -= valor;
+      return valor;
+    };
+  };
 
   const guardarMovimientos = async () => {
     const err = validarConUbicacion();
@@ -1762,6 +1887,10 @@ export default function DesdeRecibo() {
     setGuardando(true);
 
     try {
+      for (const nov of novedadesPNC) {
+        await crearMovimientoPnc(nov);
+      }
+
       for (let i = 0; i < draft.lineas.length; i++) {
         const linea = draft.lineas[i];
         const conf = ubicPorLinea[i] || {};
@@ -1771,46 +1900,55 @@ export default function DesdeRecibo() {
           const cantidadPallets = Number(linea.cantidad || 0);
           const totalLinea = Number(linea.total || 0);
           const valorUnitario = cantidadPallets > 0 ? totalLinea / cantidadPallets : 0;
+          const tomarNormal = distribuirCantidadNormalAuto(linea, i, valorUnitario);
 
           for (const sug of conf.sugeridas || []) {
+            const cantidadMovimiento = tomarNormal();
+            if (cantidadMovimiento <= 0) continue;
             await postMovimiento(
               construirPayloadMovimiento(linea, i, {
                 codigo_ubicacion: sug.ubicacion,
                 estado: "ALMACENADO",
-                cantidad_r: valorUnitario,
+                cantidad_r: cantidadMovimiento,
               })
             );
           }
 
           for (const sug of conf.sugeridasSecundarias || []) {
+            const cantidadMovimiento = tomarNormal();
+            if (cantidadMovimiento <= 0) continue;
             await postMovimiento(
               construirPayloadMovimiento(linea, i, {
                 codigo_ubicacion: sug.ubicacion,
                 estado: "ALMACENADO",
-                cantidad_r: valorUnitario,
+                cantidad_r: cantidadMovimiento,
               })
             );
           }
 
           if (Number(conf.faltanteCantidad || 0) > 0 && conf.faltanteATransito) {
             for (let x = 0; x < Number(conf.faltanteCantidad || 0); x++) {
+              const cantidadMovimiento = tomarNormal();
+              if (cantidadMovimiento <= 0) continue;
               await postMovimiento(
                 construirPayloadMovimiento(linea, i, {
                   codigo_ubicacion: null,
                   estado: "EN_TRANSITO",
-                  cantidad_r: valorUnitario,
+                  cantidad_r: cantidadMovimiento,
                 })
               );
             }
           }
         } else {
           const ubic = (conf.ubicacion || "").trim();
+          const normal = cantidadNormal(linea, i);
+          if (normal <= 0) continue;
 
           await postMovimiento(
             construirPayloadMovimiento(linea, i, {
               codigo_ubicacion: ubic,
               estado: "ALMACENADO",
-              cantidad_r: Number(linea.total || 0),
+              cantidad_r: normal,
             })
           );
         }
@@ -1831,7 +1969,7 @@ export default function DesdeRecibo() {
   };
 
   const guardarEnTransito = async () => {
-    const err = validarDatosBase();
+    const err = validarDatosBase() || validarPNC();
     if (err) {
       showNotice({ tone: "warn", title: "Datos incompletos", message: String(err) });
       return;
@@ -1840,21 +1978,30 @@ export default function DesdeRecibo() {
     setGuardando(true);
 
     try {
+      for (const nov of novedadesPNC) {
+        await crearMovimientoPnc(nov);
+      }
+
       for (let i = 0; i < draft.lineas.length; i++) {
         const linea = draft.lineas[i];
-
         const cantidadPallets = Number(linea.cantidad || 0);
         const totalLinea = Number(linea.total || 0);
+        const normalTotal = cantidadNormal(linea, i);
+
+        if (normalTotal <= 0) continue;
 
         if (Number.isInteger(cantidadPallets) && cantidadPallets > 0) {
           const valorUnitario = cantidadPallets > 0 ? totalLinea / cantidadPallets : 0;
+          const tomarNormal = distribuirCantidadNormalAuto(linea, i, valorUnitario);
 
           for (let x = 0; x < cantidadPallets; x++) {
+            const cantidadMovimiento = tomarNormal();
+            if (cantidadMovimiento <= 0) continue;
             await postMovimiento(
               construirPayloadMovimiento(linea, i, {
                 codigo_ubicacion: null,
                 estado: "EN_TRANSITO",
-                cantidad_r: valorUnitario,
+                cantidad_r: cantidadMovimiento,
               })
             );
           }
@@ -1863,7 +2010,7 @@ export default function DesdeRecibo() {
             construirPayloadMovimiento(linea, i, {
               codigo_ubicacion: null,
               estado: "EN_TRANSITO",
-              cantidad_r: totalLinea,
+              cantidad_r: normalTotal,
             })
           );
         }
@@ -1882,7 +2029,6 @@ export default function DesdeRecibo() {
       setGuardando(false);
     }
   };
-
   const renderTopButtons = () => (
     <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
       <button
@@ -2303,6 +2449,96 @@ export default function DesdeRecibo() {
         >
           <AlertTriangle size={16} />
           Error cargando ubicaciones: {ubicacionesError}
+        </div>
+      )}
+
+      {novedadesPNC.length > 0 && (
+        <div style={cardStyle}>
+          <div
+            style={{
+              padding: 14,
+              borderBottom: `1px solid ${colors.border}`,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+              background: "#FFFBEB",
+            }}
+          >
+            <div>
+              <div style={{ fontWeight: 1000, color: colors.navy, fontSize: 18 }}>
+                Materiales con novedad / PNC
+              </div>
+              <div style={{ marginTop: 4, color: colors.muted, fontSize: 12, fontWeight: 700 }}>
+                Estos items se gestionan antes del flujo normal. La cantidad PNC queda bloqueada y no entra a picking.
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <Chip label={`Novedades: ${novedadesPNC.length}`} tone="amber" />
+              <Chip label={`Cantidad PNC: ${formatQty(totalPnc)}`} tone="red" />
+            </div>
+          </div>
+          <div style={{ width: "100%", overflowX: "auto" }}>
+            <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 1120, fontSize: 11 }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Item</th>
+                  <th style={thStyle}>SKU</th>
+                  <th style={thStyle}>Material</th>
+                  <th style={thStyle}>Hallazgo</th>
+                  <th style={thStyle}>Empaque</th>
+                  <th style={{ ...thStyle, textAlign: "right" }}>Cantidad PNC</th>
+                  <th style={thStyle}>Destino</th>
+                  <th style={thStyle}>Base PNC</th>
+                  <th style={thStyle}>Posicion</th>
+                  <th style={thStyle}>Ubicacion PNC</th>
+                </tr>
+              </thead>
+              <tbody>
+                {novedadesPNC.map((nov) => {
+                  const decision = { destino: "UBICAR_PNC", base: "", posicion: "", ubicacion: "", ...(pncPorNovedad[nov.key] || {}) };
+                  const posicionesPNC = posicionesPorBase[decision.base] || [];
+                  const bloqueaUbicacion = decision.destino === "TRANSITO_PNC";
+                  return (
+                    <tr key={nov.key} style={{ borderBottom: `1px solid ${colors.border}`, background: "#fff" }}>
+                      <td style={tdStyle}>
+                        <span style={{ ...modeChipStyle, color: colors.bad, background: "rgba(220,38,38,.08)", border: "1px solid rgba(220,38,38,.22)" }}>
+                          {nov.item}
+                        </span>
+                      </td>
+                      <td style={tdStyle}>{nov.codigo}</td>
+                      <td style={tdStyle}><div title={nov.descripcion} style={compactTextBox}>{nov.descripcion}</div></td>
+                      <td style={tdStyle}><div title={nov.hallazgo} style={compactTextBox}>{nov.hallazgo || "Novedad reportada"}</div></td>
+                      <td style={tdStyle}>{nov.empaque || "-"}</td>
+                      <td style={{ ...tdStyle, textAlign: "right", fontWeight: 1000, color: colors.bad }}>{formatQty(nov.cantidadNumero)}</td>
+                      <td style={tdStyle}>
+                        <select value={decision.destino} onChange={(e) => onPncDestinoChange(nov.key, e.target.value)} style={{ ...inputMini }}>
+                          <option value="UBICAR_PNC">Ubicar PNC</option>
+                          <option value="TRANSITO_PNC">Transito PNC</option>
+                        </select>
+                      </td>
+                      <td style={tdStyle}>
+                        <select value={decision.base} onChange={(e) => onPncBaseChange(nov.key, e.target.value)} style={{ ...inputMini }} disabled={bloqueaUbicacion}>
+                          <option value="">Seleccione...</option>
+                          {basesDisponibles.map((b) => (<option key={b} value={b}>{b}</option>))}
+                        </select>
+                      </td>
+                      <td style={tdStyle}>
+                        <select value={decision.posicion} onChange={(e) => onPncPosicionChange(nov.key, e.target.value)} style={{ ...inputMini }} disabled={bloqueaUbicacion || !decision.base}>
+                          <option value="">Seleccione...</option>
+                          {posicionesPNC.map((p) => (<option key={p} value={p}>{p}</option>))}
+                        </select>
+                      </td>
+                      <td style={tdStyle}>
+                        <input value={bloqueaUbicacion ? "EN TRANSITO PNC" : decision.ubicacion} readOnly style={{ ...compactCellInput, color: colors.bad, fontWeight: 900 }} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
