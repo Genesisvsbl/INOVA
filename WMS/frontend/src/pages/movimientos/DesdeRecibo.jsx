@@ -676,6 +676,40 @@ export default function DesdeRecibo() {
     return map;
   }, [ubicaciones]);
 
+  const normalizarUbicacionPantalla = (value) => (value || "").toString().trim().toUpperCase();
+
+  const ubicacionesApartadasEnPantalla = (idxActual = null, options = {}) => {
+    const { incluirActual = false, omitirPncKey = "" } = options;
+    const ocupadas = new Set();
+    const agregar = (value) => {
+      const ubicacion = normalizarUbicacionPantalla(value);
+      if (ubicacion) ocupadas.add(ubicacion);
+    };
+
+    Object.entries(ubicPorLinea || {}).forEach(([idx, conf]) => {
+      const esActual = idxActual !== null && Number(idx) === Number(idxActual);
+      if (esActual && !incluirActual) return;
+
+      agregar(conf?.ubicacion);
+      (conf?.sugeridas || []).forEach((sug) => agregar(sug?.ubicacion));
+      (conf?.sugeridasSecundarias || []).forEach((sug) => agregar(sug?.ubicacion));
+    });
+
+    Object.entries(pncPorNovedad || {}).forEach(([key, decision]) => {
+      if (key === omitirPncKey || decision?.destino === "TRANSITO_PNC") return;
+      agregar(decision?.ubicacion);
+    });
+
+    return Array.from(ocupadas);
+  };
+
+  const posicionesPncDisponibles = (base, keyActual = "") => {
+    const bloqueadas = new Set(ubicacionesApartadasEnPantalla(null, { omitirPncKey: keyActual }));
+    return (posicionesPorBase[base] || []).filter((posicion) => {
+      const ubicacion = normalizarUbicacionPantalla(`${base || ""}${posicion || ""}`);
+      return ubicacion && !bloqueadas.has(ubicacion);
+    });
+  };
   const filasMov = useMemo(() => {
     if (!draft) return [];
 
@@ -1329,6 +1363,7 @@ export default function DesdeRecibo() {
         ubicacion_base: base,
         cantidad_pallets: cantidad,
         tipo_material: tipoSugerenciaMaterial(draft?.lineas?.[idx]),
+      excluir_ubicaciones: ubicacionesApartadasEnPantalla(idx),
       };
 
       const data = await sugerirUbicaciones(payload);
@@ -1384,6 +1419,7 @@ export default function DesdeRecibo() {
         ubicacion_base: baseSecundaria,
         cantidad_pallets: faltante,
         tipo_material: tipoSugerenciaMaterial(draft?.lineas?.[idx]),
+      excluir_ubicaciones: ubicacionesApartadasEnPantalla(idx, { incluirActual: true }),
       };
 
       const data = await sugerirUbicaciones(payload);
@@ -2498,7 +2534,7 @@ export default function DesdeRecibo() {
               <tbody>
                 {novedadesPNC.map((nov) => {
                   const decision = { destino: "UBICAR_PNC", base: "", posicion: "", ubicacion: "", ...(pncPorNovedad[nov.key] || {}) };
-                  const posicionesPNC = posicionesPorBase[decision.base] || [];
+                  const posicionesPNC = posicionesPncDisponibles(decision.base, nov.key);
                   const bloqueaUbicacion = decision.destino === "TRANSITO_PNC";
                   return (
                     <tr key={nov.key} style={{ borderBottom: `1px solid ${colors.border}`, background: "#fff" }}>

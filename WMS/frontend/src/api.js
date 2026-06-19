@@ -1267,7 +1267,15 @@ export function sugerirUbicaciones(payload = {}) {
   };
 
   return Promise.all([getUbicaciones(), getAllStockRows()]).then(([ubicaciones, stockRows]) => {
-    const ocupadas = new Set(stockRows.map((row) => normalizeText(row.ubicacion)));
+    const excluirUbicaciones = Array.isArray(payload.excluir_ubicaciones)
+      ? payload.excluir_ubicaciones
+      : Array.isArray(payload.ubicaciones_ocupadas)
+      ? payload.ubicaciones_ocupadas
+      : [];
+    const ocupadas = new Set([
+      ...stockRows.map((row) => normalizeText(row.ubicacion)),
+      ...excluirUbicaciones.map((ubicacion) => normalizeText(ubicacion)),
+    ].filter(Boolean));
     const libres = (ubicaciones || []).filter((u) => !ocupadas.has(normalizeText(u.ubicacion)));
     const candidatasBase = libres.filter(coincideBase);
     const candidatasZona = usaZonasLataAzucar ? candidatasBase.filter(estaEnZonaLataAzucar) : candidatasBase;
