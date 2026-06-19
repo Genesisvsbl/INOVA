@@ -1,13 +1,22 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowRight,
   Boxes,
+  Building2,
   Camera,
+  ChevronLeft,
+  ChevronRight,
   Eye,
+  Grid3X3,
   Layers3,
+  List,
   MapPinned,
   Maximize2,
+  PackageCheck,
+  PencilLine,
   RefreshCcw,
   Search,
+  ShieldCheck,
   Truck,
   Warehouse,
 } from "lucide-react";
@@ -306,6 +315,59 @@ function uniqueSorted(values) {
   return Array.from(new Set(values.filter(Boolean))).sort((a, b) => Number(a) - Number(b));
 }
 
+const ZONE_LABELS = {
+  100: "Recepcion",
+  200: "Almacenamiento General",
+  300: "Pallet Shuttle + AGV",
+  400: "Picking",
+  500: "Cuarentena",
+  600: "Devoluciones",
+  700: "Cross Docking",
+  800: "Produccion",
+  900: "Materia Prima",
+  1000: "Producto Terminado",
+  1100: "Refrigerados",
+  1200: "Congelados",
+  1300: "Alta Rotacion",
+  1400: "Baja Rotacion",
+  1500: "Quimicos",
+  1600: "Inflamables",
+  1700: "Herramientas",
+  1800: "Oficinas y Servicios",
+};
+
+const ZONE_PALETTES = [
+  { accent: "#6d28d9", soft: "#f3e8ff", text: "#5b21b6" },
+  { accent: "#16a34a", soft: "#dcfce7", text: "#166534" },
+  { accent: "#2563eb", soft: "#dbeafe", text: "#1d4ed8" },
+  { accent: "#f97316", soft: "#ffedd5", text: "#c2410c" },
+  { accent: "#db2777", soft: "#fce7f3", text: "#be185d" },
+  { accent: "#0891b2", soft: "#cffafe", text: "#0e7490" },
+  { accent: "#ca8a04", soft: "#fef3c7", text: "#a16207" },
+];
+
+function zoneKey(row) {
+  return cleanZone(row?.ubicacion_base || row?.zona || locationCode(row).slice(0, 3));
+}
+
+function zoneName(value) {
+  return `Base ${value}`;
+}
+
+function zonePalette(value, index) {
+  const numeric = Number(value);
+  if (numeric === 300) return ZONE_PALETTES[2];
+  return ZONE_PALETTES[index % ZONE_PALETTES.length];
+}
+
+function zoneIcon(value) {
+  const numeric = Number(value);
+  if (numeric === 300) return PackageCheck;
+  if ([100, 400, 600, 700].includes(numeric)) return Truck;
+  if ([500, 1500, 1600].includes(numeric)) return ShieldCheck;
+  return Building2;
+}
+
 function formatQty(value) {
   return Number(value || 0).toLocaleString("es-CO", { maximumFractionDigits: 2 });
 }
@@ -593,6 +655,18 @@ export default function LayoutZona() {
   const [ubicaciones, setUbicaciones] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
   const [zone, setZone] = useState("300");
+  const [showZoneDirectory, setShowZoneDirectory] = useState(!demoParams);
+  const [zoneSearch, setZoneSearch] = useState("");
+  const [zoneDisplay, setZoneDisplay] = useState("grid");
+  const [zoneNames, setZoneNames] = useState(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      return JSON.parse(window.localStorage.getItem("inova-layout-zone-names") || "{}") || {};
+    } catch {
+      return {};
+    }
+  });
+  const [zoneNameEditor, setZoneNameEditor] = useState(null);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null);
   const [view, setView] = useState(demoParams ? "close" : "iso");
@@ -611,6 +685,29 @@ export default function LayoutZona() {
   const [rackFace, setRackFace] = useState("front");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [filterToolboxOpen, setFilterToolboxOpen] = useState(true);
+  const [renderExpanded, setRenderExpanded] = useState(false);
+  const [layoutLayers, setLayoutLayers] = useState({
+    ocupadas: true,
+    vacias: true,
+    seleccionada: true,
+    racks: true,
+    niveles: true,
+    etiquetas: true,
+    resumen: true,
+  });
+  const canEditZoneNames = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const role = normalize(window.sessionStorage.getItem("rol"));
+    const permisos = JSON.parse(window.sessionStorage.getItem("permisos") || "[]");
+    return (
+      window.sessionStorage.getItem("esPlatformAdmin") === "true" ||
+      window.sessionStorage.getItem("esSuperAdmin") === "true" ||
+      ["SUPER_ADMIN", "ADMIN_INOVA", "INOVA_ADMIN", "ADMIN_PLATAFORMA", "PLATFORM_ADMIN"].includes(role) ||
+      role.includes("ADMIN") ||
+      permisos.includes("admin.roles.gestionar")
+    );
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -619,7 +716,7 @@ export default function LayoutZona() {
     let movRows = [];
 
     try {
-      ubicRows = await getUbicaciones(zone);
+      ubicRows = await getUbicaciones();
     } catch (err) {
       setError(err?.message || "No se pudieron cargar las ubicaciones del layout.");
     }
@@ -648,7 +745,55 @@ export default function LayoutZona() {
     });
     return uniqueSorted(values);
   }, [ubicaciones]);
+  const zoneCards = useMemo(() => {
+    const map = new Map();
+    zones.forEach((item) => {
+      map.set(String(item), { zone: String(item), count: 0, bodegas: new Set() });
+    });
+    ubicaciones.forEach((row) => {
+      const z = zoneKey(row);
+      if (!z) return;
+      if (!map.has(z)) map.set(z, { zone: z, count: 0, bodegas: new Set() });
+      const current = map.get(z);
+      current.count += 1;
+      if (row.bodega || row.nombre_bodega || row.zona) current.bodegas.add(row.bodega || row.nombre_bodega || row.zona);
+    });
+    return Array.from(map.values())
+      .sort((a, b) => Number(a.zone) - Number(b.zone))
+      .map((item, index) => ({
+        ...item,
+        name: zoneName(item.zone),
+        ready: item.zone === "300",
+        palette: zonePalette(item.zone, index),
+        Icon: zoneIcon(item.zone),
+        displayName: zoneNames[item.zone]?.trim() || "Nombre de bodega pendiente",
+        bodega: `Ubicacion base ${item.zone}`,
+      }));
+  }, [ubicaciones, zones, zoneNames]);
+  const zoneDirectorySummary = useMemo(() => {
+    const totalLocations = zoneCards.reduce((sum, item) => sum + Number(item.count || 0), 0);
+    let occupiedLocations = 0;
+    ubicaciones.forEach((row) => {
+      const info = stockMap.get(normalize(locationCode(row)));
+      if (Number(info?.qty || 0) > 0) occupiedLocations += 1;
+    });
+    const emptyLocations = Math.max(0, totalLocations - occupiedLocations);
+    const occupancyPct = totalLocations ? Math.round((occupiedLocations / totalLocations) * 1000) / 10 : 0;
+    return {
+      zones: zoneCards.length,
+      totalLocations,
+      occupiedLocations,
+      emptyLocations,
+      occupancyPct,
+    };
+  }, [zoneCards, ubicaciones, stockMap]);
 
+  const filteredZoneCards = useMemo(() => {
+    const q = normalize(zoneSearch);
+    if (!q) return zoneCards;
+    return zoneCards.filter((item) => normalize(`${item.zone} ${item.name} ${item.bodega} ${item.displayName}`).includes(q));
+  }, [zoneCards, zoneSearch]);
+
   const rawCells = useMemo(() => buildCells(ubicaciones, stockMap, zone), [ubicaciones, stockMap, zone]);
   const cells = useMemo(() => enhanceRackData(rawCells), [rawCells]);
   const maxStock = useMemo(() => Math.max(0, ...cells.map((cell) => cell.stock)), [cells]);
@@ -759,8 +904,17 @@ export default function LayoutZona() {
 
   function expandRender() {
     const node = wrapRef.current;
-    if (node?.requestFullscreen) node.requestFullscreen();
+    setRenderExpanded(true);
+    if (node?.requestFullscreen) node.requestFullscreen().catch(() => {});
   }
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setRenderExpanded(document.fullscreenElement === wrapRef.current);
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
 
   function clearFilters() {
     setQuery("");
@@ -771,6 +925,51 @@ export default function LayoutZona() {
     setFilters({ ocupacion: "todas", pasillo: "todos", rack: "todos", modulo: "todos", nivel: "todos", posicion: "todos", profundidad: "todos" });
   }
 
+  function toggleLayoutLayer(name) {
+    setLayoutLayers((current) => ({ ...current, [name]: !current[name] }));
+  }
+
+  function openZoneLayout(nextZone) {
+    setZone(String(nextZone));
+    setQuery("");
+    setSelected(null);
+    setShowZoneDirectory(false);
+    clearFilters();
+  }
+
+  function backToZones() {
+    setSelected(null);
+    setShowZoneDirectory(true);
+  }
+
+  function editZoneName(item, event) {
+    event.stopPropagation();
+    if (!canEditZoneNames) return;
+    setZoneNameEditor({
+      zone: item.zone,
+      count: item.count,
+      name: zoneNames[item.zone] || "",
+    });
+  }
+
+  function closeZoneNameEditor() {
+    setZoneNameEditor(null);
+  }
+
+  function saveZoneNameEditor() {
+    if (!zoneNameEditor) return;
+    const cleanName = zoneNameEditor.name.trim();
+    setZoneNames((currentNames) => {
+      const updated = { ...currentNames };
+      if (cleanName) updated[zoneNameEditor.zone] = cleanName;
+      else delete updated[zoneNameEditor.zone];
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("inova-layout-zone-names", JSON.stringify(updated));
+      }
+      return updated;
+    });
+    setZoneNameEditor(null);
+  }
   useEffect(() => {
     if (filters.pasillo === "todos") return undefined;
 
@@ -1097,9 +1296,147 @@ export default function LayoutZona() {
       renderer.dispose();
     };
   }, [cells, filteredCells, selected, view, maxStock, zone, showAllStructure, filters, query, operatorTarget, operatorStep, rackFace]);
+  if (showZoneDirectory) {
+    return (
+      <main className="layout-zone-page">
+        <style>{layoutStyles}</style>
+        <section className="layout-zone-header">
+          <div className="layout-zone-brand-mark"><PackageCheck size={26} /></div>
+          <div>
+            <span className="layout3d-kicker">Layout por zona</span>
+            <h1>Bienvenido, Genesis</h1>
+            <p>Selecciona una zona para visualizar su layout y gestionar la estanteria.</p>
+          </div>
+          <div className="layout-zone-actions">
+            <label className="layout-zone-search">
+              <Search size={18} />
+              <input value={zoneSearch} onChange={(event) => setZoneSearch(event.target.value)} placeholder="Buscar zona o bodega..." />
+            </label>
+            <div className="layout-zone-toggle">
+              <button type="button" className={zoneDisplay === "grid" ? "active" : ""} onClick={() => setZoneDisplay("grid")} title="Vista de tarjetas"><Grid3X3 size={18} /></button>
+              <button type="button" className={zoneDisplay === "list" ? "active" : ""} onClick={() => setZoneDisplay("list")} title="Vista de lista"><List size={18} /></button>
+            </div>
+          </div>
+        </section>
 
+        <section className="layout-zone-kpis">
+          <article><span className="green"><MapPinned size={18} /></span><strong>{zoneDirectorySummary.zones}</strong><small>Zonas activas</small></article>
+          <article><span className="purple"><Boxes size={18} /></span><strong>{formatQty(zoneDirectorySummary.totalLocations)}</strong><small>Ubicaciones totales</small></article>
+          <article><span className="orange"><Warehouse size={18} /></span><strong>{formatQty(zoneDirectorySummary.occupiedLocations)}</strong><small>Ubicaciones ocupadas</small></article>
+          <article><span className="cyan"><Layers3 size={18} /></span><strong>{formatQty(zoneDirectorySummary.emptyLocations)}</strong><small>Ubicaciones vacias</small></article>
+          <article><span className="violet"><Truck size={18} /></span><strong>{zoneDirectorySummary.occupancyPct}%</strong><small>Ocupacion promedio</small></article>
+        </section>
+
+        {error && <div className="layout3d-error">{error}</div>}
+
+        <div className="layout-zone-section-title">
+          <div>
+            <Layers3 size={20} />
+            <h2>Zonas disponibles</h2>
+          </div>
+          <span>{filteredZoneCards.length} resultados</span>
+        </div>
+
+        <section className={zoneDisplay === "grid" ? "layout-zone-grid" : "layout-zone-list"}>
+          {filteredZoneCards.map((item) => {
+            const Icon = item.Icon;
+            return (
+              <article key={item.zone} className="layout-zone-card" style={{ "--zone-accent": item.palette.accent, "--zone-soft": item.palette.soft, "--zone-text": item.palette.text }}>
+                <span className="layout-zone-status">Activa</span>
+                {canEditZoneNames && (
+                  <button type="button" className="layout-zone-edit" onClick={(event) => editZoneName(item, event)} title="Asignar nombre de bodega"><PencilLine size={13} /></button>
+                )}
+                <div className="layout-zone-icon"><Icon size={24} /></div>
+                <small>Zona {item.zone}</small>
+                <h2>Base {item.zone}</h2>
+                <p><Warehouse size={14} /> {item.count} ubicaciones</p>
+                <em>{item.displayName}</em>
+                <button type="button" onClick={() => openZoneLayout(item.zone)}>
+                  Ver layout <ArrowRight size={16} />
+                </button>
+              </article>
+            );
+          })}
+          {loading && <article className="layout-zone-empty-card"><h2>Cargando zonas...</h2><p>Consultando ubicaciones registradas.</p></article>}
+          {!loading && !filteredZoneCards.length && (
+            <article className="layout-zone-empty-card">
+              <h2>Sin zonas encontradas</h2>
+              <p>Ajusta la busqueda o actualiza la informacion de ubicaciones.</p>
+            </article>
+          )}
+        </section>
+        <footer className="layout-zone-footer">
+          <span>Mostrando 1 a {filteredZoneCards.length} de {filteredZoneCards.length} zonas</span>
+          <div className="layout-zone-pagination">
+            <button type="button" disabled><ChevronLeft size={17} /></button>
+            <strong>1</strong>
+            <button type="button" disabled><ChevronRight size={17} /></button>
+          </div>
+        </footer>
+        {zoneNameEditor && (
+          <div className="layout-zone-modal-backdrop" role="presentation" onMouseDown={closeZoneNameEditor}>
+            <section className="layout-zone-modal" role="dialog" aria-modal="true" aria-label="Asignar nombre de bodega" onMouseDown={(event) => event.stopPropagation()}>
+              <div className="layout-zone-modal-head">
+                <div>
+                  <span className="layout3d-kicker">Toolbox administrador</span>
+                  <h2>Asignar nombre de bodega</h2>
+                  <p>Zona {zoneNameEditor.zone} · Base {zoneNameEditor.zone} · {formatQty(zoneNameEditor.count)} ubicaciones</p>
+                </div>
+                <button type="button" className="layout-zone-modal-close" onClick={closeZoneNameEditor}>×</button>
+              </div>
+              <label className="layout-zone-modal-field">
+                <span>Nombre operativo</span>
+                <input
+                  autoFocus
+                  value={zoneNameEditor.name}
+                  onChange={(event) => setZoneNameEditor((current) => ({ ...current, name: event.target.value }))}
+                  placeholder="Ej: Bodega general, Shuttle, Cuarentena..."
+                  maxLength={48}
+                />
+              </label>
+              <div className="layout-zone-modal-note">
+                Este nombre solo organiza la visual del layout por zona. No modifica stock, ubicaciones ni movimientos.
+              </div>
+              <div className="layout-zone-modal-actions">
+                <button type="button" className="secondary" onClick={closeZoneNameEditor}>Cancelar</button>
+                <button type="button" onClick={saveZoneNameEditor}>Guardar nombre</button>
+              </div>
+            </section>
+          </div>
+        )}
+      </main>
+    );
+  }
+
+  if (String(zone) !== "300") {
+    const currentZone = zoneCards.find((item) => item.zone === String(zone));
+    return (
+      <main className="layout-zone-page">
+        <style>{layoutStyles}</style>
+        <section className="layout-zone-config">
+          <div className="layout-zone-config-top">
+            <button type="button" onClick={backToZones}>Volver a zonas</button>
+            <span>Zona {zone}</span>
+          </div>
+          <div className="layout-zone-config-body">
+            <div className="layout-zone-icon"><Building2 size={30} /></div>
+            <span className="layout3d-kicker">Layout pendiente de configuracion</span>
+            <h1>Base {zone}</h1>
+            <p>Esta base ya existe en ubicaciones. Queda creada para asignarle nombre de bodega y configurar su mapa operativo.</p>
+            <strong>{currentZone?.count || 0} ubicaciones registradas</strong>
+          </div>
+        </section>
+      </main>
+    );
+  }
   return (
-    <main className="layout3d-page">
+    <main
+      className={`layout3d-page ${filterToolboxOpen ? "" : "toolbox-collapsed"}`}
+      style={{
+        "--layout-toolbox-grid": filterToolboxOpen ? "minmax(300px, 340px) minmax(0, 1fr)" : "56px minmax(0, 1fr)",
+        "--layout-toolbox-gap": filterToolboxOpen ? "14px" : "10px",
+      }}
+    >
       <style>{layoutStyles}</style>
 
       <section className="layout3d-hero">
@@ -1108,53 +1445,107 @@ export default function LayoutZona() {
           <h1>Layout 3D de bodega</h1>
           <p>Maqueta operacional por zona con racks, pasillos, recibo, despacho, AGV y ubicaciones reales desde el sistema.</p>
         </div>
-        <button type="button" onClick={loadData} className="layout3d-primary">
-          <RefreshCcw size={17} /> Actualizar
-        </button>
+        <div className="layout3d-hero-actions">
+          <button type="button" onClick={backToZones} className="layout3d-secondary">Zonas</button>
+          <button type="button" onClick={loadData} className="layout3d-primary">
+            <RefreshCcw size={17} /> Actualizar
+          </button>
+        </div>
       </section>
 
       {error && <div className="layout3d-error">{error}</div>}
 
-      <section className="layout3d-toolbar">
-        <label>
-          <span>Zona</span>
-          <select value={zone} onChange={(event) => { setZone(event.target.value); setSelected(null); }}>
-            {zones.map((item) => <option key={item} value={item}>Zona {item}</option>)}
-          </select>
-        </label>
-        <label className="layout3d-search">
-          <Search size={18} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar ubicacion, modulo, rack, bodega, material..." />
-        </label>
-        <div className="layout3d-views">
-          <button type="button" className={view === "iso" ? "active" : ""} onClick={() => setView("iso")}><Camera size={16} /> 3D</button>
-          <button type="button" className={view === "top" ? "active" : ""} onClick={() => setView("top")}><Eye size={16} /> Superior</button>
-          <button type="button" className={view === "front" ? "active" : ""} onClick={() => setView("front")}><Maximize2 size={16} /> Frontal</button>
-          <button type="button" className={view === "depth" ? "active" : ""} onClick={() => setView("depth")}><Layers3 size={16} /> Profundidad</button>
-          <button type="button" className={view === "close" ? "active" : ""} onClick={() => setView("close")}><Eye size={16} /> Cerca</button>
-          <button type="button" onClick={expandRender}><Maximize2 size={16} /> Ampliar</button>
+      <aside className={`layout3d-control-toolbox ${filterToolboxOpen ? "" : "collapsed"}`}>
+        <div className="layout3d-toolbox-head">
+          <div>
+            <span className="layout3d-kicker">Filtros de visualizacion</span>
+            <strong>Control operativo</strong>
+          </div>
+          <div className="layout3d-toolbox-head-actions">
+            {filterToolboxOpen && (
+              <button type="button" className="layout3d-back-zones" onClick={backToZones}>
+                <ChevronLeft size={14} /> Zonas
+              </button>
+            )}
+            <button type="button" onClick={() => setFilterToolboxOpen((value) => !value)}>
+            {filterToolboxOpen ? "Ocultar" : "Mostrar"} <ChevronLeft size={14} />
+            </button>
+          </div>
         </div>
-      </section>
 
-      <section className="layout3d-filter-panel">
-        <FilterSelect label="Ocupacion" value={filters.ocupacion} onChange={(value) => updateFilter("ocupacion", value)} options={["ocupadas", "libres"]} allValue="todas" allLabel="Todas" />
-        <FilterSelect label="Pasillo" value={filters.pasillo} onChange={(value) => updateFilter("pasillo", value)} options={filterOptions.pasillos} prefix="Pasillo " />
-        <FilterSelect label="Rack" value={filters.rack} onChange={(value) => updateFilter("rack", value)} options={filterOptions.racks} prefix="Rack " />
-        <FilterSelect label="Modulo" value={filters.modulo} onChange={(value) => updateFilter("modulo", value)} options={filterOptions.modulos} prefix="M" />
-        <FilterSelect label="Nivel" value={filters.nivel} onChange={(value) => updateFilter("nivel", value)} options={filterOptions.niveles} prefix="Nivel " />
-        <FilterSelect label="Posicion" value={filters.posicion} onChange={(value) => updateFilter("posicion", value)} options={filterOptions.posiciones} prefix="P" />
-        <FilterSelect label="Profundidad" value={filters.profundidad} onChange={(value) => updateFilter("profundidad", value)} options={filterOptions.profundidades} prefix="D" />
-        <label className="layout3d-check"><span>Contexto</span><em><input type="checkbox" checked={showAllStructure} onChange={(event) => setShowAllStructure(event.target.checked)} /> Mostrar toda la estanteria</em></label>
-        <button type="button" onClick={clearFilters}>Limpiar filtros</button>
-      </section>
+        {filterToolboxOpen && (
+          <>
+            <label className="layout3d-zone-pill">
+              <span>Zona seleccionada</span>
+              <select value={zone} onChange={(event) => { setZone(event.target.value); setSelected(null); }}>
+                {zones.map((item) => <option key={item} value={item}>Zona {item}</option>)}
+              </select>
+              <em>Activa</em>
+            </label>
 
-      <section className="layout3d-kpis">
-        <Kpi icon={<MapPinned size={18} />} label="Zona activa" value={zone} />
-        <Kpi icon={<Boxes size={18} />} label="Ubicaciones" value={cells.length} />
-        <Kpi icon={<Warehouse size={18} />} label="Ocupadas" value={occupied} />
-        <Kpi icon={<Layers3 size={18} />} label="Niveles" value={maxLevel} />
-        <Kpi icon={<Truck size={18} />} label="Ocupacion global" value={`${occupancy}%`} />
-      </section>
+            <label className="layout3d-toolbox-search">
+              <Search size={16} />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar ubicacion o material..." />
+            </label>
+
+            <div className="layout3d-toolbox-grid">
+              <FilterSelect label="Ocupacion" value={filters.ocupacion} onChange={(value) => updateFilter("ocupacion", value)} options={["ocupadas", "libres"]} allValue="todas" allLabel="Todas" />
+              <FilterSelect label="Pasillo" value={filters.pasillo} onChange={(value) => updateFilter("pasillo", value)} options={filterOptions.pasillos} prefix="Pasillo " />
+              <FilterSelect label="Rack" value={filters.rack} onChange={(value) => updateFilter("rack", value)} options={filterOptions.racks} prefix="Rack " />
+              <FilterSelect label="Modulo" value={filters.modulo} onChange={(value) => updateFilter("modulo", value)} options={filterOptions.modulos} prefix="M" />
+              <FilterSelect label="Nivel" value={filters.nivel} onChange={(value) => updateFilter("nivel", value)} options={filterOptions.niveles} prefix="Nivel " />
+              <FilterSelect label="Posicion" value={filters.posicion} onChange={(value) => updateFilter("posicion", value)} options={filterOptions.posiciones} prefix="P" />
+              <FilterSelect label="Profundidad" value={filters.profundidad} onChange={(value) => updateFilter("profundidad", value)} options={filterOptions.profundidades} prefix="D" />
+              <label>
+                <span>Contexto</span>
+                <select value={showAllStructure ? "toda" : "filtrada"} onChange={(event) => setShowAllStructure(event.target.value === "toda")}>
+                  <option value="filtrada">Filtrado</option>
+                  <option value="toda">Toda la estanteria</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="layout3d-toolbox-section">
+              <span>Opciones de vista</span>
+              <div className="layout3d-view-grid">
+                <button type="button" className={view === "iso" ? "active" : ""} onClick={() => setView("iso")}><Camera size={16} />3D</button>
+                <button type="button" className={view === "top" ? "active" : ""} onClick={() => setView("top")}><Eye size={16} />Superior</button>
+                <button type="button" className={view === "front" ? "active" : ""} onClick={() => setView("front")}><Maximize2 size={16} />Frontal</button>
+                <button type="button" className={view === "close" && rackFace === "back" ? "active" : ""} onClick={() => { setRackFace("back"); setView("close"); }}><Layers3 size={16} />Lateral</button>
+                <button type="button" className={view === "depth" ? "active" : ""} onClick={() => setView("depth")}><Layers3 size={16} />Profundidad</button>
+                <button type="button" className={view === "close" && rackFace !== "back" ? "active" : ""} onClick={() => setView("close")}><Eye size={16} />Cerca</button>
+                <button type="button" onClick={expandRender}><Maximize2 size={16} />Ampliar</button>
+              </div>
+            </div>
+
+            <div className="layout3d-toolbox-section">
+              <span>Capas a mostrar</span>
+              <div className="layout3d-layer-list">
+                {[
+                  ["ocupadas", "Ubicaciones ocupadas", "#ef4444"],
+                  ["vacias", "Ubicaciones vacias", "#16a34a"],
+                  ["seleccionada", "Seleccionada", "#7c3aed"],
+                  ["racks", "Racks", "#0f172a"],
+                  ["niveles", "Niveles", "#2563eb"],
+                  ["etiquetas", "Etiquetas", "#6d28d9"],
+                  ["resumen", "Resumen de zona", "#8b5cf6"],
+                ].map(([key, label, color]) => (
+                  <label key={key}>
+                    <i style={{ background: color }} />
+                    <span>{label}</span>
+                    <input type="checkbox" checked={layoutLayers[key]} onChange={() => toggleLayoutLayer(key)} />
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="layout3d-toolbox-actions">
+              <button type="button" onClick={clearFilters}>Limpiar filtros</button>
+              <button type="button" className="primary" onClick={() => wrapRef.current?.focus?.()}>Aplicar filtros</button>
+            </div>
+          </>
+        )}
+      </aside>
 
       <section className="layout3d-stage-card">
         <div className="layout3d-stage-head">
@@ -1168,7 +1559,7 @@ export default function LayoutZona() {
             <span><small className="layout3d-dot selected" /> Seleccionada</span>
           </div>
         </div>
-        <div ref={wrapRef} className="layout3d-canvas-wrap" tabIndex={0}>
+        <div ref={wrapRef} className={`layout3d-canvas-wrap ${renderExpanded ? "expanded" : ""}`} tabIndex={0}>
           {loading && <div className="layout3d-loading">Cargando ubicaciones desde el sistema...</div>}
           {!loading && !filteredCells.length && <div className="layout3d-loading">No hay ubicaciones para zona {zone}.</div>}
           <canvas ref={canvasRef} className="layout3d-canvas" />
@@ -1274,6 +1665,16 @@ export default function LayoutZona() {
                 <button type="button" className="active" onClick={() => setView("close")}>Frente completo R{filters.rack}</button>
               )}
             </div>
+          )}
+          {layoutLayers.resumen && !selected && (
+            <aside className="layout3d-zone-summary-card">
+              <span>Resumen de la zona</span>
+              <p><Boxes size={14} /> Ubicaciones totales <strong>{formatQty(cells.length)}</strong></p>
+              <p><Warehouse size={14} /> Ubicaciones ocupadas <strong className="green">{formatQty(occupied)}</strong></p>
+              <p><MapPinned size={14} /> Ubicaciones vacias <strong className="red">{formatQty(available)}</strong></p>
+              <p><Layers3 size={14} /> Ocupacion total <strong>{occupancy}%</strong></p>
+              <div><i style={{ width: `${occupancy}%` }} /></div>
+            </aside>
           )}
           {selected && (
             <div className={`layout3d-selection-card ${filters.rack !== "todos" ? "compact" : ""}`}>
@@ -1908,6 +2309,569 @@ function Detail({ label, value }) {
 }
 
 const layoutStyles = `
+.layout-zone-page {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+  color: #10172f;
+  padding: 30px 38px 36px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 90% 0%, rgba(109, 40, 217, .06), transparent 28%),
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,251,255,.98));
+  border: 1px solid #dfe8f5;
+  border-radius: 18px;
+}
+
+.layout-zone-header {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) minmax(420px, 540px);
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0 0 12px;
+}
+
+.layout-zone-brand-mark {
+  width: 48px;
+  height: 48px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  box-shadow: 0 18px 34px rgba(109, 40, 217, .25);
+}
+
+.layout-zone-header h1,
+.layout-zone-config h1 {
+  margin: 8px 0 6px;
+  font-size: 34px;
+  line-height: 1.05;
+  letter-spacing: -.02em;
+}
+
+.layout-zone-header p,
+.layout-zone-config p {
+  margin: 0;
+  color: #73819b;
+  font-weight: 700;
+}
+
+.layout-zone-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(560px, 100%);
+}
+
+.layout-zone-search {
+  flex: 1;
+  min-height: 52px;
+  border: 1px solid #dbe5f3;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  background: #fff;
+  color: #64748b;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, .06);
+}
+
+.layout-zone-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #17213b;
+  font-weight: 800;
+}
+
+.layout-zone-toggle {
+  display: flex;
+  gap: 5px;
+  padding: 4px;
+  border: 1px solid #dbe5f3;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, .06);
+}
+
+.layout-zone-toggle button {
+  width: 46px;
+  height: 44px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.layout-zone-toggle button.active {
+  color: #fff;
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  box-shadow: 0 10px 22px rgba(109, 40, 217, .22);
+}
+
+.layout-zone-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.layout-zone-kpis article {
+  min-height: 112px;
+  border: 1px solid #dfe8f5;
+  border-radius: 12px;
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  grid-template-areas: "icon value" "icon label";
+  align-items: center;
+  column-gap: 16px;
+  padding: 20px;
+  background: #fff;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, .07);
+  border-bottom: 3px solid #dfe8f5;
+}
+
+.layout-zone-kpis article:nth-child(1) { border-bottom-color: #22c55e; }
+.layout-zone-kpis article:nth-child(2) { border-bottom-color: #8b5cf6; }
+.layout-zone-kpis article:nth-child(3) { border-bottom-color: #fb923c; }
+.layout-zone-kpis article:nth-child(4) { border-bottom-color: #22d3ee; }
+.layout-zone-kpis article:nth-child(5) { border-bottom-color: #8b5cf6; }
+
+.layout-zone-kpis article span {
+  grid-area: icon;
+  width: 54px;
+  height: 54px;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+}
+
+.layout-zone-kpis article span.green { color: #16a34a; background: #dcfce7; }
+.layout-zone-kpis article span.purple { color: #6d28d9; background: #f3e8ff; }
+.layout-zone-kpis article span.orange { color: #f97316; background: #ffedd5; }
+.layout-zone-kpis article span.cyan { color: #0891b2; background: #cffafe; }
+.layout-zone-kpis article span.violet { color: #7c3aed; background: #ede9fe; }
+
+.layout-zone-kpis article strong {
+  grid-area: value;
+  color: #0f172a;
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 950;
+}
+
+.layout-zone-kpis article small {
+  grid-area: label;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.layout-zone-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.layout-zone-section-title div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #6d28d9;
+}
+
+.layout-zone-section-title h2 {
+  margin: 0;
+  color: #141b34;
+  font-size: 21px;
+  line-height: 1;
+  font-weight: 950;
+}
+
+.layout-zone-section-title span {
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.layout-zone-edit {
+  position: absolute;
+  top: 43px;
+  right: 12px;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #dbe5f3;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: #fff;
+  color: #64748b;
+  opacity: .78;
+  cursor: pointer;
+}
+
+.layout-zone-edit:hover {
+  opacity: 1;
+  color: var(--zone-text, #1d4ed8);
+  border-color: color-mix(in srgb, var(--zone-accent, #2563eb), #ffffff 55%);
+  background: var(--zone-soft, #eff6ff);
+}
+
+.layout-zone-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(15, 23, 42, .42);
+  backdrop-filter: blur(8px);
+}
+
+.layout-zone-modal {
+  width: min(560px, 100%);
+  border: 1px solid #dfe8f5;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+  box-shadow: 0 28px 80px rgba(15, 23, 42, .22);
+  overflow: hidden;
+}
+
+.layout-zone-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid #e5edf7;
+}
+
+.layout-zone-modal-head h2 {
+  margin: 5px 0 4px;
+  color: #0f172a;
+  font-size: 24px;
+  line-height: 1.05;
+  font-weight: 950;
+}
+
+.layout-zone-modal-head p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.layout-zone-modal-close {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #dbe5f3;
+  border-radius: 12px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.layout-zone-modal-field {
+  display: grid;
+  gap: 7px;
+  padding: 18px 22px 0;
+}
+
+.layout-zone-modal-field span {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.layout-zone-modal-field input {
+  width: 100%;
+  height: 46px;
+  border: 1px solid #d8e3f2;
+  border-radius: 12px;
+  outline: none;
+  background: #fff;
+  color: #10213a;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.layout-zone-modal-field input:focus {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 4px rgba(109, 40, 217, .10);
+}
+
+.layout-zone-modal-note {
+  margin: 14px 22px 0;
+  padding: 12px 14px;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #315a7d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.layout-zone-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 18px 22px 22px;
+}
+
+.layout-zone-modal-actions button {
+  min-height: 38px;
+  border: 1px solid #d8e3f2;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #4c1d95, #6d28d9);
+  color: #fff;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.layout-zone-modal-actions button.secondary {
+  background: #fff;
+  color: #17213b;
+}
+
+.layout-zone-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  justify-content: center;
+  align-items: start;
+}
+
+.layout-zone-list {
+  display: grid;
+  gap: 10px;
+}
+
+.layout-zone-list .layout-zone-card {
+  position: relative;
+  min-height: 180px;
+  border: 1px solid #dfe8f5;
+  border-radius: 12px;
+  display: grid;
+  justify-items: start;
+  align-content: start;
+  gap: 8px;
+  padding: 18px 14px 14px;
+  background: #fff;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, .065);
+  text-align: left;
+  overflow: hidden;
+}
+
+.layout-zone-card {
+  position: relative;
+  min-height: 174px;
+  border: 1px solid #dfe8f5;
+  border-radius: 12px;
+  display: grid;
+  justify-items: start;
+  align-content: start;
+  gap: 8px;
+  padding: 20px;
+  background: #fff;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, .075);
+  text-align: left;
+  overflow: hidden;
+}
+
+.layout-zone-status {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: #dcfce7;
+  color: #047857;
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.layout-zone-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(135deg, var(--zone-accent, #2563eb), color-mix(in srgb, var(--zone-accent, #2563eb), #ffffff 18%));
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--zone-accent, #2563eb), transparent 75%);
+}
+
+.layout-zone-card small {
+  color: #334155;
+  font-weight: 950;
+  font-size: 13px;
+}
+
+.layout-zone-card h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 16px;
+  line-height: 1.12;
+  font-weight: 950;
+}
+
+.layout-zone-card p {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-weight: 900;
+}
+
+.layout-zone-card em {
+  max-width: 100%;
+  color: #7b8798;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layout-zone-card button,
+.layout-zone-config button,
+.layout3d-secondary {
+  min-height: 34px;
+  border: 1px solid color-mix(in srgb, var(--zone-accent, #2563eb), #ffffff 55%);
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 12px;
+  background: #fff;
+  color: var(--zone-text, #1d4ed8);
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.layout-zone-card > button:last-child {
+  width: 100%;
+  margin-top: 5px;
+  border-color: color-mix(in srgb, var(--zone-accent, #6d28d9), #ffffff 62%);
+  background: color-mix(in srgb, var(--zone-soft, #eff6ff), #ffffff 45%);
+}
+
+.layout-zone-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 10px 0;
+  color: #65748c;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.layout-zone-pagination {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.layout-zone-pagination button,
+.layout-zone-pagination strong {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #dfe8f5;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  color: #64748b;
+}
+
+.layout-zone-pagination strong {
+  color: #6d28d9;
+  border-color: #c4b5fd;
+  background: #f5f3ff;
+  font-weight: 950;
+}
+
+.layout-zone-empty-card,
+.layout-zone-config {
+  border: 1px solid #dfe8f5;
+  border-radius: 18px;
+  background: #fff;
+  padding: 24px;
+  box-shadow: 0 16px 42px rgba(15, 23, 42, .06);
+}
+
+.layout-zone-config {
+  min-height: 520px;
+  display: grid;
+  align-content: start;
+  gap: 70px;
+}
+
+.layout-zone-config-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.layout-zone-config-top span {
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 950;
+}
+
+.layout-zone-config-body {
+  max-width: 680px;
+  justify-self: center;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.layout-zone-config-body strong {
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.layout3d-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.layout3d-secondary {
+  --zone-accent: #2563eb;
+  --zone-soft: #eff6ff;
+  --zone-text: #1d4ed8;
+  background: #fff;
+}
 .layout3d-page {
   display: grid;
   gap: 16px;
@@ -1965,7 +2929,7 @@ const layoutStyles = `
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 0 14px;
+  padding: 0 12px;
   background: #fff;
   color: #17213b;
   font-weight: 900;
@@ -1998,13 +2962,13 @@ const layoutStyles = `
 }
 
 .layout3d-toolbar label {
-  min-height: 48px;
+  min-height: 42px;
   border: 1px solid #d8e3f2;
   border-radius: 14px;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 14px;
+  padding: 0 12px;
   background: #fff;
 }
 
@@ -2060,7 +3024,7 @@ const layoutStyles = `
 
 .layout3d-filter-panel select,
 .layout3d-filter-panel button {
-  min-height: 40px;
+  min-height: 34px;
   border: 1px solid #d8e3f2;
   border-radius: 12px;
   background: #fff;
@@ -2392,7 +3356,7 @@ const layoutStyles = `
 .layout3d-detail-row strong {
   margin-top: 5px;
   color: #17213b;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .layout3d-stock-lines {
@@ -2572,7 +3536,7 @@ const layoutStyles = `
   display: block;
   margin-top: 5px;
   color: #17213b;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 950;
 }
 
@@ -2872,7 +3836,7 @@ const layoutStyles = `
 }
 .layout3d-rack-face-panel {
   position: absolute;
-  left: 18px;
+  left: 274px;
   bottom: 14px;
   z-index: 5;
   display: flex;
@@ -3069,7 +4033,505 @@ const layoutStyles = `
     min-height: 560px !important;
   }
 }
-`;
+
+/* Toolbox profesional de filtros por zona */
+.layout3d-page {
+  grid-template-columns: var(--layout-toolbox-grid, minmax(300px, 340px) minmax(0, 1fr)) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  gap: var(--layout-toolbox-gap, 14px) !important;
+  position: relative;
+  transition: grid-template-columns .22s ease;
+}
+
+.layout3d-page.toolbox-collapsed {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 10px !important;
+  padding-left: 66px !important;
+}
+
+.layout3d-control-toolbox {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  align-self: stretch !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  border: 1px solid #e3ebf6;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(250,252,255,.96));
+  box-shadow: 0 22px 60px rgba(15, 23, 42, .10);
+  padding: 18px;
+}
+
+.layout3d-control-toolbox.collapsed {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 56px !important;
+  min-width: 56px !important;
+  overflow: visible !important;
+  padding: 10px 7px !important;
+  border-radius: 16px;
+}
+
+.layout3d-page.toolbox-collapsed .layout3d-stage-card {
+  grid-column: 1 / -1 !important;
+  grid-row: 1 !important;
+}
+
+.layout3d-control-toolbox.collapsed .layout3d-toolbox-head {
+  margin: 0;
+  display: grid;
+  place-items: center;
+}
+
+.layout3d-control-toolbox.collapsed .layout3d-toolbox-head > div {
+  display: none;
+}
+
+.layout3d-control-toolbox.collapsed .layout3d-toolbox-head-actions {
+  display: grid;
+  place-items: center;
+}
+
+.layout3d-control-toolbox.collapsed .layout3d-toolbox-head-actions > button {
+  width: 40px;
+  min-height: 40px;
+  justify-content: center;
+  border: 1px solid #c4b5fd;
+  border-radius: 12px;
+  background: #fff;
+  color: #6d28d9;
+  box-shadow: 0 10px 24px rgba(109, 40, 217, .14);
+  font-size: 0;
+}
+
+.layout3d-control-toolbox.collapsed .layout3d-toolbox-head-actions > button svg {
+  transform: rotate(180deg);
+}
+
+.layout3d-toolbox-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.layout3d-toolbox-head strong {
+  display: block;
+  margin-top: 4px;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.layout3d-toolbox-head button {
+  border: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  color: #64748b;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.layout3d-toolbox-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.layout3d-toolbox-head-actions .layout3d-back-zones {
+  min-height: 30px;
+  border: 1px solid #d8e3f2;
+  border-radius: 10px;
+  background: #fff;
+  color: #4c1d95;
+  padding: 0 10px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, .06);
+}
+
+.layout3d-zone-pill {
+  position: relative;
+  display: grid;
+  gap: 7px;
+  margin-bottom: 12px;
+  color: #7b8798;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.layout3d-zone-pill select,
+.layout3d-toolbox-search,
+.layout3d-toolbox-grid select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #dce6f3;
+  border-radius: 10px;
+  background: #fff;
+  color: #14223a;
+  font-size: 12px;
+  font-weight: 850;
+  outline: none;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, .035);
+}
+
+.layout3d-zone-pill select {
+  padding: 0 76px 0 38px;
+}
+
+.layout3d-zone-pill::before {
+  content: "⌘";
+  position: absolute;
+  left: 13px;
+  bottom: 10px;
+  color: #7c3aed;
+  font-weight: 950;
+}
+
+.layout3d-zone-pill em {
+  position: absolute;
+  right: 10px;
+  bottom: 9px;
+  border-radius: 999px;
+  padding: 4px 9px;
+  background: #dcfce7;
+  color: #059669;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.layout3d-toolbox-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  margin-bottom: 14px;
+  color: #64748b;
+}
+
+.layout3d-toolbox-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #14223a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.layout3d-toolbox-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.layout3d-toolbox-grid label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.layout3d-toolbox-grid span,
+.layout3d-toolbox-section > span {
+  color: #7b8798;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .04em;
+}
+
+.layout3d-toolbox-grid select {
+  padding: 0 10px;
+}
+
+.layout3d-toolbox-section {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.layout3d-view-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.layout3d-view-grid button {
+  min-height: 56px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  background: #fff;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.layout3d-view-grid button.active {
+  border-color: #c4b5fd;
+  background: #f5f3ff;
+  color: #6d28d9;
+  box-shadow: 0 10px 24px rgba(109, 40, 217, .10);
+}
+
+.layout3d-layer-list {
+  display: grid;
+  gap: 8px;
+}
+
+.layout3d-layer-list label {
+  display: grid;
+  grid-template-columns: 11px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.layout3d-layer-list i {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.layout3d-layer-list input {
+  accent-color: #6d28d9;
+}
+
+.layout3d-toolbox-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.layout3d-toolbox-actions button {
+  min-height: 38px;
+  border: 1px solid #c4b5fd;
+  border-radius: 10px;
+  background: #fff;
+  color: #6d28d9;
+  font-size: 12px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.layout3d-toolbox-actions button.primary {
+  border-color: transparent;
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  color: #fff;
+  box-shadow: 0 14px 28px rgba(109, 40, 217, .22);
+}
+
+.layout3d-zone-summary-card {
+  position: absolute;
+  left: 18px;
+  right: auto;
+  top: auto;
+  bottom: 14px;
+  z-index: 7;
+  width: 238px;
+  border: 1px solid rgba(226, 232, 240, .92);
+  border-radius: 16px;
+  background: rgba(255,255,255,.94);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, .12);
+  backdrop-filter: blur(12px);
+  padding: 14px;
+}
+
+.layout3d-zone-summary-card > span {
+  display: block;
+  margin-bottom: 10px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.layout3d-zone-summary-card p {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  margin: 8px 0;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.layout3d-zone-summary-card strong {
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.layout3d-zone-summary-card strong.green { color: #059669; }
+.layout3d-zone-summary-card strong.red { color: #e11d48; }
+
+.layout3d-zone-summary-card div {
+  height: 8px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.layout3d-zone-summary-card div i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8b5cf6, #5b21b6);
+}
+
+.layout3d-stage-card {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+}
+
+.layout3d-floating-filters,
+.layout3d-floating-views {
+  display: none !important;
+}
+
+.layout3d-canvas-wrap:fullscreen .layout3d-floating-filters,
+.layout3d-canvas-wrap:fullscreen .layout3d-floating-views,
+.layout3d-canvas-wrap.expanded .layout3d-floating-filters,
+.layout3d-canvas-wrap.expanded .layout3d-floating-views {
+  display: flex !important;
+}
+
+.layout3d-canvas-wrap:fullscreen .layout3d-floating-filters,
+.layout3d-canvas-wrap.expanded .layout3d-floating-filters {
+  top: 98px !important;
+  left: 28px !important;
+  right: 28px !important;
+  transform: none;
+  max-width: none;
+  min-height: 70px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  border-radius: 22px;
+  background: rgba(255,255,255,.94);
+  z-index: 7;
+}
+
+.layout3d-canvas-wrap:fullscreen .layout3d-floating-filters label,
+.layout3d-canvas-wrap.expanded .layout3d-floating-filters label {
+  flex: 0 0 128px;
+  gap: 8px;
+}
+
+.layout3d-canvas-wrap:fullscreen .layout3d-floating-filters span,
+.layout3d-canvas-wrap.expanded .layout3d-floating-filters span {
+  font-size: 11px;
+  letter-spacing: .08em;
+}
+
+.layout3d-canvas-wrap:fullscreen .layout3d-floating-filters select,
+.layout3d-canvas-wrap.expanded .layout3d-floating-filters select {
+  height: 42px;
+  border-radius: 14px;
+  font-size: 13px;
+  padding: 0 14px;
+}
+
+.layout3d-canvas-wrap:fullscreen .layout3d-floating-views,
+.layout3d-canvas-wrap.expanded .layout3d-floating-views {
+  top: 22px !important;
+  right: 28px !important;
+  left: auto !important;
+  max-width: calc(100% - 470px);
+  gap: 10px;
+  padding: 12px;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  border-radius: 22px;
+  background: rgba(255,255,255,.94);
+  z-index: 8;
+}
+
+.layout3d-canvas-wrap:fullscreen .layout3d-floating-views button,
+.layout3d-canvas-wrap.expanded .layout3d-floating-views button {
+  min-height: 42px;
+  min-width: 88px;
+  border-radius: 14px;
+  font-size: 12px;
+  padding: 0 14px;
+}
+
+.layout3d-canvas-wrap:fullscreen .layout3d-floating-operator,
+.layout3d-canvas-wrap.expanded .layout3d-floating-operator {
+  top: 22px !important;
+  left: 28px !important;
+  max-width: 410px;
+  z-index: 8;
+}
+
+.layout3d-canvas-wrap:fullscreen .layout3d-orientation-cards,
+.layout3d-canvas-wrap.expanded .layout3d-orientation-cards {
+  top: 186px;
+  right: 28px;
+  z-index: 6;
+}
+
+@media (max-width: 1180px) {
+  .layout3d-page {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .layout3d-control-toolbox,
+  .layout3d-stage-card {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+  }
+  .layout3d-zone-summary-card {
+    position: static;
+    width: auto;
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 1280px) {
+  .layout-zone-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .layout-zone-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 820px) {
+  .layout-zone-header { display: grid; }
+  .layout-zone-actions { width: 100%; }
+  .layout-zone-grid,
+  .layout-zone-kpis { grid-template-columns: 1fr; }
+}`;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
