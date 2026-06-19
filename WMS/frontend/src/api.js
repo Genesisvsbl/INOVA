@@ -672,6 +672,7 @@ export function getStock(codigo) {
       stock_actual: almacenado + transito,
       stock_almacenado: almacenado,
       stock_en_transito: transito,
+      stock_bloqueado_pnc: bloqueado,
       lotes: groupStock(rows),
     };
   });

@@ -523,6 +523,7 @@ export default function Recibo() {
   const [novedades, setNovedades] = useState([createEmptyNovedad()]);
   const [novedadOpen, setNovedadOpen] = useState(false);
   const [errores, setErrores] = useState({});
+  const [validationNotice, setValidationNotice] = useState(null);
 
   useEffect(() => {
     const auth = sessionStorage.getItem("auth");
@@ -1008,7 +1009,6 @@ export default function Recibo() {
 
     setTimeout(() => {
       if (!validarAntesDeContinuar()) {
-        alert("Hay errores. Revisa los campos marcados.");
         return;
       }
 
@@ -1880,6 +1880,141 @@ export default function Recibo() {
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      {validationNotice && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            background: "rgba(15, 23, 42, 0.52)",
+            display: "grid",
+            placeItems: "center",
+            padding: 18,
+          }}
+        >
+          <div
+            style={{
+              width: "min(560px, 96vw)",
+              borderRadius: 18,
+              background: "#fff",
+              border: "1px solid #d9e2ec",
+              boxShadow: "0 28px 80px rgba(15, 23, 42, .28)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 20px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 14,
+                borderBottom: "1px solid #e5edf5",
+                background: "linear-gradient(180deg, #fbfdff 0%, #f5f8fc 100%)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 12,
+                    display: "grid",
+                    placeItems: "center",
+                    background: "#fdf0f0",
+                    border: "1px solid #f3c7c7",
+                    color: "#c62828",
+                    flexShrink: 0,
+                  }}
+                >
+                  <ClipboardList size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 1000, color: "#c62828", textTransform: "uppercase", letterSpacing: ".08em" }}>
+                    Validacion pendiente
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: 20, fontWeight: 1000, color: "#133454" }}>
+                    Revisa el recibo antes de continuar
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setValidationNotice(null)}
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  border: "1px solid #d9e2ec",
+                  background: "#fff",
+                  color: "#133454",
+                  display: "grid",
+                  placeItems: "center",
+                  cursor: "pointer",
+                }}
+                aria-label="Cerrar validacion"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ padding: 20, display: "grid", gap: 14 }}>
+              <div style={{ color: "#607084", fontSize: 13, fontWeight: 700, lineHeight: 1.45 }}>
+                Hay campos obligatorios o valores que no cumplen la estructura del recibo. Los campos marcados quedan resaltados en la pantalla para corregirlos.
+              </div>
+
+              <div style={{ display: "grid", gap: 8, maxHeight: 250, overflow: "auto" }}>
+                {validationNotice.slice(0, 8).map((item) => (
+                  <div
+                    key={item.campo}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      border: "1px solid #f3c7c7",
+                      background: "#fff7f7",
+                      borderRadius: 12,
+                      padding: "10px 12px",
+                    }}
+                  >
+                    <span style={{ color: "#133454", fontSize: 13, fontWeight: 900 }}>{item.mensaje}</span>
+                    <span style={{ color: "#c62828", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", whiteSpace: "nowrap" }}>
+                      {item.campo.replaceAll("_", " ")}
+                    </span>
+                  </div>
+                ))}
+                {validationNotice.length > 8 && (
+                  <div style={{ color: "#607084", fontSize: 12, fontWeight: 800, textAlign: "center" }}>
+                    +{validationNotice.length - 8} validaciones adicionales marcadas en el formulario
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => setValidationNotice(null)}
+                  style={{
+                    height: 42,
+                    padding: "0 18px",
+                    borderRadius: 12,
+                    border: "1px solid #0b57d0",
+                    background: "#0b57d0",
+                    color: "#fff",
+                    fontWeight: 1000,
+                    cursor: "pointer",
+                  }}
+                >
+                  Entendido, corregir
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={panelStyle}>
         <div
           style={{

@@ -677,6 +677,7 @@ export default function MotorPrincipal() {
                 <option value="TODOS">TODOS</option>
                 <option value="ALMACENADO">ALMACENADO</option>
                 <option value="EN_TRANSITO">EN_TRANSITO</option>
+                <option value="PNC_BLOQUEADO">PNC_BLOQUEADO</option>
               </select>
             </div>
 
@@ -960,6 +961,8 @@ export default function MotorPrincipal() {
                       <td style={{ ...tdStyle, textAlign: "center", verticalAlign: "middle" }}>
                         {estadoUp === "EN_TRANSITO" ? (
                           <StatusChip label="EN TRANSITO" tone="amber" />
+                        ) : estadoUp === "PNC_BLOQUEADO" ? (
+                          <StatusChip label="PNC BLOQUEADO" tone="red" />
                         ) : (
                           <StatusChip label="ALMACENADO" tone="blue" />
                         )}
@@ -978,7 +981,7 @@ export default function MotorPrincipal() {
                         style={{
                           ...tdStyle,
                           fontWeight: 700,
-                          color: estadoUp === "EN_TRANSITO" ? colors.warn : colors.navy,
+                          color: estadoUp === "EN_TRANSITO" ? colors.warn : estadoUp === "PNC_BLOQUEADO" ? colors.bad : colors.navy,
                         }}
                       >
                         {ubicBase || (estadoUp === "EN_TRANSITO" ? "EN TRANSITO" : "")}
@@ -990,7 +993,7 @@ export default function MotorPrincipal() {
                         style={{
                           ...tdStyle,
                           fontWeight: 700,
-                          color: estadoUp === "EN_TRANSITO" ? colors.warn : colors.blue,
+                          color: estadoUp === "EN_TRANSITO" ? colors.warn : estadoUp === "PNC_BLOQUEADO" ? colors.bad : colors.blue,
                         }}
                       >
                         {ubicFinal || "EN TRANSITO"}

@@ -1503,6 +1503,7 @@ export default function Stock() {
   const totalStock = Number(data?.stock_actual || 0);
   const stockAlmacenado = Number(data?.stock_almacenado || 0);
   const stockTransito = Number(data?.stock_en_transito || 0);
+  const stockBloqueado = Number(data?.stock_bloqueado_pnc || 0);
 
   return (
     <div
@@ -1770,6 +1771,13 @@ export default function Stock() {
           tone="amber"
         />
         <SummaryBox
+          label="PNC bloqueado"
+          value={formatQty(stockBloqueado)}
+          helper="No disponible para picking"
+          icon={ShieldCheck}
+          tone={stockBloqueado > 0 ? "red" : "default"}
+        />
+        <SummaryBox
           label="Condición"
           value={
             !data
@@ -1858,6 +1866,7 @@ export default function Stock() {
                 <DataBox label="Stock actual" value={formatQty(data.stock_actual)} />
                 <DataBox label="Stock almacenado" value={formatQty(data.stock_almacenado)} />
                 <DataBox label="Stock en tránsito" value={formatQty(data.stock_en_transito)} />
+                <DataBox label="PNC bloqueado" value={formatQty(data.stock_bloqueado_pnc)} />
                 <DataBox
                   label="Balance operativo"
                   value={
