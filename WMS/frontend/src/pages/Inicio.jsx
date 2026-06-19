@@ -390,7 +390,7 @@ function MetricCard({ title, value, icon: Icon, tone, loading }) {
       <div>
         <span>{title}</span>
         <strong>{loading ? "..." : value}</strong>
-        <small>Datos desde Supabase</small>
+        <small>Datos desde el sistema</small>
       </div>
       <div className="metric-icon" style={{ color: tone }}>
         <Icon size={26} />

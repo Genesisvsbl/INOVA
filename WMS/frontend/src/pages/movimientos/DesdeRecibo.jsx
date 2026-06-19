@@ -1665,6 +1665,20 @@ export default function DesdeRecibo() {
       0
     );
 
+    const novedadesRows = (draft?.novedades || [])
+      .filter((nov) => nov?.item && (nov?.hallazgo || nov?.cantidad))
+      .map((nov) => {
+        return [
+          "<tr>",
+          `<td>${escapeHtml(nov.item || "")}</td>`,
+          `<td>${escapeHtml(nov.hallazgo || "Novedad reportada")}</td>`,
+          `<td>${escapeHtml(nov.empaque || "-")}</td>`,
+          `<td style="text-align:right;">${escapeHtml(nov.cantidad || "")}</td>`,
+          "</tr>",
+        ].join("");
+      })
+      .join("");
+
     const rows = lineas
       .map((linea, i) => {
         const item = serialItem(header.serial || "", i);
@@ -1775,6 +1789,12 @@ export default function DesdeRecibo() {
       }
       .receipt-table th { background: #f8fafc; text-align: left; font-weight: 900; color: #0f2744; }
       .receipt-table td { color: #0f172a; font-weight: 700; }
+      .receipt-novelty-wrap { width: 48%; margin: 44mm 0 0 auto; border: 1px solid #0f2744; border-radius: 7px; overflow: hidden; background: #fff; }
+      .receipt-novelty-title { text-align: center; color: #0f2744; background: #fff; font-size: 8px; font-weight: 900; letter-spacing: .04em; padding: 4px 6px; text-transform: uppercase; border-bottom: 1px solid #d9e2ec; }
+      .receipt-novelty-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 7px; }
+      .receipt-novelty-table th, .receipt-novelty-table td { border-right: 1px solid #d9e2ec; border-bottom: 1px solid #d9e2ec; padding: 4px 5px; color: #0f2744; font-weight: 800; text-align: center; }
+      .receipt-novelty-table th { background: #fff; font-weight: 900; }
+      .receipt-novelty-table th:last-child, .receipt-novelty-table td:last-child { border-right: 0; }
       .receipt-footer { margin-top: 10px; font-size: 8px; line-height: 1.2; color: #0f2744; font-weight: 900; }
       @media print { body { padding: 0; } }
     </style>
@@ -1844,6 +1864,15 @@ export default function DesdeRecibo() {
         <tbody>${rows}</tbody>
       </table>
 
+      ${novedadesRows ? `
+        <div class="receipt-novelty-wrap">
+          <div class="receipt-novelty-title">Novedad por item detectada en el recibo fisico</div>
+          <table class="receipt-novelty-table">
+            <colgroup><col style="width: 18%" /><col style="width: 42%" /><col style="width: 22%" /><col style="width: 18%" /></colgroup>
+            <thead><tr><th>No. item</th><th>Hallazgo</th><th>Empaque</th><th>Cantidad</th></tr></thead>
+            <tbody>${novedadesRows}</tbody>
+          </table>
+        </div>` : ""}
       <div class="receipt-footer">Documento generado desde WMS INOVA para control de recibo y trazabilidad.</div>
     </section>
   </body>
@@ -1998,7 +2027,7 @@ export default function DesdeRecibo() {
       
     } catch (e) {
       const msg = e?.message || String(e);
-      showNotice({ tone: "error", title: "Error guardando", message: msg + (msg.includes("Failed to fetch") ? "\n\nNo se pudo comunicar con Supabase. Revisa VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY." : "") });
+      showNotice({ tone: "error", title: "Error guardando", message: msg + (msg.includes("Failed to fetch") ? "\n\nNo se pudo comunicar con el servicio. Revisa la conexion e intenta nuevamente." : "") });
     } finally {
       setGuardando(false);
     }
@@ -2060,7 +2089,7 @@ export default function DesdeRecibo() {
       
     } catch (e) {
       const msg = e?.message || String(e);
-      showNotice({ tone: "error", title: "Error guardando en transito", message: msg + (msg.includes("Failed to fetch") ? "\n\nNo se pudo comunicar con Supabase. Revisa VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY." : "") });
+      showNotice({ tone: "error", title: "Error guardando en transito", message: msg + (msg.includes("Failed to fetch") ? "\n\nNo se pudo comunicar con el servicio. Revisa la conexion e intenta nuevamente." : "") });
     } finally {
       setGuardando(false);
     }

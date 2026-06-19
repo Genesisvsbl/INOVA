@@ -19,7 +19,7 @@ import {
   Plus,
   Bell,
 } from "lucide-react";
-import { actualizarCertificadoCalidad, getCertificadosCalidad, getStock } from "../api";
+import { actualizarCertificadoCalidad, getCertificadosCalidad, getMovimientos, getStock } from "../api";
 
 const colors = {
   navy: "#133454",
@@ -583,7 +583,7 @@ function DocumentPreviewModal({ doc, onClose }) {
             </button>
           </div>
         </div>
-        <iframe title="Vista previa recibo ciego" srcDoc={withPreviewBase(doc.html)} style={{ width: "100%", height: "100%", border: 0, background: "#fff" }} />
+        <iframe title="Vista previa recibo ciego" srcDoc={withPreviewBase(doc.html)} onLoad={(event) => event.currentTarget.contentWindow?.scrollTo(0, 0)} style={{ width: "100%", height: "100%", border: 0, background: "#fff" }} />
       </div>
     </div>
   );
@@ -762,6 +762,9 @@ function CertificadosCalidadView() {
   const [estado, setEstado] = useState("TODOS");
   const [vida, setVida] = useState("TODOS");
   const [loading, setLoading] = useState(false);
+  const [bloqueados, setBloqueados] = useState([]);
+  const [showBloqueados, setShowBloqueados] = useState(false);
+  const [bloqueadosLoading, setBloqueadosLoading] = useState(false);
   const [stockLoading, setStockLoading] = useState(false);
   const [stockIndex, setStockIndex] = useState({});
   const [savingId, setSavingId] = useState("");
@@ -1074,6 +1077,9 @@ function CertificadosCalidadView() {
               style={{ ...actionButton, justifyContent: "center", background: colors.purpleSoft, color: colors.purple }}
             >
               Limpiar
+            </button>
+            <button type="button" onClick={cargarBloqueados} disabled={bloqueadosLoading} style={{ height: 44, borderRadius: 12, border: `1px solid ${colors.badBd}`, background: colors.badBg, color: colors.bad, fontWeight: 950, padding: "0 14px", cursor: bloqueadosLoading ? "wait" : "pointer" }}>
+              {bloqueadosLoading ? "Consultando..." : "Ver bloqueados"}
             </button>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, color: colors.muted, fontSize: 13, fontWeight: 750 }}>
@@ -1459,7 +1465,7 @@ function FrescuraCard({ data }) {
           />
           <DataBox
             label="Frescura FEFO"
-            value="Pendiente de backend por lote/vencimiento"
+            value="Pendiente por lote/vencimiento"
           />
           <DataBox
             label="Observación"
@@ -1477,6 +1483,26 @@ export default function Stock() {
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const cargarBloqueados = async () => {
+    setBloqueadosLoading(true);
+    setErr("");
+    try {
+      const rows = await getMovimientos();
+      setBloqueados((rows || []).filter((row) => normalizeKey(row.estado) === "PNC_BLOQUEADO" && Number(row.cantidad_r ?? row.cantidad ?? 0) > 0));
+      setShowBloqueados(true);
+    } catch {
+      setErr("No se pudo consultar el reporte de bloqueados.");
+    } finally {
+      setBloqueadosLoading(false);
+    }
+  };
+
+  const imprimirBloqueados = () => {
+    const rows = (bloqueados || []).map((row) => `
+      <tr><td>${escapeHtml(row.codigo_material)}</td><td>${escapeHtml(row.descripcion_material)}</td><td>${escapeHtml(row.ubicacion)}</td><td>${escapeHtml(row.lote_almacen)}</td><td>${escapeHtml(row.lote_proveedor)}</td><td>${escapeHtml(row.fecha_vencimiento)}</td><td style="text-align:right">${escapeHtml(formatQty(row.cantidad_r ?? row.cantidad))}</td></tr>`).join("");
+    printHtmlPreview(`<!doctype html><html><head><meta charset="utf-8"/><title>Reporte PNC bloqueado</title><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial;margin:0;color:#0f2744}h1{font-size:22px}.meta{font-size:12px;color:#64748b;margin-bottom:12px}table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #d9e2ec;padding:6px}th{background:#f8fafc;text-align:left;font-weight:900}</style></head><body><h1>Reporte de materiales PNC bloqueados</h1><div class="meta">Material no disponible para picking hasta liberacion operativa.</div><table><thead><tr><th>SKU</th><th>Material</th><th>Ubicacion</th><th>Lote almacen</th><th>Lote proveedor</th><th>Vencimiento</th><th>Cantidad</th></tr></thead><tbody>${rows || '<tr><td colspan="7">Sin materiales bloqueados.</td></tr>'}</tbody></table></body></html>`);
+  };
 
   const consultar = async () => {
     const cod = codigo.trim();
@@ -1793,6 +1819,21 @@ export default function Stock() {
           tone={!data ? "default" : totalStock <= 0 ? "red" : "green"}
         />
       </div>
+
+      {showBloqueados && (
+        <div style={{ border: `1px solid ${colors.badBd}`, borderRadius: 12, background: "#fff", overflow: "hidden" }}>
+          <div style={{ padding: 14, borderBottom: `1px solid ${colors.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <div><div style={{ fontSize: 16, fontWeight: 950, color: colors.navy }}>Materiales PNC bloqueados</div><div style={{ fontSize: 12, color: colors.muted, fontWeight: 750 }}>No disponibles para picking hasta liberacion.</div></div>
+            <div style={{ display: "flex", gap: 8 }}><button type="button" onClick={imprimirBloqueados} style={{ height: 36, borderRadius: 10, border: `1px solid ${colors.border}`, background: colors.blue, color: "#fff", fontWeight: 900, padding: "0 12px", cursor: "pointer" }}>Imprimir reporte</button><button type="button" onClick={() => setShowBloqueados(false)} style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${colors.border}`, background: "#fff", cursor: "pointer" }}>?</button></div>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", minWidth: 920, borderCollapse: "collapse" }}>
+              <thead><tr style={{ background: "#f8fafc" }}>{["SKU","Material","Ubicacion","Lote almacen","Lote proveedor","Vencimiento","Cantidad"].map((h) => <th key={h} style={{ padding: 10, textAlign: "left", fontSize: 11, color: colors.navy, textTransform: "uppercase", borderBottom: `1px solid ${colors.border}` }}>{h}</th>)}</tr></thead>
+              <tbody>{bloqueados.length ? bloqueados.map((row) => <tr key={row.id} style={{ borderBottom: `1px solid ${colors.border}` }}><td style={{ padding: 10, fontWeight: 900 }}>{row.codigo_material}</td><td style={{ padding: 10 }}>{row.descripcion_material}</td><td style={{ padding: 10, color: colors.bad, fontWeight: 900 }}>{row.ubicacion}</td><td style={{ padding: 10 }}>{row.lote_almacen || "-"}</td><td style={{ padding: 10 }}>{row.lote_proveedor || "-"}</td><td style={{ padding: 10 }}>{row.fecha_vencimiento || "-"}</td><td style={{ padding: 10, textAlign: "right", fontWeight: 950 }}>{formatQty(row.cantidad_r ?? row.cantidad)}</td></tr>) : <tr><td colSpan={7} style={{ padding: 18, color: colors.muted, fontWeight: 850, textAlign: "center" }}>Sin materiales bloqueados.</td></tr>}</tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div
         style={{

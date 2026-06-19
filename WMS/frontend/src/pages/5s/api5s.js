@@ -26,7 +26,7 @@ async function handle(res) {
 
 function apiFetch(path, options = {}) {
   if (!API_URL) {
-    throw new Error("Supabase no está configurado. Crea WMS/frontend/.env.local con VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY.");
+    throw new Error("sistema no está configurado. Crea WMS/frontend/.env.local con VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY.");
   }
 
   return fetch(`${API_URL}${path}`, options).then(handle);
@@ -126,7 +126,7 @@ function valuesByType(catalogos, tipo) {
     .map((item) => item.nombre);
 }
 
-async function getConfigFromSupabase() {
+async function getConfigFromsistema() {
   const [rows, catalogos, bodegas] = await Promise.all([
     selectRows("5s", "configuracion_5s", {
       empresa_id: `eq.${empresaId}`,
@@ -256,7 +256,7 @@ export function eliminarSububicacion5S(id) {
 }
 
 export function getConfig5S() {
-  if (supabaseEnabled) return getConfigFromSupabase();
+  if (supabaseEnabled) return getConfigFromsistema();
   return apiFetch("/api/5s/config");
 }
 
@@ -265,7 +265,7 @@ export async function guardarConfig5S(payload) {
     await Promise.all(Object.entries(payload).map(([clave, valor]) =>
       insertRow("5s", "configuracion_5s", withEmpresa({ clave, valor: valor == null ? "" : String(valor) }))
     ));
-    return getConfigFromSupabase();
+    return getConfigFromsistema();
   }
 
   return apiFetch("/api/5s/config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });

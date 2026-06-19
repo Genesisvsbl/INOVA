@@ -1370,7 +1370,7 @@ function CronogramaView({ canAdmin = false }) {
       setSubbodegas([]);
       setResponsables([]);
       setCronograma([]);
-      setCronogramaError(error.message || "No se pudieron cargar los datos desde la base de datos.");
+      setCronogramaError(error.message || "No se pudieron cargar los datos desde la sistema.");
     } finally {
       setLoadingCatalogos(false);
     }
@@ -1471,7 +1471,7 @@ function CronogramaView({ canAdmin = false }) {
       resetCronogramaForm();
     } catch (error) {
       console.error("No se pudo guardar el cronograma 5S:", error);
-      setCronogramaError(error.message || "No se pudo guardar el cronograma en la base de datos.");
+      setCronogramaError(error.message || "No se pudo guardar el cronograma en la sistema.");
     } finally {
       setLoadingCatalogos(false);
     }
@@ -1487,7 +1487,7 @@ function CronogramaView({ canAdmin = false }) {
       window.dispatchEvent(new Event("calidad5s:refresh-alerts"));
     } catch (error) {
       console.error("No se pudo eliminar el cronograma 5S:", error);
-      setCronogramaError(error.message || "No se pudo eliminar el cronograma de la base de datos.");
+      setCronogramaError(error.message || "No se pudo eliminar el cronograma de la sistema.");
     }
   }
 
@@ -1547,7 +1547,7 @@ function CronogramaView({ canAdmin = false }) {
   }
 
   async function clearCronograma() {
-    if (!window.confirm("¿Eliminar todas las actividades del cronograma en base de datos?")) return;
+    if (!window.confirm("¿Eliminar todas las actividades del cronograma en sistema?")) return;
 
     try {
       await Promise.all(cronograma.map((item) => eliminarCronograma5S(item.id)));
@@ -1556,7 +1556,7 @@ function CronogramaView({ canAdmin = false }) {
       window.dispatchEvent(new Event("calidad5s:refresh-alerts"));
     } catch (error) {
       console.error("No se pudo vaciar el cronograma 5S:", error);
-      setCronogramaError(error.message || "No se pudo vaciar el cronograma en la base de datos.");
+      setCronogramaError(error.message || "No se pudo vaciar el cronograma en la sistema.");
     }
   }
 
@@ -1788,7 +1788,7 @@ function CronogramaView({ canAdmin = false }) {
 
           {cronogramaError && (
             <div className="cronograma-warning">
-              <strong>Error de base de datos.</strong>
+              <strong>Error de sistema.</strong>
               <span>{cronogramaError}</span>
             </div>
           )}
@@ -2246,7 +2246,7 @@ function ResponsablesView() {
       }));
     } catch (error) {
       console.error("No se pudo cargar configuración 5S:", error);
-      setBodegaError(error.message || "No se pudo cargar la configuración desde la base de datos.");
+      setBodegaError(error.message || "No se pudo cargar la configuración desde la sistema.");
     }
   }
 
@@ -2269,7 +2269,7 @@ function ResponsablesView() {
       setResponsables((rows || []).map(normalizeResponsable5S));
     } catch (error) {
       console.error("No se pudieron cargar los responsables 5S:", error);
-      setResponsableError(error.message || "No se pudieron cargar los responsables desde la base de datos.");
+      setResponsableError(error.message || "No se pudieron cargar los responsables desde la sistema.");
     } finally {
       setResponsableLoading(false);
     }
@@ -2330,7 +2330,7 @@ function ResponsablesView() {
       resetResponsableForm();
     } catch (error) {
       console.error("No se pudo guardar el responsable 5S:", error);
-      setResponsableError(error.message || "No se pudo guardar o actualizar el responsable en la base de datos.");
+      setResponsableError(error.message || "No se pudo guardar o actualizar el responsable en la sistema.");
     } finally {
       setResponsableLoading(false);
     }
@@ -2404,7 +2404,7 @@ function ResponsablesView() {
       setSububicacionForm((prev) => ({ ...prev, bodega_id: prev.bodega_id || rows[0]?.id || "" }));
     } catch (error) {
       console.error("No se pudieron cargar las bodegas 5S:", error);
-      setBodegaError("No se pudieron cargar las bodegas desde la base de datos.");
+      setBodegaError("No se pudieron cargar las bodegas desde la sistema.");
     } finally {
       setBodegaLoading(false);
     }
@@ -2419,7 +2419,7 @@ function ResponsablesView() {
       setSububicaciones((rows || []).map(normalizeSububicacion5S));
     } catch (error) {
       console.error("No se pudieron cargar las subbodegas 5S:", error);
-      setSububicacionError(error.message || "No se pudieron cargar las subbodegas desde la base de datos.");
+      setSububicacionError(error.message || "No se pudieron cargar las subbodegas desde la sistema.");
     } finally {
       setSububicacionLoading(false);
     }
@@ -2783,7 +2783,7 @@ function ResponsablesView() {
               <span className="portal-panel-kicker">NUEVA BODEGA</span>
               <h3>{editingBodegaId ? "Editar bodega" : "Crear bodega"}</h3>
               <p>
-                Las bodegas se guardan en la base de datos y alimentan los
+                Las bodegas se guardan en la sistema y alimentan los
                 selectores de 5S.
               </p>
             </div>
@@ -3304,7 +3304,7 @@ function InspeccionView({ canAdmin = false }) {
       })
       .catch((error) => {
         console.error("No se pudieron cargar los datos de inspección 5S:", error);
-        if (active) setBodegaError("No se pudieron cargar los datos desde la base de datos.");
+        if (active) setBodegaError("No se pudieron cargar los datos desde la sistema.");
       });
 
     return () => {
@@ -3436,7 +3436,7 @@ function InspeccionView({ canAdmin = false }) {
         if (active) {
           setChecklistItems([]);
           setAnswers([]);
-          setBodegaError(error.message || "No se pudo cargar el checklist desde la base de datos.");
+          setBodegaError(error.message || "No se pudo cargar el checklist desde la sistema.");
         }
       })
       .finally(() => {
@@ -3555,7 +3555,7 @@ function InspeccionView({ canAdmin = false }) {
       notifyChecklistUpdated();
     } catch (error) {
       console.error("No se pudo actualizar el punto 5S:", error);
-      setBodegaError(error.message || "No se pudo actualizar el checklist en la base de datos.");
+      setBodegaError(error.message || "No se pudo actualizar el checklist en la sistema.");
     }
   }
 
@@ -3603,7 +3603,7 @@ function InspeccionView({ canAdmin = false }) {
       notifyChecklistUpdated();
     } catch (error) {
       console.error("No se pudo crear el punto 5S:", error);
-      setBodegaError(error.message || "No se pudo guardar el checklist en la base de datos.");
+      setBodegaError(error.message || "No se pudo guardar el checklist en la sistema.");
     }
   }
 
@@ -3620,20 +3620,20 @@ function InspeccionView({ canAdmin = false }) {
       notifyChecklistUpdated();
     } catch (error) {
       console.error("No se pudo eliminar el punto 5S:", error);
-      setBodegaError(error.message || "No se pudo eliminar el checklist en la base de datos.");
+      setBodegaError(error.message || "No se pudo eliminar el checklist en la sistema.");
     }
   }
 
   async function saveInspection() {
     if (!selectedBodega) {
-      alert("Debes crear y seleccionar una bodega activa desde la base de datos.");
+      alert("Debes crear y seleccionar una bodega activa desde la sistema.");
       return;
     }
 
     const evaluados = answers.filter((item) => item.estado !== "na");
 
     if (!evaluados.length) {
-      alert("Debes evaluar al menos un punto del checklist guardado en base de datos.");
+      alert("Debes evaluar al menos un punto del checklist guardado en sistema.");
       return;
     }
 
@@ -3711,10 +3711,10 @@ function InspeccionView({ canAdmin = false }) {
       }
 
       window.dispatchEvent(new Event("calidad5s:refresh-alerts"));
-      alert("Inspeccion guardada correctamente en base de datos.");
+      alert("Inspeccion guardada correctamente en sistema.");
     } catch (error) {
       console.error("No se pudo guardar la inspeccion 5S:", error);
-      alert(error.message || "No se pudo guardar la inspeccion en la base de datos.");
+      alert(error.message || "No se pudo guardar la inspeccion en la sistema.");
     } finally {
       setInspectionSaving(false);
     }
@@ -4943,7 +4943,7 @@ function AuditoriasView({ setTab }) {
       })
       .catch((loadError) => {
         console.error("No se pudieron cargar las auditorías 5S:", loadError);
-        setError(loadError.message || "No se pudieron cargar las auditorías desde base de datos.");
+        setError(loadError.message || "No se pudieron cargar las auditorías desde el sistema.");
       })
       .finally(() => setLoading(false));
   }
@@ -5266,7 +5266,7 @@ function DashboardView() {
       .then((data) => setDashboard(data))
       .catch((error) => {
         console.error("No se pudo cargar el dashboard 5S:", error);
-        setDashboardError(error.message || "No se pudo cargar el dashboard desde la base de datos.");
+        setDashboardError(error.message || "No se pudo cargar el dashboard desde la sistema.");
       })
       .finally(() => setDashboardLoading(false));
   }
@@ -5869,7 +5869,7 @@ function DashboardView() {
 
           <div className="dashboard-list">
             {dashboardLoading ? (
-              <div className="dashboard-empty">Cargando datos desde base de datos...</div>
+              <div className="dashboard-empty">Cargando datos desde el sistema...</div>
             ) : porBodega.length ? (
               porBodega.map((item) => {
                 const score = Number(item.cumplimiento || 0);
@@ -5890,7 +5890,7 @@ function DashboardView() {
                 );
               })
             ) : (
-              <div className="dashboard-empty">Sin bodegas o auditorías registradas en base de datos.</div>
+              <div className="dashboard-empty">Sin bodegas o auditorías registradas en sistema.</div>
             )}
           </div>
         </article>
@@ -5904,7 +5904,7 @@ function DashboardView() {
 
           <div className="dashboard-list">
             {dashboardLoading ? (
-              <div className="dashboard-empty">Cargando responsables desde base de datos...</div>
+              <div className="dashboard-empty">Cargando responsables desde el sistema...</div>
             ) : porResponsable.length ? (
               porResponsable.map((item) => {
                 const score = Number(item.cumplimiento || 0);
@@ -6142,7 +6142,7 @@ function ConfigView() {
       .then((data) => setConfig5S(data || null))
       .catch((error) => {
         console.error("No se pudo cargar la configuración 5S:", error);
-        setConfigError(error.message || "No se pudo cargar la configuración desde la base de datos.");
+        setConfigError(error.message || "No se pudo cargar la configuración desde la sistema.");
       })
       .finally(() => setConfigLoading(false));
   }
@@ -6163,7 +6163,7 @@ function ConfigView() {
         <div className="portal-hero-copy">
           <span className="section-kicker">MÓDULO 5S</span>
           <h2>Configuración</h2>
-          <p>Consulta parámetros, estados y catálogos que consume el portal desde la base de datos.</p>
+          <p>Consulta parámetros, estados y catálogos que consume el portal desde la sistema.</p>
 
           <div className="portal-hero-actions">
             <button type="button" className="portal-secondary-btn" onClick={loadConfig} disabled={configLoading}>
@@ -6211,7 +6211,7 @@ function ConfigView() {
           <div className="portal-panel-head">
             <span className="portal-panel-kicker">CATÁLOGOS</span>
             <h3>Estados y parámetros</h3>
-            <p>Valores publicados por el backend para cronograma, inspeccion y bodegas.</p>
+            <p>Valores publicados por el sistema para cronograma, inspeccion y bodegas.</p>
           </div>
 
           <div className="config-token-grid">
@@ -6238,7 +6238,7 @@ function ConfigView() {
           <div className="portal-panel-head">
             <span className="portal-panel-kicker">BODEGAS</span>
             <h3>Bodegas configuradas</h3>
-            <p>Listado consultado desde la base de datos.</p>
+            <p>Listado consultado desde la sistema.</p>
           </div>
 
           <div className="dashboard-list">
@@ -6257,7 +6257,7 @@ function ConfigView() {
                 </div>
               ))
             ) : (
-              <div className="dashboard-empty">Sin bodegas registradas en base de datos.</div>
+              <div className="dashboard-empty">Sin bodegas registradas en sistema.</div>
             )}
           </div>
         </article>
@@ -6301,7 +6301,7 @@ function ConfigViewAdmin() {
       })
       .catch((loadError) => {
         console.error("No se pudo cargar configuración 5S:", loadError);
-        setError(loadError.message || "No se pudo cargar la configuración desde la base de datos.");
+        setError(loadError.message || "No se pudo cargar la configuración desde la sistema.");
       })
       .finally(() => setLoading(false));
   }
@@ -6332,7 +6332,7 @@ function ConfigViewAdmin() {
       setConfig5S(updated);
     } catch (saveError) {
       console.error("No se pudieron guardar las metas 5S:", saveError);
-      setError(saveError.message || "No se pudieron guardar las metas en la base de datos.");
+      setError(saveError.message || "No se pudieron guardar las metas en la sistema.");
     } finally {
       setSaving(false);
     }
@@ -6373,7 +6373,7 @@ function ConfigViewAdmin() {
       await loadConfig();
     } catch (saveError) {
       console.error("No se pudo guardar el catalogo 5S:", saveError);
-      setError(saveError.message || "No se pudo guardar el catalogo en la base de datos.");
+      setError(saveError.message || "No se pudo guardar el catalogo en la sistema.");
     } finally {
       setSaving(false);
     }
@@ -6393,7 +6393,7 @@ function ConfigViewAdmin() {
       await loadConfig();
     } catch (toggleError) {
       console.error("No se pudo actualizar el catalogo 5S:", toggleError);
-      setError(toggleError.message || "No se pudo actualizar el catalogo en la base de datos.");
+      setError(toggleError.message || "No se pudo actualizar el catalogo en la sistema.");
     } finally {
       setSaving(false);
     }
@@ -6410,7 +6410,7 @@ function ConfigViewAdmin() {
       await loadConfig();
     } catch (deleteError) {
       console.error("No se pudo eliminar el catalogo 5S:", deleteError);
-      setError(deleteError.message || "No se pudo eliminar el catalogo de la base de datos.");
+      setError(deleteError.message || "No se pudo eliminar el catalogo de la sistema.");
     } finally {
       setSaving(false);
     }
@@ -6432,7 +6432,7 @@ function ConfigViewAdmin() {
         <div className="portal-hero-copy">
           <span className="section-kicker">MÓDULO 5S</span>
           <h2>Configuración</h2>
-          <p>Administra metas y catálogos maestros. Cronograma, inspecciones y dashboard consumen estos valores desde base de datos.</p>
+          <p>Administra metas y catálogos maestros. Cronograma, inspecciones y dashboard consumen estos valores desde el sistema.</p>
 
           <div className="portal-hero-actions">
             <button type="button" className="portal-secondary-btn" onClick={loadConfig} disabled={loading || saving}>
@@ -6574,7 +6574,7 @@ function ConfigViewAdmin() {
         <div className="portal-panel-head">
           <span className="portal-panel-kicker">VALORES CONFIGURADOS</span>
           <h3>Catálogos maestros</h3>
-          <p>Todo lo que ves aquí está leyendo y escribiendo en base de datos.</p>
+          <p>Todo lo que ves aquí está leyendo y escribiendo en sistema.</p>
         </div>
 
         <div className="catalog-admin-grid">
@@ -6794,7 +6794,7 @@ export default function Calidad5S() {
         }
       })
       .catch((error) => {
-        console.warn("No se pudo cargar la foto de perfil desde base de datos:", error);
+        console.warn("No se pudo cargar la foto de perfil desde el sistema:", error);
       });
   }, [currentUserId]);
 
@@ -6866,7 +6866,7 @@ export default function Calidad5S() {
 
     if (currentUserId) {
       editarUsuario5S(currentUserId, { avatar_url: null }).catch((error) => {
-        console.warn("No se pudo quitar la foto de perfil en base de datos:", error);
+        console.warn("No se pudo quitar la foto de perfil en sistema:", error);
       });
     }
   }

@@ -120,7 +120,7 @@ async function handle(res) {
 
 function apiFetch(path, options = {}) {
   throw new Error(
-    `Conexion legacy deshabilitada (${path}). WMS debe operar contra Supabase para conservar trazabilidad.`
+    `Conexion operativa no disponible (${path}). WMS debe operar contra sistema para conservar trazabilidad.`
   );
 }
 
@@ -381,7 +381,7 @@ async function resolveMaterialId(codigo) {
     codigo: `eq.${value}`,
     select: "id,codigo",
   });
-  if (!row) throw new Error(`No existe material ${value} en Supabase.`);
+  if (!row) throw new Error(`No existe material ${value}.`);
   return row.id;
 }
 
@@ -393,7 +393,7 @@ async function resolveUbicacionId(codigo) {
     ubicacion: `eq.${value}`,
     select: "id,ubicacion",
   });
-  if (!row) throw new Error(`No existe ubicacion ${value} en Supabase.`);
+  if (!row) throw new Error(`No existe ubicacion ${value}.`);
   return row.id;
 }
 
@@ -521,7 +521,7 @@ export function eliminarMaterial(id) {
 }
 
 export function importarMaterialesExcel(file) {
-  if (!supabaseEnabled) return Promise.reject(new Error("Supabase no esta configurado."));
+  if (!supabaseEnabled) return Promise.reject(new Error("Servicio operativo no configurado."));
   return readSpreadsheetRows(file).then((rows) => {
     const mapped = rows
       .map((row) => {
@@ -551,7 +551,7 @@ export function crearMovimiento(payload) {
     return buildMovimientoInsert(payload).then((row) => insertRow("wms", "movimientos", row));
   }
 
-  return Promise.reject(new Error("Supabase no esta configurado para guardar movimientos WMS."));
+  return Promise.reject(new Error("No se pudo guardar el movimiento."));
 }
 
 export function crearMovimientosBulk(payload) {
@@ -562,7 +562,7 @@ export function crearMovimientosBulk(payload) {
     );
   }
 
-  return Promise.reject(new Error("Supabase no esta configurado para guardar movimientos WMS."));
+  return Promise.reject(new Error("No se pudo guardar el movimiento."));
 }
 
 export function getMovimientos() {
@@ -644,7 +644,7 @@ export function asignarUbicacionDesdeTransito(movimientoId, codigoUbicacion) {
     );
   }
 
-  return Promise.reject(new Error("Supabase no esta configurado para actualizar transito WMS."));
+  return Promise.reject(new Error("No se pudo actualizar el transito."));
 }
 
 export function getStock(codigo) {
@@ -719,7 +719,7 @@ export function eliminarProveedor(id) {
 }
 
 export function importarProveedoresExcel(file) {
-  if (!supabaseEnabled) return Promise.reject(new Error("Supabase no esta configurado."));
+  if (!supabaseEnabled) return Promise.reject(new Error("Servicio operativo no configurado."));
   return readSpreadsheetRows(file).then((rows) => {
     const mapped = rows
       .map((row) => {
@@ -803,7 +803,7 @@ export function eliminarUbicacion(id) {
 }
 
 export function importarUbicacionesExcel(file) {
-  if (!supabaseEnabled) return Promise.reject(new Error("Supabase no esta configurado."));
+  if (!supabaseEnabled) return Promise.reject(new Error("Servicio operativo no configurado."));
   return readSpreadsheetRows(file).then((rows) => {
     const mapped = rows
       .map((row) => {
@@ -858,7 +858,7 @@ export function crearRotulo(payload) {
     return buildRotuloInsert(payload).then((row) => insertRow("wms", "rotulos", row));
   }
 
-  return Promise.reject(new Error("Supabase no esta configurado para guardar rotulos WMS."));
+  return Promise.reject(new Error("No se pudo guardar el rotulo."));
 }
 
 export function crearRotulosBulk(payload) {
@@ -873,21 +873,21 @@ export function crearRotulosBulk(payload) {
     );
   }
 
-  return Promise.reject(new Error("Supabase no esta configurado para guardar rotulos WMS."));
+  return Promise.reject(new Error("No se pudo guardar el rotulo."));
 }
 
 export function eliminarRotulo(id) {
   if (supabaseEnabled) return deleteById("wms", "rotulos", id);
 
-  return Promise.reject(new Error("Supabase no esta configurado para eliminar rotulos WMS."));
+  return Promise.reject(new Error("No se pudo eliminar el rotulo."));
 }
 
 export function imprimirRotulo(rotuloId, copias = 1) {
-  return Promise.reject(new Error("Impresion por backend legacy deshabilitada. Usa la vista/export frontend."));
+  return Promise.reject(new Error("La impresion debe realizarse desde la vista previa disponible."));
 }
 
 export function importarInventarioInicial(file) {
-  if (!supabaseEnabled) return Promise.reject(new Error("Supabase no esta configurado."));
+  if (!supabaseEnabled) return Promise.reject(new Error("Servicio operativo no configurado."));
   return readSpreadsheetRows(file).then(async (rows) => {
     const items = rows.map((row) => ({
       usuario: "IMPORTACION",
@@ -904,7 +904,7 @@ export function importarInventarioInicial(file) {
 }
 
 export function importarDespachos(file) {
-  if (!supabaseEnabled) return Promise.reject(new Error("Supabase no esta configurado."));
+  if (!supabaseEnabled) return Promise.reject(new Error("Servicio operativo no configurado."));
   return readSpreadsheetRows(file).then(async (rows) => {
     const cargaRows = await insertRow("wms", "despacho_cargas", {
       empresa_id: empresaId,
@@ -962,7 +962,7 @@ export function importarDespachos(file) {
 }
 
 export async function crearReservaAdicionalDespacho(payload = {}) {
-  if (!supabaseEnabled) throw new Error("Supabase no esta configurado.");
+  if (!supabaseEnabled) throw new Error("Servicio operativo no configurado.");
 
   const reserva = String(payload.reserva || "").trim();
   const sku = String(payload.sku || "").trim();
@@ -1316,7 +1316,7 @@ export function registrarAjusteInterno(payload) {
         { ...comun, ubicacion: payload.ubicacion_origen, estado: "ALMACENADO", cantidad_r: -cantidad },
         { ...comun, ubicacion: payload.ubicacion_destino, estado: "ALMACENADO", cantidad_r: cantidad },
       ],
-    }).then(() => ({ mensaje: "Traslado registrado en Supabase" }));
+    }).then(() => ({ mensaje: "Traslado registrado" }));
   }
 
   const sign = tipo === "AJUSTE_POSITIVO" ? 1 : -1;
@@ -1325,7 +1325,7 @@ export function registrarAjusteInterno(payload) {
     ubicacion: payload.ubicacion_origen,
     estado: "ALMACENADO",
     cantidad_r: sign * cantidad,
-  }).then(() => ({ mensaje: "Ajuste registrado en Supabase" }));
+  }).then(() => ({ mensaje: "Ajuste registrado" }));
 }
 
 function buildInventarioCriterio(payload) {
@@ -1349,7 +1349,7 @@ function filterInventarioStock(stockRows, payload) {
 export function crearTareaInventario(payload) {
   return getAllStockRows().then(async (stockRows) => {
     const items = filterInventarioStock(stockRows, payload);
-    if (!items.length) throw new Error("No hay stock almacenado en Supabase para ese criterio.");
+    if (!items.length) throw new Error("No hay stock almacenado para ese criterio.");
 
     const tarea = (
       await insertRow("wms", "inventario_tareas", {

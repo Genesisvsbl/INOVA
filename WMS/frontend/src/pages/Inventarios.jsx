@@ -49,7 +49,7 @@ export default function Inventarios() {
       .then((data) => setTasks(Array.isArray(data) ? data : []))
       .catch((err) => {
         setTasks([]);
-        setTasksError(err?.message || "No se pudieron cargar tareas desde Supabase");
+        setTasksError(err?.message || "No se pudieron cargar tareas desde el sistema");
       })
       .finally(() => setLoadingTasks(false));
   }, [isRoot]);
@@ -63,7 +63,7 @@ export default function Inventarios() {
     const differences = tasks.reduce((acc, t) => acc + Number(t.total_no_coinciden || 0), 0);
 
     return [
-      { label: "Tareas activas", value: active, helper: "Desde Supabase", icon: ClipboardList },
+      { label: "Tareas activas", value: active, helper: "Desde sistema", icon: ClipboardList },
       { label: "Pendientes conciliacion", value: pendingConciliation, helper: "Con diferencias", icon: CheckCircle2 },
       { label: "Reconteos abiertos", value: recounts, helper: "Marcados en BD", icon: RefreshCcw },
       { label: "Diferencias detectadas", value: differences, helper: "Total no coinciden", icon: AlertTriangle },
@@ -512,7 +512,7 @@ export default function Inventarios() {
                     {loadingTasks && (
                       <tr>
                         <td colSpan={6} style={emptyCellStyle}>
-                          Cargando tareas desde Supabase...
+                          Cargando tareas desde el sistema...
                         </td>
                       </tr>
                     )}
@@ -528,7 +528,7 @@ export default function Inventarios() {
                     {!loadingTasks && !tasksError && recentTasks.length === 0 && (
                       <tr>
                         <td colSpan={6} style={emptyCellStyle}>
-                          No hay tareas registradas en Supabase.
+                          No hay tareas registradas en sistema.
                         </td>
                       </tr>
                     )}
@@ -562,7 +562,7 @@ export default function Inventarios() {
                 }}
               >
                 <div style={{ fontSize: 12, color: "#708090" }}>
-                  Mostrando actividad reciente desde Supabase
+                  Mostrando actividad reciente desde el sistema
                 </div>
 
                 <Link

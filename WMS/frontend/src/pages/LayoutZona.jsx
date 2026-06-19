@@ -134,7 +134,7 @@ function parseLocation(row) {
       finalPosition: finalSlot.finalPosition,
       rackSide: finalSlot.rackSide,
       position: compact,
-      parseMode: "legacy",
+      parseMode: "operativo",
     };
   }
 
@@ -1106,7 +1106,7 @@ export default function LayoutZona() {
         <div>
           <span className="layout3d-kicker">WMS DIGITAL TWIN</span>
           <h1>Layout 3D de bodega</h1>
-          <p>Maqueta operacional por zona con racks, pasillos, recibo, despacho, AGV y ubicaciones reales desde Supabase.</p>
+          <p>Maqueta operacional por zona con racks, pasillos, recibo, despacho, AGV y ubicaciones reales desde el sistema.</p>
         </div>
         <button type="button" onClick={loadData} className="layout3d-primary">
           <RefreshCcw size={17} /> Actualizar
@@ -1169,7 +1169,7 @@ export default function LayoutZona() {
           </div>
         </div>
         <div ref={wrapRef} className="layout3d-canvas-wrap" tabIndex={0}>
-          {loading && <div className="layout3d-loading">Cargando ubicaciones desde Supabase...</div>}
+          {loading && <div className="layout3d-loading">Cargando ubicaciones desde el sistema...</div>}
           {!loading && !filteredCells.length && <div className="layout3d-loading">No hay ubicaciones para zona {zone}.</div>}
           <canvas ref={canvasRef} className="layout3d-canvas" />
           <div className="layout3d-floating-views">

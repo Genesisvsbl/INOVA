@@ -160,7 +160,7 @@ export default function CrearTarea() {
   return (
     <PageShell
       title="Crear tarea de inventario"
-      subtitle="Genera tareas por zona, familia o material respetando el criterio definido en el backend."
+      subtitle="Genera tareas por zona, familia o material respetando el criterio definido en el sistema."
       icon={<PlusCircle size={18} color="#355b7e" />}
     >
       <div style={gridStyle}>
@@ -340,11 +340,11 @@ export default function CrearTarea() {
             <div style={noteBoxStyle}>
               <div style={noteTitleStyle}>
                 <AlertTriangle size={15} />
-                Reglas que ya respeta tu backend
+                Reglas que ya respeta tu sistema
               </div>
               <div style={noteTextStyle}>
                 La tarea solo se crea si existe stock almacenado para el criterio
-                seleccionado. Si no hay stock, el backend devuelve error y no se
+                seleccionado. Si no hay stock, el sistema devuelve error y no se
                 genera nada.
               </div>
             </div>

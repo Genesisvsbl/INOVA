@@ -145,7 +145,7 @@ export default function ConteoFisico() {
   return (
     <PageShell
       title="Conteo físico"
-      subtitle="Captura el conteo ciego por detalle. Sin mostrar cantidad sistema, tal como definiste en backend."
+      subtitle="Captura el conteo ciego por detalle. Sin mostrar cantidad sistema, tal como definiste en sistema."
       icon={<Boxes size={18} color="#355b7e" />}
     >
       <div style={topGridStyle}>

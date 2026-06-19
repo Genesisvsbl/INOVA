@@ -289,7 +289,7 @@ export default function Conciliacion() {
                 Regla operativa
               </div>
               <div style={warningTextStyle}>
-                Si existen diferencias, el backend cambia la tarea a
+                Si existen diferencias, el sistema cambia la tarea a
                 <strong> RECONTEO_PENDIENTE </strong>
                 y crea automaticamente una nueva tarea de reconteo.
               </div>

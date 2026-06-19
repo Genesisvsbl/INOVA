@@ -410,18 +410,18 @@ export default function AdminAccess({ view = "usuarios" }) {
       {error && (
         <div className="admin-error">
           {error}
-          <small>Si ves una tabla inexistente, aplica la migracion `20260524093000_access_control_multiempresa.sql` en Supabase.</small>
+          <small>Si ves una tabla inexistente, aplica la migracion `20260524093000_access_control_multiempresa.sql` en sistema.</small>
         </div>
       )}
 
       {!error && data.missingTables?.length ? (
         <div className="admin-error">
-          Faltan tablas en Supabase: {data.missingTables.join(", ")}.
+          Faltan tablas en sistema: {data.missingTables.join(", ")}.
           <small>Aplica la migracion `20260524093000_access_control_multiempresa.sql` para activar solicitudes, roles, permisos, planes y licencias.</small>
         </div>
       ) : null}
 
-      {loading ? <EmptyState>Cargando informacion desde Supabase...</EmptyState> : null}
+      {loading ? <EmptyState>Cargando informacion desde el sistema...</EmptyState> : null}
 
       {actionError ? <div className="admin-error">{actionError}</div> : null}
 
@@ -515,7 +515,7 @@ export default function AdminAccess({ view = "usuarios" }) {
             </Table>
           </AdminSection>
 
-          <AdminSection title="Usuarios registrados" helper="Usuarios de Supabase con estado, empresa y accesos por pilar.">
+          <AdminSection title="Usuarios registrados" helper="Usuarios de sistema con estado, empresa y accesos por pilar.">
             <Table headers={["Usuario", "Empresa", "Rol", "Estado", "Ultimo acceso", "Acciones"]} empty="No hay usuarios.">
               {visibleUsuarios.map((user) => (
                 <tr key={user.id}>
