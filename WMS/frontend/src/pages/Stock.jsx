@@ -543,8 +543,33 @@ function printHtmlPreview(html) {
 }
 
 function DocumentPreviewModal({ doc, onClose }) {
+  const frameRef = useRef(null);
+
+  useEffect(() => {
+    if (!doc?.html) return undefined;
+    const reset = () => {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      const win = frameRef.current?.contentWindow;
+      const body = frameRef.current?.contentDocument?.body;
+      const root = frameRef.current?.contentDocument?.documentElement;
+      win?.scrollTo(0, 0);
+      if (body) body.scrollTop = 0;
+      if (root) root.scrollTop = 0;
+    };
+    reset();
+    const ids = [40, 160, 360].map((delay) => window.setTimeout(reset, delay));
+    return () => ids.forEach((id) => window.clearTimeout(id));
+  }, [doc?.html]);
+
   if (!doc) return null;
   if (!doc.html) return <CertificatePreviewModal doc={doc} onClose={onClose} />;
+
+  const resetFrameScroll = (event) => {
+    const frame = event.currentTarget;
+    frame.contentWindow?.scrollTo(0, 0);
+    if (frame.contentDocument?.body) frame.contentDocument.body.scrollTop = 0;
+    if (frame.contentDocument?.documentElement) frame.contentDocument.documentElement.scrollTop = 0;
+  };
 
   return (
     <div
@@ -596,7 +621,7 @@ function DocumentPreviewModal({ doc, onClose }) {
             </button>
           </div>
         </div>
-        <iframe title="Vista previa recibo ciego" srcDoc={withPreviewBase(doc.html)} onLoad={(event) => event.currentTarget.contentWindow?.scrollTo(0, 0)} style={{ width: "100%", height: "100%", border: 0, background: "#fff" }} />
+        <iframe ref={frameRef} key={doc.html} title="Vista previa recibo ciego" srcDoc={withPreviewBase(doc.html)} onLoad={resetFrameScroll} style={{ width: "100%", height: "100%", border: 0, background: "#fff" }} />
       </div>
     </div>
   );

@@ -1450,25 +1450,31 @@ export default function DesdeRecibo() {
   };
 
   const validarDatosBase = () => {
-    for (const ln of draft.lineas || []) {
-      if (!ln?.codigo) return "Hay lineas sin SKU/codigo.";
+    for (let i = 0; i < (draft.lineas || []).length; i++) {
+      const ln = draft.lineas[i];
+      if (!ln?.codigo) return `Hay lineas sin SKU/codigo. Revisa la linea #${i + 1}.`;
 
+      const ff = normalizeISODate(ln.fecha_fabricacion);
       const fv = normalizeISODate(ln.fecha_vencimiento);
       const loteProv =
         (ln.lote_proveedor || "").toString().trim().slice(0, 10) ||
         loteProveedorFromLoteAlmacen(ln.lote);
 
       if (loteProv.length !== 10) {
-        return "El Lote Proveedor debe ser exactamente 10 caracteres en todas las lineas.";
+        return `El Lote Proveedor debe ser exactamente 10 caracteres. Revisa la linea #${i + 1}.`;
+      }
+
+      if (!ff) {
+        return `Falta Fecha de Fabricacion en la linea #${i + 1}. Es requisito para ubicar o enviar a transito.`;
       }
 
       if (!fv) {
-        return "Falta Fecha de Vencimiento en una o mas lineas.";
+        return `Falta Fecha de Vencimiento en la linea #${i + 1}. Es requisito para ubicar o enviar a transito.`;
       }
 
       const loteAlm = buildLoteAlmacen15(loteProv, fv);
       if (!loteAlm || loteAlm.length !== 15) {
-        return "No se pudo generar Lote Almacen (15). Revisa lote proveedor y fecha vencimiento.";
+        return `No se pudo generar Lote Almacen (15). Revisa lote proveedor y fecha vencimiento en la linea #${i + 1}.`;
       }
     }
 
