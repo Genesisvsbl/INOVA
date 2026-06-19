@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
   PackageSearch,
@@ -438,8 +438,21 @@ function printCertificatePreview(doc) {
 }
 
 function CertificatePreviewModal({ doc, onClose }) {
+  const viewerRef = useRef(null);
+  const isPdf = doc?.type?.includes("pdf") || doc?.dataUrl?.startsWith("data:application/pdf");
+  const pdfSrc = isPdf && doc?.dataUrl ? `${doc.dataUrl}#page=1&view=FitH&zoom=page-fit` : "";
+
+  useEffect(() => {
+    const reset = () => {
+      viewerRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    };
+    reset();
+    const id = window.setTimeout(reset, 80);
+    return () => window.clearTimeout(id);
+  }, [doc?.dataUrl]);
+
   if (!doc?.dataUrl) return null;
-  const isPdf = doc.type?.includes("pdf") || doc.dataUrl.startsWith("data:application/pdf");
 
   return (
     <div
@@ -491,9 +504,9 @@ function CertificatePreviewModal({ doc, onClose }) {
             </button>
           </div>
         </div>
-        <div style={{ padding: 18, overflow: "auto", display: "grid", placeItems: "center" }}>
+        <div ref={viewerRef} style={{ padding: 18, overflow: "auto", display: "block" }}>
           {isPdf ? (
-            <iframe title="Vista previa certificado" src={doc.dataUrl} style={{ width: "100%", height: "100%", border: 0, borderRadius: 10, background: "#fff" }} />
+            <iframe key={doc.dataUrl} title="Vista previa certificado" src={pdfSrc} onLoad={() => viewerRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" })} style={{ width: "100%", height: "100%", minHeight: 680, border: 0, borderRadius: 10, background: "#fff", display: "block" }} />
           ) : (
             <img src={doc.dataUrl} alt="Certificado" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 10, boxShadow: "0 12px 30px rgba(15,39,68,.14)" }} />
           )}
