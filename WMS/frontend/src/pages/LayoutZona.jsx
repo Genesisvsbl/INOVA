@@ -1,4 +1,4 @@
-ï»¿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   Boxes,
@@ -49,6 +49,10 @@ const CENTER_X = TOTAL_X / 2;
 const CENTER_Z = TOTAL_Z / 2;
 const RACK_ROW_Z = [-6.725, -1.175, 1.175, 6.725];
 const AISLE_Z = [-3.95, 3.95];
+const COMPACT_RACKS = 5;
+const COMPACT_RACK_GAP = 0.08;
+const COMPACT_TOTAL_Z = COMPACT_RACKS * RACK_DEPTH + (COMPACT_RACKS - 1) * COMPACT_RACK_GAP;
+const COMPACT_CENTER_Z = COMPACT_TOTAL_Z / 2;
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -317,7 +321,7 @@ function uniqueSorted(values) {
 
 const ZONE_LABELS = {
   100: "Recepcion",
-  200: "Almacenamiento General",
+  200: "Pallet Shuttle Compacto",
   300: "Pallet Shuttle + AGV",
   400: "Picking",
   500: "Cuarentena",
@@ -335,6 +339,21 @@ const ZONE_LABELS = {
   1700: "Herramientas",
   1800: "Oficinas y Servicios",
 };
+
+const RENDERABLE_ZONES = new Set(["200", "300"]);
+
+const ZONE_SYSTEM_LABELS = {
+  200: "Sistema de estanteria compacta tipo Pallet Shuttle",
+  300: "Pallet Shuttle + AGV",
+};
+
+function isCompactShuttleZone(value) {
+  return String(value) === "200";
+}
+
+function zoneSystemLabel(value) {
+  return ZONE_SYSTEM_LABELS[Number(value)] || "Layout operativo";
+}
 
 const ZONE_PALETTES = [
   { accent: "#6d28d9", soft: "#f3e8ff", text: "#5b21b6" },
@@ -356,12 +375,14 @@ function zoneName(value) {
 
 function zonePalette(value, index) {
   const numeric = Number(value);
+  if (numeric === 200) return ZONE_PALETTES[0];
   if (numeric === 300) return ZONE_PALETTES[2];
   return ZONE_PALETTES[index % ZONE_PALETTES.length];
 }
 
 function zoneIcon(value) {
   const numeric = Number(value);
+  if (numeric === 200) return Building2;
   if (numeric === 300) return PackageCheck;
   if ([100, 400, 600, 700].includes(numeric)) return Truck;
   if ([500, 1500, 1600].includes(numeric)) return ShieldCheck;
@@ -738,7 +759,7 @@ export default function LayoutZona() {
 
   const stockMap = useMemo(() => buildStock(movimientos, ubicaciones), [movimientos, ubicaciones]);
   const zones = useMemo(() => {
-    const values = ["300"];
+    const values = ["200", "300"];
     ubicaciones.forEach((row) => {
       const z = cleanZone(row.ubicacion_base || row.zona || locationCode(row).slice(0, 3));
       if (z) values.push(z);
@@ -763,7 +784,7 @@ export default function LayoutZona() {
       .map((item, index) => ({
         ...item,
         name: zoneName(item.zone),
-        ready: item.zone === "300",
+        ready: RENDERABLE_ZONES.has(String(item.zone)),
         palette: zonePalette(item.zone, index),
         Icon: zoneIcon(item.zone),
         displayName: zoneNames[item.zone]?.trim() || "Nombre de bodega pendiente",
@@ -1048,9 +1069,13 @@ export default function LayoutZona() {
       agv: createMaterial(0x111827, { roughness: 0.5 }),
       robot: createMaterial(0xf97316, { roughness: 0.38, metalness: 0.18 }),
       zoneBlue: createMaterial(0x38bdf8, { opacity: 0.24, roughness: 0.3 }),
+      shuttleLane: createMaterial(0x7c3aed, { opacity: 0.16, roughness: 0.35 }),
+      shuttleRail: createMaterial(0x2563eb, { roughness: 0.44, metalness: 0.22 }),
+      shuttleCar: createMaterial(0x0ea5e9, { roughness: 0.42, metalness: 0.18 }),
       slot: new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, transparent: true, opacity: 0.86, depthWrite: true }),
     };
 
+    const compactShuttleZone = isCompactShuttleZone(zone);
     const focusMode = hasFocusedLayoutFilter(filters, query);
     const showFullStructure = shouldShowFullStructure(filters, query, showAllStructure);
     const structureScopeCells = buildStructureScopeCells(filteredCells, filters, query);
@@ -1060,7 +1085,15 @@ export default function LayoutZona() {
     const floor = addBox(scene, [TOTAL_X + 20, 0.45, TOTAL_Z + 10], [0, -0.28, 0], mats.floor, "Piso operativo");
     floor.receiveShadow = true;
 
-    if (!focusMode) {
+    if (!focusMode && compactShuttleZone) {
+      addBox(scene, [TOTAL_X + 6, 0.08, 3.0], [-1, 0.02, -COMPACT_CENTER_Z - 1.7], mats.aisle, "Frente de carga Pallet Shuttle");
+      addBox(scene, [10, 0.08, 4.2], [-24, 0.03, -COMPACT_CENTER_Z - 1.7], mats.dock, "Zona de transferencia frontal shuttle");
+      addText(scene, "PALLET SHUTTLE COMPACTO", [2, 1.1, -17.2], WMS_PURPLE, 44);
+      addText(scene, "5 RACKS COMPACTOS PEGADOS", [2, 1.1, COMPACT_CENTER_Z + 1.6], "#0891b2", 36);
+      createCompactShuttleGuide(scene, mats, true);
+      createPalletShuttle(scene, [-8, 0.34, -COMPACT_CENTER_Z - 1.7], mats);
+      createPalletBlock(scene, [-25, 0.35, -COMPACT_CENTER_Z - 2.7], 4, 2, mats.pallet);
+    } else if (!focusMode) {
       addBox(scene, [16, 0.08, 4.4], [-20, 0.01, 12], mats.dock, "Outbound Area");
       addBox(scene, [14, 0.08, 4.4], [-20, 0.02, -12], mats.dock, "Inbound Cache");
       addBox(scene, [2.2, 0.07, 28], [13, 0.08, 0], mats.aisle, "AGV Turned on the Ground Floor");
@@ -1079,7 +1112,7 @@ export default function LayoutZona() {
       createAgv(scene, [14, 0.28, -4], mats.agv);
     }
 
-    if (!focusMode) {
+    if (!focusMode && !compactShuttleZone) {
       addBox(scene, [TOTAL_X + 1.2, 0.06, AISLE_WIDTH], [0, 0.05, AISLE_Z[0]], mats.aisle, "Pasillo operativo 1 - Rack 1 / Rack 2");
       addBox(scene, [TOTAL_X + 1.2, 0.06, AISLE_WIDTH], [0, 0.05, AISLE_Z[1]], mats.aisle, "Pasillo operativo 2 - Rack 3 / Rack 4");
       addText(scene, "PASILLO 1", [3, 1.05, AISLE_Z[0]], "#0891b2", 38);
@@ -1380,9 +1413,9 @@ export default function LayoutZona() {
                 <div>
                   <span className="layout3d-kicker">Toolbox administrador</span>
                   <h2>Asignar nombre de bodega</h2>
-                  <p>Zona {zoneNameEditor.zone} Â· Base {zoneNameEditor.zone} Â· {formatQty(zoneNameEditor.count)} ubicaciones</p>
+                  <p>Zona {zoneNameEditor.zone} · Base {zoneNameEditor.zone} · {formatQty(zoneNameEditor.count)} ubicaciones</p>
                 </div>
-                <button type="button" className="layout-zone-modal-close" onClick={closeZoneNameEditor}>Ã—</button>
+                <button type="button" className="layout-zone-modal-close" onClick={closeZoneNameEditor}>×</button>
               </div>
               <label className="layout-zone-modal-field">
                 <span>Nombre operativo</span>
@@ -1408,7 +1441,15 @@ export default function LayoutZona() {
     );
   }
 
-  if (String(zone) !== "300") {
+  const compactShuttleZone = isCompactShuttleZone(zone);
+  const layoutScenarioTitle = compactShuttleZone
+    ? "Sistema de estanteria compacta tipo Pallet Shuttle"
+    : "Pallet Shuttle + AGV + analisis real de estanteria";
+  const layoutHeroCopy = compactShuttleZone
+    ? "Carriles compactos de alta densidad para operacion con shuttle, ocupacion por ubicacion y control visual de profundidad."
+    : "Maqueta operacional por zona con racks, pasillos, recibo, despacho, AGV y ubicaciones reales desde el sistema.";
+
+  if (!RENDERABLE_ZONES.has(String(zone))) {
     const currentZone = zoneCards.find((item) => item.zone === String(zone));
     return (
       <main className="layout-zone-page">
@@ -1443,7 +1484,7 @@ export default function LayoutZona() {
         <div>
           <span className="layout3d-kicker">WMS DIGITAL TWIN</span>
           <h1>Layout 3D de bodega</h1>
-          <p>Maqueta operacional por zona con racks, pasillos, recibo, despacho, AGV y ubicaciones reales desde el sistema.</p>
+          <p>{layoutHeroCopy}</p>
         </div>
         <div className="layout3d-hero-actions">
           <button type="button" onClick={backToZones} className="layout3d-secondary">Zonas</button>
@@ -1551,7 +1592,7 @@ export default function LayoutZona() {
         <div className="layout3d-stage-head">
           <div>
             <span className="layout3d-kicker">Escenario de aplicacion</span>
-            <h2>Pallet Shuttle + AGV + analisis real de estanteria</h2>
+            <h2>{layoutScenarioTitle}</h2>
           </div>
           <div className="layout3d-legend">
             <span><small className="layout3d-dot empty" /> Vacia</span>
@@ -1809,6 +1850,33 @@ function createPalletBlock(scene, origin, cols, rows, material) {
   }
 }
 
+function createCompactShuttleGuide(scene, mats, compactLayout = false) {
+  const rackTotal = compactLayout ? COMPACT_RACKS : RACKS;
+  for (let rack = 1; rack <= rackTotal; rack += 1) {
+    const zStart = rackZStartFor(rack, compactLayout);
+    const rackCenterZ = zStart + RACK_DEPTH / 2;
+    addBox(scene, [TOTAL_X + 0.8, 0.045, RACK_DEPTH + 0.18], [0, 0.08, rackCenterZ], mats.shuttleLane, `Carril compacto R${rack}`);
+    for (let level = 1; level <= LEVELS; level += 1) {
+      const y = BASE_Y + level * LEVEL_HEIGHT - 0.22;
+      addBox(scene, [TOTAL_X + 0.8, 0.045, 0.055], [0, y, zStart + 0.22], mats.shuttleRail, `Riel frontal R${rack} N${level}`);
+      addBox(scene, [TOTAL_X + 0.8, 0.045, 0.055], [0, y, zStart + RACK_DEPTH - 0.22], mats.shuttleRail, `Riel posterior R${rack} N${level}`);
+    }
+  }
+}
+
+function createPalletShuttle(scene, position, mats) {
+  const group = new THREE.Group();
+  group.position.set(...position);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.22, 0.82), mats.shuttleCar);
+  base.castShadow = true;
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.08, 0.56), mats.beam);
+  deck.position.set(0, 0.18, 0);
+  deck.castShadow = true;
+  const glow = new THREE.PointLight(0x38bdf8, 2.8, 4);
+  glow.position.set(0, 0.42, 0);
+  group.add(base, deck, glow);
+  scene.add(group);
+}
 function createAgv(scene, position, material) {
   const group = new THREE.Group();
   group.position.set(...position);
@@ -1895,13 +1963,22 @@ function rackZStart(rack) {
   return -CENTER_Z + RACK_DEPTH + AISLE_WIDTH + RACK_DEPTH + CENTRAL_RACK_GAP + RACK_DEPTH + AISLE_WIDTH;
 }
 
+function compactRackZStart(rack) {
+  const safeRack = clamp(Number(rack) || 1, 1, COMPACT_RACKS);
+  return -COMPACT_CENTER_Z + (safeRack - 1) * (RACK_DEPTH + COMPACT_RACK_GAP);
+}
+
+function rackZStartFor(rack, compactLayout = false) {
+  return compactLayout ? compactRackZStart(rack) : rackZStart(rack);
+}
+
 function moduleXStart(moduleIndex) {
   return (moduleIndex - 1) * MODULE_WIDTH - CENTER_X;
 }
 
-function slotCenter(rack, moduleIndex, level, position, depth) {
+function slotCenter(rack, moduleIndex, level, position, depth, compactLayout = false) {
   const x0 = moduleXStart(moduleIndex) + (position - 1) * POSITION_STEP;
-  const z0 = rackZStart(rack) + (depth - 1) * DEPTH_WIDTH;
+  const z0 = rackZStartFor(rack, compactLayout) + (depth - 1) * DEPTH_WIDTH;
   return [
     x0 + POSITION_WIDTH / 2,
     BASE_Y + (level - 1) * LEVEL_HEIGHT + LEVEL_HEIGHT / 2,
@@ -1945,7 +2022,8 @@ function createRackCity(
   structureScopeCells = filteredCells,
   rackFace = "front",
   zone = "300",
-  currentView = "iso"
+  currentView = "iso",
+  compactLayout = false
 ) {
   const filteredKeys = new Set(filteredCells.map((cell) => cell.code));
   const renderFilteredSlotsOnly = occupancyMode !== "todas";
@@ -1958,15 +2036,16 @@ function createRackCity(
   const frontalDepthMode = rackFocused && currentView === "depth";
   const levelOnlyFocus = filters.nivel !== "todos" && filters.posicion === "todos" && filters.profundidad === "todos";
 
-  createRackStructure(scene, mats, showAllStructure ? [] : structureScopeCells);
+  createRackStructure(scene, mats, showAllStructure ? [] : structureScopeCells, compactLayout);
+  const rackTotal = compactLayout ? COMPACT_RACKS : RACKS;
 
   const renderedRacks = showAllStructure
-    ? new Set(Array.from({ length: RACKS }, (_, index) => index + 1))
+    ? new Set(Array.from({ length: rackTotal }, (_, index) => index + 1))
     : filters.rack && filters.rack !== "todos"
       ? new Set([Number(filters.rack)])
       : new Set(filteredCells.map((cell) => cell.rack));
   renderedRacks.forEach((rack) => {
-    const zCenter = rackZStart(rack) + RACK_DEPTH / 2;
+    const zCenter = rackZStartFor(rack, compactLayout) + RACK_DEPTH / 2;
     const rackLabel = createPlainTextSprite(`Rack ${rack}`, "#0b1f4d", 28);
     rackLabel.scale.set(0.72, 0.22, 1);
     rackLabel.position.set(-CENTER_X - 0.55, 0.24, zCenter);
@@ -1974,7 +2053,7 @@ function createRackCity(
   });
   const renderedModules = showAllStructure
     ? new Set(
-        Array.from({ length: RACKS }, (_, rackIndex) =>
+        Array.from({ length: rackTotal }, (_, rackIndex) =>
           Array.from({ length: MODULES_PER_RACK }, (_, moduleIndex) => `${rackIndex + 1}-${moduleIndex + 1}`)
         ).flat()
       )
@@ -1984,7 +2063,7 @@ function createRackCity(
         ? new Set(Array.from(renderedRacks).map((rack) => `${rack}-${Number(filters.modulo)}`))
         : new Set(filteredCells.map((cell) => `${cell.rack}-${cell.moduleInRack}`));
 
-  for (let rack = 1; rack <= RACKS; rack += 1) {
+  for (let rack = 1; rack <= rackTotal; rack += 1) {
     for (let moduleIndex = 1; moduleIndex <= MODULES_PER_RACK; moduleIndex += 1) {
       if (renderedModules.has(`${rack}-${moduleIndex}`) && (!showAllStructure || rack === 1)) {
         const rackFiltered = filters.rack && filters.rack !== "todos";
@@ -1996,8 +2075,8 @@ function createRackCity(
           moduleXStart(moduleIndex) + MODULE_WIDTH / 2,
           rackFiltered ? BASE_Y + LEVELS * LEVEL_HEIGHT + 0.58 : BASE_Y + LEVELS * LEVEL_HEIGHT + 0.42,
           rackFiltered
-            ? rackZStart(rack) + (rackFace === "back" ? -0.2 : RACK_DEPTH + 0.2)
-            : rackZStart(rack) + RACK_DEPTH / 2
+            ? rackZStartFor(rack, compactLayout) + (rackFace === "back" ? -0.2 : RACK_DEPTH + 0.2)
+            : rackZStartFor(rack, compactLayout) + RACK_DEPTH / 2
         );
         scene.add(moduleLabel);
       }
@@ -2023,10 +2102,10 @@ function createRackCity(
             const isSelected = selected?.code && selected.code === cell.code;
             const occupancyVisible = occupancyMode === "todas" || isFiltered;
             if (renderFilteredSlotsOnly && !occupancyVisible && !isSelected) continue;
-            const position3d = slotCenter(rack, moduleIndex, level, position, depth);
+            const position3d = slotCenter(rack, moduleIndex, level, position, depth, compactLayout);
             const activeFaceDepth = rackFace === "back" ? 2 : 1;
             const depthNumber = Number(cell.physicalDepth || 1);
-            const rackCenterZ = rackZStart(rack) + RACK_DEPTH / 2;
+            const rackCenterZ = rackZStartFor(rack, compactLayout) + RACK_DEPTH / 2;
             const rackAisleZ = aisleForRack(rack) === "1" ? AISLE_Z[0] : AISLE_Z[1];
             const rackDirection = rackCenterZ >= rackAisleZ ? 1 : -1;
             const backDepth = rackDirection >= 0 ? 2 : 1;
@@ -2123,7 +2202,7 @@ function createRackCity(
     backDepthOutlineMesh.renderOrder = 12;
   }
   occupiedPalletSlots.forEach((slot, index) => {
-    const rackCenterZ = rackZStart(Number(slot.cell.rack)) + RACK_DEPTH / 2;
+    const rackCenterZ = rackZStartFor(Number(slot.cell.rack), compactLayout) + RACK_DEPTH / 2;
     const aisleZ = aisleForRack(slot.cell.rack) === "1" ? AISLE_Z[0] : AISLE_Z[1];
     const faceDirection = rackCenterZ >= aisleZ ? -1 : 1;
     const scaledSlotHeight = slotSize[1] * (slot.scale?.[1] || 1);
@@ -2151,7 +2230,7 @@ function createRackCity(
     }
     const activeFaceDepth = rackFace === "back" ? 2 : 1;
     const slotDepth = Number(slot.cell.physicalDepth || 1);
-    const slotRackCenterZ = rackZStart(Number(slot.cell.rack)) + RACK_DEPTH / 2;
+    const slotRackCenterZ = rackZStartFor(Number(slot.cell.rack), compactLayout) + RACK_DEPTH / 2;
     const slotRackAisleZ = Number(slot.cell.rack) <= 2 ? AISLE_Z[0] : AISLE_Z[1];
     const slotRackDirection = slotRackCenterZ >= slotRackAisleZ ? 1 : -1;
     const slotBackDepth = slotRackDirection >= 0 ? 2 : 1;
@@ -2189,15 +2268,16 @@ function createRackCity(
   });
 }
 
-function createRackStructure(scene, mats, structureCells = []) {
+function createRackStructure(scene, mats, structureCells = [], compactLayout = false) {
   const postPositions = [];
   const beamLong = [];
   const beamTrans = [];
   const protectorPositions = [];
   const rackHeight = BASE_Y + LEVELS * LEVEL_HEIGHT + 0.55;
+  const rackTotal = compactLayout ? COMPACT_RACKS : RACKS;
   const allowedModules = new Set((structureCells || []).map((cell) => `${cell.rack}-${cell.moduleInRack}`));
   const allowedLevels = new Set((structureCells || []).map((cell) => cell.physicalLevel));
-  const fullStructure = !allowedModules.size || allowedModules.size >= RACKS * MODULES_PER_RACK;
+  const fullStructure = !allowedModules.size || allowedModules.size >= rackTotal * MODULES_PER_RACK;
   const levelValues = [...allowedLevels].filter(Boolean).sort((a, b) => a - b);
   const clippedByLevel = !fullStructure && levelValues.length > 0 && levelValues.length < LEVELS;
   const levelMin = clippedByLevel ? levelValues[0] : 1;
@@ -2208,13 +2288,13 @@ function createRackStructure(scene, mats, structureCells = []) {
   const postCenterY = postBaseY + postHeight / 2;
   const height = postTopY;
 
-  for (let rack = 1; rack <= RACKS; rack += 1) {
+  for (let rack = 1; rack <= rackTotal; rack += 1) {
     for (let moduleIndex = 1; moduleIndex <= MODULES_PER_RACK; moduleIndex += 1) {
       if (!fullStructure && !allowedModules.has(`${rack}-${moduleIndex}`)) continue;
       const x0 = moduleXStart(moduleIndex);
       const x1 = x0 + MODULE_WIDTH;
       const xMid = x0 + POSITION_STEP;
-      const zFront = rackZStart(rack);
+      const zFront = rackZStartFor(rack, compactLayout);
       const zMid = zFront + DEPTH_WIDTH;
       const zBack = zFront + RACK_DEPTH;
 
@@ -4185,7 +4265,7 @@ const layoutStyles = `
 }
 
 .layout3d-zone-pill::before {
-  content: "âŒ˜";
+  content: "?";
   position: absolute;
   left: 13px;
   bottom: 10px;
