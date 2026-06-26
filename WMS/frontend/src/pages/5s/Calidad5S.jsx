@@ -305,7 +305,7 @@ function Calidad5SDialogHost() {
             <Icon size={24} />
           </div>
           <div className="calidad5s-dialog-copy">
-            <span>WMS 5S</span>
+            <span>5S</span>
             <h3 id="calidad5s-dialog-title">{dialog.title || "Atención 5S"}</h3>
             {messageLines.length ? messageLines.map((line, index) => <p key={`${line}-${index}`}>{line}</p>) : <p>Confirma la acción para continuar.</p>}
           </div>
@@ -7371,4 +7371,5 @@ export default function Calidad5S() {
     </div>
   );
 }
+
 
