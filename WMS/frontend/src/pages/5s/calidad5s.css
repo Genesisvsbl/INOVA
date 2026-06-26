@@ -7627,3 +7627,163 @@ button {
     min-width: 8.5in !important;
   }
 }
+
+.calidad5s-dialog-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(6, 17, 31, 0.58);
+  backdrop-filter: blur(8px);
+}
+
+.calidad5s-dialog-card {
+  position: relative;
+  width: min(540px, calc(100vw - 32px));
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 26px 70px rgba(15, 23, 42, 0.26);
+  padding: 26px;
+  color: #071b36;
+  overflow: hidden;
+}
+
+.calidad5s-dialog-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+  background: linear-gradient(90deg, #0f5fd7, #7c3aed);
+}
+
+.calidad5s-dialog-card.tone-danger::before { background: linear-gradient(90deg, #dc2626, #fb7185); }
+.calidad5s-dialog-card.tone-warning::before { background: linear-gradient(90deg, #b45309, #f59e0b); }
+.calidad5s-dialog-card.tone-success::before { background: linear-gradient(90deg, #047857, #22c55e); }
+
+.calidad5s-dialog-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #d9e3f0;
+  border-radius: 12px;
+  display: inline-grid;
+  place-items: center;
+  background: #ffffff;
+  color: #0f1f36;
+  cursor: pointer;
+}
+
+.calidad5s-dialog-main {
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  gap: 16px;
+  padding-right: 34px;
+}
+
+.calidad5s-dialog-mark {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  color: #0f5fd7;
+  background: #eaf2ff;
+  border: 1px solid #cfe0ff;
+}
+
+.tone-danger .calidad5s-dialog-mark { color: #dc2626; background: #fff1f2; border-color: #fecdd3; }
+.tone-warning .calidad5s-dialog-mark { color: #b45309; background: #fffbeb; border-color: #fde68a; }
+.tone-success .calidad5s-dialog-mark { color: #047857; background: #ecfdf5; border-color: #bbf7d0; }
+
+.calidad5s-dialog-copy span {
+  display: block;
+  margin-bottom: 5px;
+  color: #5b21b6;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.calidad5s-dialog-copy h3 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  line-height: 1.08;
+  color: #08234a;
+}
+
+.calidad5s-dialog-copy p {
+  margin: 4px 0 0;
+  color: #536783;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.calidad5s-dialog-input {
+  width: 100%;
+  min-height: 98px;
+  margin-top: 20px;
+  padding: 14px 16px;
+  border: 1px solid #d9e3f0;
+  border-radius: 16px;
+  background: #f8fbff;
+  color: #071b36;
+  font: inherit;
+  font-weight: 700;
+  resize: vertical;
+  outline: none;
+}
+
+.calidad5s-dialog-input:focus {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.12);
+}
+
+.calidad5s-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.calidad5s-dialog-btn {
+  min-width: 118px;
+  height: 42px;
+  border-radius: 14px;
+  border: 1px solid #d9e3f0;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.calidad5s-dialog-btn.is-ghost {
+  color: #0f1f36;
+  background: #f8fbff;
+}
+
+.calidad5s-dialog-btn.is-primary {
+  border-color: #0f5fd7;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0f5fd7, #0754c8);
+  box-shadow: 0 12px 24px rgba(15, 95, 215, 0.22);
+}
+
+.tone-danger .calidad5s-dialog-btn.is-primary {
+  border-color: #dc2626;
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  box-shadow: 0 12px 24px rgba(220, 38, 38, 0.18);
+}
+
+@media (max-width: 560px) {
+  .calidad5s-dialog-layer { padding: 16px; }
+  .calidad5s-dialog-card { padding: 22px 18px; border-radius: 18px; }
+  .calidad5s-dialog-main { grid-template-columns: 1fr; padding-right: 28px; }
+  .calidad5s-dialog-mark { width: 50px; height: 50px; border-radius: 16px; }
+  .calidad5s-dialog-actions { flex-direction: column-reverse; }
+  .calidad5s-dialog-btn { width: 100%; }
+}

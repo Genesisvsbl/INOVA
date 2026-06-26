@@ -197,6 +197,148 @@ function inferSupplyNeeds5S(planes = []) {
     .slice(0, 6);
 }
 
+function dialogToneIcon(type, tone) {
+  if (type === "confirm" || tone === "danger") return Trash2;
+  if (tone === "success") return CheckCircle2;
+  if (tone === "warning") return ShieldCheck;
+  if (tone === "info") return Bell;
+  return Sparkles;
+}
+
+function native5SDialogFallback(options) {
+  const message = options?.message || "";
+  if (options?.type === "confirm") return Promise.resolve(window.confirm(message));
+  if (options?.type === "prompt") return Promise.resolve(window.prompt(message, options?.defaultValue || ""));
+  window.alert(message);
+  return Promise.resolve(true);
+}
+
+function show5SDialog(options = {}) {
+  if (typeof window === "undefined") return Promise.resolve(options.type === "confirm" ? false : null);
+  if (!window.__calidad5sDialogReady) return native5SDialogFallback(options);
+
+  return new Promise((resolve) => {
+    window.dispatchEvent(
+      new CustomEvent("calidad5s:dialog", {
+        detail: {
+          tone: "info",
+          confirmLabel: "Entendido",
+          cancelLabel: "Cancelar",
+          ...options,
+          resolve,
+        },
+      })
+    );
+  });
+}
+
+function show5SAlert(message, options = {}) {
+  return show5SDialog({
+    type: "alert",
+    tone: options.tone || "info",
+    title: options.title || "Atención 5S",
+    message,
+    confirmLabel: options.confirmLabel || "Entendido",
+  });
+}
+
+function show5SConfirm(message, options = {}) {
+  return show5SDialog({
+    type: "confirm",
+    tone: options.tone || "danger",
+    title: options.title || "Confirmar acción",
+    message,
+    confirmLabel: options.confirmLabel || "Aceptar",
+    cancelLabel: options.cancelLabel || "Cancelar",
+  });
+}
+
+function show5SPrompt(message, defaultValue = "", options = {}) {
+  return show5SDialog({
+    type: "prompt",
+    tone: options.tone || "info",
+    title: options.title || "Completar información",
+    message,
+    defaultValue,
+    placeholder: options.placeholder || "Escribe el comentario...",
+    confirmLabel: options.confirmLabel || "Guardar",
+    cancelLabel: options.cancelLabel || "Cancelar",
+  });
+}
+
+function Calidad5SDialogHost() {
+  const [dialog, setDialog] = useState(null);
+  const [promptValue, setPromptValue] = useState("");
+
+  useEffect(() => {
+    window.__calidad5sDialogReady = true;
+    const handleDialog = (event) => {
+      setDialog(event.detail || null);
+      setPromptValue(event.detail?.defaultValue || "");
+    };
+    window.addEventListener("calidad5s:dialog", handleDialog);
+    return () => {
+      window.removeEventListener("calidad5s:dialog", handleDialog);
+      window.__calidad5sDialogReady = false;
+    };
+  }, []);
+
+  if (!dialog) return null;
+
+  const Icon = dialogToneIcon(dialog.type, dialog.tone);
+  const closeValue = dialog.type === "alert" ? true : dialog.type === "confirm" ? false : null;
+  const resolveDialog = (value) => {
+    dialog.resolve?.(value);
+    setDialog(null);
+  };
+  const messageLines = String(dialog.message || "").split("\n").filter(Boolean);
+
+  return (
+    <div className="calidad5s-dialog-layer" role="presentation">
+      <section className={`calidad5s-dialog-card tone-${dialog.tone || "info"}`} role="dialog" aria-modal="true" aria-labelledby="calidad5s-dialog-title">
+        <button type="button" className="calidad5s-dialog-close" onClick={() => resolveDialog(closeValue)} aria-label="Cerrar mensaje">
+          <X size={18} />
+        </button>
+
+        <div className="calidad5s-dialog-main">
+          <div className="calidad5s-dialog-mark">
+            <Icon size={24} />
+          </div>
+          <div className="calidad5s-dialog-copy">
+            <span>WMS 5S</span>
+            <h3 id="calidad5s-dialog-title">{dialog.title || "Atención 5S"}</h3>
+            {messageLines.length ? messageLines.map((line, index) => <p key={`${line}-${index}`}>{line}</p>) : <p>Confirma la acción para continuar.</p>}
+          </div>
+        </div>
+
+        {dialog.type === "prompt" && (
+          <textarea
+            className="calidad5s-dialog-input"
+            value={promptValue}
+            autoFocus
+            placeholder={dialog.placeholder || "Escribe el comentario..."}
+            onChange={(event) => setPromptValue(event.target.value)}
+          />
+        )}
+
+        <div className="calidad5s-dialog-actions">
+          {dialog.type !== "alert" && (
+            <button type="button" className="calidad5s-dialog-btn is-ghost" onClick={() => resolveDialog(dialog.type === "confirm" ? false : null)}>
+              {dialog.cancelLabel || "Cancelar"}
+            </button>
+          )}
+          <button
+            type="button"
+            className="calidad5s-dialog-btn is-primary"
+            onClick={() => resolveDialog(dialog.type === "prompt" ? promptValue : true)}
+          >
+            {dialog.confirmLabel || "Aceptar"}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
 function preloadImages(sources) {
   if (typeof window === "undefined") return Promise.resolve();
 
@@ -216,7 +358,7 @@ function preloadImages(sources) {
 async function openPrintable5SDocument({ title, reportElement }) {
   const win = window.open("", "_blank", "width=1100,height=800");
   if (!win) {
-    alert("No se pudo abrir la ventana de impresión. Revisa si el navegador bloqueó ventanas emergentes.");
+    show5SAlert("No se pudo abrir la ventana de impresión. Revisa si el navegador bloqueó ventanas emergentes.");
     return;
   }
 
@@ -1424,24 +1566,24 @@ function CronogramaView({ canAdmin = false }) {
     event.preventDefault();
 
     if (!cronogramaScopes.length) {
-      alert("Primero debes crear al menos una bodega o subbodega activa en el módulo Responsables.");
+      show5SAlert("Primero debes crear al menos una bodega o subbodega activa en el módulo Responsables.");
       return;
     }
 
     if (!responsables.length) {
-      alert("Primero debes crear al menos un responsable activo en el módulo Responsables.");
+      show5SAlert("Primero debes crear al menos un responsable activo en el módulo Responsables.");
       return;
     }
 
     if (!form.bodega || !form.responsable || !form.fechaInicio || !form.fechaFin || !form.estado || !form.prioridad) {
-      alert("Debes completar bodega, responsable, fechas, estado y prioridad.");
+      show5SAlert("Debes completar bodega, responsable, fechas, estado y prioridad.");
       return;
     }
 
     const actividad = form.actividad.trim();
 
     if (!actividad) {
-      alert("Debes escribir la actividad de la auditoría.");
+      show5SAlert("Debes escribir la actividad de la auditoría.");
       return;
     }
 
@@ -1478,7 +1620,7 @@ function CronogramaView({ canAdmin = false }) {
   }
 
   async function deleteCronograma(id) {
-    if (!window.confirm("¿Eliminar esta actividad del cronograma?")) return;
+    if (!await show5SConfirm("¿Eliminar esta actividad del cronograma?")) return;
 
     try {
       await eliminarCronograma5S(id);
@@ -1547,7 +1689,7 @@ function CronogramaView({ canAdmin = false }) {
   }
 
   async function clearCronograma() {
-    if (!window.confirm("¿Eliminar todas las actividades del cronograma en sistema?")) return;
+    if (!await show5SConfirm("¿Eliminar todas las actividades del cronograma en sistema?")) return;
 
     try {
       await Promise.all(cronograma.map((item) => eliminarCronograma5S(item.id)));
@@ -1563,7 +1705,7 @@ function CronogramaView({ canAdmin = false }) {
   function exportCronogramaExcel() {
     const rows = filtered;
     if (!rows.length) {
-      alert("No hay actividades para exportar.");
+      show5SAlert("No hay actividades para exportar.");
       return;
     }
 
@@ -1606,7 +1748,7 @@ function CronogramaView({ canAdmin = false }) {
   async function exportGanttImage() {
     const rows = filtered;
     if (!rows.length) {
-      alert("No hay actividades para exportar.");
+      show5SAlert("No hay actividades para exportar.");
       return;
     }
 
@@ -2299,7 +2441,7 @@ function ResponsablesView() {
     event.preventDefault();
 
     if (!form.nombre.trim()) {
-      alert("Debes ingresar el nombre del responsable.");
+      show5SAlert("Debes ingresar el nombre del responsable.");
       return;
     }
 
@@ -2366,7 +2508,7 @@ function ResponsablesView() {
 
   async function deleteResponsable(id) {
     const responsable = responsables.find((item) => item.id === id);
-    if (!window.confirm(`¿Eliminar ${responsable?.nombre || "este responsable"}?`)) return;
+    if (!await show5SConfirm(`¿Eliminar ${responsable?.nombre || "este responsable"}?`)) return;
 
     setResponsableLoading(true);
     setResponsableError("");
@@ -2441,12 +2583,12 @@ function ResponsablesView() {
     event.preventDefault();
 
     if (!sububicacionForm.bodega_id) {
-      alert("Debes seleccionar la bodega principal.");
+      show5SAlert("Debes seleccionar la bodega principal.");
       return;
     }
 
     if (!sububicacionForm.nombre.trim()) {
-      alert("Debes ingresar el nombre de la subbodega.");
+      show5SAlert("Debes ingresar el nombre de la subbodega.");
       return;
     }
 
@@ -2517,7 +2659,7 @@ function ResponsablesView() {
 
   async function deleteSububicacion(id) {
     const item = subbodegas.find((sub) => sub.id === id);
-    if (!window.confirm(`?Eliminar ${item?.nombre || "esta subbodega"}?`)) return;
+    if (!await show5SConfirm(`¿Eliminar ${item?.nombre || "esta subbodega"}?`)) return;
 
     try {
       await eliminarSububicacion5S(id);
@@ -2535,12 +2677,12 @@ function ResponsablesView() {
     const nombre = bodegaForm.nombre.trim();
 
     if (!nombre) {
-      alert("Debes ingresar el nombre de la bodega.");
+      show5SAlert("Debes ingresar el nombre de la bodega.");
       return;
     }
 
     if (!bodegaForm.estado) {
-      alert("Debes configurar y seleccionar un estado de bodega.");
+      show5SAlert("Debes configurar y seleccionar un estado de bodega.");
       return;
     }
 
@@ -2612,7 +2754,7 @@ function ResponsablesView() {
   async function deleteBodega(id) {
     const bodega = bodegas.find((item) => item.id === id);
 
-    if (!window.confirm(`¿Eliminar ${bodega?.nombre || "esta bodega"}?`)) return;
+    if (!await show5SConfirm(`¿Eliminar ${bodega?.nombre || "esta bodega"}?`)) return;
 
     try {
       await eliminarBodega5S(id);
@@ -3561,12 +3703,12 @@ function InspeccionView({ canAdmin = false }) {
 
   async function addQuestion() {
     if (!selectedBodega) {
-      alert("Selecciona una bodega activa antes de crear puntos de control.");
+      show5SAlert("Selecciona una bodega activa antes de crear puntos de control.");
       return;
     }
 
     if (!newQuestion.trim()) {
-      alert("Escribe la nueva pregunta del checklist.");
+      show5SAlert("Escribe la nueva pregunta del checklist.");
       return;
     }
 
@@ -3608,7 +3750,7 @@ function InspeccionView({ canAdmin = false }) {
   }
 
   async function deleteQuestion(index) {
-    if (!window.confirm("¿Eliminar esta pregunta del checklist?")) return;
+    if (!await show5SConfirm("¿Eliminar esta pregunta del checklist?")) return;
 
     const item = checklistItems[index];
     if (!item) return;
@@ -3626,14 +3768,14 @@ function InspeccionView({ canAdmin = false }) {
 
   async function saveInspection() {
     if (!selectedBodega) {
-      alert("Debes crear y seleccionar una bodega activa desde la sistema.");
+      show5SAlert("Debes crear y seleccionar una bodega activa desde la sistema.");
       return;
     }
 
     const evaluados = answers.filter((item) => item.estado !== "na");
 
     if (!evaluados.length) {
-      alert("Debes evaluar al menos un punto del checklist guardado en sistema.");
+      show5SAlert("Debes evaluar al menos un punto del checklist guardado en sistema.");
       return;
     }
 
@@ -3711,10 +3853,10 @@ function InspeccionView({ canAdmin = false }) {
       }
 
       window.dispatchEvent(new Event("calidad5s:refresh-alerts"));
-      alert("Inspeccion guardada correctamente en sistema.");
+      show5SAlert("Inspeccion guardada correctamente en sistema.");
     } catch (error) {
       console.error("No se pudo guardar la inspeccion 5S:", error);
-      alert(error.message || "No se pudo guardar la inspeccion en la sistema.");
+      show5SAlert(error.message || "No se pudo guardar la inspeccion en la sistema.");
     } finally {
       setInspectionSaving(false);
     }
@@ -3771,7 +3913,7 @@ function InspeccionView({ canAdmin = false }) {
 
   async function deleteHistoryInspection(item) {
     const fechaInspeccion = item.fecha || item.created_at?.slice(0, 10) || "sin fecha";
-    const ok = window.confirm(
+    const ok = await show5SConfirm(
       `¿Eliminar la inspección de ${item.bodega || "esta bodega"} del ${formatShortDate(fechaInspeccion)}?\n\nSe eliminarán sus puntos evaluados, evidencias registradas y planes de acción asociados.`
     );
     if (!ok) return;
@@ -3786,10 +3928,10 @@ function InspeccionView({ canAdmin = false }) {
         setHistoryReportItems([]);
       }
       window.dispatchEvent(new Event("calidad5s:refresh-alerts"));
-      alert("Inspección eliminada correctamente.");
+      show5SAlert("Inspección eliminada correctamente.");
     } catch (error) {
       console.error("No se pudo eliminar la inspección:", error);
-      alert(error.message || "No se pudo eliminar la inspección.");
+      show5SAlert(error.message || "No se pudo eliminar la inspección.");
     } finally {
       setHistoryDeletingId(null);
     }
@@ -5529,7 +5671,7 @@ function DashboardView() {
   }
 
   async function closePlanAccion(plan, file = null) {
-    const comentario = window.prompt("Comentario de cierre del plan de acción:", "Cerrado desde dashboard 5S.");
+    const comentario = await show5SPrompt("Comentario de cierre del plan de acción:", "Cerrado desde dashboard 5S.");
     if (comentario === null) return;
 
     try {
@@ -5551,7 +5693,7 @@ function DashboardView() {
       await loadDashboard();
       window.dispatchEvent(new Event("calidad5s:refresh-alerts"));
     } catch (error) {
-      alert(error.message || "No se pudo cerrar el plan de acción.");
+      show5SAlert(error.message || "No se pudo cerrar el plan de acción.");
     }
   }
 
@@ -6400,7 +6542,7 @@ function ConfigViewAdmin() {
   }
 
   async function deleteCatalogo(item) {
-    if (!window.confirm(`¿Eliminar ${item.nombre}?`)) return;
+    if (!await show5SConfirm(`¿Eliminar ${item.nombre}?`)) return;
 
     setSaving(true);
     setError("");
@@ -6874,7 +7016,7 @@ export default function Calidad5S() {
   async function saveProfile(event) {
     event.preventDefault();
     if (!currentUserId) {
-      alert("No se encontró el ID del usuario actual para actualizar el perfil.");
+      show5SAlert("No se encontró el ID del usuario actual para actualizar el perfil.");
       return;
     }
 
@@ -6882,10 +7024,10 @@ export default function Calidad5S() {
       await editarUsuario5S(currentUserId, {
         email: profileForm.email.trim() || null,
       });
-      alert("Correo actualizado correctamente.");
+      show5SAlert("Correo actualizado correctamente.");
       setProfileOpen(false);
     } catch (error) {
-      alert(error.message || "No se pudo actualizar el correo del perfil.");
+      show5SAlert(error.message || "No se pudo actualizar el correo del perfil.");
     }
   }
 
@@ -6975,6 +7117,7 @@ export default function Calidad5S() {
         "--header-height": `${config.headerHeight}px`,
       }}
     >
+      <Calidad5SDialogHost />
       <header className="topbar" style={{ height: config.headerHeight }}>
         <div className="topbar-left">
           <button
@@ -7228,5 +7371,4 @@ export default function Calidad5S() {
     </div>
   );
 }
-
 
