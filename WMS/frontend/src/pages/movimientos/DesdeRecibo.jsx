@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { showWmsAlert, showWmsConfirm, showWmsPrompt } from "../../wmsDialog.jsx";
 import { useNavigate } from "react-router-dom";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import {
@@ -1210,9 +1211,9 @@ export default function DesdeRecibo() {
     }, 0);
   };
 
-  const ingresarManualDesdeScanner = () => {
+  const ingresarManualDesdeScanner = async () => {
     const idx = scannerLineaIdx;
-    const valor = window.prompt("Ingresa o pega el codigo de ubicacion:");
+    const valor = await showWmsPrompt("Ingresa o pega el codigo de ubicacion:");
 
     if (valor === null) return;
     aplicarUbicacionEscaneada(idx, valor);
@@ -1812,7 +1813,7 @@ export default function DesdeRecibo() {
           <div class="receipt-logo-box"><img src="/favicon1.ico" alt="INOVA" /></div>
           <div>
             <div class="receipt-title">RECIBO CIEGO</div>
-            <div class="receipt-subtitle">Formato de recepción y trazabilidad de ingreso</div>
+            <div class="receipt-subtitle">Formato de recepciÃ³n y trazabilidad de ingreso</div>
           </div>
         </div>
         <div class="receipt-meta">
@@ -1853,8 +1854,8 @@ export default function DesdeRecibo() {
           <tr>
             <th>Item</th>
             <th># Serial</th>
-            <th>Fecha recepción</th>
-            <th>Código</th>
+            <th>Fecha recepciÃ³n</th>
+            <th>CÃ³digo</th>
             <th>Texto breve material</th>
             <th>Empaque</th>
             <th>UMB</th>
@@ -1862,7 +1863,7 @@ export default function DesdeRecibo() {
             <th>Cantidad</th>
             <th>Total</th>
             <th>Lote proveedor</th>
-            <th>F. fabricación</th>
+            <th>F. fabricaciÃ³n</th>
             <th>F. vencimiento</th>
             <th>Certificado</th>
           </tr>
@@ -2030,7 +2031,7 @@ export default function DesdeRecibo() {
 
       localStorage.removeItem(DRAFT_KEY);
       showNotice({ tone: "success", title: "Movimientos guardados", message: "Se guardo la ubicacion y el historial de rotulos correctamente.", confirmText: "Ir a rotulos", onConfirm: () => navigate("/datos-maestros/rotulos") });
-      
+
     } catch (e) {
       const msg = e?.message || String(e);
       showNotice({ tone: "error", title: "Error guardando", message: msg + (msg.includes("Failed to fetch") ? "\n\nNo se pudo comunicar con el servicio. Revisa la conexion e intenta nuevamente." : "") });
@@ -2092,7 +2093,7 @@ export default function DesdeRecibo() {
 
       localStorage.removeItem(DRAFT_KEY);
       showNotice({ tone: "success", title: "Material en transito", message: "Se guardo el material en EN TRANSITO por pallet y el historial de rotulos correctamente.", confirmText: "Ir a rotulos", onConfirm: () => navigate("/datos-maestros/rotulos") });
-      
+
     } catch (e) {
       const msg = e?.message || String(e);
       showNotice({ tone: "error", title: "Error guardando en transito", message: msg + (msg.includes("Failed to fetch") ? "\n\nNo se pudo comunicar con el servicio. Revisa la conexion e intenta nuevamente." : "") });
@@ -3003,6 +3004,3 @@ export default function DesdeRecibo() {
     </div>
   );
 }
-
-
-

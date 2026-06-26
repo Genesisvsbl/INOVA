@@ -1,4 +1,5 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { showWmsAlert, showWmsConfirm, showWmsPrompt } from "../../wmsDialog.jsx";
 import { getProveedores, crearProveedor, editarProveedor, eliminarProveedor, importarProveedoresExcel } from "../../api";
 import {
   Building2,
@@ -331,7 +332,7 @@ export default function Proveedores() {
 
   const onCrear = async () => {
     if (!nuevo.nombre.trim() || !nuevo.acreedor.trim()) {
-      alert("Nombre y acreedor son obligatorios.");
+      showWmsAlert("Nombre y acreedor son obligatorios.");
       return;
     }
 
@@ -341,23 +342,23 @@ export default function Proveedores() {
 
       setNuevo({ nombre: "", acreedor: "" });
       await cargar(search);
-      alert("Proveedor creado correctamente.");
+      showWmsAlert("Proveedor creado correctamente.");
     } catch (e) {
-      alert("Error creando proveedor:\n" + (e?.message || e));
+      showWmsAlert("Error creando proveedor:\n" + (e?.message || e));
     } finally {
       setSaving(false);
     }
   };
 
   const onEditar = async (item) => {
-    const nombre = prompt("Editar nombre del proveedor:", item.nombre || "");
+    const nombre = await showWmsPrompt("Editar nombre del proveedor:", item.nombre || "");
     if (nombre === null) return;
 
-    const acreedor = prompt("Editar acreedor:", item.acreedor || "");
+    const acreedor = await showWmsPrompt("Editar acreedor:", item.acreedor || "");
     if (acreedor === null) return;
 
     if (!nombre.trim() || !acreedor.trim()) {
-      alert("Nombre y acreedor son obligatorios.");
+      showWmsAlert("Nombre y acreedor son obligatorios.");
       return;
     }
 
@@ -365,35 +366,35 @@ export default function Proveedores() {
       await editarProveedor(item.id, { nombre: nombre.trim(), acreedor: acreedor.trim() });
 
       await cargar(search);
-      alert("Proveedor actualizado.");
+      showWmsAlert("Proveedor actualizado.");
     } catch (e) {
-      alert("Error editando proveedor:\n" + (e?.message || e));
+      showWmsAlert("Error editando proveedor:\n" + (e?.message || e));
     }
   };
 
   const onEliminar = async (item) => {
-    const ok = window.confirm(`¿Seguro que deseas eliminar el proveedor "${item.nombre}"?`);
+    const ok = await showWmsConfirm(`¿Seguro que deseas eliminar el proveedor "${item.nombre}"?`);
     if (!ok) return;
 
     try {
       await eliminarProveedor(item.id);
 
       await cargar(search);
-      alert("Proveedor eliminado.");
+      showWmsAlert("Proveedor eliminado.");
     } catch (e) {
-      alert("Error eliminando proveedor:\n" + (e?.message || e));
+      showWmsAlert("Error eliminando proveedor:\n" + (e?.message || e));
     }
   };
 
   const onImportarExcel = async () => {
     if (!archivoExcel) {
-      alert("Selecciona un archivo Excel.");
+      showWmsAlert("Selecciona un archivo Excel.");
       return;
     }
 
     const nombre = archivoExcel.name.toLowerCase();
     if (!nombre.endsWith(".xlsx") && !nombre.endsWith(".xls")) {
-      alert("El archivo debe ser Excel (.xlsx o .xls).");
+      showWmsAlert("El archivo debe ser Excel (.xlsx o .xls).");
       return;
     }
 
@@ -409,9 +410,9 @@ export default function Proveedores() {
 
       await cargar(search);
 
-      alert(`Importación completada.\nProveedores nuevos: ${data?.proveedores_nuevos ?? 0}`);
+      showWmsAlert(`Importación completada.\nProveedores nuevos: ${data?.proveedores_nuevos ?? 0}`);
     } catch (e) {
-      alert("Error importando Excel:\n" + (e?.message || e));
+      showWmsAlert("Error importando Excel:\n" + (e?.message || e));
     } finally {
       setImportando(false);
     }

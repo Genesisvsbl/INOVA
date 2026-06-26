@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { showWmsAlert, showWmsConfirm, showWmsPrompt } from "../../wmsDialog.jsx";
 import { useNavigate, useParams } from "react-router-dom";
 import { confirmarPicking, getDespachos, getStock, marcarPickingImpreso, verPicking } from "../../api";
 import {
@@ -206,7 +207,7 @@ function getEstadoEntrega(cantidad, sugerida) {
   if (cant > sug) {
     return {
       key: "sobre",
-      label: "ENTREGA DE MÁS",
+      label: "ENTREGA DE MÃS",
       tone: "red",
       color: colors.bad,
     };
@@ -520,10 +521,10 @@ export default function OrdenPicking() {
       }));
 
       if (!alternativas.length) {
-        alert("No se encontraron alternativas adicionales para esta línea.");
+        showWmsAlert("No se encontraron alternativas adicionales para esta lÃ­nea.");
       }
     } catch (e) {
-      alert("Error consultando alternativas:\n" + (e?.message || e));
+      showWmsAlert("Error consultando alternativas:\n" + (e?.message || e));
       setAlternativasPorRow((prev) => ({
         ...prev,
         [row.id]: [],
@@ -590,12 +591,12 @@ export default function OrdenPicking() {
     const motivo = buildMotivoRotacion(motivosRotacion[row.id]);
 
     if (!alt) {
-      alert("Debes seleccionar una ubicación alternativa.");
+      showWmsAlert("Debes seleccionar una ubicaciÃ³n alternativa.");
       return;
     }
 
     if (!motivo.trim()) {
-      alert("Debes seleccionar el motivo del incumplimiento de rotación.");
+      showWmsAlert("Debes seleccionar el motivo del incumplimiento de rotaciÃ³n.");
       return;
     }
 
@@ -952,7 +953,7 @@ export default function OrdenPicking() {
 
   const imprimirSeleccionados = async () => {
     if (!lineasSeleccionadas.length) {
-      alert("Selecciona al menos una línea pendiente con cantidad mayor que 0 para imprimir.");
+      showWmsAlert("Selecciona al menos una lÃ­nea pendiente con cantidad mayor que 0 para imprimir.");
       return;
     }
 
@@ -976,7 +977,7 @@ export default function OrdenPicking() {
 
   const guardarDespacho = async ({ silent = false } = {}) => {
     if (!rowsPendientesFull.length) {
-      alert("No hay líneas pendientes para guardar.");
+      showWmsAlert("No hay lÃ­neas pendientes para guardar.");
       return;
     }
 
@@ -1009,7 +1010,7 @@ export default function OrdenPicking() {
     });
 
     if (!lineasGuardar.length) {
-      alert("Debes seleccionar al menos una línea pendiente con cantidad mayor que 0.");
+      showWmsAlert("Debes seleccionar al menos una lÃ­nea pendiente con cantidad mayor que 0.");
       return;
     }
 
@@ -1021,16 +1022,16 @@ export default function OrdenPicking() {
     });
 
     if (conIncumplimientoInvalido) {
-      alert(
-        "Debes seleccionar el motivo del incumplimiento de rotación y seleccionar una ubicación alternativa en todas las líneas marcadas."
+      showWmsAlert(
+        "Debes seleccionar el motivo del incumplimiento de rotaciÃ³n y seleccionar una ubicaciÃ³n alternativa en todas las lÃ­neas marcadas."
       );
       return;
     }
 
     const noImpresas = lineasGuardar.filter((r) => !impresos[r.id]);
     if (noImpresas.length) {
-      const seguir = window.confirm(
-        "Hay líneas seleccionadas que aún no has marcado para impresión. ¿Deseas guardar de todas formas?"
+      const seguir = await showWmsConfirm(
+        "Hay lÃ­neas seleccionadas que aÃºn no has marcado para impresiÃ³n. Â¿Deseas guardar de todas formas?"
       );
       if (!seguir) return;
     }
@@ -1064,7 +1065,7 @@ export default function OrdenPicking() {
       const data = await confirmarPicking(reserva, payload);
 
       if (!silent) {
-        alert(
+        showWmsAlert(
           `Despacho guardado correctamente\n\n` +
             `Reserva: ${data.reserva}\n` +
             `Total guardado: ${formatQty(data.total_guardado)}\n` +
@@ -1077,7 +1078,7 @@ export default function OrdenPicking() {
       await loadData();
       return data;
     } catch (e) {
-      alert("Error guardando picking:\n" + (e?.message || e));
+      showWmsAlert("Error guardando picking:\n" + (e?.message || e));
       throw e;
     } finally {
       setGuardando(false);
@@ -1118,7 +1119,7 @@ export default function OrdenPicking() {
     const data = await guardarDespacho({ silent: true });
     if (!data) return;
     setToolboxMessage(
-      `Guardado. Retirado ${formatQty(data.total_retirado)} · Cumplimiento ${data.pct_cumplimiento_reserva}%`
+      `Guardado. Retirado ${formatQty(data.total_retirado)} Â· Cumplimiento ${data.pct_cumplimiento_reserva}%`
     );
     setToolboxPickingOpen(false);
   };
@@ -1452,7 +1453,7 @@ export default function OrdenPicking() {
                   fontSize: 13,
                 }}
               >
-                Lo confirmado queda aparte y abajo solo ves lo pendiente según la necesidad.
+                Lo confirmado queda aparte y abajo solo ves lo pendiente segÃºn la necesidad.
               </div>
             </div>
 
@@ -1463,7 +1464,7 @@ export default function OrdenPicking() {
               <Chip label={`Pendiente: ${formatQty(resumen.totalPendiente)}`} tone="red" />
               <Chip label={`Comprometer: ${formatQty(resumen.totalComprometer)}`} tone="green" />
               <Chip
-                label={`De más: ${resumen.totalSobreSugerido}`}
+                label={`De mÃ¡s: ${resumen.totalSobreSugerido}`}
                 tone={resumen.totalSobreSugerido > 0 ? "red" : "neutral"}
               />
               <Chip
@@ -1587,9 +1588,9 @@ export default function OrdenPicking() {
           <SummaryBox label="Total retirado" value={formatQty(resumen.totalRetirado)} tone="green" />
           <SummaryBox label="Pendiente" value={formatQty(resumen.totalPendiente)} tone="red" />
           <SummaryBox label="Comprometer" value={formatQty(resumen.totalComprometer)} tone="green" />
-          <SummaryBox label="Líneas de más" value={resumen.totalSobreSugerido} tone="red" />
-          <SummaryBox label="Líneas exactas" value={resumen.totalIgualSugerido} tone="green" />
-          <SummaryBox label="Líneas de menos" value={resumen.totalDebajoSugerido} tone="amber" />
+          <SummaryBox label="LÃ­neas de mÃ¡s" value={resumen.totalSobreSugerido} tone="red" />
+          <SummaryBox label="LÃ­neas exactas" value={resumen.totalIgualSugerido} tone="green" />
+          <SummaryBox label="LÃ­neas de menos" value={resumen.totalDebajoSugerido} tone="amber" />
           <SummaryBox
             label="Dif. vs sugerido"
             value={formatQty(resumen.diferenciaContraSugerido)}
@@ -1622,7 +1623,7 @@ export default function OrdenPicking() {
                   <th style={{ ...thStyle, textAlign: "right" }}>Cantidad retirada</th>
                   <th style={{ ...thStyle, textAlign: "right" }}>Diferencia</th>
                   <th style={{ ...thStyle, textAlign: "right" }}>% SKU</th>
-                  <th style={thStyle}>Clasificación</th>
+                  <th style={thStyle}>ClasificaciÃ³n</th>
                 </tr>
               </thead>
               <tbody>
@@ -1690,11 +1691,11 @@ export default function OrdenPicking() {
                   <th style={{ ...thStyle, textAlign: "right" }}>Cantidad sugerida</th>
                   <th style={{ ...thStyle, textAlign: "right" }}>Cantidad confirmada</th>
                   <th style={thStyle}>Evidencia entrega</th>
-                  <th style={thStyle}>Ubicación tomada</th>
-                  <th style={thStyle}>Lote almacén</th>
+                  <th style={thStyle}>UbicaciÃ³n tomada</th>
+                  <th style={thStyle}>Lote almacÃ©n</th>
                   <th style={thStyle}>Lote proveedor</th>
                   <th style={thStyle}>Fecha vencimiento</th>
-                  <th style={thStyle}>Alerta rotación</th>
+                  <th style={thStyle}>Alerta rotaciÃ³n</th>
                   <th style={thStyle}>Estado</th>
                 </tr>
               </thead>
@@ -1702,7 +1703,7 @@ export default function OrdenPicking() {
                 {rowsConfirmados.length === 0 ? (
                   <tr>
                     <td colSpan={13} style={{ padding: 18, color: colors.muted, fontWeight: 700 }}>
-                      Aún no hay materiales confirmados.
+                      AÃºn no hay materiales confirmados.
                     </td>
                   </tr>
                 ) : (
@@ -1810,7 +1811,7 @@ export default function OrdenPicking() {
               Orden de picking pendiente
             </div>
             <div style={{ fontSize: 12, color: colors.muted, fontWeight: 700 }}>
-              Selecciona líneas, define cantidad y registra incumplimiento de rotación si aplica
+              Selecciona lÃ­neas, define cantidad y registra incumplimiento de rotaciÃ³n si aplica
             </div>
           </div>
 
@@ -1827,14 +1828,14 @@ export default function OrdenPicking() {
                   <th style={{ ...thStyle, textAlign: "right" }}>Cantidad sugerida</th>
                   <th style={{ ...thStyle, textAlign: "right" }}>Cantidad a comprometer</th>
                   <th style={thStyle}>Evidencia entrega</th>
-                  <th style={thStyle}>Ubicación sugerida</th>
-                  <th style={thStyle}>Ubicación tomada</th>
-                  <th style={thStyle}>Lote almacén</th>
+                  <th style={thStyle}>UbicaciÃ³n sugerida</th>
+                  <th style={thStyle}>UbicaciÃ³n tomada</th>
+                  <th style={thStyle}>Lote almacÃ©n</th>
                   <th style={thStyle}>Lote proveedor</th>
                   <th style={thStyle}>Fecha vencimiento</th>
                   <th style={thStyle}>Impreso</th>
-                  <th style={thStyle}>Gestión rotación</th>
-                  <th style={thStyle}>Acción</th>
+                  <th style={thStyle}>GestiÃ³n rotaciÃ³n</th>
+                  <th style={thStyle}>AcciÃ³n</th>
                   <th style={thStyle}>Estado alerta</th>
                 </tr>
               </thead>
@@ -1842,7 +1843,7 @@ export default function OrdenPicking() {
                 {rowsPendientesFull.length === 0 ? (
                   <tr>
                     <td colSpan={18} style={{ padding: 18, color: colors.good, fontWeight: 800 }}>
-                      No hay líneas pendientes.
+                      No hay lÃ­neas pendientes.
                     </td>
                   </tr>
                 ) : (
@@ -2001,7 +2002,7 @@ export default function OrdenPicking() {
 
                         <td style={tdStyle}>
                           <Chip
-                            label={impresos[r.id] ? "Sí" : "No"}
+                            label={impresos[r.id] ? "SÃ­" : "No"}
                             tone={impresos[r.id] ? "green" : "amber"}
                           />
                         </td>
@@ -2138,7 +2139,7 @@ export default function OrdenPicking() {
                   Toolbox reserva adicional
                 </div>
                 <div style={{ color: colors.navy, fontSize: 19, fontWeight: 900 }}>
-                  Orden de picking · Reserva {reserva}
+                  Orden de picking Â· Reserva {reserva}
                 </div>
               </div>
               <button type="button" onClick={() => setToolboxPickingOpen(false)} style={secondaryButtonStyle}>
@@ -2175,7 +2176,7 @@ export default function OrdenPicking() {
                       Reserva {reserva}
                     </div>
                     <div style={{ marginTop: 4, color: colors.muted, fontSize: 12, fontWeight: 700 }}>
-                      Usuario {usuario || "DESPACHO"} · Documento {documento || "Pendiente"}
+                      Usuario {usuario || "DESPACHO"} Â· Documento {documento || "Pendiente"}
                     </div>
                   </div>
                   <Chip label="ADICIONAL" tone="blue" />
@@ -2315,15 +2316,15 @@ export default function OrdenPicking() {
                   }}
                 >
                   <AlertTriangle size={16} />
-                  Incumplimiento de rotación
+                  Incumplimiento de rotaciÃ³n
                 </div>
 
                 <div style={{ fontSize: 22, fontWeight: 900, color: colors.navy }}>
-                  Gestión de alternativa · SKU {modalRow.sku}
+                  GestiÃ³n de alternativa Â· SKU {modalRow.sku}
                 </div>
 
                 <div style={{ marginTop: 6, color: colors.muted, fontSize: 13 }}>
-                  Reserva {modalRow.reserva} · {modalRow.texto_breve || ""}
+                  Reserva {modalRow.reserva} Â· {modalRow.texto_breve || ""}
                 </div>
               </div>
 
@@ -2415,7 +2416,7 @@ export default function OrdenPicking() {
                   }}
                 >
                   <AlertTriangle size={16} />
-                  Mensaje estándar visible
+                  Mensaje estÃ¡ndar visible
                 </div>
 
                 <div
@@ -2498,8 +2499,8 @@ export default function OrdenPicking() {
                         fontWeight: 800,
                       }}
                     >
-                      Este SKU manual ya tiene una ubicación base seleccionada desde la búsqueda.
-                      Si necesitas otra ubicación, agrega otro SKU manual buscándolo nuevamente.
+                      Este SKU manual ya tiene una ubicaciÃ³n base seleccionada desde la bÃºsqueda.
+                      Si necesitas otra ubicaciÃ³n, agrega otro SKU manual buscÃ¡ndolo nuevamente.
                     </div>
                   ) : !currentModalAlternativas.length ? (
                     <div
@@ -2512,7 +2513,7 @@ export default function OrdenPicking() {
                         fontWeight: 800,
                       }}
                     >
-                      No hay alternativas disponibles para esta línea.
+                      No hay alternativas disponibles para esta lÃ­nea.
                     </div>
                   ) : (
                     currentModalAlternativas.map((alt, i) => {
@@ -2561,7 +2562,7 @@ export default function OrdenPicking() {
                           </div>
 
                           <div style={{ fontSize: 12, color: colors.muted, lineHeight: 1.55 }}>
-                            <div><b>Lote almacén:</b> {alt.lote_almacen || ""}</div>
+                            <div><b>Lote almacÃ©n:</b> {alt.lote_almacen || ""}</div>
                             <div><b>Lote proveedor:</b> {alt.lote_proveedor || ""}</div>
                             <div><b>Fecha vencimiento:</b> {fmtDate(alt.fecha_vencimiento)}</div>
                           </div>
@@ -2700,7 +2701,7 @@ export default function OrdenPicking() {
                 </div>
 
                 <div style={{ marginTop: 6, color: colors.muted, fontSize: 13 }}>
-                  Escribe el código o parte del texto breve. Elige una sugerencia y solo ajusta la cantidad.
+                  Escribe el cÃ³digo o parte del texto breve. Elige una sugerencia y solo ajusta la cantidad.
                 </div>
               </div>
 
@@ -2745,7 +2746,7 @@ export default function OrdenPicking() {
                 </div>
 
                 <div style={{ marginTop: 8, fontSize: 12, color: colors.muted, fontWeight: 700 }}>
-                  Mínimo 2 caracteres para buscar.
+                  MÃ­nimo 2 caracteres para buscar.
                 </div>
               </div>
 
@@ -2884,8 +2885,8 @@ export default function OrdenPicking() {
                             lineHeight: 1.45,
                           }}
                         >
-                          <div><b>Ubicación:</b> {item.ubicacion || ""}</div>
-                          <div><b>Lote almacén:</b> {item.lote_almacen || ""}</div>
+                          <div><b>UbicaciÃ³n:</b> {item.ubicacion || ""}</div>
+                          <div><b>Lote almacÃ©n:</b> {item.lote_almacen || ""}</div>
                           <div><b>Lote proveedor:</b> {item.lote_proveedor || ""}</div>
                           <div><b>Fecha vencimiento:</b> {fmtDate(item.fecha_vencimiento)}</div>
                         </div>
@@ -2914,7 +2915,7 @@ export default function OrdenPicking() {
                 <h1 className="print-title">
                   {modoImpresion === "final" ? "RESULTADO FINAL DE DESPACHO" : "ORDEN DE PICKING"}
                 </h1>
-                <div className="print-subtitle">WMS INOVA · Control logístico</div>
+                <div className="print-subtitle">WMS INOVA Â· Control logÃ­stico</div>
               </div>
             </div>
 
@@ -2922,7 +2923,7 @@ export default function OrdenPicking() {
               <div><b>Reserva:</b> {reserva || ""}</div>
               <div><b>Usuario:</b> {usuario || "DESPACHO"}</div>
               <div><b>Documento:</b> {documento || ""}</div>
-              <div><b>Fecha impresión:</b> {fmtDate(new Date())}</div>
+              <div><b>Fecha impresiÃ³n:</b> {fmtDate(new Date())}</div>
             </div>
           </div>
 
@@ -2943,7 +2944,7 @@ export default function OrdenPicking() {
                     <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad retirada</th>
                     <th className="print-nowrap" style={{ textAlign: "right" }}>Diferencia</th>
                     <th className="print-nowrap" style={{ textAlign: "right" }}>% SKU</th>
-                    <th className="print-nowrap">Clasificación</th>
+                    <th className="print-nowrap">ClasificaciÃ³n</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2981,8 +2982,8 @@ export default function OrdenPicking() {
                     <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad sugerida</th>
                     <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad confirmada</th>
                     <th className="print-nowrap">Evidencia</th>
-                    <th className="print-nowrap">Ubicación tomada</th>
-                    <th className="print-nowrap">Lote almacén</th>
+                    <th className="print-nowrap">UbicaciÃ³n tomada</th>
+                    <th className="print-nowrap">Lote almacÃ©n</th>
                     <th className="print-nowrap">Lote proveedor</th>
                     <th className="print-nowrap">Fecha vencimiento</th>
                     <th className="print-nowrap">Estado</th>
@@ -2992,7 +2993,7 @@ export default function OrdenPicking() {
                   {rowsConfirmados.length === 0 ? (
                     <tr>
                       <td colSpan={12} style={{ padding: 10 }}>
-                        Aún no hay materiales confirmados.
+                        AÃºn no hay materiales confirmados.
                       </td>
                     </tr>
                   ) : (
@@ -3069,12 +3070,12 @@ export default function OrdenPicking() {
                     <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad requerida</th>
                     <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad sugerida</th>
                     <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad tomada</th>
-                    <th className="print-nowrap">Ubicación sugerida</th>
-                    <th className="print-nowrap">Ubicación tomada</th>
-                    <th className="print-nowrap">Lote almacén</th>
+                    <th className="print-nowrap">UbicaciÃ³n sugerida</th>
+                    <th className="print-nowrap">UbicaciÃ³n tomada</th>
+                    <th className="print-nowrap">Lote almacÃ©n</th>
                     <th className="print-nowrap">Lote proveedor</th>
                     <th className="print-nowrap">Fecha vencimiento</th>
-                    <th className="print-wrap">Observación rotación</th>
+                    <th className="print-wrap">ObservaciÃ³n rotaciÃ³n</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3082,8 +3083,8 @@ export default function OrdenPicking() {
                     <tr>
                       <td colSpan={12} style={{ padding: 10 }}>
                         {modoImpresion === "final"
-                          ? "No hay líneas pendientes. El despacho quedó completamente atendido."
-                          : "No hay líneas pendientes para imprimir."}
+                          ? "No hay lÃ­neas pendientes. El despacho quedÃ³ completamente atendido."
+                          : "No hay lÃ­neas pendientes para imprimir."}
                       </td>
                     </tr>
                   ) : (
@@ -3169,4 +3170,3 @@ export default function OrdenPicking() {
     </div>
   );
 }
-

@@ -1,4 +1,5 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { showWmsAlert, showWmsConfirm, showWmsPrompt } from "../../wmsDialog.jsx";
 import { getUbicaciones, crearUbicacion, editarUbicacion, eliminarUbicacion, importarUbicacionesExcel } from "../../api";
 import {
   MapPin,
@@ -369,7 +370,7 @@ export default function Ubicaciones() {
 
   const onCrear = async () => {
     if (!nuevo.ubicacion.trim()) {
-      alert("La ubicación final es obligatoria.");
+      showWmsAlert("La ubicación final es obligatoria.");
       return;
     }
 
@@ -392,35 +393,35 @@ export default function Ubicaciones() {
       });
 
       await cargar();
-      alert("Ubicación creada correctamente.");
+      showWmsAlert("Ubicación creada correctamente.");
     } catch (e) {
-      alert("Error creando ubicación:\n" + (e?.message || e));
+      showWmsAlert("Error creando ubicación:\n" + (e?.message || e));
     } finally {
       setSaving(false);
     }
   };
 
   const onEditar = async (item) => {
-    const ubicacion_base = prompt("Editar ubicación base:", item.ubicacion_base || "");
+    const ubicacion_base = await showWmsPrompt("Editar ubicación base:", item.ubicacion_base || "");
     if (ubicacion_base === null) return;
 
-    const posicion = prompt("Editar posición:", item.posicion || "");
+    const posicion = await showWmsPrompt("Editar posición:", item.posicion || "");
     if (posicion === null) return;
 
-    const ubicacion = prompt(
+    const ubicacion = await showWmsPrompt(
       "Editar ubicación final:",
       item.ubicacion || `${(ubicacion_base || "").trim()}${(posicion || "").trim()}`
     );
     if (ubicacion === null) return;
 
-    const zona = prompt("Editar zona:", item.zona || "");
+    const zona = await showWmsPrompt("Editar zona:", item.zona || "");
     if (zona === null) return;
 
-    const bodega = prompt("Editar bodega:", item.bodega || "");
+    const bodega = await showWmsPrompt("Editar bodega:", item.bodega || "");
     if (bodega === null) return;
 
     if (!ubicacion.trim()) {
-      alert("La ubicación final es obligatoria.");
+      showWmsAlert("La ubicación final es obligatoria.");
       return;
     }
 
@@ -434,35 +435,35 @@ export default function Ubicaciones() {
       });
 
       await cargar();
-      alert("Ubicación actualizada.");
+      showWmsAlert("Ubicación actualizada.");
     } catch (e) {
-      alert("Error editando ubicación:\n" + (e?.message || e));
+      showWmsAlert("Error editando ubicación:\n" + (e?.message || e));
     }
   };
 
   const onEliminar = async (item) => {
-    const ok = window.confirm(`¿Seguro que deseas eliminar la ubicación "${item.ubicacion}"?`);
+    const ok = await showWmsConfirm(`¿Seguro que deseas eliminar la ubicación "${item.ubicacion}"?`);
     if (!ok) return;
 
     try {
       await eliminarUbicacion(item.id);
 
       await cargar();
-      alert("Ubicación eliminada.");
+      showWmsAlert("Ubicación eliminada.");
     } catch (e) {
-      alert("Error eliminando ubicación:\n" + (e?.message || e));
+      showWmsAlert("Error eliminando ubicación:\n" + (e?.message || e));
     }
   };
 
   const onImportarExcel = async () => {
     if (!archivoExcel) {
-      alert("Selecciona un archivo Excel.");
+      showWmsAlert("Selecciona un archivo Excel.");
       return;
     }
 
     const nombre = archivoExcel.name.toLowerCase();
     if (!nombre.endsWith(".xlsx") && !nombre.endsWith(".xls")) {
-      alert("El archivo debe ser Excel (.xlsx o .xls).");
+      showWmsAlert("El archivo debe ser Excel (.xlsx o .xls).");
       return;
     }
 
@@ -478,11 +479,11 @@ export default function Ubicaciones() {
 
       await cargar();
 
-      alert(
+      showWmsAlert(
         `Importación completada.\nModo: ${data?.modo || "N/A"}\nUbicaciones nuevas: ${data?.ubicaciones_nuevas ?? 0}\nUbicaciones actualizadas: ${data?.ubicaciones_actualizadas ?? 0}`
       );
     } catch (e) {
-      alert("Error importando Excel:\n" + (e?.message || e));
+      showWmsAlert("Error importando Excel:\n" + (e?.message || e));
     } finally {
       setImportando(false);
     }

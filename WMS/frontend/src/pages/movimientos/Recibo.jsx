@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { showWmsAlert, showWmsConfirm, showWmsPrompt } from "../../wmsDialog.jsx";
 import { useNavigate } from "react-router-dom";
 import { getMateriales, getProveedores } from "../../api";
 import {
@@ -36,7 +37,7 @@ function addMonthsISO(fechaISO, meses) {
 
   target.setMonth(target.getMonth() + Number(meses));
 
-  // Si el día no existe en el mes destino, usa el último día válido.
+  // Si el dÃ­a no existe en el mes destino, usa el Ãºltimo dÃ­a vÃ¡lido.
   // Ejemplo: 31/01 + 1 mes => 28/02 o 29/02.
   if (target.getDate() !== originalDay) {
     target.setDate(0);
@@ -62,7 +63,7 @@ function getVigenciaMeses(material) {
   const meses = Number(rawMeses);
   if (Number.isFinite(meses) && meses > 0) return Math.round(meses);
 
-  // Compatibilidad por si aún llega del backend como vigencia_dias.
+  // Compatibilidad por si aÃºn llega del backend como vigencia_dias.
   const rawDias =
     material.vigencia_dias ??
     material.vigenciaDias ??
@@ -709,7 +710,7 @@ export default function Recibo() {
     setHeaderField(key, v);
 
     if ((raw ?? "").toString().length > 10) {
-      setErrores((e) => ({ ...e, [key]: "Máximo 10 caracteres." }));
+      setErrores((e) => ({ ...e, [key]: "MÃ¡ximo 10 caracteres." }));
     } else {
       setErrores((e) => {
         const copy = { ...e };
@@ -776,12 +777,12 @@ export default function Recibo() {
   const onCertificadoChange = async (idx, file) => {
     if (!file) return;
     if (tipoRecibo === "devolucion") {
-      alert("En devolución no aplica certificado de calidad porque es un movimiento interno.");
+      showWmsAlert("En devoluciÃ³n no aplica certificado de calidad porque es un movimiento interno.");
       return;
     }
     const maxBytes = 7 * 1024 * 1024;
     if (file.size > maxBytes) {
-      alert("El certificado supera 7 MB. Toma una foto mas liviana o usa un PDF comprimido.");
+      showWmsAlert("El certificado supera 7 MB. Toma una foto mas liviana o usa un PDF comprimido.");
       return;
     }
 
@@ -794,7 +795,7 @@ export default function Recibo() {
         certificado_fecha: new Date().toISOString(),
       });
     } catch (e) {
-      alert(`No se pudo anexar el certificado: ${e?.message || e}`);
+      showWmsAlert(`No se pudo anexar el certificado: ${e?.message || e}`);
     }
   };
 
@@ -902,7 +903,7 @@ export default function Recibo() {
     if ((value ?? "").toString().length > 10) {
       setErrores((e) => ({
         ...e,
-        [`loteprov_${idx}`]: "Lote proveedor máximo 10 caracteres.",
+        [`loteprov_${idx}`]: "Lote proveedor mÃ¡ximo 10 caracteres.",
       }));
     } else {
       setErrores((e) => {
@@ -937,7 +938,7 @@ export default function Recibo() {
     const errs = {};
 
     if (!tipoRecibo)
-      errs.tipoRecibo = "Debes seleccionar Recibo o Devolución.";
+      errs.tipoRecibo = "Debes seleccionar Recibo o DevoluciÃ³n.";
 
     ["documento"].forEach((k) => {
       if (!header[k] || header[k].length !== 10) {
@@ -957,20 +958,20 @@ export default function Recibo() {
 
     if (tipoRecibo === "devolucion") {
       if (header.remesa_transp !== "**********") {
-        errs.remesa_transp = "En devolución debe quedar en **********.";
+        errs.remesa_transp = "En devoluciÃ³n debe quedar en **********.";
       }
       if (header.orden_compra !== "**********") {
-        errs.orden_compra = "En devolución debe quedar en **********.";
+        errs.orden_compra = "En devoluciÃ³n debe quedar en **********.";
       }
     }
 
     if (!header.proveedor_id) errs.proveedor = "Proveedor obligatorio.";
     if (!header.acreedor) errs.acreedor = "Acreedor obligatorio.";
     if (!header.auxiliar || !header.auxiliar.trim()) errs.auxiliar = "Auxiliar obligatorio.";
-    if (!usuario) errs.usuario = "Usuario no identificado en sesión.";
+    if (!usuario) errs.usuario = "Usuario no identificado en sesiÃ³n.";
 
     lineas.forEach((ln, idx) => {
-      if (!ln.codigo) errs[`codigo_${idx}`] = "Código obligatorio.";
+      if (!ln.codigo) errs[`codigo_${idx}`] = "CÃ³digo obligatorio.";
       if (!ln.empaque) errs[`empaque_${idx}`] = "Empaque obligatorio.";
       if (!ln.cantidad || Number(ln.cantidad) <= 0)
         errs[`cantidad_${idx}`] = "Cantidad > 0 obligatoria.";
@@ -994,7 +995,7 @@ export default function Recibo() {
 
   const onGuardarRecibo = async () => {
     if (!tipoRecibo) {
-      alert("Debes seleccionar primero Recibo o Devolución.");
+      showWmsAlert("Debes seleccionar primero Recibo o DevoluciÃ³n.");
       return;
     }
 
@@ -1154,7 +1155,7 @@ export default function Recibo() {
 
                   <div>
                     <div class="id-brand-title">WMS INOVA</div>
-                    <div class="id-brand-sub">Tarjeta de identificación logística</div>
+                    <div class="id-brand-sub">Tarjeta de identificaciÃ³n logÃ­stica</div>
                   </div>
                 </div>
 
@@ -1166,7 +1167,7 @@ export default function Recibo() {
 
               <div class="id-main-grid">
                 <div class="id-main-cell">
-                  <div class="id-label-mini">CÓDIGO</div>
+                  <div class="id-label-mini">CÃ“DIGO</div>
                   <div class="id-main-value">${escapeHtml(codigo || "-")}</div>
                 </div>
 
@@ -1179,7 +1180,7 @@ export default function Recibo() {
               </div>
 
               <div class="id-description-block">
-                <div class="id-label-mini">DESCRIPCIÓN</div>
+                <div class="id-label-mini">DESCRIPCIÃ“N</div>
                 <div class="id-description-text">${escapeHtml(
                   descripcion || "-"
                 )}</div>
@@ -1261,13 +1262,13 @@ export default function Recibo() {
 
   const onImprimir = () => {
     if (!tipoRecibo) {
-      alert("Debes seleccionar primero Recibo o Devolución.");
+      showWmsAlert("Debes seleccionar primero Recibo o DevoluciÃ³n.");
       return;
     }
 
     const w = window.open("", "_blank", "width=1600,height=1000");
     if (!w) {
-      alert("El navegador bloqueó la ventana de impresión.");
+      showWmsAlert("El navegador bloqueÃ³ la ventana de impresiÃ³n.");
       return;
     }
 
@@ -1286,7 +1287,7 @@ export default function Recibo() {
       <html>
         <head>
           <title>${escapeHtml(
-            tipoRecibo === "devolucion" ? "Devolución" : "Recibo ciego"
+            tipoRecibo === "devolucion" ? "DevoluciÃ³n" : "Recibo ciego"
           )} - ${escapeHtml(header.serial)}</title>
           <meta charset="utf-8" />
           <link rel="preload" as="image" href="/favicon1.ico" />
@@ -1530,7 +1531,7 @@ export default function Recibo() {
               font-weight: 900;
             }
 
-            /* TARJETAS / RÓTULOS: 4 POR HOJA A4 LANDSCAPE */
+            /* TARJETAS / RÃ“TULOS: 4 POR HOJA A4 LANDSCAPE */
             .card-sheet {
               width: 50%;
               height: 88mm;
@@ -1740,12 +1741,12 @@ export default function Recibo() {
                   <div class="receipt-title">
                     ${escapeHtml(
                       tipoRecibo === "devolucion"
-                        ? "DEVOLUCIÓN"
+                        ? "DEVOLUCIÃ“N"
                         : "RECIBO CIEGO"
                     )}
                   </div>
                   <div class="receipt-subtitle">
-                    Formato de recepción y trazabilidad de ingreso
+                    Formato de recepciÃ³n y trazabilidad de ingreso
                   </div>
                 </div>
               </div>
@@ -1775,7 +1776,7 @@ export default function Recibo() {
               </div>
 
               <div class="summary-card">
-                <div class="summary-label">Líneas</div>
+                <div class="summary-label">LÃ­neas</div>
                 <div class="summary-value">${lineas.length}</div>
               </div>
 
@@ -1807,8 +1808,8 @@ export default function Recibo() {
                 <tr>
                   <th>Item</th>
                   <th># Serial</th>
-                  <th>Fecha recepción</th>
-                  <th>Código</th>
+                  <th>Fecha recepciÃ³n</th>
+                  <th>CÃ³digo</th>
                   <th>Texto breve material</th>
                   <th>Empaque</th>
                   <th>UMB</th>
@@ -1816,7 +1817,7 @@ export default function Recibo() {
                   <th>Cantidad</th>
                   <th>Total</th>
                   <th>Lote proveedor</th>
-                  <th>F. fabricación</th>
+                  <th>F. fabricaciÃ³n</th>
                   <th>F. vencimiento</th>
                 </tr>
               </thead>
@@ -1827,7 +1828,7 @@ export default function Recibo() {
 
             ${tipoRecibo === "recibo" && novedadesRowsHtml ? `
               <div class="receipt-novelty-wrap">
-                <div class="receipt-novelty-title">NOVEDAD POR ITEM DETECTADA EN EL RECIBO FÍSICO</div>
+                <div class="receipt-novelty-title">NOVEDAD POR ITEM DETECTADA EN EL RECIBO FÃSICO</div>
                 <table class="receipt-novelty-table">
                   <colgroup>
                     <col style="width: 18%" />
@@ -1879,7 +1880,7 @@ export default function Recibo() {
     !tipoRecibo
       ? "Selecciona tipo de movimiento"
       : tipoRecibo === "devolucion"
-      ? "Devolución"
+      ? "DevoluciÃ³n"
       : "Recibo ciego";
 
   return (
@@ -2084,8 +2085,8 @@ export default function Recibo() {
                   marginTop: 4,
                 }}
               >
-                Registro de entrada con impresión, trazabilidad y preparación
-                para asignación de ubicación.
+                Registro de entrada con impresiÃ³n, trazabilidad y preparaciÃ³n
+                para asignaciÃ³n de ubicaciÃ³n.
               </div>
             </div>
           </div>
@@ -2099,7 +2100,7 @@ export default function Recibo() {
                 </button>
                 <button onClick={onGuardarRecibo} style={primaryButtonStyle}>
                   <Save size={15} />
-                  Guardar y asignar ubicación
+                  Guardar y asignar ubicaciÃ³n
                 </button>
               </>
             )}
@@ -2144,7 +2145,7 @@ export default function Recibo() {
               }}
             >
               <RotateCcw size={15} />
-              Devolución
+              DevoluciÃ³n
             </button>
 
             {!tipoRecibo && (
@@ -2154,7 +2155,7 @@ export default function Recibo() {
               <StatusChip label="Modo recibo" tone="blue" />
             )}
             {tipoRecibo === "devolucion" && (
-              <StatusChip label="Modo devolución" tone="green" />
+              <StatusChip label="Modo devoluciÃ³n" tone="green" />
             )}
           </div>
 
@@ -2187,7 +2188,7 @@ export default function Recibo() {
                 fontWeight: 600,
               }}
             >
-              Selecciona primero <b>Recibo</b> o <b>Devolución</b> para
+              Selecciona primero <b>Recibo</b> o <b>DevoluciÃ³n</b> para
               continuar.
             </div>
           )}
@@ -2264,7 +2265,7 @@ export default function Recibo() {
                           clampMaxLen(e.target.value.toUpperCase(), 40)
                         )
                       }
-                      placeholder="Nombre del auxiliar encargado de pegar el rótulo.
+                      placeholder="Nombre del auxiliar encargado de pegar el rÃ³tulo.
 "
                       style={inputStyle}
                     />
@@ -2333,7 +2334,7 @@ export default function Recibo() {
                   </div>
 
                   <div>
-                    <div style={fieldLabelStyle}>Fecha recepción</div>
+                    <div style={fieldLabelStyle}>Fecha recepciÃ³n</div>
                     <div
                       style={{
                         ...readOnlyInputStyle,
@@ -2472,7 +2473,7 @@ export default function Recibo() {
                   </div>
 
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <StatusChip label={`Líneas: ${lineas.length}`} tone="blue" />
+                    <StatusChip label={`LÃ­neas: ${lineas.length}`} tone="blue" />
                     <StatusChip
                       label={`Usuario: ${usuario || "-"}`}
                       tone="green"
@@ -2500,7 +2501,7 @@ export default function Recibo() {
                 flexWrap: "wrap",
               }}
             >
-              <div>Detalle de líneas</div>
+              <div>Detalle de lÃ­neas</div>
 
               <div style={{ display: "flex", gap: 8 }}>
                 {tipoRecibo === "recibo" && (
@@ -2522,7 +2523,7 @@ export default function Recibo() {
                 )}
                 <button onClick={addLinea} style={secondaryButtonStyle}>
                   <Plus size={15} />
-                  Agregar línea
+                  Agregar lÃ­nea
                 </button>
                 <button onClick={onImprimir} style={secondaryButtonStyle}>
                   <Printer size={15} />
@@ -2553,8 +2554,8 @@ export default function Recibo() {
                   <tr>
                     <th style={thStyle}># Serial</th>
                     <th style={thStyle}>Item</th>
-                    <th style={thStyle}>Fecha recepción</th>
-                    <th style={thStyle}>Código</th>
+                    <th style={thStyle}>Fecha recepciÃ³n</th>
+                    <th style={thStyle}>CÃ³digo</th>
                     <th style={thStyle}>Texto breve material</th>
                     <th style={thStyle}>Empaque</th>
                     <th style={thStyle}>UMB</th>
@@ -2562,7 +2563,7 @@ export default function Recibo() {
                     <th style={thStyle}>Cantidad</th>
                     <th style={thStyle}>Total</th>
                     <th style={thStyle}>Lote proveedor (10)</th>
-                    <th style={thStyle}>Fecha fabricación</th>
+                    <th style={thStyle}>Fecha fabricaciÃ³n</th>
                     <th style={thStyle}>Fecha vencimiento</th>
                     <th style={thStyle}>Acciones</th>
                   </tr>
@@ -2589,7 +2590,7 @@ export default function Recibo() {
                           list="materialesList"
                           value={ln.codigo}
                           onChange={(e) => onCodigoChange(idx, e.target.value)}
-                          placeholder="Código"
+                          placeholder="CÃ³digo"
                           style={detailInputStyle}
                         />
                         {!!errores[`codigo_${idx}`] && (
@@ -2768,7 +2769,7 @@ export default function Recibo() {
                               color: colors.good,
                             }}
                           >
-                            Automática: {ln.vigencia_meses} meses desde fabricación
+                            AutomÃ¡tica: {ln.vigencia_meses} meses desde fabricaciÃ³n
                           </div>
                         )}
                         {!!errores[`fv_${idx}`] && (
@@ -2794,7 +2795,7 @@ export default function Recibo() {
                         >
                           {tipoRecibo === "devolucion" ? (
                           <span
-                            title="No aplica certificado de calidad en devolución"
+                            title="No aplica certificado de calidad en devoluciÃ³n"
                             style={{
                               minWidth: 86,
                               height: 30,
@@ -3100,7 +3101,7 @@ export default function Recibo() {
                       background: "#f8fafc",
                     }}
                   >
-                    Solo para impresión. No afecta inventario ni guardado.
+                    Solo para impresiÃ³n. No afecta inventario ni guardado.
                   </div>
                 </div>
               )}
@@ -3122,14 +3123,14 @@ export default function Recibo() {
                 fontWeight: 600,
               }}
             >
-              El flujo, la impresión y el guardado hacia asignación de ubicación
+              El flujo, la impresiÃ³n y el guardado hacia asignaciÃ³n de ubicaciÃ³n
               se conservan igual.
             </div>
 
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={addLinea} style={secondaryButtonStyle}>
                 <Plus size={15} />
-                Agregar línea
+                Agregar lÃ­nea
               </button>
               <button onClick={onImprimir} style={secondaryButtonStyle}>
                 <Printer size={15} />
@@ -3146,4 +3147,3 @@ export default function Recibo() {
     </div>
   );
 }
-

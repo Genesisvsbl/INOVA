@@ -1,4 +1,5 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { showWmsAlert, showWmsConfirm, showWmsPrompt } from "../../wmsDialog.jsx";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { asignarUbicacionDesdeTransito, getEnTransito, getUbicaciones } from "../../api";
 import {
@@ -480,8 +481,8 @@ export default function EnTransito() {
     }));
   };
 
-  const pedirManual = (id, mensaje = "Escribe o pega el código de ubicación:") => {
-    const manual = window.prompt(mensaje);
+  const pedirManual = async (id, mensaje = "Escribe o pega el código de ubicación:") => {
+    const manual = await showWmsPrompt(mensaje);
 
     if (manual !== null) {
       onChangeUbic(id, manual);
@@ -751,8 +752,8 @@ export default function EnTransito() {
 
       closeBtn.onclick = cleanup;
 
-      manualBtn.onclick = () => {
-        const manual = window.prompt("Escribe o pega el código de ubicación:");
+      manualBtn.onclick = async () => {
+        const manual = await showWmsPrompt("Escribe o pega el código de ubicación:");
         if (manual !== null) {
           onChangeUbic(id, manual);
           cleanup();
@@ -938,7 +939,7 @@ export default function EnTransito() {
     const printWindow = window.open("", "_blank", "width=1400,height=900");
 
     if (!printWindow) {
-      alert("El navegador bloqueó la ventana de impresión.");
+      showWmsAlert("El navegador bloqueó la ventana de impresión.");
       return;
     }
 
@@ -957,14 +958,14 @@ export default function EnTransito() {
     const ubicacion = normalizeUbicacion(ubicPorId[row.id]);
 
     if (!ubicacion) {
-      alert("Debes escribir, seleccionar, escanear o subir foto de una ubicación.");
+      showWmsAlert("Debes escribir, seleccionar, escanear o subir foto de una ubicación.");
       return;
     }
 
     const esValida = validarUbicacion(row.id, ubicacion);
 
     if (!esValida) {
-      alert(
+      showWmsAlert(
         `La ubicación "${ubicacion}" no existe en la lista de ubicaciones válidas. Verifica el código.`
       );
       return;
@@ -975,10 +976,10 @@ export default function EnTransito() {
     try {
       await asignarUbicacionDesdeTransito(row.id, ubicacion);
 
-      alert(`Ubicación ${ubicacion} asignada al material ${row.codigo_material}`);
+      showWmsAlert(`Ubicación ${ubicacion} asignada al material ${row.codigo_material}`);
       await cargarTodo();
     } catch (e) {
-      alert("Error asignando ubicación:\n" + (e?.message || e));
+      showWmsAlert("Error asignando ubicación:\n" + (e?.message || e));
     } finally {
       setSavingId(null);
     }
@@ -1311,4 +1312,3 @@ export default function EnTransito() {
     </div>
   );
 }
-

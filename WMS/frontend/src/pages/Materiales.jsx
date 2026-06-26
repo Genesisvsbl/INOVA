@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { showWmsAlert, showWmsConfirm, showWmsPrompt } from "../wmsDialog.jsx";
 import {
   getMateriales,
   crearMaterial,
@@ -352,14 +353,14 @@ export default function Materiales() {
       !nuevoMaterial.unidad_medida.trim() ||
       !nuevoMaterial.familia.trim()
     ) {
-      alert("Todos los campos son obligatorios.");
+      showWmsAlert("Todos los campos son obligatorios.");
       return;
     }
 
     const unidadNumerica = parseFloat(String(nuevoMaterial.unidad).replace(",", "."));
 
     if (Number.isNaN(unidadNumerica)) {
-      alert("La columna Unidad debe ser numérica.");
+      showWmsAlert("La columna Unidad debe ser numÃ©rica.");
       return;
     }
 
@@ -382,28 +383,28 @@ export default function Materiales() {
       });
 
       await cargar(busqueda);
-      alert("Material creado correctamente.");
+      showWmsAlert("Material creado correctamente.");
     } catch (e) {
-      alert("Error creando material:\n" + String(e));
+      showWmsAlert("Error creando material:\n" + String(e));
     } finally {
       setGuardando(false);
     }
   };
 
   const onEditar = async (mat) => {
-    const nuevoCodigo = prompt("Nuevo código:", mat.codigo);
+    const nuevoCodigo = await showWmsPrompt("Nuevo cÃ³digo:", mat.codigo);
     if (nuevoCodigo === null) return;
 
-    const nuevaDescripcion = prompt("Nueva descripción:", mat.descripcion);
+    const nuevaDescripcion = await showWmsPrompt("Nueva descripciÃ³n:", mat.descripcion);
     if (nuevaDescripcion === null) return;
 
-    const nuevaUnidad = prompt("Nueva unidad:", mat.unidad ?? "");
+    const nuevaUnidad = await showWmsPrompt("Nueva unidad:", mat.unidad ?? "");
     if (nuevaUnidad === null) return;
 
-    const nuevaUnidadMedida = prompt("Nueva unidad de medida:", mat.unidad_medida);
+    const nuevaUnidadMedida = await showWmsPrompt("Nueva unidad de medida:", mat.unidad_medida);
     if (nuevaUnidadMedida === null) return;
 
-    const nuevaFamilia = prompt("Nueva familia:", mat.familia ?? "");
+    const nuevaFamilia = await showWmsPrompt("Nueva familia:", mat.familia ?? "");
     if (nuevaFamilia === null) return;
 
     if (
@@ -413,14 +414,14 @@ export default function Materiales() {
       !nuevaUnidadMedida.trim() ||
       !nuevaFamilia.trim()
     ) {
-      alert("Todos los campos son obligatorios.");
+      showWmsAlert("Todos los campos son obligatorios.");
       return;
     }
 
     const unidadNumerica = parseFloat(String(nuevaUnidad).replace(",", "."));
 
     if (Number.isNaN(unidadNumerica)) {
-      alert("La columna Unidad debe ser numérica.");
+      showWmsAlert("La columna Unidad debe ser numÃ©rica.");
       return;
     }
 
@@ -434,33 +435,33 @@ export default function Materiales() {
       });
 
       await cargar(busqueda);
-      alert("Material actualizado.");
+      showWmsAlert("Material actualizado.");
     } catch (e) {
-      alert("Error editando material:\n" + String(e));
+      showWmsAlert("Error editando material:\n" + String(e));
     }
   };
 
   const onEliminar = async (id) => {
-    if (!window.confirm("¿Seguro que deseas eliminar este material?")) return;
+    if (!await showWmsConfirm("Â¿Seguro que deseas eliminar este material?")) return;
 
     try {
       await eliminarMaterial(id);
       await cargar(busqueda);
-      alert("Material eliminado.");
+      showWmsAlert("Material eliminado.");
     } catch (e) {
-      alert("Error eliminando material:\n" + String(e));
+      showWmsAlert("Error eliminando material:\n" + String(e));
     }
   };
 
   const onImportarExcel = async () => {
     if (!archivoExcel) {
-      alert("Selecciona un archivo Excel.");
+      showWmsAlert("Selecciona un archivo Excel.");
       return;
     }
 
     const nombre = archivoExcel.name.toLowerCase();
     if (!nombre.endsWith(".xlsx") && !nombre.endsWith(".xls")) {
-      alert("El archivo debe ser Excel (.xlsx o .xls).");
+      showWmsAlert("El archivo debe ser Excel (.xlsx o .xls).");
       return;
     }
 
@@ -476,11 +477,11 @@ export default function Materiales() {
 
       await cargar(busqueda);
 
-      alert(
-        `Importación completada.\nMateriales nuevos: ${data?.materiales_nuevos ?? 0}\nMateriales actualizados: ${data?.materiales_actualizados ?? 0}`
+      showWmsAlert(
+        `ImportaciÃ³n completada.\nMateriales nuevos: ${data?.materiales_nuevos ?? 0}\nMateriales actualizados: ${data?.materiales_actualizados ?? 0}`
       );
     } catch (e) {
-      alert("Error importando Excel:\n" + (e?.message || e));
+      showWmsAlert("Error importando Excel:\n" + (e?.message || e));
     } finally {
       setImportando(false);
     }
@@ -491,7 +492,7 @@ export default function Materiales() {
       <ModuleHeader
         title="Materiales"
         subtitle="Consulta, crea, edita, elimina e importa materiales del sistema."
-        helper="Gestión de materiales"
+        helper="GestiÃ³n de materiales"
       />
 
       <div style={panelStyle}>
@@ -520,7 +521,7 @@ export default function Materiales() {
               >
                 <Search size={15} color={colors.muted} />
                 <input
-                  placeholder="Buscar por código, descripción o familia..."
+                  placeholder="Buscar por cÃ³digo, descripciÃ³n o familia..."
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
                   style={{
@@ -551,7 +552,7 @@ export default function Materiales() {
       </div>
 
       <div style={panelStyle}>
-        <div style={panelHeaderStyle}>Importación masiva</div>
+        <div style={panelHeaderStyle}>ImportaciÃ³n masiva</div>
         <div style={panelBodyStyle}>
           <div
             style={{
@@ -601,21 +602,21 @@ export default function Materiales() {
             }}
           >
             <div>
-              <div style={fieldLabelStyle}>Código</div>
+              <div style={fieldLabelStyle}>CÃ³digo</div>
               <input
                 value={nuevoMaterial.codigo}
                 onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, codigo: e.target.value })}
-                placeholder="Código"
+                placeholder="CÃ³digo"
                 style={inputStyle}
               />
             </div>
 
             <div>
-              <div style={fieldLabelStyle}>Descripción</div>
+              <div style={fieldLabelStyle}>DescripciÃ³n</div>
               <input
                 value={nuevoMaterial.descripcion}
                 onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, descripcion: e.target.value })}
-                placeholder="Descripción"
+                placeholder="DescripciÃ³n"
                 style={inputStyle}
               />
             </div>
@@ -672,8 +673,8 @@ export default function Materiales() {
             <thead>
               <tr>
                 <th style={thStyle}>ID</th>
-                <th style={thStyle}>Código</th>
-                <th style={thStyle}>Descripción</th>
+                <th style={thStyle}>CÃ³digo</th>
+                <th style={thStyle}>DescripciÃ³n</th>
                 <th style={thStyle}>Unidad</th>
                 <th style={thStyle}>Unidad medida</th>
                 <th style={thStyle}>Familia</th>

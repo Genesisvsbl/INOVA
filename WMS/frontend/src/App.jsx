@@ -1,4 +1,4 @@
-﻿import { useEffect } from "react";
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Layout from "./Layout";
 import Calidad5S from "./pages/5s/Calidad5S.jsx";
@@ -39,6 +39,7 @@ import InformeInventario from "./pages/inventarios/InformeInventario";
 /* ================= LOGIN ================= */
 import LoginPage from "./pages/LoginPage";
 import AdminAccess from "./pages/admin/AdminAccess";
+import { WmsDialogHost } from "./wmsDialog.jsx";
 
 
 function useGlobalTableTools() {
@@ -254,7 +255,9 @@ function AppRoutes() {
   useGlobalTableTools();
 
   return (
-    <Routes>
+    <>
+      <WmsDialogHost />
+      <Routes>
       <Route path="/login" element={<LoginPage />} />
 
         <Route
@@ -323,6 +326,7 @@ function AppRoutes() {
           <Route path="*" element={<div>Ruta no encontrada</div>} />
         </Route>
       </Routes>
+    </>
   );
 }
 
