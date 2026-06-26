@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import API from "../../api";
+import { showEtoConfirm } from "../../etoDialog.jsx";
 import {
   formatCaptureModeLabel,
   formatFrequencyLabel,
@@ -59,7 +60,7 @@ function buildEntityCompliance(value, target) {
 function statusLabel(status) {
   if (status === "ok") return "Cumple";
   if (status === "warning") return "Alerta";
-  if (status === "critical") return "Crítico";
+  if (status === "critical") return "CrÃ­tico";
   return status || "-";
 }
 
@@ -468,12 +469,12 @@ export default function DailyView({ accessLevel, processes, indicators }) {
       shift_c: item.shift_c ?? "",
       observation: item.observation || "",
     });
-    clearMessageSoon("Registro cargado para edición");
+    clearMessageSoon("Registro cargado para ediciÃ³n");
   }
 
   async function handleDeleteFromResults(item) {
-    const ok = window.confirm(
-      `¿Deseas eliminar el registro del indicador "${item.indicator_code} - ${item.indicator_name}" del día ${item.record_date}?`
+    const ok = await showEtoConfirm(
+      `Â¿Deseas eliminar el registro del indicador "${item.indicator_code} - ${item.indicator_name}" del dÃ­a ${item.record_date}?`
     );
     if (!ok) return;
 
@@ -497,7 +498,7 @@ export default function DailyView({ accessLevel, processes, indicators }) {
 
       <header className="daily-header">
         <div>
-          <div className="daily-kicker">OPERACIÓN</div>
+          <div className="daily-kicker">OPERACIÃ“N</div>
           <h2>{editingDailyId ? "Editar captura diaria" : "Captura diaria"}</h2>
           <p>Registra por fecha y turno los resultados operativos por indicador.</p>
         </div>
@@ -548,7 +549,7 @@ export default function DailyView({ accessLevel, processes, indicators }) {
 
             <div>
               <h3>Registrar captura</h3>
-              <p>Completa los datos para registrar los resultados del día.</p>
+              <p>Completa los datos para registrar los resultados del dÃ­a.</p>
             </div>
           </div>
 
@@ -707,13 +708,13 @@ export default function DailyView({ accessLevel, processes, indicators }) {
                   <table className="entity-capture-table">
                     <thead>
                       <tr>
-                        <th>Código</th>
+                        <th>CÃ³digo</th>
                         <th>Entidad</th>
                         <th>Tipo</th>
                         <th>Meta</th>
-                        <th>Valor día</th>
+                        <th>Valor dÃ­a</th>
                         <th>Cumplimiento</th>
-                        <th>Observación</th>
+                        <th>ObservaciÃ³n</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -749,7 +750,7 @@ export default function DailyView({ accessLevel, processes, indicators }) {
                                   e.target.value
                                 )
                               }
-                              placeholder="Observación"
+                              placeholder="ObservaciÃ³n"
                             />
                           </td>
                         </tr>
@@ -768,7 +769,7 @@ export default function DailyView({ accessLevel, processes, indicators }) {
               </>
             ) : selectedIndicator?.capture_mode === "single" ? (
               <div className="daily-field">
-                <label>Valor único</label>
+                <label>Valor Ãºnico</label>
                 <input
                   type="number"
                   step="0.01"
@@ -838,7 +839,7 @@ export default function DailyView({ accessLevel, processes, indicators }) {
 
             {!isEntityDailyIndicator && (
               <div className="daily-field">
-                <label>Observación</label>
+                <label>ObservaciÃ³n</label>
                 <textarea
                   rows="5"
                   value={dailyForm.observation}
@@ -848,7 +849,7 @@ export default function DailyView({ accessLevel, processes, indicators }) {
                       observation: e.target.value,
                     })
                   }
-                  placeholder="Detalle del día..."
+                  placeholder="Detalle del dÃ­a..."
                 />
               </div>
             )}
@@ -866,7 +867,7 @@ export default function DailyView({ accessLevel, processes, indicators }) {
                 disabled={loading}
               >
                 <Eye size={18} />
-                Consultar día
+                Consultar dÃ­a
               </button>
 
               {editingDailyId && (
@@ -875,7 +876,7 @@ export default function DailyView({ accessLevel, processes, indicators }) {
                   className="daily-secondary"
                   onClick={resetDailyForm}
                 >
-                  Cancelar edición
+                  Cancelar ediciÃ³n
                 </button>
               )}
             </div>
@@ -890,7 +891,7 @@ export default function DailyView({ accessLevel, processes, indicators }) {
               </div>
 
               <div>
-                <h3>Resultados del día</h3>
+                <h3>Resultados del dÃ­a</h3>
                 <p>Consulta los resultados registrados para la fecha seleccionada.</p>
               </div>
             </div>
@@ -984,11 +985,11 @@ export default function DailyView({ accessLevel, processes, indicators }) {
             </span>
 
             <div className="daily-pagination">
-              <button type="button">‹</button>
+              <button type="button">â€¹</button>
               <button type="button" className="active">1</button>
               <button type="button">2</button>
               <button type="button">3</button>
-              <button type="button">›</button>
+              <button type="button">â€º</button>
             </div>
           </footer>
         </article>

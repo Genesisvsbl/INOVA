@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import API from "../../api";
+import { showEtoConfirm } from "../../etoDialog.jsx";
 import {
   formatCaptureModeLabel,
   formatFrequencyLabel,
@@ -417,13 +418,13 @@ export default function HistoryView({
   async function handleDeleteHistory(item) {
     if (item.scope_type === "entity") {
       setMessage(
-        "La eliminación del histórico por entidad no está habilitada desde esta vista."
+        "La eliminaciÃ³n del histÃ³rico por entidad no estÃ¡ habilitada desde esta vista."
       );
       return;
     }
 
-    const ok = window.confirm(
-      `¿Deseas eliminar el registro del indicador "${item.indicator_code} - ${item.indicator_name}" del día ${item.record_date}?`
+    const ok = await showEtoConfirm(
+      `Â¿Deseas eliminar el registro del indicador "${item.indicator_code} - ${item.indicator_name}" del dÃ­a ${item.record_date}?`
     );
     if (!ok) return;
 
@@ -446,7 +447,7 @@ export default function HistoryView({
         !historyFilter.month ||
         !historyFilter.indicator_id
       ) {
-        setMessage("Debes seleccionar año, mes e indicador para carga masiva.");
+        setMessage("Debes seleccionar aÃ±o, mes e indicador para carga masiva.");
         return;
       }
 
@@ -553,7 +554,7 @@ export default function HistoryView({
         !historyFilter.indicator_id
       ) {
         setMessage(
-          "Debes seleccionar año, mes e indicador para carga por entidad."
+          "Debes seleccionar aÃ±o, mes e indicador para carga por entidad."
         );
         return;
       }
@@ -692,7 +693,7 @@ export default function HistoryView({
       const dates = Object.keys(groupedByDate);
 
       if (!dates.length) {
-        setMessage("No hay filas válidas para guardar.");
+        setMessage("No hay filas vÃ¡lidas para guardar.");
         return;
       }
 
@@ -760,9 +761,9 @@ export default function HistoryView({
       <header className="history-header">
         <div>
           <div className="history-kicker">CONSULTA</div>
-          <h2>Histórico y consolidado por proceso</h2>
+          <h2>HistÃ³rico y consolidado por proceso</h2>
           <p>
-            Consulta detalle histórico, filtra por indicador y usa carga masiva por mes.
+            Consulta detalle histÃ³rico, filtra por indicador y usa carga masiva por mes.
           </p>
         </div>
 
@@ -816,13 +817,13 @@ export default function HistoryView({
           </div>
           <div>
             <h3>Filtros de consulta</h3>
-            <p>Selecciona período, proceso, indicador y entidad para consultar el histórico.</p>
+            <p>Selecciona perÃ­odo, proceso, indicador y entidad para consultar el histÃ³rico.</p>
           </div>
         </div>
 
         <div className="history-filters-grid">
           <div className="history-field">
-            <label>Año</label>
+            <label>AÃ±o</label>
             <input
               type="number"
               value={historyFilter.year}
@@ -852,7 +853,7 @@ export default function HistoryView({
           </div>
 
           <div className="history-field">
-            <label>Día</label>
+            <label>DÃ­a</label>
             <input
               type="number"
               value={historyFilter.day}
@@ -937,7 +938,7 @@ export default function HistoryView({
         <div className="history-actions-bar">
           <button className="history-primary" disabled={loading}>
             <Search size={18} />
-            Consultar histórico
+            Consultar histÃ³rico
           </button>
 
           <button
@@ -1033,7 +1034,7 @@ export default function HistoryView({
                 <tr>
                   <th>Fecha</th>
                   {monthMatrixMeta.capture_mode === "single" ? (
-                    <th>Valor único</th>
+                    <th>Valor Ãºnico</th>
                   ) : (
                     <>
                       <th>Turno A</th>
@@ -1041,7 +1042,7 @@ export default function HistoryView({
                       <th>Turno C</th>
                     </>
                   )}
-                  <th>Observación</th>
+                  <th>ObservaciÃ³n</th>
                 </tr>
               </thead>
               <tbody>
@@ -1104,7 +1105,7 @@ export default function HistoryView({
                         onChange={(e) =>
                           updateMonthMatrixRow(index, "observation", e.target.value)
                         }
-                        placeholder="Observación"
+                        placeholder="ObservaciÃ³n"
                       />
                     </td>
                   </tr>
@@ -1116,7 +1117,7 @@ export default function HistoryView({
                       colSpan={monthMatrixMeta.capture_mode === "single" ? 3 : 5}
                       className="history-empty"
                     >
-                      Sin filas para el período seleccionado
+                      Sin filas para el perÃ­odo seleccionado
                     </td>
                   </tr>
                 )}
@@ -1146,7 +1147,7 @@ export default function HistoryView({
             <InfoChip label="Proceso" value={entityMatrixMeta.process_name || "-"} />
             <InfoChip label="Unidad" value={entityMatrixMeta.unit || "-"} />
             <InfoChip label="Frecuencia" value={formatFrequencyLabel(entityMatrixMeta.frequency)} />
-            <InfoChip label="Año" value={entityMatrixMeta.year} />
+            <InfoChip label="AÃ±o" value={entityMatrixMeta.year} />
             <InfoChip label="Mes" value={entityMatrixMeta.month} />
             <InfoChip label="Entidades" value={entityMatrixMeta.targets.length} />
           </div>
@@ -1157,7 +1158,7 @@ export default function HistoryView({
               <input
                 value={entityQuickFilter}
                 onChange={(e) => setEntityQuickFilter(e.target.value)}
-                placeholder="Buscar por nombre, código o tipo"
+                placeholder="Buscar por nombre, cÃ³digo o tipo"
               />
             </div>
           </div>
@@ -1168,10 +1169,10 @@ export default function HistoryView({
                 <tr>
                   <th>Tipo</th>
                   <th>Entidad</th>
-                  <th>Día</th>
+                  <th>DÃ­a</th>
                   <th>Meta</th>
                   <th>Valor</th>
-                  <th>Observación</th>
+                  <th>ObservaciÃ³n</th>
                 </tr>
               </thead>
               <tbody>
@@ -1218,7 +1219,7 @@ export default function HistoryView({
                             e.target.value
                           )
                         }
-                        placeholder="Observación"
+                        placeholder="ObservaciÃ³n"
                       />
                     </td>
                   </tr>
@@ -1227,7 +1228,7 @@ export default function HistoryView({
                 {!filteredEntityMatrixRows.length && (
                   <tr>
                     <td colSpan="6" className="history-empty">
-                      Sin filas para el período seleccionado
+                      Sin filas para el perÃ­odo seleccionado
                     </td>
                   </tr>
                 )}
@@ -1261,7 +1262,7 @@ export default function HistoryView({
                 {!entityMatrixAccumulated.length && (
                   <tr>
                     <td colSpan="5" className="history-empty">
-                      Aún no hay acumulados por entidad
+                      AÃºn no hay acumulados por entidad
                     </td>
                   </tr>
                 )}
@@ -1280,7 +1281,7 @@ export default function HistoryView({
               </div>
               <div>
                 <h3>Resumen por proceso</h3>
-                <p>Consolidado del resultado según los filtros activos.</p>
+                <p>Consolidado del resultado segÃºn los filtros activos.</p>
               </div>
             </div>
           </div>
@@ -1341,7 +1342,7 @@ export default function HistoryView({
               <ClipboardList size={22} />
             </div>
             <div>
-              <h3>Detalle histórico</h3>
+              <h3>Detalle histÃ³rico</h3>
               <p>Consulta el registro detallado de resultados capturados.</p>
             </div>
           </div>
@@ -1352,7 +1353,7 @@ export default function HistoryView({
               <input
                 value={historyQuickSearch}
                 onChange={(event) => setHistoryQuickSearch(event.target.value)}
-                placeholder="Buscar en histórico..."
+                placeholder="Buscar en histÃ³rico..."
               />
             </div>
             <button type="button" className="history-export-btn">
@@ -1466,11 +1467,11 @@ export default function HistoryView({
             Mostrando {visibleHistoryResults.length} de {historyResults.length} registros
           </span>
           <div className="history-pagination">
-            <button type="button">‹</button>
+            <button type="button">â€¹</button>
             <button type="button" className="active">1</button>
             <button type="button">2</button>
             <button type="button">3</button>
-            <button type="button">›</button>
+            <button type="button">â€º</button>
           </div>
         </footer>
       </section>

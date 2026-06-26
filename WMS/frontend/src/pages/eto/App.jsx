@@ -31,6 +31,7 @@ import DailyView from "./modules/daily/DailyView";
 import HistoryView from "./modules/history/HistoryView";
 import DashboardView from "./modules/dashboard/DashboardView";
 import AdminAccess from "../admin/AdminAccess";
+import { EtoDialogHost, showEtoConfirm } from "./etoDialog.jsx";
 
 const TABS = [
   { key: "portal", label: "Portal", permission: "eto.portal" },
@@ -762,7 +763,7 @@ export default function App() {
   }
 
   async function handleDeleteProcess(item) {
-    const ok = window.confirm(
+    const ok = await showEtoConfirm(
       `Deseas eliminar el proceso "${item.name}"?\n\nEsto tambien eliminara sus indicadores y registros asociados si existen.`
     );
     if (!ok) return;
@@ -870,7 +871,7 @@ export default function App() {
   }
 
   async function handleDeleteIndicator(item) {
-    const ok = window.confirm(
+    const ok = await showEtoConfirm(
       `Deseas eliminar el indicador "${item.code} - ${item.name}"?`
     );
     if (!ok) return;
@@ -1017,7 +1018,7 @@ export default function App() {
     const entityId = item.entity_id || item.id;
     const entityName = item.entity_name || item.name || "-";
 
-    const ok = window.confirm(
+    const ok = await showEtoConfirm(
       `Deseas eliminar la entidad "${entityName}"?`
     );
     if (!ok) return;
@@ -1092,7 +1093,7 @@ export default function App() {
   }
 
   async function handleDeleteEntityTarget(item) {
-    const ok = window.confirm(
+    const ok = await showEtoConfirm(
       `Deseas quitar a "${item.entity_name}" del indicador "${
         selectedIndicatorForEntities?.name || ""
       }"?`
@@ -1324,7 +1325,9 @@ export default function App() {
     >
       <style>{css}</style>
 
-      <header className="topbar" style={{ height: config.headerHeight }}>
+
+      <EtoDialogHost />
+<header className="topbar" style={{ height: config.headerHeight }}>
         <div className="topbar-left">
           <button
             type="button"
@@ -2564,4 +2567,3 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 
 `;
-

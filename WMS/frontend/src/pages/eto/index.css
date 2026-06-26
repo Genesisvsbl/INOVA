@@ -1875,3 +1875,143 @@ tbody tr:hover {
   color: #059669 !important;
   background: #ecfdf5 !important;
 }
+
+.eto-dialog-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(3, 10, 24, 0.58);
+  backdrop-filter: blur(8px);
+}
+
+.eto-dialog-card {
+  position: relative;
+  width: min(540px, calc(100vw - 32px));
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 26px 70px rgba(15, 23, 42, 0.26);
+  padding: 26px;
+  color: #071b36;
+  overflow: hidden;
+}
+
+.eto-dialog-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+  background: linear-gradient(90deg, #16a34a, #22c55e);
+}
+
+.eto-dialog-card.tone-danger::before { background: linear-gradient(90deg, #dc2626, #fb7185); }
+.eto-dialog-card.tone-warning::before { background: linear-gradient(90deg, #b45309, #f59e0b); }
+.eto-dialog-card.tone-success::before { background: linear-gradient(90deg, #047857, #22c55e); }
+
+.eto-dialog-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #d9e3f0;
+  border-radius: 12px;
+  display: inline-grid;
+  place-items: center;
+  background: #ffffff;
+  color: #0f1f36;
+  cursor: pointer;
+}
+
+.eto-dialog-main {
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  gap: 16px;
+  padding-right: 34px;
+}
+
+.eto-dialog-mark {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #bbf7d0;
+}
+
+.tone-danger .eto-dialog-mark { color: #dc2626; background: #fff1f2; border-color: #fecdd3; }
+.tone-warning .eto-dialog-mark { color: #b45309; background: #fffbeb; border-color: #fde68a; }
+.tone-success .eto-dialog-mark { color: #047857; background: #ecfdf5; border-color: #bbf7d0; }
+
+.eto-dialog-copy span {
+  display: block;
+  margin-bottom: 5px;
+  color: #047857;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.eto-dialog-copy h3 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  line-height: 1.08;
+  color: #08234a;
+}
+
+.eto-dialog-copy p {
+  margin: 4px 0 0;
+  color: #536783;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.eto-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.eto-dialog-btn {
+  min-width: 118px;
+  height: 42px;
+  border-radius: 14px;
+  border: 1px solid #d9e3f0;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.eto-dialog-btn.is-ghost {
+  color: #0f1f36;
+  background: #f8fbff;
+}
+
+.eto-dialog-btn.is-primary {
+  border-color: #16a34a;
+  color: #ffffff;
+  background: linear-gradient(135deg, #16a34a, #047857);
+  box-shadow: 0 12px 24px rgba(22, 163, 74, 0.22);
+}
+
+.tone-danger .eto-dialog-btn.is-primary {
+  border-color: #dc2626;
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  box-shadow: 0 12px 24px rgba(220, 38, 38, 0.18);
+}
+
+@media (max-width: 560px) {
+  .eto-dialog-layer { padding: 16px; }
+  .eto-dialog-card { padding: 22px 18px; border-radius: 18px; }
+  .eto-dialog-main { grid-template-columns: 1fr; padding-right: 28px; }
+  .eto-dialog-mark { width: 50px; height: 50px; border-radius: 16px; }
+  .eto-dialog-actions { flex-direction: column-reverse; }
+  .eto-dialog-btn { width: 100%; }
+}
