@@ -37,7 +37,7 @@ function addMonthsISO(fechaISO, meses) {
 
   target.setMonth(target.getMonth() + Number(meses));
 
-  // Si el dÃ­a no existe en el mes destino, usa el Ãºltimo dÃ­a vÃ¡lido.
+  // Si el día no existe en el mes destino, usa el último día válido.
   // Ejemplo: 31/01 + 1 mes => 28/02 o 29/02.
   if (target.getDate() !== originalDay) {
     target.setDate(0);
@@ -63,7 +63,7 @@ function getVigenciaMeses(material) {
   const meses = Number(rawMeses);
   if (Number.isFinite(meses) && meses > 0) return Math.round(meses);
 
-  // Compatibilidad por si aÃºn llega del backend como vigencia_dias.
+  // Compatibilidad por si aún llega del backend como vigencia_dias.
   const rawDias =
     material.vigencia_dias ??
     material.vigenciaDias ??
@@ -100,6 +100,36 @@ function getEmpaqueMaterial(material) {
   return value.toUpperCase();
 }
 
+function isAmcorProveedor(nombre) {
+  return String(nombre || "").toUpperCase().includes("AMCOR");
+}
+
+function yearFromISO(fechaISO) {
+  const year = Number(String(fechaISO || "").slice(0, 4));
+  return Number.isInteger(year) && year > 1900 ? year : new Date().getFullYear();
+}
+
+function extractJulianDayFromLote(lote) {
+  const clean = String(lote || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (clean.length >= 6) {
+    const mid = clean.slice(3, 6);
+    if (/^\d{3}$/.test(mid)) return Number(mid);
+  }
+  const fallback = clean.match(/\d{3}/);
+  return fallback ? Number(fallback[0]) : null;
+}
+
+function fechaFromJulianDay(day, year) {
+  const julian = Number(day);
+  const yyyy = Number(year);
+  if (!Number.isInteger(julian) || julian < 1 || julian > 366) return "";
+  if (!Number.isInteger(yyyy) || yyyy < 1900) return "";
+  const d = new Date(yyyy, 0, julian);
+  if (d.getFullYear() !== yyyy) return "";
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
 
 function clampMaxLen(s, max) {
   const str = (s ?? "").toString();
@@ -525,6 +555,19 @@ export default function Recibo() {
   const [novedadOpen, setNovedadOpen] = useState(false);
   const [errores, setErrores] = useState({});
   const [validationNotice, setValidationNotice] = useState(null);
+  const [amcorToolboxOpen, setAmcorToolboxOpen] = useState(false);
+  const [amcorSetup, setAmcorSetup] = useState({ cantidadLineas: 40, sku: "" });
+  const loteInputRefs = useRef([]);
+
+  const proveedorEsAmcor = useMemo(
+    () => isAmcorProveedor(header.proveedor),
+    [header.proveedor]
+  );
+
+  const amcorMateriales = useMemo(
+    () => (materiales || []).filter((m) => getEmpaqueMaterial(m) === "GAYLORD"),
+    [materiales]
+  );
 
   useEffect(() => {
     const auth = sessionStorage.getItem("auth");
@@ -697,12 +740,22 @@ export default function Recibo() {
 
   const onProveedorSelect = (proveedorId) => {
     const p = proveedores.find((x) => String(x.id) === String(proveedorId));
+    const nombreProveedor = p ? p.nombre : "";
     setHeader((prev) => ({
       ...prev,
       proveedor_id: proveedorId,
-      proveedor: p ? p.nombre : "",
+      proveedor: nombreProveedor,
       acreedor: p ? p.acreedor : "",
     }));
+
+    if (tipoRecibo === "recibo" && isAmcorProveedor(nombreProveedor)) {
+      const firstAmcor = amcorMateriales[0] || materiales.find((m) => getEmpaqueMaterial(m) === "GAYLORD");
+      setAmcorSetup((prev) => ({
+        ...prev,
+        sku: prev.sku || firstAmcor?.codigo || "",
+      }));
+      setAmcorToolboxOpen(true);
+    }
   };
 
   const onField10Change = (key, raw) => {
@@ -710,7 +763,7 @@ export default function Recibo() {
     setHeaderField(key, v);
 
     if ((raw ?? "").toString().length > 10) {
-      setErrores((e) => ({ ...e, [key]: "MÃ¡ximo 10 caracteres." }));
+      setErrores((e) => ({ ...e, [key]: "Máximo 10 caracteres." }));
     } else {
       setErrores((e) => {
         const copy = { ...e };
@@ -739,6 +792,16 @@ export default function Recibo() {
 
   const addLinea = () => {
     setLineas((prev) => [...prev, createEmptyLinea()]);
+  };
+
+  const focusLoteProveedor = (idx) => {
+    window.setTimeout(() => {
+      const input = loteInputRefs.current[idx];
+      if (input) {
+        input.focus();
+        input.select?.();
+      }
+    }, 80);
   };
 
   const removeLinea = (idx) =>
@@ -777,7 +840,7 @@ export default function Recibo() {
   const onCertificadoChange = async (idx, file) => {
     if (!file) return;
     if (tipoRecibo === "devolucion") {
-      showWmsAlert("En devoluciÃ³n no aplica certificado de calidad porque es un movimiento interno.");
+      showWmsAlert("En devolución no aplica certificado de calidad porque es un movimiento interno.");
       return;
     }
     const maxBytes = 7 * 1024 * 1024;
@@ -893,25 +956,116 @@ export default function Recibo() {
     );
   };
 
-  const onLoteProveedorChange = (idx, value) => {
-    const clamped = limit10(value);
-    setLinea(idx, {
+  const buildLoteProveedorPatch = (idx, value) => {
+    const raw = String(value || "").toUpperCase().replace(/[^A-Z0-9*]/g, "");
+    const clamped = limit10(raw);
+    const patch = {
       lote_proveedor: clamped,
       lote: "",
-    });
+    };
+
+    if (proveedorEsAmcor) {
+      const julianDay = extractJulianDayFromLote(clamped);
+      const year = yearFromISO(lineas[idx]?.fecha_recepcion || header.fecha_recepcion);
+      const fechaFabricacion = fechaFromJulianDay(julianDay, year);
+
+      if (fechaFabricacion) {
+        const vigencia = lineas[idx]?.vigencia_meses;
+        const fechaVencimiento = vigencia
+          ? calcularFVPorVigencia(fechaFabricacion, lineas[idx]?.fecha_recepcion, vigencia)
+          : lineas[idx]?.fecha_vencimiento || "";
+
+        patch.fecha_fabricacion = fechaFabricacion;
+        patch.fecha_vencimiento = fechaVencimiento;
+        patch.fv_automatica = !!vigencia && !!fechaVencimiento;
+      }
+    }
+
+    return patch;
+  };
+
+  const onLoteProveedorChange = (idx, value) => {
+    setLinea(idx, buildLoteProveedorPatch(idx, value));
 
     if ((value ?? "").toString().length > 10) {
       setErrores((e) => ({
         ...e,
-        [`loteprov_${idx}`]: "Lote proveedor mÃ¡ximo 10 caracteres.",
+        [`loteprov_${idx}`]: "Lote proveedor máximo 10 caracteres.",
       }));
-    } else {
-      setErrores((e) => {
-        const copy = { ...e };
-        delete copy[`loteprov_${idx}`];
-        return copy;
-      });
+      return;
     }
+
+    setErrores((e) => {
+      const copy = { ...e };
+      delete copy[`loteprov_${idx}`];
+      delete copy[`ff_${idx}`];
+      delete copy[`fv_${idx}`];
+      return copy;
+    });
+
+    if (proveedorEsAmcor && String(value || "").trim().length >= 10) {
+      focusLoteProveedor(idx + 1);
+    }
+  };
+
+  const onLoteProveedorKeyDown = (idx, event) => {
+    if (!proveedorEsAmcor) return;
+    if (event.key !== "Enter" && event.key !== "Tab") return;
+
+    const value = event.currentTarget.value;
+    if (String(value || "").trim().length < 10) return;
+
+    if (event.key === "Enter") event.preventDefault();
+    focusLoteProveedor(idx + 1);
+  };
+
+  const prepararReciboAmcor = () => {
+    const cantidad = Math.max(1, Math.min(80, Number(amcorSetup.cantidadLineas) || 40));
+    const sku = String(amcorSetup.sku || "").trim();
+    if (!sku) {
+      showWmsAlert("Selecciona el SKU AMCOR para preparar las lineas.");
+      return;
+    }
+
+    const mat = materiales.find((m) => String(m.codigo) === sku);
+    if (!mat) {
+      showWmsAlert("El SKU seleccionado no existe en materiales.");
+      return;
+    }
+
+    const unidadMaterial = mat?.unidad ?? null;
+    const unidadNumero = Number(unidadMaterial);
+    const bloquearUmb = Number.isFinite(unidadNumero) && unidadNumero > 1;
+    const umbFinal = bloquearUmb ? String(unidadNumero) : "";
+    const vigenciaMeses = getVigenciaMeses(mat);
+    const empaqueAuto = getEmpaqueMaterial(mat);
+
+    const nuevasLineas = Array.from({ length: cantidad }, () => ({
+      ...createEmptyLinea(),
+      fecha_recepcion: header.fecha_recepcion || todayISODate(),
+      codigo: sku,
+      descripcion: mat.descripcion || "",
+      empaque: empaqueAuto,
+      unidad_material: unidadMaterial,
+      umb: umbFinal,
+      umb_bloqueado: bloquearUmb,
+      um: mat.unidad_medida || "",
+      cantidad: "1",
+      total: recomputeTotal(umbFinal, "1"),
+      vigencia_meses: vigenciaMeses || null,
+      fv_automatica: false,
+    }));
+
+    setLineas(nuevasLineas);
+    setAmcorToolboxOpen(false);
+    setErrores((prev) => {
+      const copy = { ...prev };
+      Object.keys(copy).forEach((key) => {
+        if (/^(codigo|empaque|cantidad|umb|loteprov|ff|fv)_/.test(key)) delete copy[key];
+      });
+      return copy;
+    });
+    focusLoteProveedor(0);
   };
 
   const onFechaFabricacionChange = (idx, value) => {
@@ -938,7 +1092,7 @@ export default function Recibo() {
     const errs = {};
 
     if (!tipoRecibo)
-      errs.tipoRecibo = "Debes seleccionar Recibo o DevoluciÃ³n.";
+      errs.tipoRecibo = "Debes seleccionar Recibo o Devolución.";
 
     ["documento"].forEach((k) => {
       if (!header[k] || header[k].length !== 10) {
@@ -958,20 +1112,20 @@ export default function Recibo() {
 
     if (tipoRecibo === "devolucion") {
       if (header.remesa_transp !== "**********") {
-        errs.remesa_transp = "En devoluciÃ³n debe quedar en **********.";
+        errs.remesa_transp = "En devolución debe quedar en **********.";
       }
       if (header.orden_compra !== "**********") {
-        errs.orden_compra = "En devoluciÃ³n debe quedar en **********.";
+        errs.orden_compra = "En devolución debe quedar en **********.";
       }
     }
 
     if (!header.proveedor_id) errs.proveedor = "Proveedor obligatorio.";
     if (!header.acreedor) errs.acreedor = "Acreedor obligatorio.";
     if (!header.auxiliar || !header.auxiliar.trim()) errs.auxiliar = "Auxiliar obligatorio.";
-    if (!usuario) errs.usuario = "Usuario no identificado en sesiÃ³n.";
+    if (!usuario) errs.usuario = "Usuario no identificado en sesión.";
 
     lineas.forEach((ln, idx) => {
-      if (!ln.codigo) errs[`codigo_${idx}`] = "CÃ³digo obligatorio.";
+      if (!ln.codigo) errs[`codigo_${idx}`] = "Código obligatorio.";
       if (!ln.empaque) errs[`empaque_${idx}`] = "Empaque obligatorio.";
       if (!ln.cantidad || Number(ln.cantidad) <= 0)
         errs[`cantidad_${idx}`] = "Cantidad > 0 obligatoria.";
@@ -995,7 +1149,7 @@ export default function Recibo() {
 
   const onGuardarRecibo = async () => {
     if (!tipoRecibo) {
-      showWmsAlert("Debes seleccionar primero Recibo o DevoluciÃ³n.");
+      showWmsAlert("Debes seleccionar primero Recibo o Devolución.");
       return;
     }
 
@@ -1105,6 +1259,69 @@ export default function Recibo() {
       .join("");
   };
 
+  const buildRangosVencimiento = () => {
+    const groups = new Map();
+
+    lineas.forEach((ln) => {
+      const descripcion = String(ln.descripcion || "").trim();
+      const fechaVencimiento = formatDateDisplay(ln.fecha_vencimiento);
+      const lote = cleanBarcodeValue(ln.lote_proveedor || "").toUpperCase();
+      if (!descripcion || !fechaVencimiento || !lote) return;
+
+      const key = `${descripcion}||${fechaVencimiento}`;
+      const actual = groups.get(key) || {
+        descripcion,
+        fechaVencimiento,
+        cantidad: 0,
+        total: 0,
+        lotes: [],
+      };
+
+      actual.cantidad += 1;
+      actual.total += Number(ln.total) || 0;
+      actual.lotes.push(lote);
+      groups.set(key, actual);
+    });
+
+    const rows = Array.from(groups.values())
+      .map((row) => {
+        const sortedLotes = row.lotes
+          .filter(Boolean)
+          .sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
+        const first = sortedLotes[0] || "";
+        const last = sortedLotes[sortedLotes.length - 1] || "";
+        return {
+          ...row,
+          rango: first && last ? `${first} - ${last}` : first || last,
+        };
+      })
+      .sort((a, b) =>
+        a.descripcion.localeCompare(b.descripcion, "es", { numeric: true }) ||
+        a.fechaVencimiento.localeCompare(b.fechaVencimiento)
+      );
+
+    return rows;
+  };
+
+  const buildRangosRowsHtml = (rows) => {
+    let previousDescription = "";
+    return rows
+      .map((row) => {
+        const showDescription = row.descripcion !== previousDescription;
+        previousDescription = row.descripcion;
+        return `
+          <tr>
+            <td>${showDescription ? escapeHtml(row.descripcion) : ""}</td>
+            <td>${escapeHtml(formatDateDots(row.fechaVencimiento))}</td>
+            <td style="text-align:right;">${escapeHtml(row.cantidad)}</td>
+            <td style="text-align:right;">${escapeHtml(formatMoney(row.total))}</td>
+            <td>${escapeHtml(row.rango)}</td>
+          </tr>
+        `;
+      })
+      .join("");
+  };
+
   const buildNovedadesRowsHtml = () => {
     const rows = novedades
       .map((nov) => {
@@ -1155,7 +1372,7 @@ export default function Recibo() {
 
                   <div>
                     <div class="id-brand-title">WMS INOVA</div>
-                    <div class="id-brand-sub">Tarjeta de identificaciÃ³n logÃ­stica</div>
+                    <div class="id-brand-sub">Tarjeta de identificación logística</div>
                   </div>
                 </div>
 
@@ -1167,7 +1384,7 @@ export default function Recibo() {
 
               <div class="id-main-grid">
                 <div class="id-main-cell">
-                  <div class="id-label-mini">CÃ“DIGO</div>
+                  <div class="id-label-mini">CÓDIGO</div>
                   <div class="id-main-value">${escapeHtml(codigo || "-")}</div>
                 </div>
 
@@ -1180,7 +1397,7 @@ export default function Recibo() {
               </div>
 
               <div class="id-description-block">
-                <div class="id-label-mini">DESCRIPCIÃ“N</div>
+                <div class="id-label-mini">DESCRIPCIÓN</div>
                 <div class="id-description-text">${escapeHtml(
                   descripcion || "-"
                 )}</div>
@@ -1262,13 +1479,13 @@ export default function Recibo() {
 
   const onImprimir = () => {
     if (!tipoRecibo) {
-      showWmsAlert("Debes seleccionar primero Recibo o DevoluciÃ³n.");
+      showWmsAlert("Debes seleccionar primero Recibo o Devolución.");
       return;
     }
 
     const w = window.open("", "_blank", "width=1600,height=1000");
     if (!w) {
-      showWmsAlert("El navegador bloqueÃ³ la ventana de impresiÃ³n.");
+      showWmsAlert("El navegador bloqueó la ventana de impresión.");
       return;
     }
 
@@ -1280,6 +1497,8 @@ export default function Recibo() {
 
     const reciboRowsHtml = buildReciboRowsHtml();
     const novedadesRowsHtml = buildNovedadesRowsHtml();
+    const rangosVencimiento = buildRangosVencimiento();
+    const rangosRowsHtml = buildRangosRowsHtml(rangosVencimiento);
     const tarjetasHtml = buildTarjetasHtml();
     const barcodeScript = buildBarcodeScript();
 
@@ -1287,7 +1506,7 @@ export default function Recibo() {
       <html>
         <head>
           <title>${escapeHtml(
-            tipoRecibo === "devolucion" ? "DevoluciÃ³n" : "Recibo ciego"
+            tipoRecibo === "devolucion" ? "Devolución" : "Recibo ciego"
           )} - ${escapeHtml(header.serial)}</title>
           <meta charset="utf-8" />
           <link rel="preload" as="image" href="/favicon1.ico" />
@@ -1531,7 +1750,71 @@ export default function Recibo() {
               font-weight: 900;
             }
 
-            /* TARJETAS / RÃ“TULOS: 4 POR HOJA A4 LANDSCAPE */
+            .ranges-page {
+              page-break-after: always;
+              min-height: 186mm;
+              padding: 8mm 0;
+            }
+
+            .ranges-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              border-bottom: 2px solid #0f2744;
+              padding-bottom: 10px;
+              margin-bottom: 14px;
+            }
+
+            .ranges-title {
+              font-size: 24px;
+              font-weight: 900;
+              color: #0f2744;
+              letter-spacing: .02em;
+              text-transform: uppercase;
+            }
+
+            .ranges-subtitle {
+              margin-top: 4px;
+              color: #64748b;
+              font-size: 12px;
+              font-weight: 700;
+            }
+
+            .ranges-table {
+              width: 100%;
+              table-layout: fixed;
+              border-collapse: collapse;
+              font-size: 11px;
+            }
+
+            .ranges-table th,
+            .ranges-table td {
+              border: 1px solid #cbd5e1;
+              padding: 5px 7px;
+              line-height: 1.15;
+              font-weight: 800;
+            }
+
+            .ranges-table th {
+              background: #0f2744;
+              color: #fff;
+              text-transform: uppercase;
+              letter-spacing: .02em;
+              text-align: center;
+            }
+
+            .ranges-table td:first-child {
+              font-weight: 900;
+              color: #0f172a;
+            }
+
+            .ranges-total-row td {
+              background: #0f2744;
+              color: #fff;
+              font-weight: 900;
+            }
+
+            /* TARJETAS / RÓTULOS: 4 POR HOJA A4 LANDSCAPE */
             .card-sheet {
               width: 50%;
               height: 88mm;
@@ -1741,12 +2024,12 @@ export default function Recibo() {
                   <div class="receipt-title">
                     ${escapeHtml(
                       tipoRecibo === "devolucion"
-                        ? "DEVOLUCIÃ“N"
+                        ? "DEVOLUCIÓN"
                         : "RECIBO CIEGO"
                     )}
                   </div>
                   <div class="receipt-subtitle">
-                    Formato de recepciÃ³n y trazabilidad de ingreso
+                    Formato de recepción y trazabilidad de ingreso
                   </div>
                 </div>
               </div>
@@ -1776,7 +2059,7 @@ export default function Recibo() {
               </div>
 
               <div class="summary-card">
-                <div class="summary-label">LÃ­neas</div>
+                <div class="summary-label">Líneas</div>
                 <div class="summary-value">${lineas.length}</div>
               </div>
 
@@ -1808,8 +2091,8 @@ export default function Recibo() {
                 <tr>
                   <th>Item</th>
                   <th># Serial</th>
-                  <th>Fecha recepciÃ³n</th>
-                  <th>CÃ³digo</th>
+                  <th>Fecha recepción</th>
+                  <th>Código</th>
                   <th>Texto breve material</th>
                   <th>Empaque</th>
                   <th>UMB</th>
@@ -1817,7 +2100,7 @@ export default function Recibo() {
                   <th>Cantidad</th>
                   <th>Total</th>
                   <th>Lote proveedor</th>
-                  <th>F. fabricaciÃ³n</th>
+                  <th>F. fabricación</th>
                   <th>F. vencimiento</th>
                 </tr>
               </thead>
@@ -1828,7 +2111,7 @@ export default function Recibo() {
 
             ${tipoRecibo === "recibo" && novedadesRowsHtml ? `
               <div class="receipt-novelty-wrap">
-                <div class="receipt-novelty-title">NOVEDAD POR ITEM DETECTADA EN EL RECIBO FÃSICO</div>
+                <div class="receipt-novelty-title">NOVEDAD POR ITEM DETECTADA EN EL RECIBO FÍSICO</div>
                 <table class="receipt-novelty-table">
                   <colgroup>
                     <col style="width: 18%" />
@@ -1856,6 +2139,52 @@ export default function Recibo() {
             </div>
           </section>
 
+          ${rangosRowsHtml ? `
+            <section class="page ranges-page">
+              <div class="ranges-header">
+                <div>
+                  <div class="ranges-title">Resumen por vencimiento</div>
+                  <div class="ranges-subtitle">Agrupación automática por material, fecha de vencimiento y rango de lotes.</div>
+                </div>
+                <div class="receipt-meta">
+                  <div><b>Proveedor:</b> ${escapeHtml(proveedorNombre || "-")}</div>
+                  <div><b>Serial:</b> ${escapeHtml(header.serial || "-")}</div>
+                  <div><b>Fecha:</b> ${escapeHtml(header.fecha_recepcion || "-")}</div>
+                  <div><b>Líneas:</b> ${lineas.length}</div>
+                </div>
+              </div>
+
+              <table class="ranges-table">
+                <colgroup>
+                  <col style="width: 38%" />
+                  <col style="width: 16%" />
+                  <col style="width: 10%" />
+                  <col style="width: 13%" />
+                  <col style="width: 23%" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Descripción del material</th>
+                    <th>Fecha de vencimiento</th>
+                    <th>Cantidad</th>
+                    <th>Total</th>
+                    <th>Rangos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rangosRowsHtml}
+                  <tr class="ranges-total-row">
+                    <td>Total general</td>
+                    <td></td>
+                    <td style="text-align:right;">${rangosVencimiento.reduce((acc, row) => acc + row.cantidad, 0)}</td>
+                    <td style="text-align:right;">${escapeHtml(formatMoney(rangosVencimiento.reduce((acc, row) => acc + row.total, 0)))}</td>
+                    <td></td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+          ` : ""}
+
           ${tarjetasHtml}
 
           <script>
@@ -1880,7 +2209,7 @@ export default function Recibo() {
     !tipoRecibo
       ? "Selecciona tipo de movimiento"
       : tipoRecibo === "devolucion"
-      ? "DevoluciÃ³n"
+      ? "Devolución"
       : "Recibo ciego";
 
   return (
@@ -2085,8 +2414,8 @@ export default function Recibo() {
                   marginTop: 4,
                 }}
               >
-                Registro de entrada con impresiÃ³n, trazabilidad y preparaciÃ³n
-                para asignaciÃ³n de ubicaciÃ³n.
+                Registro de entrada con impresión, trazabilidad y preparación
+                para asignación de ubicación.
               </div>
             </div>
           </div>
@@ -2100,7 +2429,7 @@ export default function Recibo() {
                 </button>
                 <button onClick={onGuardarRecibo} style={primaryButtonStyle}>
                   <Save size={15} />
-                  Guardar y asignar ubicaciÃ³n
+                  Guardar y asignar ubicación
                 </button>
               </>
             )}
@@ -2145,7 +2474,7 @@ export default function Recibo() {
               }}
             >
               <RotateCcw size={15} />
-              DevoluciÃ³n
+              Devolución
             </button>
 
             {!tipoRecibo && (
@@ -2155,7 +2484,7 @@ export default function Recibo() {
               <StatusChip label="Modo recibo" tone="blue" />
             )}
             {tipoRecibo === "devolucion" && (
-              <StatusChip label="Modo devoluciÃ³n" tone="green" />
+              <StatusChip label="Modo devolución" tone="green" />
             )}
           </div>
 
@@ -2188,7 +2517,7 @@ export default function Recibo() {
                 fontWeight: 600,
               }}
             >
-              Selecciona primero <b>Recibo</b> o <b>DevoluciÃ³n</b> para
+              Selecciona primero <b>Recibo</b> o <b>Devolución</b> para
               continuar.
             </div>
           )}
@@ -2265,7 +2594,7 @@ export default function Recibo() {
                           clampMaxLen(e.target.value.toUpperCase(), 40)
                         )
                       }
-                      placeholder="Nombre del auxiliar encargado de pegar el rÃ³tulo.
+                      placeholder="Nombre del auxiliar encargado de pegar el rótulo.
 "
                       style={inputStyle}
                     />
@@ -2334,7 +2663,7 @@ export default function Recibo() {
                   </div>
 
                   <div>
-                    <div style={fieldLabelStyle}>Fecha recepciÃ³n</div>
+                    <div style={fieldLabelStyle}>Fecha recepción</div>
                     <div
                       style={{
                         ...readOnlyInputStyle,
@@ -2473,7 +2802,7 @@ export default function Recibo() {
                   </div>
 
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <StatusChip label={`LÃ­neas: ${lineas.length}`} tone="blue" />
+                    <StatusChip label={`Líneas: ${lineas.length}`} tone="blue" />
                     <StatusChip
                       label={`Usuario: ${usuario || "-"}`}
                       tone="green"
@@ -2501,9 +2830,24 @@ export default function Recibo() {
                 flexWrap: "wrap",
               }}
             >
-              <div>Detalle de lÃ­neas</div>
+              <div>Detalle de líneas</div>
 
               <div style={{ display: "flex", gap: 8 }}>
+                {tipoRecibo === "recibo" && proveedorEsAmcor && (
+                  <button
+                    onClick={() => setAmcorToolboxOpen(true)}
+                    style={{
+                      ...secondaryButtonStyle,
+                      borderColor: colors.infoBd,
+                      background: colors.infoBg,
+                      color: colors.blue,
+                    }}
+                    title="Preparar lineas AMCOR"
+                  >
+                    <ClipboardList size={15} />
+                    AMCOR
+                  </button>
+                )}
                 {tipoRecibo === "recibo" && (
                   <button
                     onClick={() => setNovedadOpen((value) => !value)}
@@ -2523,7 +2867,7 @@ export default function Recibo() {
                 )}
                 <button onClick={addLinea} style={secondaryButtonStyle}>
                   <Plus size={15} />
-                  Agregar lÃ­nea
+                  Agregar línea
                 </button>
                 <button onClick={onImprimir} style={secondaryButtonStyle}>
                   <Printer size={15} />
@@ -2554,8 +2898,8 @@ export default function Recibo() {
                   <tr>
                     <th style={thStyle}># Serial</th>
                     <th style={thStyle}>Item</th>
-                    <th style={thStyle}>Fecha recepciÃ³n</th>
-                    <th style={thStyle}>CÃ³digo</th>
+                    <th style={thStyle}>Fecha recepción</th>
+                    <th style={thStyle}>Código</th>
                     <th style={thStyle}>Texto breve material</th>
                     <th style={thStyle}>Empaque</th>
                     <th style={thStyle}>UMB</th>
@@ -2563,7 +2907,7 @@ export default function Recibo() {
                     <th style={thStyle}>Cantidad</th>
                     <th style={thStyle}>Total</th>
                     <th style={thStyle}>Lote proveedor (10)</th>
-                    <th style={thStyle}>Fecha fabricaciÃ³n</th>
+                    <th style={thStyle}>Fecha fabricación</th>
                     <th style={thStyle}>Fecha vencimiento</th>
                     <th style={thStyle}>Acciones</th>
                   </tr>
@@ -2590,7 +2934,7 @@ export default function Recibo() {
                           list="materialesList"
                           value={ln.codigo}
                           onChange={(e) => onCodigoChange(idx, e.target.value)}
-                          placeholder="CÃ³digo"
+                          placeholder="Código"
                           style={detailInputStyle}
                         />
                         {!!errores[`codigo_${idx}`] && (
@@ -2709,19 +3053,19 @@ export default function Recibo() {
                       </td>
                       <td style={tdStyle}>
                         <input
+                          ref={(node) => {
+                            loteInputRefs.current[idx] = node;
+                          }}
                           value={ln.lote_proveedor}
                           onChange={(e) =>
                             onLoteProveedorChange(idx, e.target.value)
                           }
+                          onKeyDown={(e) => onLoteProveedorKeyDown(idx, e)}
                           onBlur={() =>
-                            setLinea(idx, {
-                              lote_proveedor: pad10WithStarsAny(
-                                ln.lote_proveedor
-                              ),
-                            })
+                            setLinea(idx, buildLoteProveedorPatch(idx, pad10WithStarsAny(ln.lote_proveedor)))
                           }
                           maxLength={10}
-                          placeholder="10 caracteres"
+                          placeholder={proveedorEsAmcor ? "Escanea lote" : "10 caracteres"}
                           style={detailInputStyle}
                         />
                         {!!errores[`loteprov_${idx}`] && (
@@ -2769,7 +3113,7 @@ export default function Recibo() {
                               color: colors.good,
                             }}
                           >
-                            AutomÃ¡tica: {ln.vigencia_meses} meses desde fabricaciÃ³n
+                            Automática: {ln.vigencia_meses} meses desde fabricación
                           </div>
                         )}
                         {!!errores[`fv_${idx}`] && (
@@ -2795,7 +3139,7 @@ export default function Recibo() {
                         >
                           {tipoRecibo === "devolucion" ? (
                           <span
-                            title="No aplica certificado de calidad en devoluciÃ³n"
+                            title="No aplica certificado de calidad en devolución"
                             style={{
                               minWidth: 86,
                               height: 30,
@@ -2941,6 +3285,186 @@ export default function Recibo() {
                   </option>
                 ))}
               </datalist>
+
+              {tipoRecibo === "recibo" && amcorToolboxOpen && (
+                <div
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    zIndex: 80,
+                    background: "rgba(15,23,42,.42)",
+                    display: "grid",
+                    placeItems: "center",
+                    padding: 20,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "min(760px, calc(100vw - 36px))",
+                      borderRadius: 18,
+                      background: "#fff",
+                      border: `1px solid ${colors.border}`,
+                      boxShadow: "0 28px 70px rgba(15,23,42,.28)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: "18px 20px",
+                        borderBottom: `1px solid ${colors.border}`,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 12,
+                      }}
+                    >
+                      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                        <div
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: 12,
+                            background: colors.infoBg,
+                            border: `1px solid ${colors.infoBd}`,
+                            color: colors.blue,
+                            display: "grid",
+                            placeItems: "center",
+                          }}
+                        >
+                          <ClipboardList size={21} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: ".08em", textTransform: "uppercase", color: colors.blue }}>Toolbox AMCOR</div>
+                          <div style={{ fontSize: 22, fontWeight: 950, color: colors.navy }}>
+                            Preparar recibo por escáner
+                          </div>
+                          <div style={{ color: colors.muted, fontSize: 13, marginTop: 3 }}>
+                            Crea las lineas, deja el SKU listo y captura lotes sin usar el mouse.
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAmcorToolboxOpen(false)}
+                        style={{
+                          ...secondaryButtonStyle,
+                          width: 42,
+                          padding: 0,
+                          justifyContent: "center",
+                        }}
+                        title="Cerrar"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    <div style={{ padding: 20, display: "grid", gap: 16 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.3fr", gap: 14 }}>
+                        <div>
+                          <div style={fieldLabelStyle}>Lineas a preparar</div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                            {[36, 40].map((qty) => (
+                              <button
+                                key={qty}
+                                type="button"
+                                onClick={() => setAmcorSetup((prev) => ({ ...prev, cantidadLineas: qty }))}
+                                style={{
+                                  ...secondaryButtonStyle,
+                                  justifyContent: "center",
+                                  background: Number(amcorSetup.cantidadLineas) === qty ? colors.infoBg : "#fff",
+                                  borderColor: Number(amcorSetup.cantidadLineas) === qty ? colors.blue : colors.border,
+                                  color: Number(amcorSetup.cantidadLineas) === qty ? colors.blue : colors.text,
+                                }}
+                              >
+                                {qty} lineas
+                              </button>
+                            ))}
+                          </div>
+                          <input
+                            type="number"
+                            min="1"
+                            max="80"
+                            value={amcorSetup.cantidadLineas}
+                            onChange={(e) => setAmcorSetup((prev) => ({ ...prev, cantidadLineas: e.target.value }))}
+                            style={inputStyle}
+                          />
+                        </div>
+                        <div>
+                          <div style={fieldLabelStyle}>SKU base AMCOR</div>
+                          <select
+                            value={amcorSetup.sku}
+                            onChange={(e) => setAmcorSetup((prev) => ({ ...prev, sku: e.target.value }))}
+                            style={selectStyle}
+                          >
+                            <option value="">Selecciona SKU...</option>
+                            {(amcorMateriales.length ? amcorMateriales : materiales).map((m) => (
+                              <option key={m.id || m.codigo} value={m.codigo}>
+                                {m.codigo} - {m.descripcion}
+                              </option>
+                            ))}
+                          </select>
+                          <div style={{ ...detailHelpStyle, marginTop: 8 }}>
+                            El lote se lee por escáner. El sistema toma los digitos julianos del lote y calcula fabricacion + vencimiento.
+                          </div>
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(3, 1fr)",
+                          gap: 10,
+                        }}
+                      >
+                        <div style={{ minHeight: 76, padding: 12, borderRadius: 12, border: `1px solid ${colors.border}`, background: "#f8fafc" }}>
+                          <div style={{ fontSize: 10, fontWeight: 950, color: colors.muted, textTransform: "uppercase", letterSpacing: ".06em" }}>Proveedor</div>
+                          <div style={{ marginTop: 6, fontSize: 16, fontWeight: 950, color: colors.navy }}>{header.proveedor || "AMCOR"}</div>
+                        </div>
+                        <div style={{ minHeight: 76, padding: 12, borderRadius: 12, border: `1px solid ${colors.border}`, background: "#f8fafc" }}>
+                          <div style={{ fontSize: 10, fontWeight: 950, color: colors.muted, textTransform: "uppercase", letterSpacing: ".06em" }}>Año calendario</div>
+                          <div style={{ marginTop: 6, fontSize: 16, fontWeight: 950, color: colors.navy }}>{yearFromISO(header.fecha_recepcion)}</div>
+                        </div>
+                        <div style={{ minHeight: 76, padding: 12, borderRadius: 12, border: `1px solid ${colors.border}`, background: "#f8fafc" }}>
+                          <div style={{ fontSize: 10, fontWeight: 950, color: colors.muted, textTransform: "uppercase", letterSpacing: ".06em" }}>Ejemplo lectura</div>
+                          <div style={{ marginTop: 6, fontSize: 16, fontWeight: 950, color: colors.navy }}>HOG0525914</div>
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          padding: "11px 12px",
+                          borderRadius: 12,
+                          border: `1px solid ${colors.infoBd}`,
+                          background: colors.infoBg,
+                          color: colors.blue,
+                          fontWeight: 850,
+                          fontSize: 13,
+                        }}
+                      >
+                        Al confirmar, el cursor queda en el primer lote. Cuando pistolees un lote de 10 caracteres, salta automáticamente al siguiente.
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        padding: "16px 20px",
+                        borderTop: `1px solid ${colors.border}`,
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        gap: 10,
+                      }}
+                    >
+                      <button type="button" onClick={() => setAmcorToolboxOpen(false)} style={secondaryButtonStyle}>
+                        Cancelar
+                      </button>
+                      <button type="button" onClick={prepararReciboAmcor} style={primaryButtonStyle}>
+                        <Save size={16} />
+                        Crear líneas y capturar lotes
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {tipoRecibo === "recibo" && novedadOpen && (
                 <div
@@ -3101,7 +3625,7 @@ export default function Recibo() {
                       background: "#f8fafc",
                     }}
                   >
-                    Solo para impresiÃ³n. No afecta inventario ni guardado.
+                    Solo para impresión. No afecta inventario ni guardado.
                   </div>
                 </div>
               )}
@@ -3123,14 +3647,14 @@ export default function Recibo() {
                 fontWeight: 600,
               }}
             >
-              El flujo, la impresiÃ³n y el guardado hacia asignaciÃ³n de ubicaciÃ³n
+              El flujo, la impresión y el guardado hacia asignación de ubicación
               se conservan igual.
             </div>
 
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={addLinea} style={secondaryButtonStyle}>
                 <Plus size={15} />
-                Agregar lÃ­nea
+                Agregar línea
               </button>
               <button onClick={onImprimir} style={secondaryButtonStyle}>
                 <Printer size={15} />
