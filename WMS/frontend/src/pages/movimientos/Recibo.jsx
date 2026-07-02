@@ -1583,15 +1583,15 @@ export default function Recibo() {
             .receipt-subtitle {
               margin-top: 5px;
               font-size: 13px;
-              color: #64748b;
+              color: #000000;
             }
 
             .receipt-meta {
               text-align: right;
               font-size: 12px;
               line-height: 1.7;
-              color: #0f172a;
-              font-weight: 700;
+              color: #000000;
+              font-weight: 800;
             }
 
             .receipt-summary {
@@ -1628,7 +1628,7 @@ export default function Recibo() {
               margin: 0;
               font-size: 10px;
               font-weight: 900;
-              color: #001b3f;
+              color: #000000;
               line-height: 1;
               word-break: break-word;
             }
@@ -1652,16 +1652,16 @@ export default function Recibo() {
             }
 
             .receipt-table th {
-              background: #0f2744;
+              background: #ffffff;
               text-align: center;
               font-weight: 900;
-              color: #ffffff;
+              color: #0f2744;
             }
 
             .receipt-table td {
-              color: #0f172a;
+              color: #000000;
               text-align: center;
-              font-weight: 700;
+              font-weight: 800;
             }
 
             .receipt-novelty-wrap {
@@ -1685,7 +1685,7 @@ export default function Recibo() {
               padding: 0 8px;
               border-bottom: 1px solid #d9e2ec;
               color: #0f2744;
-              background: #f8fafc;
+              background: #ffffff;
               font-size: 9.4px;
               line-height: 1;
               font-weight: 900;
@@ -1708,7 +1708,7 @@ export default function Recibo() {
               border-right: 1px solid #d9e2ec;
               border-bottom: 1px solid #d9e2ec;
               padding: 3px 5px;
-              color: #0f172a;
+              color: #000000;
               background: #ffffff;
               vertical-align: middle;
               font-weight: 800;
@@ -1775,9 +1775,9 @@ export default function Recibo() {
 
             .ranges-subtitle {
               margin-top: 4px;
-              color: #64748b;
+              color: #000000;
               font-size: 12px;
-              font-weight: 700;
+              font-weight: 800;
             }
 
             .ranges-table {
@@ -1798,22 +1798,27 @@ export default function Recibo() {
             }
 
             .ranges-table th {
-              background: #0f2744;
-              color: #fff;
+              background: #ffffff;
+              color: #0f2744;
               text-transform: uppercase;
               letter-spacing: .02em;
               text-align: center;
             }
 
+            .ranges-table td {
+              color: #000000;
+            }
+
             .ranges-table td:first-child {
               font-weight: 900;
-              color: #0f172a;
+              color: #000000;
             }
 
             .ranges-total-row td {
-              background: #0f2744;
-              color: #fff;
+              background: #ffffff;
+              color: #000000;
               font-weight: 900;
+              border-top: 2px solid #0f2744;
             }
 
             /* TARJETAS / ROTULOS: 4 POR HOJA A4 LANDSCAPE */
