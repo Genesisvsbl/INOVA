@@ -49,7 +49,7 @@ function serialItem(serial, idx) {
 }
 
 function escapeHtml(value) {
-  return String(value  -  "")
+  return String(value ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -58,7 +58,7 @@ function escapeHtml(value) {
 }
 
 function loteProveedorFromLoteAlmacen(lote15) {
-  const s = (lote15  -  "").toString();
+  const s = String(lote15 ?? "");
   return s.length >= 10 ? s.slice(0, 10) : "";
 }
 
@@ -137,7 +137,7 @@ function dateISOToExcelSerial5(isoDate) {
 }
 
 function buildLoteAlmacen15(loteProveedor10, fechaVencISO) {
-  const lp = (loteProveedor10  -  "").toString().trim().slice(0, 10);
+  const lp = String(loteProveedor10 ?? "").trim().slice(0, 10);
   const serial5 = dateISOToExcelSerial5(fechaVencISO);
   if (lp.length !== 10 || serial5.length !== 5) return "";
   return lp + serial5;
@@ -155,7 +155,7 @@ function formatQty(n) {
 }
 
 function parseCantidadPNC(value) {
-  const raw = String(value  -  "").trim();
+  const raw = String(value ?? "").trim();
   if (!raw) return 0;
   const normalized = raw.replace(/\./g, "").replace(/,/g, ".").replace(/[^0-9.-]/g, "");
   const n = Number(normalized);
@@ -3072,3 +3072,4 @@ export default function DesdeRecibo() {
     </div>
   );
 }
+
