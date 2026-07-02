@@ -1,4 +1,4 @@
-﻿import {
+import {
   deleteById,
   empresaId,
   insertRow,
@@ -169,7 +169,7 @@ function add24HoursISO(date = new Date()) {
 function normalizeCertificadoRow(row) {
   const normalized = {
     ...row,
-    empresa_id: row.empresa_id  -  empresaId,
+    empresa_id: row.empresa_id ?? empresaId,
     estado_certificado: certificadoEstado(row),
   };
   return normalized;
@@ -189,7 +189,7 @@ export async function guardarCertificadosCalidad(payload = {}) {
       lote_proveedor: item.lote_proveedor || "",
       fecha_fabricacion: item.fecha_fabricacion || null,
       fecha_vencimiento: item.fecha_vencimiento || null,
-      cantidad: Number(item.cantidad  -  item.total  -  0),
+      cantidad: toNumber(item.cantidad ?? item.total ?? 0),
       proveedor: item.proveedor || header.proveedor || "",
       documento: item.documento || header.documento || "",
       orden_compra: item.orden_compra || header.orden_compra || "",
@@ -286,7 +286,7 @@ function groupStock(rows) {
   const map = new Map();
 
   rows.forEach((item) => {
-    const cantidad = toNumber(item.cantidad_r  -  item.cantidad);
+    const cantidad = toNumber(item.cantidad_r ?? item.cantidad);
     const estado = normalizeText(item.estado);
     const ubicacion = normalizeText(item.ubicacion);
 
@@ -457,7 +457,7 @@ async function buildMovimientoInsert(payload) {
     lote_proveedor: payload.lote_proveedor,
     fecha_fabricacion: payload.fecha_fabricacion || null,
     fecha_vencimiento: payload.fecha_vencimiento || null,
-    cantidad_r: Number(payload.cantidad_r  -  payload.cantidad  -  0),
+    cantidad_r: toNumber(payload.cantidad_r ?? payload.cantidad ?? 0),
   });
 }
 
@@ -589,7 +589,7 @@ export function getMovimientosLayoutStock() {
       limit: "5000",
     }).then((rows) =>
       (rows || []).map((row) => {
-        const cantidad = Number(row.cantidad_r  -  0);
+        const cantidad = Number(row.cantidad_r ?? 0);
         const ubicacion = row.ubicacion?.ubicacion || "";
         const material = row.material || {};
         return {
@@ -659,13 +659,13 @@ export function getStock(codigo) {
     const rows = movimientos.filter((m) => normalizeText(m.codigo_material || m.sku) === sku);
     const almacenado = rows
       .filter((m) => normalizeText(m.estado) === "ALMACENADO")
-      .reduce((acc, m) => acc + toNumber(m.cantidad_r  -  m.cantidad), 0);
+      .reduce((acc, m) => acc + toNumber(m.cantidad_r ?? m.cantidad), 0);
     const transito = rows
       .filter((m) => normalizeText(m.estado) === "EN_TRANSITO")
-      .reduce((acc, m) => acc + toNumber(m.cantidad_r  -  m.cantidad), 0);
+      .reduce((acc, m) => acc + toNumber(m.cantidad_r ?? m.cantidad), 0);
     const bloqueado = rows
       .filter((m) => normalizeText(m.estado) === "PNC_BLOQUEADO")
-      .reduce((acc, m) => acc + toNumber(m.cantidad_r  -  m.cantidad), 0);
+      .reduce((acc, m) => acc + toNumber(m.cantidad_r ?? m.cantidad), 0);
 
     return {
       codigo: material.codigo || codigo,
@@ -1119,7 +1119,7 @@ export function confirmarPicking(reserva, payload) {
 
   return Promise.all(
     items.map(async (item) => {
-      const cantidad = toNumber(item.cantidad_confirmada  -  item.cantidad  -  item.cantidad_retirada);
+      const cantidad = toNumber(item.cantidad_confirmada ?? item.cantidad ?? item.cantidad_retirada);
       if (cantidad <= 0) return null;
 
       const pick = item.id ? (await findOne("picking_detalle", {
