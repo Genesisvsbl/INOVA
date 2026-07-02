@@ -1319,7 +1319,7 @@ export default function DesdeRecibo() {
     });
 
     if ((ubicPorLinea[idx] || {}).auto && value) {
-      setTimeout(() => sugerirLinea(idx, draft?.lineas?.[idx]?.cantidad, value), 0);
+      setTimeout(() => sugerirGrupoAutoDesdeLinea(idx, value), 0);
     }
   };
 
@@ -1364,6 +1364,94 @@ export default function DesdeRecibo() {
     });
   };
 
+  const sugerirGrupoAutoDesdeLinea = async (idx, baseOverride = "") => {
+    const lineaBase = draft?.lineas?.[idx];
+    const confBase = ubicPorLinea[idx] || {};
+    const base = (baseOverride || confBase.base || "").trim();
+
+    if (!lineaBase || !esMaterialAuto(lineaBase)) {
+      return sugerirLinea(idx, draft?.lineas?.[idx]?.cantidad, base);
+    }
+
+    if (!base) {
+      showNotice({ tone: "warn", title: "Falta ubicacion base", message: `Selecciona ubicacion base en la linea #${idx + 1}.` });
+      return;
+    }
+
+    const tipoMaterial = tipoSugerenciaMaterial(lineaBase);
+    const lineasObjetivo = (draft?.lineas || [])
+      .map((ln, i) => ({ ln, i }))
+      .filter(({ ln }) => esMaterialAuto(ln) && tipoSugerenciaMaterial(ln) === tipoMaterial);
+
+    const cantidades = lineasObjetivo.map(({ ln, i }) => ({ i, cantidad: Number(ln.cantidad || 0) }));
+    const invalida = cantidades.find(({ cantidad }) => !Number.isInteger(cantidad) || cantidad <= 0);
+    if (invalida) {
+      showNotice({ tone: "warn", title: "Cantidad invalida", message: `La linea #${invalida.i + 1} debe tener cantidad entera mayor a 0 para auto ubicacion.` });
+      return;
+    }
+
+    const objetivoSet = new Set(lineasObjetivo.map(({ i }) => String(i)));
+    const excluidas = new Set();
+    Object.entries(ubicPorLinea || {}).forEach(([key, conf]) => {
+      if (objetivoSet.has(String(key))) return;
+      if (conf?.ubicacion) excluidas.add(conf.ubicacion);
+      (conf?.sugeridas || []).forEach((sug) => sug?.ubicacion && excluidas.add(sug.ubicacion));
+      (conf?.sugeridasSecundarias || []).forEach((sug) => sug?.ubicacion && excluidas.add(sug.ubicacion));
+    });
+
+    const cantidadTotal = cantidades.reduce((acc, row) => acc + row.cantidad, 0);
+    setSugiriendoLinea((prev) => {
+      const next = { ...prev };
+      lineasObjetivo.forEach(({ i }) => { next[i] = true; });
+      return next;
+    });
+
+    try {
+      const data = await sugerirUbicaciones({
+        ubicacion_base: base,
+        cantidad_pallets: cantidadTotal,
+        tipo_material: tipoMaterial,
+        excluir_ubicaciones: Array.from(excluidas),
+      });
+
+      const posiciones = Array.isArray(data?.posiciones)
+        ? data.posiciones
+        : Array.isArray(data?.ubicaciones)
+        ? data.ubicaciones
+        : [];
+
+      let cursor = 0;
+      setUbicPorLinea((prev) => {
+        const next = { ...prev };
+        for (const { i, cantidad } of cantidades) {
+          const sugeridas = posiciones.slice(cursor, cursor + cantidad);
+          cursor += cantidad;
+          next[i] = {
+            ...(next[i] || {}),
+            base,
+            sugeridas,
+            sugeridasSecundarias: [],
+            baseSecundaria: "",
+            faltanteCantidad: Math.max(0, cantidad - sugeridas.length),
+            faltanteATransito: false,
+          };
+        }
+        return next;
+      });
+
+      if (posiciones.length < cantidadTotal) {
+        showNotice({ tone: "warn", title: "Ubicaciones incompletas", message: `Solo se encontraron ${posiciones.length} posiciones en ${base}. Faltan ${cantidadTotal - posiciones.length} pallet(s). Puedes elegir una ubicacion secundaria o mandar faltante a transito.` });
+      }
+    } catch (e) {
+      showNotice({ tone: "error", title: "Error sugiriendo ubicacion", message: `No se pudo generar el sugerido por grupo:\n${e?.message || e}` });
+    } finally {
+      setSugiriendoLinea((prev) => {
+        const next = { ...prev };
+        lineasObjetivo.forEach(({ i }) => { next[i] = false; });
+        return next;
+      });
+    }
+  };
   const sugerirLinea = async (idx, cantidadRaw, baseOverride = "") => {
     const conf = ubicPorLinea[idx] || {};
     const base = (baseOverride || conf.base || "").trim();
@@ -1604,13 +1692,14 @@ export default function DesdeRecibo() {
       um: umMovimiento || null,
       umb: umbMovimiento || null,
       codigo_material: (linea.codigo || "").toString().trim(),
-      codigo_ubicacion: opts.codigo_ubicacion  -  null,
-      estado: opts.estado  -  "ALMACENADO",
+      codigo_ubicacion: opts.codigo_ubicacion ?? null,
+      estado: opts.estado ?? "ALMACENADO",
       lote_almacen: loteAlm,
       lote_proveedor: loteProv,
       fecha_fabricacion: ff || null,
       fecha_vencimiento: fv || null,
-      cantidad_r: Number(opts.cantidad_r  -  linea.total  -  0),
+      cantidad_r: Number(opts.cantidad_r ?? linea.total ?? 0),
+      cantidad_rl: Number(opts.cantidad_rl ?? opts.cantidad_r ?? linea.total ?? 0),
     };
   };
 
