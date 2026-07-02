@@ -990,6 +990,13 @@ function CertificadosCalidadView() {
     return alerts.slice(0, 4);
   }, [stats]);
 
+  useEffect(() => {
+    if (!notice && !previewDoc) return undefined;
+    forcePreviewViewportTop();
+    const id = window.setTimeout(forcePreviewViewportTop, 120);
+    return () => window.clearTimeout(id);
+  }, [notice, previewDoc]);
+
   const handleUpload = async (row, file) => {
     if (!file) return;
     setSavingId(row.id);
@@ -1013,8 +1020,10 @@ function CertificadosCalidadView() {
   };
 
   const openCertificatePreview = (row) => {
+    forcePreviewViewportTop();
     if (!row.certificado_data_url) {
       setNotice({ tone: "info", title: "Certificado pendiente", message: "Este lote todavia no tiene evidencia anexada." });
+      forcePreviewViewportTop();
       return;
     }
     forcePreviewViewportTop();
