@@ -156,19 +156,36 @@ function serialItem(serial, idx) {
 }
 
 function formatDateDisplay(v) {
-  if (!v) return "";
-  const s = String(v).trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const raw = String(v ?? "").trim();
+  if (!raw || raw.toLowerCase() === "nan" || raw === "-") return "";
 
-  const short = s.slice(0, 10);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(short)) return short;
+  const short = raw.split("T")[0].trim();
+  const pad = (n) => String(n).padStart(2, "0");
+  const isValid = (yyyy, mm, dd) => {
+    const y = Number(yyyy);
+    const m = Number(mm);
+    const d = Number(dd);
+    if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) return false;
+    if (y < 1900 || m < 1 || m > 12 || d < 1 || d > 31) return false;
+    const date = new Date(Date.UTC(y, m - 1, d));
+    return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+  };
 
-  const d = new Date(s);
-  if (Number.isNaN(d.getTime())) return s;
+  const iso = short.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (iso && isValid(iso[1], iso[2], iso[3])) {
+    return `${iso[1]}-${pad(iso[2])}-${pad(iso[3])}`;
+  }
 
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
+  const latin = short.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+  if (latin && isValid(latin[3], latin[2], latin[1])) {
+    return `${latin[3]}-${pad(latin[2])}-${pad(latin[1])}`;
+  }
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const yyyy = parsed.getFullYear();
+  const mm = pad(parsed.getMonth() + 1);
+  const dd = pad(parsed.getDate());
   return `${yyyy}-${mm}-${dd}`;
 }
 
@@ -736,6 +753,55 @@ export default function Recibo() {
     [lineas]
   );
 
+  const amcorCertificadosPorRango = useMemo(() => {
+    if (tipoRecibo !== "recibo" || !proveedorEsAmcor) return [];
+
+    const groups = new Map();
+    lineas.forEach((ln, idx) => {
+      const descripcion = String(ln.descripcion || "").trim();
+      const fechaVencimiento = formatDateDisplay(ln.fecha_vencimiento);
+      const lote = cleanBarcodeValue(ln.lote_proveedor || "").toUpperCase();
+      if (!descripcion || !fechaVencimiento || !lote) return;
+
+      const key = `${descripcion}||${fechaVencimiento}`;
+      const current = groups.get(key) || {
+        key,
+        descripcion,
+        fechaVencimiento,
+        indexes: [],
+        lotes: [],
+        cantidad: 0,
+        total: 0,
+      };
+
+      current.indexes.push(idx);
+      current.lotes.push(lote);
+      current.cantidad += 1;
+      current.total += Number(ln.total) || 0;
+      groups.set(key, current);
+    });
+
+    return Array.from(groups.values())
+      .map((range) => {
+        const sortedLotes = range.lotes.filter(Boolean).sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
+        const first = sortedLotes[0] || "";
+        const last = sortedLotes[sortedLotes.length - 1] || "";
+        const complete = range.indexes.every((lineIdx) => !!lineas[lineIdx]?.certificado_data_url);
+        const firstWithCert = range.indexes.map((lineIdx) => lineas[lineIdx]).find((ln) => ln?.certificado_data_url);
+        return {
+          ...range,
+          rango: first && last ? `${first} - ${last}` : first || last,
+          complete,
+          certificadoUrl: firstWithCert?.certificado_data_url || "",
+          certificadoNombre: firstWithCert?.certificado_nombre || "",
+        };
+      })
+      .sort((a, b) =>
+        a.descripcion.localeCompare(b.descripcion, "es", { numeric: true }) ||
+        a.fechaVencimiento.localeCompare(b.fechaVencimiento)
+      );
+  }, [lineas, proveedorEsAmcor, tipoRecibo]);
+
   const setHeaderField = (k, v) => setHeader((prev) => ({ ...prev, [k]: v }));
 
   const onProveedorSelect = (proveedorId) => {
@@ -837,28 +903,51 @@ export default function Recibo() {
     });
   };
 
-  const onCertificadoChange = async (idx, file) => {
-    if (!file) return;
-    if (tipoRecibo === "devolucion") {
-      showWmsAlert("En devolución no aplica certificado de calidad porque es un movimiento interno.");
-      return;
-    }
+  const buildCertificadoPatch = async (file, fallbackName) => {
     const maxBytes = 7 * 1024 * 1024;
     if (file.size > maxBytes) {
       showWmsAlert("El certificado supera 7 MB. Toma una foto mas liviana o usa un PDF comprimido.");
+      return null;
+    }
+
+    const dataUrl = await readFileAsDataUrl(file);
+    return {
+      certificado_nombre: file.name || fallbackName,
+      certificado_tipo: file.type || "application/octet-stream",
+      certificado_data_url: dataUrl,
+      certificado_fecha: new Date().toISOString(),
+    };
+  };
+
+  const onCertificadoChange = async (idx, file) => {
+    if (!file) return;
+    if (tipoRecibo === "devolucion") {
+      showWmsAlert("En devolucion no aplica certificado de calidad porque es un movimiento interno.");
       return;
     }
 
     try {
-      const dataUrl = await readFileAsDataUrl(file);
-      setLinea(idx, {
-        certificado_nombre: file.name || `certificado-linea-${idx + 1}`,
-        certificado_tipo: file.type || "application/octet-stream",
-        certificado_data_url: dataUrl,
-        certificado_fecha: new Date().toISOString(),
-      });
+      const patch = await buildCertificadoPatch(file, `certificado-linea-${idx + 1}`);
+      if (patch) setLinea(idx, patch);
     } catch (e) {
       showWmsAlert(`No se pudo anexar el certificado: ${e?.message || e}`);
+    }
+  };
+
+  const onCertificadoRangoChange = async (range, file) => {
+    if (!file || !range?.indexes?.length) return;
+    if (tipoRecibo === "devolucion") {
+      showWmsAlert("En devolucion no aplica certificado de calidad porque es un movimiento interno.");
+      return;
+    }
+
+    try {
+      const patch = await buildCertificadoPatch(file, `certificado-rango-${range.fechaVencimiento || range.key}`);
+      if (!patch) return;
+      const indexSet = new Set(range.indexes);
+      setLineas((prev) => prev.map((ln, i) => (indexSet.has(i) ? { ...ln, ...patch } : ln)));
+    } catch (e) {
+      showWmsAlert(`No se pudo anexar el certificado del rango: ${e?.message || e}`);
     }
   };
 
@@ -869,6 +958,24 @@ export default function Recibo() {
       certificado_data_url: "",
       certificado_fecha: "",
     });
+  };
+
+  const clearCertificadoRango = (range) => {
+    if (!range?.indexes?.length) return;
+    const indexSet = new Set(range.indexes);
+    setLineas((prev) =>
+      prev.map((ln, i) =>
+        indexSet.has(i)
+          ? {
+              ...ln,
+              certificado_nombre: "",
+              certificado_tipo: "",
+              certificado_data_url: "",
+              certificado_fecha: "",
+            }
+          : ln
+      )
+    );
   };
 
   const recomputeTotal = (umb, cantidad) => {
@@ -1312,7 +1419,7 @@ export default function Recibo() {
         return `
           <tr>
             <td>${showDescription ? escapeHtml(row.descripcion) : ""}</td>
-            <td>${escapeHtml(formatDateDots(row.fechaVencimiento))}</td>
+            <td>${escapeHtml(formatDateDisplay(row.fechaVencimiento))}</td>
             <td style="text-align:right;">${escapeHtml(row.cantidad)}</td>
             <td style="text-align:right;">${escapeHtml(formatMoney(row.total))}</td>
             <td>${escapeHtml(row.rango)}</td>
@@ -1357,7 +1464,7 @@ export default function Recibo() {
       const codigo = (ln.codigo || "").trim();
       const descripcion = (ln.descripcion || "").trim();
       const cantidad = formatMoney(ln.total || 0);
-      const fechaVenc = formatDateDots(ln.fecha_vencimiento);
+      const fechaVenc = formatDateDisplay(ln.fecha_vencimiento);
       const loteProveedorClean = cleanBarcodeValue(ln.lote_proveedor || "");
 
       return `
@@ -2898,6 +3005,146 @@ export default function Recibo() {
               </div>
             </div>
 
+            {tipoRecibo === "recibo" && proveedorEsAmcor && amcorCertificadosPorRango.length > 0 && (
+              <div
+                style={{
+                  margin: "10px 12px 8px",
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 10,
+                  overflow: "hidden",
+                  background: "#fff",
+                }}
+              >
+                <div
+                  style={{
+                    padding: "9px 12px",
+                    background: colors.soft,
+                    borderBottom: `1px solid ${colors.border}`,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: ".08em", textTransform: "uppercase", color: colors.navy }}>
+                      Certificados por rango AMCOR
+                    </div>
+                    <div style={{ marginTop: 2, fontSize: 12, color: colors.muted, fontWeight: 750 }}>
+                      Adjunta una sola evidencia por fecha de vencimiento y rango de lotes.
+                    </div>
+                  </div>
+                  <StatusChip label={`${amcorCertificadosPorRango.length} rangos`} tone="blue" />
+                </div>
+
+                <div style={{ display: "grid", gap: 8, padding: 10 }}>
+                  {amcorCertificadosPorRango.map((range, rangeIdx) => (
+                    <div
+                      key={range.key}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "minmax(220px, 1.2fr) 120px minmax(210px, 1fr) 90px 120px",
+                        gap: 8,
+                        alignItems: "center",
+                        padding: "8px 10px",
+                        border: `1px solid ${range.complete ? colors.goodBd : colors.infoBd}`,
+                        borderRadius: 9,
+                        background: range.complete ? colors.goodBg : colors.infoBg,
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 10, color: colors.muted, fontWeight: 950, textTransform: "uppercase" }}>Material</div>
+                        <div style={{ fontSize: 12, color: colors.navy, fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {range.descripcion}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, color: colors.muted, fontWeight: 950, textTransform: "uppercase" }}>Vencimiento</div>
+                        <div style={{ fontSize: 12, color: colors.text, fontWeight: 900 }}>{range.fechaVencimiento}</div>
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 10, color: colors.muted, fontWeight: 950, textTransform: "uppercase" }}>Rango</div>
+                        <div style={{ fontSize: 12, color: colors.text, fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {range.rango}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, color: colors.muted, fontWeight: 950, textTransform: "uppercase" }}>Lineas</div>
+                        <div style={{ fontSize: 12, color: colors.text, fontWeight: 900 }}>{range.cantidad}</div>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+                        <label
+                          title="Anexar certificado al rango"
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 8,
+                            border: `1px solid ${range.complete ? colors.goodBd : colors.infoBd}`,
+                            background: "#fff",
+                            color: range.complete ? colors.good : colors.blue,
+                            display: "grid",
+                            placeItems: "center",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <Camera size={15} />
+                          <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            capture="environment"
+                            onChange={(e) => onCertificadoRangoChange(range, e.target.files?.[0])}
+                            style={{ display: "none" }}
+                          />
+                        </label>
+                        {range.certificadoUrl && (
+                          <a
+                            href={range.certificadoUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={range.certificadoNombre || "Ver certificado del rango"}
+                            style={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: 8,
+                              border: `1px solid ${colors.goodBd}`,
+                              background: "#fff",
+                              color: colors.good,
+                              display: "grid",
+                              placeItems: "center",
+                              textDecoration: "none",
+                            }}
+                          >
+                            <FileCheck size={15} />
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => clearCertificadoRango(range)}
+                          disabled={!range.certificadoUrl}
+                          title="Quitar certificado del rango"
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 8,
+                            border: `1px solid ${colors.border}`,
+                            background: "#fff",
+                            color: range.certificadoUrl ? colors.bad : colors.muted,
+                            display: "grid",
+                            placeItems: "center",
+                            cursor: range.certificadoUrl ? "pointer" : "not-allowed",
+                            opacity: range.certificadoUrl ? 1 : 0.45,
+                          }}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div style={{ width: "100%", overflowX: "hidden" }}>
               <table style={detailTableStyle}>
                 <colgroup>
@@ -3153,7 +3400,7 @@ export default function Recibo() {
                         <div
                           style={{
                             display: "grid",
-                            gridTemplateColumns: tipoRecibo === "devolucion" ? "auto 30px" : "repeat(4, 30px)",
+                            gridTemplateColumns: tipoRecibo === "devolucion" || proveedorEsAmcor ? "auto 30px" : "repeat(4, 30px)",
                             gap: 5,
                             justifyContent: "center",
                             alignItems: "center",
@@ -3179,6 +3426,27 @@ export default function Recibo() {
                             }}
                           >
                             No aplica
+                          </span>
+                        ) : proveedorEsAmcor ? (
+                          <span
+                            title="Certificado gestionado por rango AMCOR"
+                            style={{
+                              minWidth: 86,
+                              height: 30,
+                              padding: "0 9px",
+                              borderRadius: 8,
+                              border: `1px solid ${ln.certificado_data_url ? colors.goodBd : colors.infoBd}`,
+                              background: ln.certificado_data_url ? colors.goodBg : colors.infoBg,
+                              color: ln.certificado_data_url ? colors.good : colors.blue,
+                              display: "inline-grid",
+                              placeItems: "center",
+                              fontSize: 10,
+                              fontWeight: 950,
+                              textTransform: "uppercase",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Por rango
                           </span>
                         ) : (
                           <>

@@ -67,15 +67,37 @@ function stripAccents(value) {
 }
 
 function normalizeISODate(v) {
-  const s = (v  -  "").toString().trim();
-  if (!s) return "";
+  const raw = String(v ?? "").trim();
+  if (!raw || raw.toLowerCase() === "nan" || raw === "-") return "";
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const short = raw.split("T")[0].trim();
+  const pad = (n) => String(n).padStart(2, "0");
+  const isValid = (yyyy, mm, dd) => {
+    const y = Number(yyyy);
+    const m = Number(mm);
+    const d = Number(dd);
+    if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) return false;
+    if (y < 1900 || m < 1 || m > 12 || d < 1 || d > 31) return false;
+    const date = new Date(Date.UTC(y, m - 1, d));
+    return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+  };
 
-  const short = s.slice(0, 10);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(short)) return short;
+  const iso = short.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (iso && isValid(iso[1], iso[2], iso[3])) {
+    return `${iso[1]}-${pad(iso[2])}-${pad(iso[3])}`;
+  }
 
-  return s;
+  const latin = short.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+  if (latin && isValid(latin[3], latin[2], latin[1])) {
+    return `${latin[3]}-${pad(latin[2])}-${pad(latin[1])}`;
+  }
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const yyyy = parsed.getFullYear();
+  const mm = pad(parsed.getMonth() + 1);
+  const dd = pad(parsed.getDate());
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function getISOWeek(dateInput) {
