@@ -1605,19 +1605,20 @@ export default function DesdeRecibo() {
       ""
     ).toString().trim();
     const fechaRecep = todayISODate();
+    const esAmcor = proveedor.toUpperCase().includes("AMCOR");
 
-    return draft.lineas.map((linea, i) => {
+    const prepararLineaRotulo = (linea, index, overrides = {}) => {
       const loteProv =
+        overrides.lote_proveedor ||
         (linea.lote_proveedor || "").toString().trim().slice(0, 10) ||
         loteProveedorFromLoteAlmacen(linea.lote);
 
-      const ff = normalizeISODate(linea.fecha_fabricacion);
-      const fv = normalizeISODate(linea.fecha_vencimiento);
+      const ff = normalizeISODate(overrides.fecha_fabricacion || linea.fecha_fabricacion);
+      const fv = normalizeISODate(overrides.fecha_vencimiento || linea.fecha_vencimiento);
       const loteAlm = buildLoteAlmacen15(loteProv, fv);
-      const impresion = serialItem(serial, i);
-
+      const impresion = serialItem(serial, index);
       const sku = (linea.codigo || "").toString().trim();
-      const cantidad = Number(linea.total || 0);
+      const cantidad = overrides.cantidad !== undefined ? Number(overrides.cantidad) : Number(linea.total || 0);
       const um = (
         linea.um ||
         linea.umm ||
@@ -1648,7 +1649,52 @@ export default function DesdeRecibo() {
         lote_proveedor: loteProv,
         lote_almacen: loteAlm,
       };
+    };
+
+    if (!esAmcor) return draft.lineas.map((linea, i) => prepararLineaRotulo(linea, i));
+
+    const grupos = new Map();
+
+    (draft.lineas || []).forEach((linea, idx) => {
+      const sku = (linea.codigo || "").toString().trim();
+      const texto = (linea.descripcion || "").toString().trim();
+      const fv = normalizeISODate(linea.fecha_vencimiento);
+      const um = (
+        linea.um ||
+        linea.umm ||
+        linea.unidad_medida ||
+        draft?.header?.um ||
+        ""
+      ).toString().trim();
+      const umb = (linea.umb || draft?.header?.umb || "").toString().trim();
+      const key = [sku, texto, fv, um, umb].join("|");
+
+      if (!grupos.has(key)) grupos.set(key, []);
+      grupos.get(key).push({ linea, idx });
     });
+
+    return Array.from(grupos.values())
+      .sort((a, b) => {
+        const fa = normalizeISODate(a[0]?.linea?.fecha_vencimiento);
+        const fb = normalizeISODate(b[0]?.linea?.fecha_vencimiento);
+        return String(fa || "9999-99-99").localeCompare(String(fb || "9999-99-99"));
+      })
+      .map((grupo, groupIdx) => {
+        const ordenado = [...grupo].sort((a, b) => {
+          const loteA = (a.linea.lote_proveedor || "").toString().trim().slice(0, 10) || loteProveedorFromLoteAlmacen(a.linea.lote);
+          const loteB = (b.linea.lote_proveedor || "").toString().trim().slice(0, 10) || loteProveedorFromLoteAlmacen(b.linea.lote);
+          const cmp = loteA.localeCompare(loteB, undefined, { numeric: true, sensitivity: "base" });
+          return cmp || a.idx - b.idx;
+        });
+        const primero = ordenado[0];
+        const loteInicial = (primero.linea.lote_proveedor || "").toString().trim().slice(0, 10) || loteProveedorFromLoteAlmacen(primero.linea.lote);
+        return prepararLineaRotulo(primero.linea, groupIdx, {
+          lote_proveedor: loteInicial,
+          fecha_fabricacion: primero.linea.fecha_fabricacion,
+          fecha_vencimiento: primero.linea.fecha_vencimiento,
+          cantidad: ordenado.length,
+        });
+      });
   };
 
   const guardarRotulos = async () => {
