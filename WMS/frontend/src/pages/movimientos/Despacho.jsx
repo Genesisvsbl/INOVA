@@ -685,10 +685,10 @@ export default function Despacho() {
       showToast({
         type: "success",
         title: "Orden picking generada",
-        message: `Reserva ${data.reserva} Â· Req ${formatQty(data.total_requerido)} Â· Ret ${formatQty(
+        message: `Reserva ${data.reserva}  -  Req ${formatQty(data.total_requerido)}  -  Ret ${formatQty(
           data.total_retirado
-        )} Â· ${data.pct_cumplimiento_reserva}%`,
-        meta: `${data.clasificacion_final} Â· ${data.lineas_picking} lineas picking`,
+        )}  -  ${data.pct_cumplimiento_reserva}%`,
+        meta: `${data.clasificacion_final}  -  ${data.lineas_picking} lineas picking`,
       });
 
       if (!options.stayOnPage) {
@@ -725,7 +725,7 @@ export default function Despacho() {
   };
 
   const reabrirReserva = async (reservaId) => {
-    const ok = await showWmsConfirm(`Â¿Deseas reabrir la reserva ${reservaId}?`);
+    const ok = await showWmsConfirm(`¿Deseas reabrir la reserva ${reservaId}?`);
     if (!ok) return;
 
     const actual = getReservaStore();
@@ -737,7 +737,7 @@ export default function Despacho() {
   };
 
   const eliminarReserva = async (reservaId) => {
-    const ok = await showWmsConfirm(`âš ï¸ Â¿Eliminar completamente la reserva ${reservaId}?`);
+    const ok = await showWmsConfirm(`Eliminar completamente la reserva ${reservaId}?`);
     if (!ok) return;
 
     try {
@@ -757,10 +757,10 @@ export default function Despacho() {
         await loadDespachos(reserva.trim());
       }
 
-      showWmsAlert(`ðŸ—‘ï¸ Reserva ${reservaId} eliminada correctamente.`);
+      showWmsAlert(`Reserva ${reservaId} eliminada correctamente.`);
     } catch (e) {
       console.error(e);
-      showWmsAlert("âŒ No se pudo eliminar la reserva.\n" + (e?.message || e));
+      showWmsAlert("No se pudo eliminar la reserva.\n" + (e?.message || e));
     }
   };
 
@@ -946,7 +946,7 @@ export default function Despacho() {
                 marginBottom: 6,
               }}
             >
-              MÃ³dulo despacho
+              Módulo despacho
             </div>
             <div
               style={{
@@ -956,7 +956,7 @@ export default function Despacho() {
                 color: colors.navy,
               }}
             >
-              PlaneaciÃ³n y control de reservas
+              Planeación y control de reservas
             </div>
             <div
               style={{
@@ -1031,7 +1031,7 @@ export default function Despacho() {
                 alignItems: "center",
               }}
             >
-              {ultimaCargaId ? `Ãšltima carga ID: ${ultimaCargaId}` : "Sin carga reciente"}
+              {ultimaCargaId ? `Ultima carga ID: ${ultimaCargaId}` : "Sin carga reciente"}
             </div>
           </div>
         </div>
@@ -1190,7 +1190,7 @@ export default function Despacho() {
             <thead>
               <tr>
                 <th style={thStyle}>Fecha necesidad</th>
-                <th style={thStyle}>NÂ° de reserva</th>
+                <th style={thStyle}>N° de reserva</th>
                 <th style={thStyle}>Tipo</th>
                 <th style={{ ...thStyle, textAlign: "right" }}>SKUs</th>
                 <th style={{ ...thStyle, textAlign: "right" }}>Requerido</th>
@@ -1200,7 +1200,7 @@ export default function Despacho() {
                 <th style={thStyle}>Estado</th>
                 <th style={thStyle}>Cierre</th>
                 <th style={thStyle}>Nota</th>
-                <th style={thStyle}>AcciÃ³n</th>
+                <th style={thStyle}>Acción</th>
               </tr>
             </thead>
 
@@ -1356,7 +1356,7 @@ export default function Despacho() {
       <div style={shellCardStyle}>
         <div style={sectionHeaderStyle}>
           <div style={{ fontWeight: 800, color: colors.navy, fontSize: 15 }}>
-            Cuadro despacho / validaciÃ³n
+            Cuadro despacho / validación
           </div>
         </div>
 
@@ -1365,18 +1365,18 @@ export default function Despacho() {
             <thead>
               <tr>
                 <th style={thStyle}>Fecha necesidad</th>
-                <th style={thStyle}>NÂ° de reserva</th>
+                <th style={thStyle}>N° de reserva</th>
                 <th style={thStyle}>Tipo</th>
                 <th style={thStyle}>SKU</th>
                 <th style={thStyle}>Texto breve</th>
                 <th style={{ ...thStyle, textAlign: "right" }}>Cantidad requerida</th>
                 <th style={{ ...thStyle, textAlign: "right" }}>Cantidad retirada</th>
                 <th style={{ ...thStyle, textAlign: "right" }}>Diferencia</th>
-                <th style={{ ...thStyle, textAlign: "right" }}>LÃ­neas usadas</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Líneas usadas</th>
                 <th style={{ ...thStyle, textAlign: "right" }}>% SKU</th>
-                <th style={thStyle}>ClasificaciÃ³n SKU</th>
+                <th style={thStyle}>Clasificación SKU</th>
                 <th style={{ ...thStyle, textAlign: "right" }}>% Reserva</th>
-                <th style={thStyle}>ClasificaciÃ³n final</th>
+                <th style={thStyle}>Clasificación final</th>
               </tr>
             </thead>
 
@@ -1496,8 +1496,8 @@ export default function Despacho() {
                 <th style={thStyle}>Texto breve</th>
                 <th style={{ ...thStyle, textAlign: "right" }}>Cantidad requerida</th>
                 <th style={{ ...thStyle, textAlign: "right" }}>Cantidad a retirar</th>
-                <th style={thStyle}>UbicaciÃ³n</th>
-                <th style={thStyle}>Lote almacÃ©n</th>
+                <th style={thStyle}>Ubicación</th>
+                <th style={thStyle}>Lote almacén</th>
                 <th style={thStyle}>Lote proveedor</th>
                 <th style={thStyle}>Fecha vencimiento</th>
               </tr>

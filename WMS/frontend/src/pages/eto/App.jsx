@@ -1010,7 +1010,7 @@ export default function App() {
       code: item.entity_code || item.code || "",
       name: item.entity_name || item.name || "",
       entity_type: item.entity_type || "",
-      is_active: item.is_active ?? true,
+      is_active: item.is_active  -  true,
     });
   }
 

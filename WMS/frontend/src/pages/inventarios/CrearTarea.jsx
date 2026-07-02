@@ -366,7 +366,7 @@ export default function CrearTarea() {
                   <MiniInfo label="Criterio" value={createdTask.criterio} />
                   <MiniInfo
                     label="Total líneas"
-                    value={String(createdTask.total_lineas ?? createdTask.detalles?.length ?? 0)}
+                    value={String(createdTask.total_lineas  -  createdTask.detalles?.length  -  0)}
                   />
                   <MiniInfo label="Asignado" value={createdTask.asignado_a} />
                 </div>

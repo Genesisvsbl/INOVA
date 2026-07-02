@@ -192,7 +192,7 @@ export default function Conciliacion() {
               <MiniInfo label="No coinciden" value={task.total_no_coinciden} />
               <MiniInfo
                 label="Exactitud"
-                value={`${task.porcentaje_exactitud ?? 0}%`}
+                value={`${task.porcentaje_exactitud  -  0}%`}
               />
               <MiniInfo label="Total sistema" value={summary.totalSistema} />
               <MiniInfo label="Total contado" value={summary.totalContado} />
@@ -253,8 +253,8 @@ export default function Conciliacion() {
                       <td style={tdStyle}>{item.descripcion_material || "-"}</td>
                       <td style={tdStyle}>{item.lote_almacen || "-"}</td>
                       <td style={tdStyle}>{item.lote_proveedor || "-"}</td>
-                      <td style={tdStyle}>{item.cantidad_sistema ?? 0}</td>
-                      <td style={tdStyle}>{item.cantidad_contada ?? 0}</td>
+                      <td style={tdStyle}>{item.cantidad_sistema  -  0}</td>
+                      <td style={tdStyle}>{item.cantidad_contada  -  0}</td>
                       <td
                         style={{
                           ...tdStyle,
@@ -263,7 +263,7 @@ export default function Conciliacion() {
                           fontWeight: 800,
                         }}
                       >
-                        {item.diferencia ?? 0}
+                        {item.diferencia  -  0}
                       </td>
                       <td style={tdStyle}>
                         {item.coincide === true ? (
@@ -366,7 +366,7 @@ function MiniInfo({ label, value }) {
   return (
     <div style={miniInfoStyle}>
       <div style={miniInfoLabelStyle}>{label}</div>
-      <div style={miniInfoValueStyle}>{String(value ?? "-")}</div>
+      <div style={miniInfoValueStyle}>{String(value  -  "-")}</div>
     </div>
   );
 }

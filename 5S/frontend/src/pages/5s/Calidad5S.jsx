@@ -447,7 +447,7 @@ function PortalView({ setTab }) {
   const quickMetrics = [
     {
       label: "Bodegas activas",
-      value: dashboard?.bodegas_activas ?? bodegasPortal.filter((item) => item.activo).length,
+      value: dashboard?.bodegas_activas  -  bodegasPortal.filter((item) => item.activo).length,
       icon: Warehouse,
     },
     {
@@ -2003,7 +2003,7 @@ function ResponsablesView() {
           </label>
 
           <label className="subbodega-description-field">
-            Descripci?n
+            Descripcion
             <input
               value={sububicacionForm.descripcion}
               onChange={(event) => setSububicacionForm({ ...sububicacionForm, descripcion: event.target.value })}
@@ -2019,7 +2019,7 @@ function ResponsablesView() {
           {editingSububicacionId && (
             <button type="button" className="responsable-submit ghost" onClick={resetSububicacionForm}>
               <X size={18} />
-              Cancelar edici?n
+              Cancelar edicion
             </button>
           )}
         </form>
@@ -2040,7 +2040,7 @@ function ResponsablesView() {
                   <div className="responsable-info">
                     <strong>{item.nombre}</strong>
                     <span>
-                      {parent?.nombre || "Sin bodega"} ? {item.codigo || "Sin c?digo"} ? {item.zona || "Sin zona"}
+                      {parent?.nombre || "Sin bodega"} ? {item.codigo || "Sin codigo"} ? {item.zona || "Sin zona"}
                     </span>
                   </div>
                 </div>
@@ -3024,19 +3024,19 @@ function DashboardView() {
             <div className="portal-status-grid">
               <div>
                 <small>Auditorias</small>
-                <b>{dashboard?.total_inspecciones ?? 0}</b>
+                <b>{dashboard?.total_inspecciones  -  0}</b>
               </div>
               <div>
                 <small>Bodegas activas</small>
-                <b>{dashboard?.bodegas_activas ?? 0}</b>
+                <b>{dashboard?.bodegas_activas  -  0}</b>
               </div>
               <div>
                 <small>Bajo meta</small>
-                <b>{dashboard?.bajo_meta ?? 0}</b>
+                <b>{dashboard?.bajo_meta  -  0}</b>
               </div>
               <div>
                 <small>Meta bodega</small>
-                <b>{dashboard?.meta_bodega ?? 0}%</b>
+                <b>{dashboard?.meta_bodega  -  0}%</b>
               </div>
             </div>
           </div>
@@ -3057,13 +3057,13 @@ function DashboardView() {
 
         <article className="portal-panel dashboard-metric-card">
           <span className="portal-panel-kicker">AUDITORÍAS</span>
-          <strong>{dashboard?.total_inspecciones ?? 0}</strong>
+          <strong>{dashboard?.total_inspecciones  -  0}</strong>
           <small>Registros guardados en base de datos</small>
         </article>
 
         <article className="portal-panel dashboard-metric-card">
           <span className="portal-panel-kicker">COBERTURA</span>
-          <strong>{dashboard?.bodegas_activas ?? 0}</strong>
+          <strong>{dashboard?.bodegas_activas  -  0}</strong>
           <small>Bodegas activas configuradas</small>
         </article>
       </section>
@@ -3196,11 +3196,11 @@ function ConfigView() {
             <div className="portal-status-grid">
               <div>
                 <small>Meta bodega</small>
-                <b>{config5S?.meta_bodega ?? 0}%</b>
+                <b>{config5S?.meta_bodega  -  0}%</b>
               </div>
               <div>
                 <small>Meta general</small>
-                <b>{config5S?.meta_general ?? 0}%</b>
+                <b>{config5S?.meta_general  -  0}%</b>
               </div>
               <div>
                 <small>Bodegas</small>
@@ -3263,7 +3263,7 @@ function ConfigView() {
                     <small>{bodega.area || "Sin área"} · {bodega.estado || "Sin estado"}</small>
                   </div>
                   <div className="dashboard-row-score">
-                    <b>{bodega.meta_bodega ?? config5S?.meta_bodega ?? 0}%</b>
+                    <b>{bodega.meta_bodega  -  config5S?.meta_bodega  -  0}%</b>
                   </div>
                 </div>
               ))
@@ -3302,8 +3302,8 @@ function ConfigViewAdmin() {
 
         setConfig5S(next);
         setConfigForm({
-          meta_bodega: next.meta_bodega ?? "",
-          meta_general: next.meta_general ?? "",
+          meta_bodega: next.meta_bodega  -  "",
+          meta_general: next.meta_general  -  "",
         });
         setCatalogForm((prev) => ({
           ...prev,
@@ -3465,11 +3465,11 @@ function ConfigViewAdmin() {
             <div className="portal-status-grid">
               <div>
                 <small>Meta bodega</small>
-                <b>{config5S?.meta_bodega ?? 0}%</b>
+                <b>{config5S?.meta_bodega  -  0}%</b>
               </div>
               <div>
                 <small>Meta general</small>
-                <b>{config5S?.meta_general ?? 0}%</b>
+                <b>{config5S?.meta_general  -  0}%</b>
               </div>
               <div>
                 <small>Catálogos</small>
@@ -3604,7 +3604,7 @@ function ConfigViewAdmin() {
                     <div className={item.activo ? "catalog-value active" : "catalog-value"} key={item.id}>
                       <div>
                         <strong>{item.nombre}</strong>
-                        <small>Orden {item.orden ?? 0} · {item.activo ? "Activo" : "Inactivo"}</small>
+                        <small>Orden {item.orden  -  0} · {item.activo ? "Activo" : "Inactivo"}</small>
                       </div>
                       <div className="catalog-actions">
                         <button type="button" onClick={() => editCatalogo(item)} title="Editar">

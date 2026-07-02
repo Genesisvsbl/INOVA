@@ -480,7 +480,7 @@ export default function Ubicaciones() {
       await cargar();
 
       showWmsAlert(
-        `Importación completada.\nModo: ${data?.modo || "N/A"}\nUbicaciones nuevas: ${data?.ubicaciones_nuevas ?? 0}\nUbicaciones actualizadas: ${data?.ubicaciones_actualizadas ?? 0}`
+        `Importación completada.\nModo: ${data?.modo || "N/A"}\nUbicaciones nuevas: ${data?.ubicaciones_nuevas  -  0}\nUbicaciones actualizadas: ${data?.ubicaciones_actualizadas  -  0}`
       );
     } catch (e) {
       showWmsAlert("Error importando Excel:\n" + (e?.message || e));

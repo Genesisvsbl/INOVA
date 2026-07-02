@@ -910,7 +910,7 @@ function buildPlanAlerts(planes = []) {
 }
 
 function escapeXml(value) {
-  return String(value ?? "")
+  return String(value  -  "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -919,7 +919,7 @@ function escapeXml(value) {
 }
 
 function csvCell(value) {
-  return `"${String(value ?? "").replace(/"/g, '""')}"`;
+  return `"${String(value  -  "").replace(/"/g, '""')}"`;
 }
 
 function downloadTextFile(filename, content, type = "text/plain;charset=utf-8") {
@@ -1103,7 +1103,7 @@ function PortalView({ setTab, canAdmin = false }) {
   const quickMetrics = [
     {
       label: "Bodegas activas",
-      value: dashboard?.bodegas_activas ?? bodegasPortal.filter((item) => item.activo).length,
+      value: dashboard?.bodegas_activas  -  bodegasPortal.filter((item) => item.activo).length,
       icon: Warehouse,
     },
     {
@@ -2463,7 +2463,7 @@ function ResponsablesView() {
       if (editingResponsableId) {
         await editarResponsable5S(editingResponsableId, {
           ...payload,
-          activo: responsables.find((item) => item.id === editingResponsableId)?.activo ?? true,
+          activo: responsables.find((item) => item.id === editingResponsableId)?.activo  -  true,
         });
       } else {
         await crearResponsable5S(payload);
@@ -5745,7 +5745,7 @@ function DashboardView() {
               </div>
               <div>
                 <small>Bodegas activas</small>
-                <b>{dashboard?.bodegas_activas ?? 0}</b>
+                <b>{dashboard?.bodegas_activas  -  0}</b>
               </div>
               <div>
                 <small>Bajo meta</small>
@@ -5753,7 +5753,7 @@ function DashboardView() {
               </div>
               <div>
                 <small>Meta bodega</small>
-                <b>{dashboard?.meta_bodega ?? 0}%</b>
+                <b>{dashboard?.meta_bodega  -  0}%</b>
               </div>
             </div>
           </div>
@@ -5829,7 +5829,7 @@ function DashboardView() {
 
         <article className="portal-panel dashboard-metric-card">
           <span className="portal-panel-kicker">AUDITORÍAS</span>
-          <strong>{dashboard?.total_inspecciones ?? 0}</strong>
+          <strong>{dashboard?.total_inspecciones  -  0}</strong>
           <small>{filteredInspections.length} dentro del filtro actual</small>
         </article>
 
@@ -6327,11 +6327,11 @@ function ConfigView() {
             <div className="portal-status-grid">
               <div>
                 <small>Meta bodega</small>
-                <b>{config5S?.meta_bodega ?? 0}%</b>
+                <b>{config5S?.meta_bodega  -  0}%</b>
               </div>
               <div>
                 <small>Meta general</small>
-                <b>{config5S?.meta_general ?? 0}%</b>
+                <b>{config5S?.meta_general  -  0}%</b>
               </div>
               <div>
                 <small>Bodegas</small>
@@ -6394,7 +6394,7 @@ function ConfigView() {
                     <small>{bodega.area || "Sin área"} · {bodega.estado || "Sin estado"}</small>
                   </div>
                   <div className="dashboard-row-score">
-                    <b>{bodega.meta_bodega ?? config5S?.meta_bodega ?? 0}%</b>
+                    <b>{bodega.meta_bodega  -  config5S?.meta_bodega  -  0}%</b>
                   </div>
                 </div>
               ))
@@ -6433,8 +6433,8 @@ function ConfigViewAdmin() {
 
         setConfig5S(next);
         setConfigForm({
-          meta_bodega: next.meta_bodega ?? "",
-          meta_general: next.meta_general ?? "",
+          meta_bodega: next.meta_bodega  -  "",
+          meta_general: next.meta_general  -  "",
         });
         setCatalogForm((prev) => ({
           ...prev,
@@ -6596,11 +6596,11 @@ function ConfigViewAdmin() {
             <div className="portal-status-grid">
               <div>
                 <small>Meta bodega</small>
-                <b>{config5S?.meta_bodega ?? 0}%</b>
+                <b>{config5S?.meta_bodega  -  0}%</b>
               </div>
               <div>
                 <small>Meta general</small>
-                <b>{config5S?.meta_general ?? 0}%</b>
+                <b>{config5S?.meta_general  -  0}%</b>
               </div>
               <div>
                 <small>Catálogos</small>
@@ -6735,7 +6735,7 @@ function ConfigViewAdmin() {
                     <div className={item.activo ? "catalog-value active" : "catalog-value"} key={item.id}>
                       <div>
                         <strong>{item.nombre}</strong>
-                        <small>Orden {item.orden ?? 0} · {item.activo ? "Activo" : "Inactivo"}</small>
+                        <small>Orden {item.orden  -  0} · {item.activo ? "Activo" : "Inactivo"}</small>
                       </div>
                       <div className="catalog-actions">
                         <button type="button" onClick={() => editCatalogo(item)} title="Editar">

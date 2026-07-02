@@ -141,7 +141,7 @@ export default function AdminAccess({ view = "usuarios" }) {
       nombre_plan: plan?.nombre_plan || "Plan empresa",
       max_usuarios: plan?.max_usuarios || 5,
       pilares_incluidos: plan?.pilares_incluidos || ["wms"],
-      precio_mensual: plan?.precio_mensual ?? "",
+      precio_mensual: plan?.precio_mensual  -  "",
       estado: plan?.estado || "ACTIVO",
     });
   }, [data.empresas, data.planes, canManageCommercial, actor.empresaId, planForm.empresa_id]);
@@ -301,7 +301,7 @@ export default function AdminAccess({ view = "usuarios" }) {
       nombre_plan: plan?.nombre_plan || "Plan empresa",
       max_usuarios: plan?.max_usuarios || 5,
       pilares_incluidos: plan?.pilares_incluidos || ["wms"],
-      precio_mensual: plan?.precio_mensual ?? "",
+      precio_mensual: plan?.precio_mensual  -  "",
       estado: plan?.estado || "ACTIVO",
     });
   };

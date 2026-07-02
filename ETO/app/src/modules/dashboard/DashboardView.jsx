@@ -3861,7 +3861,7 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
           value: Number.isFinite(numericValue) ? numericValue : 0,
           originalValue: Number.isFinite(numericValue) ? numericValue : null,
           trendValue: Number.isFinite(numericValue) ? numericValue : 0,
-          general: normalizeGeneralToPercent(item.general ?? item.value ?? 0),
+          general: normalizeGeneralToPercent(item.general  -  item.value  -  0),
           status,
           fill: getBarColorByStatus(status),
           observation: normalizeObservationText(item.observation),

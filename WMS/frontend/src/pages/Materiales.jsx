@@ -360,7 +360,7 @@ export default function Materiales() {
     const unidadNumerica = parseFloat(String(nuevoMaterial.unidad).replace(",", "."));
 
     if (Number.isNaN(unidadNumerica)) {
-      showWmsAlert("La columna Unidad debe ser numÃ©rica.");
+      showWmsAlert("La columna Unidad debe ser numérica.");
       return;
     }
 
@@ -392,19 +392,19 @@ export default function Materiales() {
   };
 
   const onEditar = async (mat) => {
-    const nuevoCodigo = await showWmsPrompt("Nuevo cÃ³digo:", mat.codigo);
+    const nuevoCodigo = await showWmsPrompt("Nuevo código:", mat.codigo);
     if (nuevoCodigo === null) return;
 
-    const nuevaDescripcion = await showWmsPrompt("Nueva descripciÃ³n:", mat.descripcion);
+    const nuevaDescripcion = await showWmsPrompt("Nueva descripción:", mat.descripcion);
     if (nuevaDescripcion === null) return;
 
-    const nuevaUnidad = await showWmsPrompt("Nueva unidad:", mat.unidad ?? "");
+    const nuevaUnidad = await showWmsPrompt("Nueva unidad:", mat.unidad  -  "");
     if (nuevaUnidad === null) return;
 
     const nuevaUnidadMedida = await showWmsPrompt("Nueva unidad de medida:", mat.unidad_medida);
     if (nuevaUnidadMedida === null) return;
 
-    const nuevaFamilia = await showWmsPrompt("Nueva familia:", mat.familia ?? "");
+    const nuevaFamilia = await showWmsPrompt("Nueva familia:", mat.familia  -  "");
     if (nuevaFamilia === null) return;
 
     if (
@@ -421,7 +421,7 @@ export default function Materiales() {
     const unidadNumerica = parseFloat(String(nuevaUnidad).replace(",", "."));
 
     if (Number.isNaN(unidadNumerica)) {
-      showWmsAlert("La columna Unidad debe ser numÃ©rica.");
+      showWmsAlert("La columna Unidad debe ser numérica.");
       return;
     }
 
@@ -442,7 +442,7 @@ export default function Materiales() {
   };
 
   const onEliminar = async (id) => {
-    if (!await showWmsConfirm("Â¿Seguro que deseas eliminar este material?")) return;
+    if (!await showWmsConfirm("¿Seguro que deseas eliminar este material?")) return;
 
     try {
       await eliminarMaterial(id);
@@ -478,7 +478,7 @@ export default function Materiales() {
       await cargar(busqueda);
 
       showWmsAlert(
-        `ImportaciÃ³n completada.\nMateriales nuevos: ${data?.materiales_nuevos ?? 0}\nMateriales actualizados: ${data?.materiales_actualizados ?? 0}`
+        `Importacion completada.\nMateriales nuevos: ${data?.materiales_nuevos ?? 0}\nMateriales actualizados: ${data?.materiales_actualizados ?? 0}`
       );
     } catch (e) {
       showWmsAlert("Error importando Excel:\n" + (e?.message || e));
@@ -492,7 +492,7 @@ export default function Materiales() {
       <ModuleHeader
         title="Materiales"
         subtitle="Consulta, crea, edita, elimina e importa materiales del sistema."
-        helper="GestiÃ³n de materiales"
+        helper="Gestión de materiales"
       />
 
       <div style={panelStyle}>
@@ -521,7 +521,7 @@ export default function Materiales() {
               >
                 <Search size={15} color={colors.muted} />
                 <input
-                  placeholder="Buscar por cÃ³digo, descripciÃ³n o familia..."
+                  placeholder="Buscar por código, descripción o familia..."
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
                   style={{
@@ -552,7 +552,7 @@ export default function Materiales() {
       </div>
 
       <div style={panelStyle}>
-        <div style={panelHeaderStyle}>ImportaciÃ³n masiva</div>
+        <div style={panelHeaderStyle}>Importación masiva</div>
         <div style={panelBodyStyle}>
           <div
             style={{
@@ -602,21 +602,21 @@ export default function Materiales() {
             }}
           >
             <div>
-              <div style={fieldLabelStyle}>CÃ³digo</div>
+              <div style={fieldLabelStyle}>Código</div>
               <input
                 value={nuevoMaterial.codigo}
                 onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, codigo: e.target.value })}
-                placeholder="CÃ³digo"
+                placeholder="Código"
                 style={inputStyle}
               />
             </div>
 
             <div>
-              <div style={fieldLabelStyle}>DescripciÃ³n</div>
+              <div style={fieldLabelStyle}>Descripción</div>
               <input
                 value={nuevoMaterial.descripcion}
                 onChange={(e) => setNuevoMaterial({ ...nuevoMaterial, descripcion: e.target.value })}
-                placeholder="DescripciÃ³n"
+                placeholder="Descripción"
                 style={inputStyle}
               />
             </div>
@@ -673,8 +673,8 @@ export default function Materiales() {
             <thead>
               <tr>
                 <th style={thStyle}>ID</th>
-                <th style={thStyle}>CÃ³digo</th>
-                <th style={thStyle}>DescripciÃ³n</th>
+                <th style={thStyle}>Código</th>
+                <th style={thStyle}>Descripción</th>
                 <th style={thStyle}>Unidad</th>
                 <th style={thStyle}>Unidad medida</th>
                 <th style={thStyle}>Familia</th>

@@ -589,7 +589,7 @@ export async function consultarSolicitudAcceso({ email, documento, claveConsulta
 export async function autenticarUsuario({ usuario, password, pilar }) {
   const login = clean(usuario);
   const clave = clean(password);
-  if (!login || !clave) throw new Error("Debes ingresar usuario y contraseÃ±a.");
+  if (!login || !clave) throw new Error("Debes ingresar usuario y contraseña.");
   ensureLocalLoginAllowed(login);
 
   const usuarios = await safeSelect("public", "usuarios", {
@@ -827,7 +827,7 @@ export async function crearUsuarioEmpresa(payload, actor = {}) {
   const existing = existingByDocumentOrUser?.[0] || existingByEmail?.[0] || null;
 
   if (!existing && maxUsuarios && usuariosActivos.length >= maxUsuarios) {
-    throw new Error(`La empresa ya alcanzÃ³ el lÃ­mite del plan (${maxUsuarios} usuarios).`);
+    throw new Error(`La empresa ya alcanzó el límite del plan (${maxUsuarios} usuarios).`);
   }
 
   const claveTemporal = documento;
@@ -983,7 +983,7 @@ export async function guardarPlanEmpresa(payload) {
   if (!empresaIdFinal) throw new Error("Debes seleccionar empresa.");
   const maxUsuarios = Number(payload.max_usuarios || 1);
   if (!Number.isFinite(maxUsuarios) || maxUsuarios < 1) {
-    throw new Error("El plan debe permitir mÃ­nimo 1 usuario.");
+    throw new Error("El plan debe permitir mínimo 1 usuario.");
   }
 
   const row = {
@@ -1008,7 +1008,7 @@ export async function guardarPlanEmpresa(payload) {
 
 export async function cambiarClaveObligatoria(userId, nuevaClave) {
   const clave = clean(nuevaClave);
-  if (clave.length < 8) throw new Error("La nueva contraseÃ±a debe tener mÃ­nimo 8 caracteres.");
+  if (clave.length < 8) throw new Error("La nueva contraseña debe tener mínimo 8 caracteres.");
   const existing = await safeSelect("public", "usuarios", { select: "*", id: eq(userId), limit: "1" }).catch(() => []);
   const user = existing?.[0];
   const saved = await saveUsuario({

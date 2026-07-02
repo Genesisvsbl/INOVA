@@ -28,7 +28,7 @@ export function formatRecordValue(record) {
   }
 
   if (record?.capture_mode === "single") {
-    return record?.single_value ?? "-";
+    return record?.single_value  -  "-";
   }
 
   const enabled = normalizeShifts(record?.shifts);

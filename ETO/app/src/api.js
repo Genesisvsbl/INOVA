@@ -390,7 +390,7 @@ const API = {
         document: payload.document || null,
         position: payload.position || null,
         area: payload.area || null,
-        is_active: payload.is_active ?? true,
+        is_active: payload.is_active  -  true,
       }),
     }),
 
@@ -404,7 +404,7 @@ const API = {
         document: payload.document || null,
         position: payload.position || null,
         area: payload.area || null,
-        is_active: payload.is_active ?? true,
+        is_active: payload.is_active  -  true,
       }),
     }),
 
@@ -433,7 +433,7 @@ const API = {
         indicator_id: Number(payload.indicator_id),
         entity_id: Number(payload.entity_id),
         target_value: Number(payload.target_value),
-        is_active: payload.is_active ?? true,
+        is_active: payload.is_active  -  true,
       }),
     }),
 
@@ -598,7 +598,7 @@ const API = {
   createOrUpdatePersonTarget: (payload) =>
     API.createOrUpdateEntityTarget({
       indicator_id: payload.indicator_id,
-      entity_id: payload.person_id ?? payload.entity_id,
+      entity_id: payload.person_id  -  payload.entity_id,
       target_value: payload.target_value,
       is_active: payload.is_active,
     }),
@@ -613,7 +613,7 @@ const API = {
       indicator_id,
       record_date,
       rows: (rows || []).map((row) => ({
-        entity_id: row.person_id ?? row.entity_id,
+        entity_id: row.person_id  -  row.entity_id,
         value: row.value,
         observation: row.observation,
       })),

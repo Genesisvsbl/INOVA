@@ -421,10 +421,10 @@ export default function DailyView({ accessLevel, processes, indicators }) {
       record_date: formatDateInput(item.record_date),
       process_id: String(item.process_id || ""),
       indicator_id: String(item.indicator_id || ""),
-      single_value: item.single_value ?? "",
-      shift_a: item.shift_a ?? "",
-      shift_b: item.shift_b ?? "",
-      shift_c: item.shift_c ?? "",
+      single_value: item.single_value  -  "",
+      shift_a: item.shift_a  -  "",
+      shift_b: item.shift_b  -  "",
+      shift_c: item.shift_c  -  "",
       observation: item.observation || "",
     });
     clearMessageSoon("Registro cargado para edición");

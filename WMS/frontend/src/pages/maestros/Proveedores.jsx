@@ -410,7 +410,7 @@ export default function Proveedores() {
 
       await cargar(search);
 
-      showWmsAlert(`Importación completada.\nProveedores nuevos: ${data?.proveedores_nuevos ?? 0}`);
+      showWmsAlert(`Importación completada.\nProveedores nuevos: ${data?.proveedores_nuevos  -  0}`);
     } catch (e) {
       showWmsAlert("Error importando Excel:\n" + (e?.message || e));
     } finally {

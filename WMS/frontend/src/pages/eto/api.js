@@ -73,7 +73,7 @@ function compareValue(value, operator, ruleValue) {
 
 function measuredValue(indicator, row) {
   if (indicator?.capture_mode === "single" || indicator?.scope_type === "entity") {
-    return Number(row.single_value ?? row.value ?? 0);
+    return Number(row.single_value  -  row.value  -  0);
   }
 
   const shifts = parseShifts(indicator?.shifts);
@@ -91,8 +91,8 @@ function measuredValue(indicator, row) {
 }
 
 function calculateGeneral(indicator, value) {
-  const target = Number(indicator?.target_value ?? 0);
-  const current = Number(value ?? 0);
+  const target = Number(indicator?.target_value  -  0);
+  const current = Number(value  -  0);
   const operator = indicator?.target_operator || ">=";
 
   if (!Number.isFinite(current)) return 0;
@@ -580,7 +580,7 @@ async function entityDashboardSupabase(params) {
   const targets = await entityTargetsSupabase(new URLSearchParams({ indicator_id: String(indicatorId), active_only: "true" }));
   const targetMap = new Map(targets.map((item) => [Number(item.entity_id), Number(item.target_value || 0)]));
   const ranking = records.map((record) => {
-    const targetValue = targetMap.get(Number(record.entity_id)) ?? Number(indicator.target_value || 0);
+    const targetValue = targetMap.get(Number(record.entity_id))  -  Number(indicator.target_value || 0);
     const general = calculateGeneral({ ...indicator, target_value: targetValue }, Number(record.value || 0));
     return {
       ...record,
@@ -748,7 +748,7 @@ async function requestSupabase(path, options = {}) {
         { indicator_id: Number(body.indicator_id), entity_id: Number(body.entity_id) },
         {
           target_value: Number(body.target_value || 0),
-          is_active: body.is_active ?? true,
+          is_active: body.is_active  -  true,
         }
       );
     }
@@ -1088,7 +1088,7 @@ const API = {
         document: payload.document || null,
         position: payload.position || null,
         area: payload.area || null,
-        is_active: payload.is_active ?? true,
+        is_active: payload.is_active  -  true,
       }),
     }),
 
@@ -1102,7 +1102,7 @@ const API = {
         document: payload.document || null,
         position: payload.position || null,
         area: payload.area || null,
-        is_active: payload.is_active ?? true,
+        is_active: payload.is_active  -  true,
       }),
     }),
 
@@ -1131,7 +1131,7 @@ const API = {
         indicator_id: Number(payload.indicator_id),
         entity_id: Number(payload.entity_id),
         target_value: Number(payload.target_value),
-        is_active: payload.is_active ?? true,
+        is_active: payload.is_active  -  true,
       }),
     }),
 
@@ -1296,7 +1296,7 @@ const API = {
   createOrUpdatePersonTarget: (payload) =>
     API.createOrUpdateEntityTarget({
       indicator_id: payload.indicator_id,
-      entity_id: payload.person_id ?? payload.entity_id,
+      entity_id: payload.person_id  -  payload.entity_id,
       target_value: payload.target_value,
       is_active: payload.is_active,
     }),
@@ -1311,7 +1311,7 @@ const API = {
       indicator_id,
       record_date,
       rows: (rows || []).map((row) => ({
-        entity_id: row.person_id ?? row.entity_id,
+        entity_id: row.person_id  -  row.entity_id,
         value: row.value,
         observation: row.observation,
       })),

@@ -58,7 +58,7 @@ function formatQty(n) {
 }
 
 function normalizeKey(value) {
-  return String(value ?? "").trim().toUpperCase();
+  return String(value  -  "").trim().toUpperCase();
 }
 
 function pct(part, total) {
@@ -78,7 +78,7 @@ function daysUntil(value) {
 
 
 function escapeHtml(value) {
-  return String(value ?? "")
+  return String(value  -  "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -856,7 +856,7 @@ function CertificadosCalidadView() {
       codes.map(async (code) => {
         try {
           const data = await getStock(code);
-          const qty = Number(data?.stock_actual ?? data?.stock_total ?? data?.cantidad ?? 0);
+          const qty = Number(data?.stock_actual  -  data?.stock_total  -  data?.cantidad  -  0);
           return [code, Number.isFinite(qty) ? qty : 0];
         } catch {
           return [code, 0];
@@ -1550,7 +1550,7 @@ export default function Stock() {
     setErr("");
     try {
       const rows = await getMovimientos();
-      setBloqueados((rows || []).filter((row) => normalizeKey(row.estado) === "PNC_BLOQUEADO" && Number(row.cantidad_r ?? row.cantidad ?? 0) > 0));
+      setBloqueados((rows || []).filter((row) => normalizeKey(row.estado) === "PNC_BLOQUEADO" && Number(row.cantidad_r  -  row.cantidad  -  0) > 0));
       setShowBloqueados(true);
     } catch {
       setErr("No se pudo consultar el reporte de bloqueados.");
@@ -1561,7 +1561,7 @@ export default function Stock() {
 
   const imprimirBloqueados = () => {
     const rows = (bloqueados || []).map((row) => `
-      <tr><td>${escapeHtml(row.codigo_material)}</td><td>${escapeHtml(row.descripcion_material)}</td><td>${escapeHtml(row.ubicacion)}</td><td>${escapeHtml(row.lote_almacen || "-")}</td><td>${escapeHtml(row.lote_proveedor || "-")}</td><td>${escapeHtml(row.fecha_vencimiento || "-")}</td><td class="num">${escapeHtml(formatQty(row.cantidad_r ?? row.cantidad))}</td></tr>`).join("");
+      <tr><td>${escapeHtml(row.codigo_material)}</td><td>${escapeHtml(row.descripcion_material)}</td><td>${escapeHtml(row.ubicacion)}</td><td>${escapeHtml(row.lote_almacen || "-")}</td><td>${escapeHtml(row.lote_proveedor || "-")}</td><td>${escapeHtml(row.fecha_vencimiento || "-")}</td><td class="num">${escapeHtml(formatQty(row.cantidad_r  -  row.cantidad))}</td></tr>`).join("");
     const generado = new Date().toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" });
     printHtmlPreview(`<!doctype html><html><head><meta charset="utf-8"/><title>Reporte PNC bloqueado</title><style>@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#0f2744}.report-header{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;border-bottom:3px solid #133454;padding-bottom:16px;margin-bottom:18px}.brand{display:flex;align-items:center;gap:14px}.logo-box{width:56px;height:56px;border:1px solid #d9e2ec;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#fff}.logo-box img{max-width:44px;max-height:44px}.eyebrow{font-size:11px;font-weight:900;letter-spacing:.12em;color:#0b57d0;text-transform:uppercase}.title{font-size:26px;line-height:1.1;font-weight:950;color:#133454;margin-top:4px}.subtitle{font-size:12px;color:#5d6f84;margin-top:6px}.meta{font-size:11px;line-height:1.7;text-align:right;color:#203246}.meta b{color:#0f2744}.summary{display:flex;gap:10px;margin-bottom:14px}.pill{border:1px solid #f3c7c7;background:#fff7f7;color:#c62828;border-radius:10px;padding:8px 12px;font-weight:900;font-size:12px}table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #d9e2ec;padding:7px 8px;vertical-align:middle}th{background:#f8fafc;text-align:left;font-weight:950;color:#133454;text-transform:uppercase;font-size:9px}.num{text-align:right;font-weight:900}.footer{margin-top:16px;font-size:10px;color:#5d6f84;font-weight:700}</style></head><body><header class="report-header"><div class="brand"><div class="logo-box"><img src="/favicon1.ico" alt="INOVA" /></div><div><div class="eyebrow">Consulta operativa</div><div class="title">Reporte PNC bloqueado</div><div class="subtitle">Material no disponible para picking hasta liberacion operativa.</div></div></div><div class="meta"><div><b>Generado:</b> ${escapeHtml(generado)}</div><div><b>Total registros:</b> ${escapeHtml(String((bloqueados || []).length))}</div><div><b>Origen:</b> WMS INOVA</div></div></header><div class="summary"><div class="pill">PNC bloqueado - no disponible para picking</div></div><table><thead><tr><th>SKU</th><th>Material</th><th>Ubicacion</th><th>Lote almacen</th><th>Lote proveedor</th><th>Vencimiento</th><th>Cantidad</th></tr></thead><tbody>${rows || '<tr><td colspan="7">Sin materiales bloqueados.</td></tr>'}</tbody></table><div class="footer">Documento generado desde WMS INOVA para control operativo.</div></body></html>`);
   };
@@ -1912,7 +1912,7 @@ export default function Stock() {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", minWidth: 920, borderCollapse: "collapse" }}>
               <thead><tr style={{ background: "#f8fafc" }}>{["SKU","Material","Ubicacion","Lote almacen","Lote proveedor","Vencimiento","Cantidad"].map((h) => <th key={h} style={{ padding: 10, textAlign: "left", fontSize: 11, color: colors.navy, textTransform: "uppercase", borderBottom: `1px solid ${colors.border}` }}>{h}</th>)}</tr></thead>
-              <tbody>{bloqueados.length ? bloqueados.map((row) => <tr key={row.id} style={{ borderBottom: `1px solid ${colors.border}` }}><td style={{ padding: 10, fontWeight: 900 }}>{row.codigo_material}</td><td style={{ padding: 10 }}>{row.descripcion_material}</td><td style={{ padding: 10, color: colors.bad, fontWeight: 900 }}>{row.ubicacion}</td><td style={{ padding: 10 }}>{row.lote_almacen || "-"}</td><td style={{ padding: 10 }}>{row.lote_proveedor || "-"}</td><td style={{ padding: 10 }}>{row.fecha_vencimiento || "-"}</td><td style={{ padding: 10, textAlign: "right", fontWeight: 950 }}>{formatQty(row.cantidad_r ?? row.cantidad)}</td></tr>) : <tr><td colSpan={7} style={{ padding: 18, color: colors.muted, fontWeight: 850, textAlign: "center" }}>Sin materiales bloqueados.</td></tr>}</tbody>
+              <tbody>{bloqueados.length ? bloqueados.map((row) => <tr key={row.id} style={{ borderBottom: `1px solid ${colors.border}` }}><td style={{ padding: 10, fontWeight: 900 }}>{row.codigo_material}</td><td style={{ padding: 10 }}>{row.descripcion_material}</td><td style={{ padding: 10, color: colors.bad, fontWeight: 900 }}>{row.ubicacion}</td><td style={{ padding: 10 }}>{row.lote_almacen || "-"}</td><td style={{ padding: 10 }}>{row.lote_proveedor || "-"}</td><td style={{ padding: 10 }}>{row.fecha_vencimiento || "-"}</td><td style={{ padding: 10, textAlign: "right", fontWeight: 950 }}>{formatQty(row.cantidad_r  -  row.cantidad)}</td></tr>) : <tr><td colSpan={7} style={{ padding: 18, color: colors.muted, fontWeight: 850, textAlign: "center" }}>Sin materiales bloqueados.</td></tr>}</tbody>
             </table>
           </div>
         </div>

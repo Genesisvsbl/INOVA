@@ -1352,90 +1352,89 @@ export default function Recibo() {
   };
 
   const buildTarjetasHtml = () => {
-    return lineas
-      .map((ln, idx) => {
-        const serial = serialItem(header.serial, idx);
-        const codigo = (ln.codigo || "").trim();
-        const descripcion = (ln.descripcion || "").trim();
-        const cantidad = formatMoney(ln.total || 0);
-        const fechaVenc = formatDateDots(ln.fecha_vencimiento);
-        const loteProveedorClean = cleanBarcodeValue(ln.lote_proveedor || "");
+    const cards = lineas.map((ln, idx) => {
+      const serial = serialItem(header.serial, idx);
+      const codigo = (ln.codigo || "").trim();
+      const descripcion = (ln.descripcion || "").trim();
+      const cantidad = formatMoney(ln.total || 0);
+      const fechaVenc = formatDateDots(ln.fecha_vencimiento);
+      const loteProveedorClean = cleanBarcodeValue(ln.lote_proveedor || "");
 
-        return `
-          <section class="card-sheet">
-            <div class="id-card">
-              <div class="id-card-top">
-                <div class="id-brand">
-                  <div class="id-logo-wrap">
-                    <img src="/favicon1.ico" alt="INOVA" class="id-logo" />
-                  </div>
-
-                  <div>
-                    <div class="id-brand-title">WMS INOVA</div>
-                    <div class="id-brand-sub">Tarjeta de identificación logística</div>
-                  </div>
+      return `
+        <article class="card-sheet">
+          <div class="id-card">
+            <div class="id-card-top">
+              <div class="id-brand">
+                <div class="id-logo-wrap">
+                  <img src="/favicon1.ico" alt="INOVA" class="id-logo" />
                 </div>
 
-                <div class="id-serial-box">
-                  <div class="id-label-mini">SERIAL</div>
-                  <div class="id-serial-value">${escapeHtml(serial)}</div>
+                <div>
+                  <div class="id-brand-title">WMS INOVA</div>
+                  <div class="id-brand-sub">Tarjeta de identificacion logistica</div>
                 </div>
               </div>
 
-              <div class="id-main-grid">
-                <div class="id-main-cell">
-                  <div class="id-label-mini">CÓDIGO</div>
-                  <div class="id-main-value">${escapeHtml(codigo || "-")}</div>
-                </div>
-
-                <div class="id-main-cell right">
-                  <div class="id-label-mini">CANTIDAD</div>
-                  <div class="id-main-value">${escapeHtml(
-                    cantidad || "0,00"
-                  )}</div>
-                </div>
-              </div>
-
-              <div class="id-description-block">
-                <div class="id-label-mini">DESCRIPCIÓN</div>
-                <div class="id-description-text">${escapeHtml(
-                  descripcion || "-"
-                )}</div>
-              </div>
-
-              <div class="barcode-section">
-                <div class="id-label-mini">FECHA VENCIMIENTO</div>
-                <div class="barcode-box">
-                  <svg id="barcode-fv-${idx}"></svg>
-                </div>
-                <div class="barcode-caption">${escapeHtml(
-                  fechaVenc || "-"
-                )}</div>
-              </div>
-
-              <div class="barcode-section">
-                <div class="id-label-mini">LOTE PROVEEDOR</div>
-                <div class="barcode-box">
-                  <svg id="barcode-lp-${idx}"></svg>
-                </div>
-                <div class="barcode-caption">${escapeHtml(
-                  loteProveedorClean || "-"
-                )}</div>
-              </div>
-
-              <div class="id-footer">
-                <div><b>Proveedor:</b> ${escapeHtml(
-                  header.proveedor || "-"
-                )}</div>
-                <div><b>Documento:</b> ${escapeHtml(
-                  header.documento || "-"
-                )}</div>
+              <div class="id-serial-box">
+                <div class="id-label-mini">SERIAL</div>
+                <div class="id-serial-value">${escapeHtml(serial)}</div>
               </div>
             </div>
-          </section>
-        `;
-      })
-      .join("");
+
+            <div class="id-main-grid">
+              <div class="id-main-cell">
+                <div class="id-label-mini">CODIGO</div>
+                <div class="id-main-value">${escapeHtml(codigo || "-")}</div>
+              </div>
+
+              <div class="id-main-cell right">
+                <div class="id-label-mini">CANTIDAD</div>
+                <div class="id-main-value">${escapeHtml(cantidad || "0,00")}</div>
+              </div>
+            </div>
+
+            <div class="id-description-block">
+              <div class="id-label-mini">DESCRIPCION</div>
+              <div class="id-description-text">${escapeHtml(descripcion || "-")}</div>
+            </div>
+
+            <div class="barcode-section">
+              <div class="id-label-mini">FECHA VENCIMIENTO</div>
+              <div class="barcode-box">
+                <svg id="barcode-fv-${idx}"></svg>
+              </div>
+              <div class="barcode-caption">${escapeHtml(fechaVenc || "-")}</div>
+            </div>
+
+            <div class="barcode-section">
+              <div class="id-label-mini">LOTE PROVEEDOR</div>
+              <div class="barcode-box">
+                <svg id="barcode-lp-${idx}"></svg>
+              </div>
+              <div class="barcode-caption">${escapeHtml(loteProveedorClean || "-")}</div>
+            </div>
+
+            <div class="id-footer">
+              <div><b>Proveedor:</b> ${escapeHtml(header.proveedor || "-")}</div>
+              <div><b>Documento:</b> ${escapeHtml(header.documento || "-")}</div>
+            </div>
+          </div>
+        </article>
+      `;
+    });
+
+    const pages = [];
+    for (let i = 0; i < cards.length; i += 4) {
+      pages.push(`
+        <section class="cards-page">
+          <div class="cards-grid">
+            ${cards.slice(i, i + 4).join("")}
+          </div>
+        </section>
+      `);
+    }
+
+    return pages.join("");
   };
 
   const buildBarcodeScript = () => {
@@ -1653,14 +1652,15 @@ export default function Recibo() {
             }
 
             .receipt-table th {
-              background: #f8fafc;
-              text-align: left;
+              background: #0f2744;
+              text-align: center;
               font-weight: 900;
-              color: #0f2744;
+              color: #ffffff;
             }
 
             .receipt-table td {
               color: #0f172a;
+              text-align: center;
               font-weight: 700;
             }
 
@@ -1789,10 +1789,12 @@ export default function Recibo() {
 
             .ranges-table th,
             .ranges-table td {
-              border: 1px solid #cbd5e1;
+              border: 1px solid #d9e2ec;
               padding: 5px 7px;
               line-height: 1.15;
               font-weight: 800;
+              text-align: center;
+              vertical-align: middle;
             }
 
             .ranges-table th {
@@ -1814,24 +1816,38 @@ export default function Recibo() {
               font-weight: 900;
             }
 
-            /* TARJETAS / RÓTULOS: 4 POR HOJA A4 LANDSCAPE */
+            /* TARJETAS / ROTULOS: 4 POR HOJA A4 LANDSCAPE */
+            .cards-page {
+              width: 100%;
+              min-height: 186mm;
+              page-break-after: always;
+              break-after: page;
+            }
+
+            .cards-page:last-child {
+              page-break-after: auto;
+              break-after: auto;
+            }
+
+            .cards-grid {
+              width: 100%;
+              display: grid;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              grid-template-rows: repeat(2, 88mm);
+              gap: 0;
+            }
+
             .card-sheet {
-              width: 50%;
+              width: 100%;
               height: 88mm;
-              display: inline-flex;
+              display: flex;
               align-items: stretch;
               justify-content: center;
               padding: 2mm;
               margin: 0;
-              vertical-align: top;
               page-break-inside: avoid;
               break-inside: avoid;
-              page-break-after: auto;
               overflow: hidden;
-            }
-
-            .card-sheet:last-child {
-              page-break-after: auto;
             }
 
             .id-card {
@@ -2006,8 +2022,9 @@ export default function Recibo() {
             }
 
             @media print {
-              .card-sheet:nth-of-type(4n + 1) {
-                page-break-before: auto;
+              .cards-page {
+                page-break-inside: avoid;
+                break-inside: avoid;
               }
             }
           </style>

@@ -49,7 +49,7 @@ function serialItem(serial, idx) {
 }
 
 function escapeHtml(value) {
-  return String(value ?? "")
+  return String(value  -  "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -58,7 +58,7 @@ function escapeHtml(value) {
 }
 
 function loteProveedorFromLoteAlmacen(lote15) {
-  const s = (lote15 ?? "").toString();
+  const s = (lote15  -  "").toString();
   return s.length >= 10 ? s.slice(0, 10) : "";
 }
 
@@ -67,7 +67,7 @@ function stripAccents(value) {
 }
 
 function normalizeISODate(v) {
-  const s = (v ?? "").toString().trim();
+  const s = (v  -  "").toString().trim();
   if (!s) return "";
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
@@ -115,7 +115,7 @@ function dateISOToExcelSerial5(isoDate) {
 }
 
 function buildLoteAlmacen15(loteProveedor10, fechaVencISO) {
-  const lp = (loteProveedor10 ?? "").toString().trim().slice(0, 10);
+  const lp = (loteProveedor10  -  "").toString().trim().slice(0, 10);
   const serial5 = dateISOToExcelSerial5(fechaVencISO);
   if (lp.length !== 10 || serial5.length !== 5) return "";
   return lp + serial5;
@@ -133,7 +133,7 @@ function formatQty(n) {
 }
 
 function parseCantidadPNC(value) {
-  const raw = String(value ?? "").trim();
+  const raw = String(value  -  "").trim();
   if (!raw) return 0;
   const normalized = raw.replace(/\./g, "").replace(/,/g, ".").replace(/[^0-9.-]/g, "");
   const n = Number(normalized);
@@ -1582,13 +1582,13 @@ export default function DesdeRecibo() {
       um: umMovimiento || null,
       umb: umbMovimiento || null,
       codigo_material: (linea.codigo || "").toString().trim(),
-      codigo_ubicacion: opts.codigo_ubicacion ?? null,
-      estado: opts.estado ?? "ALMACENADO",
+      codigo_ubicacion: opts.codigo_ubicacion  -  null,
+      estado: opts.estado  -  "ALMACENADO",
       lote_almacen: loteAlm,
       lote_proveedor: loteProv,
       fecha_fabricacion: ff || null,
       fecha_vencimiento: fv || null,
-      cantidad_r: Number(opts.cantidad_r ?? linea.total ?? 0),
+      cantidad_r: Number(opts.cantidad_r  -  linea.total  -  0),
     };
   };
 
@@ -1813,7 +1813,7 @@ export default function DesdeRecibo() {
           <div class="receipt-logo-box"><img src="/favicon1.ico" alt="INOVA" /></div>
           <div>
             <div class="receipt-title">RECIBO CIEGO</div>
-            <div class="receipt-subtitle">Formato de recepciÃ³n y trazabilidad de ingreso</div>
+            <div class="receipt-subtitle">Formato de recepción y trazabilidad de ingreso</div>
           </div>
         </div>
         <div class="receipt-meta">
@@ -1854,8 +1854,8 @@ export default function DesdeRecibo() {
           <tr>
             <th>Item</th>
             <th># Serial</th>
-            <th>Fecha recepciÃ³n</th>
-            <th>CÃ³digo</th>
+            <th>Fecha recepción</th>
+            <th>Código</th>
             <th>Texto breve material</th>
             <th>Empaque</th>
             <th>UMB</th>
@@ -1863,7 +1863,7 @@ export default function DesdeRecibo() {
             <th>Cantidad</th>
             <th>Total</th>
             <th>Lote proveedor</th>
-            <th>F. fabricaciÃ³n</th>
+            <th>F. fabricación</th>
             <th>F. vencimiento</th>
             <th>Certificado</th>
           </tr>
