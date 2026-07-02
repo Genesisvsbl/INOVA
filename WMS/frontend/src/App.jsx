@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Download } from "lucide-react";
 import Layout from "./Layout";
 import Calidad5S from "./pages/5s/Calidad5S.jsx";
 import EtoDigitalApp from "./pages/eto/App.jsx";
@@ -207,6 +208,54 @@ function useGlobalTableTools() {
     return () => observer.disconnect();
   }, [location.pathname]);
 }
+
+function PwaInstallButton() {
+  const [installEvent, setInstallEvent] = useState(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const alreadyInstalled = window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator?.standalone;
+    if (alreadyInstalled) return undefined;
+
+    const handleBeforeInstall = (event) => {
+      event.preventDefault();
+      setInstallEvent(event);
+      setVisible(true);
+    };
+    const handleInstalled = () => {
+      setVisible(false);
+      setInstallEvent(null);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstall);
+    window.addEventListener("appinstalled", handleInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
+      window.removeEventListener("appinstalled", handleInstalled);
+    };
+  }, []);
+
+  const installApp = async () => {
+    if (!installEvent) return;
+    installEvent.prompt();
+    try {
+      const choice = await installEvent.userChoice;
+      if (choice?.outcome === "accepted") setVisible(false);
+    } finally {
+      setInstallEvent(null);
+    }
+  };
+
+  if (!visible) return null;
+
+  return (
+    <button type="button" className="pwa-install-button" onClick={installApp}>
+      <Download size={16} />
+      <span>Instalar INOVA</span>
+    </button>
+  );
+}
 function PrivateRoute({ children }) {
   const isAuth = sessionStorage.getItem("auth") === "true";
   const selectedPillar = sessionStorage.getItem("pilarSeleccionado");
@@ -257,6 +306,7 @@ function AppRoutes() {
   return (
     <>
       <WmsDialogHost />
+      <PwaInstallButton />
       <Routes>
       <Route path="/login" element={<LoginPage />} />
 
