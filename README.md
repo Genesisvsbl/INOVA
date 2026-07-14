@@ -4,7 +4,7 @@ Plataforma SaaS multiempresa organizada por pilares.
 
 ## Pilares
 
-- `WMS/`: gestion de almacen. Contiene backend FastAPI y frontend React/Vite en `WMS/frontend`.
+- `WMS/`: gestion de almacen. Frontend React/Vite en `WMS/frontend` que opera directamente contra Supabase (schema `wms`). No usa backend propio.
 - `5S/`: gestion visual y calidad 5S. Contiene fuentes frontend y assets del pilar; WMS conserva puentes para las rutas actuales.
 - `ETO/`: ETO DIGITAL. Contiene la app completa en `ETO/app`.
 

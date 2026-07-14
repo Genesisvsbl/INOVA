@@ -18,7 +18,9 @@ const ETO_REAL_PORTAL_URL =
 
 const INOVA_LOGIN_URL =
   import.meta.env.VITE_INOVA_LOGIN_URL ||
-  "https://inova-delta.vercel.app/login?resetLogin=true";
+  (typeof window !== "undefined" && window.location
+    ? `${window.location.origin}/login?resetLogin=true`
+    : "https://inova-iota.vercel.app/login?resetLogin=true");
 
 export default function EtoPortal() {
   const [status, setStatus] = useState("Preparando entorno ETO...");

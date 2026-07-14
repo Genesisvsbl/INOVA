@@ -1,6 +1,10 @@
 ﻿export const APPROVAL_EMAIL_FROM = "INOVA <no-reply@inova.app>";
-export const APPROVAL_LOGIN_URL = "https://inova-delta.vercel.app/login";
-export const APPROVAL_LOGO_URL = "https://inova-delta.vercel.app/INOVA2026.png";
+const APP_BASE_URL = (
+  import.meta.env.VITE_APP_URL ||
+  (typeof window !== "undefined" && window.location ? window.location.origin : "https://inova-iota.vercel.app")
+).replace(/\/$/, "");
+export const APPROVAL_LOGIN_URL = `${APP_BASE_URL}/login`;
+export const APPROVAL_LOGO_URL = `${APP_BASE_URL}/INOVA2026.png`;
 
 export const APPROVAL_THEMES = {
   wms: {

@@ -259,7 +259,11 @@ async function sendPasswordSecurityEmail(payload) {
       },
     },
     {
-      url: "https://inova-delta.vercel.app/api/send-password-email",
+      url: (import.meta.env.VITE_APP_URL
+        ? `${import.meta.env.VITE_APP_URL.replace(/\/$/, "")}/api/send-password-email`
+        : (typeof window !== "undefined" && window.location
+            ? `${window.location.origin}/api/send-password-email`
+            : "")),
       headers: { "Content-Type": "application/json" },
     },
   ].filter((endpoint) => endpoint.url);

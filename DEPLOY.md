@@ -12,7 +12,9 @@ Schemas:
 
 ## Variables de base de datos
 
-Cada backend debe recibir una URL PostgreSQL de Supabase:
+WMS ya no tiene backend propio: opera directamente contra Supabase desde el
+frontend. Los backends que siguen vivos (5S y ETO) reciben una URL PostgreSQL
+de Supabase:
 
 ```text
 DATABASE_URL=postgresql+psycopg2://...
@@ -24,14 +26,20 @@ Tambien se aceptan `SUPABASE_DATABASE_URL` o `SUPABASE_DB_URL`.
 
 Cada pilar tiene su frontend separado:
 
-- WMS: `WMS/frontend`
+- WMS: `WMS/frontend` (Supabase directo, sin backend)
 - 5S: `5S/frontend`
 - ETO: `ETO/app`
 
 Variables esperadas:
 
 ```text
-VITE_API_URL=http://127.0.0.1:8000
+# WMS -> Supabase directo
+VITE_SUPABASE_URL=https://<proyecto>.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=<clave-publica>
+VITE_EMPRESA_ID=1
+
+# Backends que siguen activos
+VITE_API_URL=http://127.0.0.1:8000   # 5S
 VITE_ETO_API_URL=http://127.0.0.1:8001
 ```
 
