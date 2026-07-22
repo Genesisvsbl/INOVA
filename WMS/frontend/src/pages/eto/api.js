@@ -73,7 +73,7 @@ function compareValue(value, operator, ruleValue) {
 
 function measuredValue(indicator, row) {
   if (indicator?.capture_mode === "single" || indicator?.scope_type === "entity") {
-    return Number(row.single_value  -  row.value  -  0);
+    return Number(row.single_value ?? row.value ?? 0);
   }
 
   const shifts = parseShifts(indicator?.shifts);
@@ -91,8 +91,8 @@ function measuredValue(indicator, row) {
 }
 
 function calculateGeneral(indicator, value) {
-  const target = Number(indicator?.target_value  -  0);
-  const current = Number(value  -  0);
+  const target = Number(indicator?.target_value ?? 0);
+  const current = Number(value ?? 0);
   const operator = indicator?.target_operator || ">=";
 
   if (!Number.isFinite(current)) return 0;
@@ -589,15 +589,36 @@ async function entityDashboardSupabase(params) {
   const indicatorMap = await getIndicatorMap();
   const indicator = indicatorMap.get(indicatorId) || {};
   const targets = await entityTargetsSupabase(new URLSearchParams({ indicator_id: String(indicatorId), active_only: "true" }));
-  const targetMap = new Map(targets.map((item) => [Number(item.entity_id), Number(item.target_value || 0)]));
-  const ranking = records.map((record) => {
-    const targetValue = targetMap.get(Number(record.entity_id))  -  Number(indicator.target_value || 0);
-    const general = calculateGeneral({ ...indicator, target_value: targetValue }, Number(record.value || 0));
+  // Acumulado (suma de valores del periodo) e info por entidad
+  const accByEntity = new Map();
+  const infoByEntity = new Map();
+  for (const record of records) {
+    const eid = Number(record.entity_id);
+    accByEntity.set(eid, (accByEntity.get(eid) || 0) + Number(record.value || 0));
+    if (!infoByEntity.has(eid)) infoByEntity.set(eid, record);
+  }
+
+  // Un renglon por entidad asociada (sin duplicados, aunque tenga varios registros)
+  const ranking = targets.map((target) => {
+    const eid = Number(target.entity_id);
+    const info = infoByEntity.get(eid) || {};
+    const meta = Number(target.target_value ?? indicator.target_value ?? 0);
+    const accumulated = accByEntity.get(eid) || 0;
+    const remaining = meta > 0 ? Math.max(0, meta - accumulated) : 0;
+    const compliance = meta > 0 ? (accumulated / meta) * 100 : 0;
+    const general = calculateGeneral({ ...indicator, target_value: meta }, accumulated);
     return {
-      ...record,
-      target_value: targetValue,
+      entity_id: eid,
+      entity_code: target.entity_code || info.entity_code || "",
+      entity_name: target.entity_name || info.entity_name || "",
+      entity_type: target.entity_type || info.entity_type || "",
+      target_value: meta,
+      value: accumulated,
+      accumulated,
+      remaining,
+      compliance,
       general,
-      estado: calculateStatus(indicator, general),
+      estado: calculateStatus({ ...indicator, target_value: meta }, general),
     };
   });
   return {
@@ -607,7 +628,7 @@ async function entityDashboardSupabase(params) {
     period_label: `${params.get("year") || ""}-${String(params.get("month") || "").padStart(2, "0")}`,
     summary: {
       total_entities: targets.length,
-      total_records: ranking.length,
+      total_records: records.length,
       average_general: buildSummary(ranking).average_general,
       ok_count: ranking.filter((item) => item.estado === "ok").length,
       warning_count: ranking.filter((item) => item.estado === "warning").length,
@@ -1309,7 +1330,7 @@ const API = {
   createOrUpdatePersonTarget: (payload) =>
     API.createOrUpdateEntityTarget({
       indicator_id: payload.indicator_id,
-      entity_id: payload.person_id  -  payload.entity_id,
+      entity_id: payload.person_id ?? payload.entity_id,
       target_value: payload.target_value,
       is_active: payload.is_active,
     }),
@@ -1324,7 +1345,7 @@ const API = {
       indicator_id,
       record_date,
       rows: (rows || []).map((row) => ({
-        entity_id: row.person_id  -  row.entity_id,
+        entity_id: row.person_id ?? row.entity_id,
         value: row.value,
         observation: row.observation,
       })),
