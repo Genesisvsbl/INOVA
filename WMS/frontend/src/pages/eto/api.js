@@ -183,6 +183,12 @@ async function nextEntityCode() {
   return `ENT-${String(lastNumber + 1).padStart(4, "0")}`;
 }
 
+async function nextIndicatorCode() {
+  const rows = await supabaseRows("indicators", { select: "code", order: "id.desc", limit: "1" });
+  const lastNumber = Number(String(rows[0]?.code || "").replace(/\D/g, "")) || 0;
+  return `IND-${String(lastNumber + 1).padStart(4, "0")}`;
+}
+
 async function getProcessMap() {
   const rows = await supabaseRows("processes", { select: "*" });
   return new Map(rows.map((item) => [Number(item.id), item]));
@@ -725,8 +731,10 @@ async function requestSupabase(path, options = {}) {
 
   if (method === "POST") {
     if (resource === "indicators") {
+      const indicatorPayload = normalizeIndicatorPayload(body);
       return firstRow(await insertRow("eto_digital", table, {
-        ...normalizeIndicatorPayload(body),
+        ...indicatorPayload,
+        code: String(indicatorPayload.code || "").trim() || (await nextIndicatorCode()),
         empresa_id: empresaId,
       }));
     }
