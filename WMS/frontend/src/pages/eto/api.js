@@ -134,7 +134,7 @@ function calculateStatus(indicator, general) {
 }
 
 function normalizeIndicatorPayload(payload) {
-  return {
+  const normalized = {
     ...payload,
     process_id: Number(payload.process_id),
     meeting_level: Number(payload.meeting_level || 1),
@@ -143,6 +143,11 @@ function normalizeIndicatorPayload(payload) {
     critical_value: cleanOptionalNumber(payload.critical_value),
     shifts: normalizeShiftsValue(payload.shifts),
   };
+  // use_warning / use_critical son estado de UI derivado de los operadores,
+  // no son columnas de eto_digital.indicators.
+  delete normalized.use_warning;
+  delete normalized.use_critical;
+  return normalized;
 }
 
 async function supabaseRows(table, params = {}) {
