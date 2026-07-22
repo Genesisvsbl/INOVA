@@ -717,6 +717,156 @@ export default function HistoryView({
     }
   }
 
+  function parseReportDate(value) {
+    if (value === null || value === undefined || value === "") return null;
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      const y = value.getFullYear();
+      const m = String(value.getMonth() + 1).padStart(2, "0");
+      const d = String(value.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return new Date(Date.UTC(1899, 11, 30 + Math.floor(value)))
+        .toISOString()
+        .slice(0, 10);
+    }
+    const text = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10);
+    const parts = text.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})/);
+    if (parts) {
+      const day = parts[1].padStart(2, "0");
+      const mon = parts[2].padStart(2, "0");
+      const year = parts[3].length === 2 ? `20${parts[3]}` : parts[3];
+      return `${year}-${mon}-${day}`;
+    }
+    return null;
+  }
+
+  function findColumnKey(sampleRow, candidates) {
+    const keys = Object.keys(sampleRow || {});
+    const norm = (s) => String(s).trim().toLowerCase();
+    for (const cand of candidates) {
+      const hit = keys.find((k) => norm(k) === cand);
+      if (hit) return hit;
+    }
+    for (const cand of candidates) {
+      const hit = keys.find((k) => norm(k).includes(cand));
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  // Lee un Excel de ocurrencias, cuenta cuantos reportes hizo cada entidad
+  // (cruzando "ID de quien reporto" con el codigo de la entidad) por
+  // "Fecha del informe", y vuelca esos conteos en la matriz por entidad.
+  // El Excel NO se guarda: solo se usan los numeros; luego se persiste con
+  // "Guardar por entidad".
+  async function handleImportOccurrences(event) {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      if (!entityMatrixMeta) {
+        setMessage(
+          "Primero usa 'Cargar por entidad' (con anio, mes e indicador) y luego importa el Excel."
+        );
+        return;
+      }
+      setLoading(true);
+
+      const XLSX = await import("xlsx");
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+      if (!rows.length) {
+        setMessage("El archivo no tiene filas.");
+        return;
+      }
+
+      const idKey = findColumnKey(rows[0], [
+        "id de quien reporto",
+        "id de quien report",
+        "id quien reporto",
+      ]);
+      const dateKey = findColumnKey(rows[0], [
+        "fecha del informe",
+        "fecha informe",
+      ]);
+
+      if (!idKey || !dateKey) {
+        setMessage(
+          "No encontre las columnas 'ID de quien reporto' y 'Fecha del informe' en el archivo."
+        );
+        return;
+      }
+
+      const entityByCode = new Map(
+        (entityMatrixMeta.targets || []).map((t) => [
+          String(t.entity_code || "").trim(),
+          t,
+        ])
+      );
+
+      const year = Number(entityMatrixMeta.year);
+      const month = Number(entityMatrixMeta.month);
+      const counts = {};
+      let matched = 0;
+      let notFound = 0;
+      let outOfMonth = 0;
+
+      for (const raw of rows) {
+        const code = String(raw[idKey] ?? "").trim();
+        if (!code) continue;
+        const target = entityByCode.get(code);
+        if (!target) {
+          notFound += 1;
+          continue;
+        }
+        const iso = parseReportDate(raw[dateKey]);
+        if (!iso) continue;
+        const [y, m] = iso.split("-").map(Number);
+        if (y !== year || m !== month) {
+          outOfMonth += 1;
+          continue;
+        }
+        const key = `${target.entity_id}-${iso}`;
+        counts[key] = (counts[key] || 0) + 1;
+        matched += 1;
+      }
+
+      if (!matched) {
+        setMessage(
+          `No se cruzo ningun reporte con tus entidades para ${String(month).padStart(2, "0")}/${year}. (${notFound} IDs sin entidad, ${outOfMonth} fuera del mes).`
+        );
+        return;
+      }
+
+      setEntityMatrixRows((prev) =>
+        prev.map((row) => {
+          const key = `${row.entity_id}-${row.record_date}`;
+          if (counts[key] !== undefined) {
+            return { ...row, value: String(counts[key]) };
+          }
+          return row;
+        })
+      );
+
+      const entidades = new Set(
+        Object.keys(counts).map((k) => k.split("-")[0])
+      ).size;
+
+      clearMessageSoon(
+        `Ocurrencias cruzadas correctamente: ${matched} reportes en ${entidades} entidad(es). Revisa la matriz y dale "Guardar por entidad".`
+      );
+    } catch (err) {
+      setMessage(err.message || "No se pudo leer el archivo.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function updateEntityMatrix(index, field, value) {
     setEntityMatrixRows((prev) =>
       prev.map((row, i) => (i === index ? { ...row, [field]: value } : row))
@@ -808,7 +958,44 @@ export default function HistoryView({
         )}
       </header>
 
-      {message && <div className="history-alert">{message}</div>}
+      {message && (() => {
+        const isError = !/correctamente/i.test(message);
+        let text = message;
+        if (isError && text.trim().startsWith("{")) {
+          try {
+            const parsed = JSON.parse(text);
+            if (parsed && parsed.message) text = parsed.message;
+          } catch (_) {}
+        }
+        return (
+          <div style={{ position: "fixed", top: "18px", right: "18px", zIndex: 9999, maxWidth: "380px" }}>
+            <div
+              onClick={() => setMessage("")}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                padding: "12px 16px",
+                borderRadius: "12px",
+                background: "#ffffff",
+                boxShadow: "0 10px 30px rgba(0,0,0,.18)",
+                borderLeft: `4px solid ${isError ? "#dc2626" : "#16a34a"}`,
+                color: "#0f172a",
+                fontSize: "14px",
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+            >
+              {isError ? (
+                <AlertTriangle size={18} color="#dc2626" style={{ flexShrink: 0 }} />
+              ) : (
+                <CheckCircle2 size={18} color="#16a34a" style={{ flexShrink: 0 }} />
+              )}
+              <span>{text}</span>
+            </div>
+          </div>
+        );
+      })()}
 
       <form onSubmit={handleSearchHistory} className="history-filters-panel">
         <div className="filters-title-row">
@@ -941,45 +1128,67 @@ export default function HistoryView({
             Consultar histórico
           </button>
 
-          <button
-            type="button"
-            className="history-secondary"
-            onClick={handleLoadMonthMatrix}
-            disabled={loading}
-          >
-            <UploadCloud size={18} />
-            Cargar matriz
-          </button>
+          {!isEntityHistoryIndicator && (
+            <>
+              <button
+                type="button"
+                className="history-secondary"
+                onClick={handleLoadMonthMatrix}
+                disabled={loading}
+              >
+                <UploadCloud size={18} />
+                Cargar matriz
+              </button>
 
-          <button
-            type="button"
-            className="history-secondary"
-            onClick={handleSaveMonthMatrix}
-            disabled={loading}
-          >
-            <Save size={18} />
-            Guardar matriz
-          </button>
+              <button
+                type="button"
+                className="history-secondary"
+                onClick={handleSaveMonthMatrix}
+                disabled={loading}
+              >
+                <Save size={18} />
+                Guardar matriz
+              </button>
+            </>
+          )}
 
-          <button
-            type="button"
-            className="history-secondary"
-            onClick={handleLoadEntityMatrix}
-            disabled={loading}
-          >
-            <UsersRound size={18} />
-            Cargar por entidad
-          </button>
+          {isEntityHistoryIndicator && (
+            <>
+              <button
+                type="button"
+                className="history-secondary"
+                onClick={handleLoadEntityMatrix}
+                disabled={loading}
+              >
+                <UsersRound size={18} />
+                Cargar por entidad
+              </button>
 
-          <button
-            type="button"
-            className="history-secondary"
-            onClick={handleSaveEntityMatrix}
-            disabled={loading}
-          >
-            <FileDown size={18} />
-            Guardar por entidad
-          </button>
+              <label
+                className="history-secondary"
+                style={{ cursor: loading ? "not-allowed" : "pointer" }}
+              >
+                <FileInput size={18} />
+                Importar ocurrencias (Excel)
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  style={{ display: "none" }}
+                  onChange={handleImportOccurrences}
+                />
+              </label>
+
+              <button
+                type="button"
+                className="history-secondary"
+                onClick={handleSaveEntityMatrix}
+                disabled={loading}
+              >
+                <FileDown size={18} />
+                Guardar por entidad
+              </button>
+            </>
+          )}
 
           {monthMatrixMeta && (
             <button
