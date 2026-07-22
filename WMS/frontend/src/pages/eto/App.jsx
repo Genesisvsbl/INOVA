@@ -520,6 +520,7 @@ export default function App() {
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("success");
 
   const [processes, setProcesses] = useState([]);
   const [indicators, setIndicators] = useState([]);
@@ -639,10 +640,25 @@ export default function App() {
 
   function clearMessageSoon(text) {
     setMessage(text);
+    setMessageType("success");
     window.clearTimeout(window.__etoMsgTimeout);
     window.__etoMsgTimeout = window.setTimeout(() => {
       setMessage("");
     }, 2500);
+  }
+
+  function showError(text) {
+    let msg = String(text || "No se pudo completar la operacion.");
+    try {
+      const parsed = JSON.parse(msg);
+      if (parsed && parsed.message) msg = parsed.message;
+    } catch (_) {}
+    setMessage(msg);
+    setMessageType("error");
+    window.clearTimeout(window.__etoMsgTimeout);
+    window.__etoMsgTimeout = window.setTimeout(() => {
+      setMessage("");
+    }, 5000);
   }
 
   function handleAccessSubmit(e) {
@@ -747,7 +763,7 @@ export default function App() {
       resetProcessForm();
       await loadBaseData();
     } catch (err) {
-      setMessage(err.message);
+      showError(err.message);
     } finally {
       setLoading(false);
     }
@@ -779,7 +795,7 @@ export default function App() {
       clearMessageSoon("Proceso eliminado correctamente");
       await loadBaseData();
     } catch (err) {
-      setMessage(err.message);
+      showError(err.message);
     } finally {
       setLoading(false);
     }
@@ -835,7 +851,7 @@ export default function App() {
       resetIndicatorForm();
       await loadBaseData();
     } catch (err) {
-      setMessage(err.message);
+      showError(err.message);
     } finally {
       setLoading(false);
     }
@@ -895,7 +911,7 @@ export default function App() {
       clearMessageSoon("Indicador eliminado correctamente");
       await loadBaseData();
     } catch (err) {
-      setMessage(err.message);
+      showError(err.message);
     } finally {
       setLoading(false);
     }
@@ -932,7 +948,7 @@ export default function App() {
       resetEntityForm();
       clearMessageSoon("Entidades del indicador cargadas correctamente");
     } catch (err) {
-      setMessage(err.message);
+      showError(err.message);
     } finally {
       setLoading(false);
     }
@@ -998,7 +1014,7 @@ export default function App() {
 
       resetEntityForm();
     } catch (err) {
-      setMessage(err.message);
+      showError(err.message);
     } finally {
       setLoading(false);
     }
@@ -1047,7 +1063,7 @@ export default function App() {
 
       clearMessageSoon("Entidad eliminada correctamente");
     } catch (err) {
-      setMessage(err.message);
+      showError(err.message);
     } finally {
       setLoading(false);
     }
@@ -1086,7 +1102,7 @@ export default function App() {
       setSelectedEntityTargetValue("");
       clearMessageSoon("Entidad asociada correctamente");
     } catch (err) {
-      setMessage(err.message);
+      showError(err.message);
     } finally {
       setLoading(false);
     }
@@ -1114,7 +1130,7 @@ export default function App() {
 
       clearMessageSoon("Entidad quitada del indicador");
     } catch (err) {
-      setMessage(err.message);
+      showError(err.message);
     } finally {
       setLoading(false);
     }
@@ -1160,10 +1176,6 @@ export default function App() {
   };
 
   function renderContent() {
-    if (message) {
-      return <div className="alert">{message}</div>;
-    }
-
     if (tab === "portal") {
       return (
         <PortalView
@@ -1325,6 +1337,31 @@ export default function App() {
     >
       <style>{css}</style>
 
+
+      {message && (
+        <div style={{ position: "fixed", top: "18px", right: "18px", zIndex: 9999, maxWidth: "360px" }}>
+          <div
+            onClick={() => setMessage("")}
+            style={{
+              display: "flex", alignItems: "center", gap: "10px",
+              padding: "12px 16px", borderRadius: "12px", background: "#ffffff",
+              boxShadow: "0 10px 30px rgba(0,0,0,.18)",
+              borderLeft: `4px solid ${messageType === "error" ? "#dc2626" : "#16a34a"}`,
+              color: "#0f172a", fontSize: "14px", fontWeight: 500,
+              cursor: "pointer", animation: "etoToastIn .22s ease-out",
+            }}
+          >
+            <span style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              width: "22px", height: "22px", borderRadius: "50%", flexShrink: 0,
+              background: messageType === "error" ? "#dc2626" : "#16a34a",
+              color: "#fff", fontSize: "13px", fontWeight: 700,
+            }}>{messageType === "error" ? "!" : "\u2713"}</span>
+            <span>{message}</span>
+          </div>
+          <style>{`@keyframes etoToastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}`}</style>
+        </div>
+      )}
 
       <EtoDialogHost />
 <header className="topbar" style={{ height: config.headerHeight }}>

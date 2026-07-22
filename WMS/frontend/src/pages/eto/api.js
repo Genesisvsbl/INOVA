@@ -761,7 +761,7 @@ async function requestSupabase(path, options = {}) {
         { indicator_id: Number(body.indicator_id), entity_id: Number(body.entity_id) },
         {
           target_value: Number(body.target_value || 0),
-          is_active: body.is_active  -  true,
+          is_active: body.is_active ?? true,
         }
       );
     }
@@ -1101,7 +1101,7 @@ const API = {
         document: payload.document || null,
         position: payload.position || null,
         area: payload.area || null,
-        is_active: payload.is_active  -  true,
+        is_active: payload.is_active ?? true,
       }),
     }),
 
@@ -1115,7 +1115,7 @@ const API = {
         document: payload.document || null,
         position: payload.position || null,
         area: payload.area || null,
-        is_active: payload.is_active  -  true,
+        is_active: payload.is_active ?? true,
       }),
     }),
 
@@ -1144,7 +1144,7 @@ const API = {
         indicator_id: Number(payload.indicator_id),
         entity_id: Number(payload.entity_id),
         target_value: Number(payload.target_value),
-        is_active: payload.is_active  -  true,
+        is_active: payload.is_active ?? true,
       }),
     }),
 
