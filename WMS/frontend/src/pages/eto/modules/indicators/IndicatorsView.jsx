@@ -1711,10 +1711,14 @@ const indicatorsCss = `
 
 .indicator-name {
   display: block;
-  color: #1e293b;
-  font-weight: 850;
-  max-width: 210px;
-  line-height: 1.25;
+  color: #1f2937;
+  font-weight: 600;
+  font-size: 13px;
+  max-width: 240px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .process-badge {
