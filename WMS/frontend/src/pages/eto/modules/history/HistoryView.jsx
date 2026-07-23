@@ -880,6 +880,13 @@ export default function HistoryView({
         }
 
         const indicatorId = Number(entityMatrixMeta.indicator_id);
+        // Limpia los registros del mes (incluidos los viejos sin condicion)
+        // para que la reimportacion no sume doble.
+        await API.clearEntityRecords({
+          indicator_id: indicatorId,
+          year,
+          month,
+        });
         for (const iso of Object.keys(grid)) {
           for (const dim of Object.keys(grid[iso])) {
             const rowsToSave = Object.entries(grid[iso][dim]).map(

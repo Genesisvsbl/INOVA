@@ -510,6 +510,21 @@ async function saveEntityGridSupabase(body) {
   return saved;
 }
 
+async function clearEntityRecordsSupabase({ indicator_id, year, month }) {
+  const params = new URLSearchParams({ indicator_id: String(indicator_id) });
+  if (year) params.set("year", String(year));
+  if (month) params.set("month", String(month));
+  const rows = await supabaseRows("entity_records", {
+    indicator_id: `eq.${indicator_id}`,
+    ...filterDateParams(params),
+    select: "id",
+  });
+  await Promise.all(
+    (rows || []).map((r) => deleteById("eto_digital", "entity_records", r.id))
+  );
+  return { deleted: (rows || []).length };
+}
+
 async function historySupabase(params) {
   return listDailyRecordsSupabase(params);
 }
@@ -1258,6 +1273,11 @@ const API = {
         })),
       }),
     }),
+
+  clearEntityRecords: ({ indicator_id, year, month }) =>
+    supabaseEnabled
+      ? clearEntityRecordsSupabase({ indicator_id, year, month })
+      : Promise.resolve({ deleted: 0 }),
 
   getEntityRecords: ({ indicator_id, entity_id, year, month } = {}) => {
     const q = buildQuery({
