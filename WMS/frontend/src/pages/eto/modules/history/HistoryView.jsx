@@ -867,6 +867,116 @@ export default function HistoryView({
     }
   }
 
+  // Importa clasificando por la columna "Impacto ambiental": Si -> entidad
+  // "Ambiental", No -> entidad "Seguridad", contando por "Fecha del informe".
+  // El Excel NO se guarda: solo se toman los numeros.
+  async function handleImportConditions(event) {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      if (!entityMatrixMeta) {
+        setMessage(
+          "Primero usa 'Cargar por entidad' (con anio, mes e indicador) y luego importa."
+        );
+        return;
+      }
+      setLoading(true);
+
+      const XLSX = await import("xlsx");
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+      if (!rows.length) {
+        setMessage("El archivo no tiene filas.");
+        return;
+      }
+
+      const impactKey = findColumnKey(rows[0], ["impacto ambiental", "impacto"]);
+      const dateKey = findColumnKey(rows[0], [
+        "fecha del informe",
+        "fecha informe",
+      ]);
+      if (!impactKey || !dateKey) {
+        setMessage(
+          "No encontre las columnas 'Impacto ambiental' y 'Fecha del informe'."
+        );
+        return;
+      }
+
+      const stripAccents = (s) =>
+        String(s ?? "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .trim();
+
+      const findEntity = (keywords) =>
+        (entityMatrixMeta.targets || []).find((t) => {
+          const hay = stripAccents(`${t.entity_name || ""} ${t.entity_code || ""}`);
+          return keywords.some((k) => hay.includes(k));
+        });
+      const entAmbiental = findEntity(["ambient"]);
+      const entSeguridad = findEntity(["segurid"]);
+
+      if (!entAmbiental || !entSeguridad) {
+        setMessage(
+          "Necesitas dos entidades asociadas cuyos nombres contengan 'Ambiental' y 'Seguridad'."
+        );
+        return;
+      }
+
+      const year = Number(entityMatrixMeta.year);
+      const month = Number(entityMatrixMeta.month);
+      const counts = {};
+      let matched = 0;
+      let outOfMonth = 0;
+
+      for (const raw of rows) {
+        const val = stripAccents(raw[impactKey]);
+        const isAmbiental = val === "si" || val.startsWith("si");
+        const target = isAmbiental ? entAmbiental : entSeguridad;
+        const iso = parseReportDate(raw[dateKey]);
+        if (!iso) continue;
+        const [y, m] = iso.split("-").map(Number);
+        if (y !== year || m !== month) {
+          outOfMonth += 1;
+          continue;
+        }
+        const key = `${target.entity_id}-${iso}`;
+        counts[key] = (counts[key] || 0) + 1;
+        matched += 1;
+      }
+
+      if (!matched) {
+        setMessage(
+          `No se cruzo ningun reporte para ${String(month).padStart(2, "0")}/${year}. (${outOfMonth} fuera del mes).`
+        );
+        return;
+      }
+
+      setEntityMatrixRows((prev) =>
+        prev.map((row) => {
+          const key = `${row.entity_id}-${row.record_date}`;
+          if (counts[key] !== undefined) {
+            return { ...row, value: String(counts[key]) };
+          }
+          return row;
+        })
+      );
+
+      clearMessageSoon(
+        `Condiciones cruzadas correctamente: ${matched} reportes (Ambiental/Seguridad) por fecha. Revisa y dale "Guardar por entidad".`
+      );
+    } catch (err) {
+      setMessage(err.message || "No se pudo leer el archivo.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function updateEntityMatrix(index, field, value) {
     setEntityMatrixRows((prev) =>
       prev.map((row, i) => (i === index ? { ...row, [field]: value } : row))
@@ -1175,6 +1285,21 @@ export default function HistoryView({
                   accept=".xlsx,.xls"
                   style={{ display: "none" }}
                   onChange={handleImportOccurrences}
+                />
+              </label>
+
+              <label
+                className="history-secondary"
+                style={{ cursor: loading ? "not-allowed" : "pointer" }}
+                title="Cuenta por Impacto ambiental: Sí→Ambiental, No→Seguridad"
+              >
+                <FileInput size={18} />
+                Importar por condición
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  style={{ display: "none" }}
+                  onChange={handleImportConditions}
                 />
               </label>
 
