@@ -820,6 +820,90 @@ export default function HistoryView({
 
       const year = Number(entityMatrixMeta.year);
       const month = Number(entityMatrixMeta.month);
+
+      // === Modo multi-condicion: si el indicador tiene condiciones definidas,
+      // clasifica cada reporte por "Impacto ambiental" y guarda ambas de una.
+      const dims = String(selectedHistoryIndicator?.dimensions || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      if (dims.length >= 2) {
+        if (!impactKey) {
+          setMessage(
+            "Este indicador usa condiciones: el archivo debe tener la columna 'Impacto ambiental'."
+          );
+          return;
+        }
+        const strip = (s) =>
+          String(s ?? "")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .trim();
+        const dimAmb = dims.find((d) => strip(d).includes("ambient")) || dims[0];
+        const dimSeg = dims.find((d) => strip(d).includes("segur")) || dims[1];
+
+        const grid = {};
+        let matchedM = 0;
+        let notFoundM = 0;
+        let outM = 0;
+        for (const raw of rows) {
+          const code = String(raw[idKey] ?? "").trim();
+          if (!code) continue;
+          const target = entityByCode.get(code);
+          if (!target) {
+            notFoundM += 1;
+            continue;
+          }
+          const iso = parseReportDate(raw[dateKey]);
+          if (!iso) continue;
+          const [y, m] = iso.split("-").map(Number);
+          if (y !== year || m !== month) {
+            outM += 1;
+            continue;
+          }
+          const impact = strip(raw[impactKey]);
+          const dim = impact === "si" || impact.startsWith("si") ? dimAmb : dimSeg;
+          grid[iso] = grid[iso] || {};
+          grid[iso][dim] = grid[iso][dim] || {};
+          grid[iso][dim][target.entity_id] =
+            (grid[iso][dim][target.entity_id] || 0) + 1;
+          matchedM += 1;
+        }
+
+        if (!matchedM) {
+          setMessage(
+            `No se cruzo ningun reporte para ${String(month).padStart(2, "0")}/${year}. (${notFoundM} IDs sin entidad, ${outM} fuera del mes).`
+          );
+          return;
+        }
+
+        const indicatorId = Number(entityMatrixMeta.indicator_id);
+        for (const iso of Object.keys(grid)) {
+          for (const dim of Object.keys(grid[iso])) {
+            const rowsToSave = Object.entries(grid[iso][dim]).map(
+              ([entity_id, value]) => ({ entity_id: Number(entity_id), value })
+            );
+            await API.saveEntityGrid({
+              indicator_id: indicatorId,
+              record_date: iso,
+              rows: rowsToSave,
+              dimension: dim,
+            });
+          }
+        }
+
+        await handleLoadEntityMatrix();
+        await runHistorySearch();
+        clearMessageSoon(
+          `Importado y guardado correctamente: ${matchedM} reportes clasificados en ${dims.join(
+            " / "
+          )} por fecha.`
+        );
+        return;
+      }
+
       const counts = {};
       let matched = 0;
       let notFound = 0;

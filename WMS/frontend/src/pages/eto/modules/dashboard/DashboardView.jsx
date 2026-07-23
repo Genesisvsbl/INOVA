@@ -3813,18 +3813,26 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
       return [];
     }
 
+    const dims = dashboardData.dimensions || [];
     return dashboardData.ranking
-      .map((item) => ({
-        name: formatCompactName(item.entity_name, 20),
-        fullName: item.entity_name,
-        meta: Number(item.target_value || 0),
-        acumulado: Number(item.accumulated || 0),
-        pendiente: Math.max(Number(item.remaining || 0), 0),
-        cumplimiento: Number(item.compliance || 0),
-        estado: normalizeStatus(item.status),
-        entityCode: item.entity_code,
-        entityType: item.entity_type || "",
-      }))
+      .map((item) => {
+        const byDim = item.by_dimension || {};
+        const row = {
+          name: formatCompactName(item.entity_name, 20),
+          fullName: item.entity_name,
+          meta: Number(item.target_value || 0),
+          acumulado: Number(item.accumulated || 0),
+          pendiente: Math.max(Number(item.remaining || 0), 0),
+          cumplimiento: Number(item.compliance || 0),
+          estado: normalizeStatus(item.status),
+          entityCode: item.entity_code,
+          entityType: item.entity_type || "",
+        };
+        dims.forEach((d, i) => {
+          row[`cond${i}`] = Number(byDim[d] || 0);
+        });
+        return row;
+      })
       .filter((item) =>
         isMatchingStatusFilter(item.estado, dashboardFilter.status_filter)
       );
@@ -4593,43 +4601,72 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                             );
                           }}
                         />
-                        <Bar
-                          dataKey="acumulado"
-                          name="Acumulado"
-                          stackId="a"
-                          fill={CHART_COLORS.blue}
-                          radius={[10, 0, 0, 10]}
-                        >
-                          <LabelList
-                            dataKey="acumulado"
-                            position="insideLeft"
-                            formatter={(value) => formatPlainNumber(value)}
-                            style={{
-                              fill: "#ffffff",
-                              fontWeight: 800,
-                              fontSize: 12,
-                            }}
-                          />
-                        </Bar>
-                        <Bar
-                          dataKey="pendiente"
-                          name="Pendiente"
-                          stackId="a"
-                          fill={CHART_COLORS.pending}
-                          radius={[0, 10, 10, 0]}
-                        >
-                          <LabelList
-                            dataKey="pendiente"
-                            position="insideRight"
-                            formatter={(value) => formatPlainNumber(value)}
-                            style={{
-                              fill: CHART_COLORS.text,
-                              fontWeight: 800,
-                              fontSize: 12,
-                            }}
-                          />
-                          <LabelList content={<PersonProgressLabel />} />
-                        </Bar>
+                        {(dashboardData.dimensions || []).length >= 2 ? (
+                          (dashboardData.dimensions || []).map((d, i) => (
+                            <Bar
+                              key={d}
+                              dataKey={`cond${i}`}
+                              name={d}
+                              fill={
+                                i === 0
+                                  ? CHART_COLORS.blue
+                                  : CHART_COLORS.pending
+                              }
+                              radius={[8, 8, 8, 8]}
+                            >
+                              <LabelList
+                                dataKey={`cond${i}`}
+                                position="right"
+                                formatter={(value) => formatPlainNumber(value)}
+                                style={{
+                                  fill: CHART_COLORS.text,
+                                  fontWeight: 800,
+                                  fontSize: 12,
+                                }}
+                              />
+                            </Bar>
+                          ))
+                        ) : (
+                          <>
+                            <Bar
+                              dataKey="acumulado"
+                              name="Acumulado"
+                              stackId="a"
+                              fill={CHART_COLORS.blue}
+                              radius={[10, 0, 0, 10]}
+                            >
+                              <LabelList
+                                dataKey="acumulado"
+                                position="insideLeft"
+                                formatter={(value) => formatPlainNumber(value)}
+                                style={{
+                                  fill: "#ffffff",
+                                  fontWeight: 800,
+                                  fontSize: 12,
+                                }}
+                              />
+                            </Bar>
+                            <Bar
+                              dataKey="pendiente"
+                              name="Pendiente"
+                              stackId="a"
+                              fill={CHART_COLORS.pending}
+                              radius={[0, 10, 10, 0]}
+                            >
+                              <LabelList
+                                dataKey="pendiente"
+                                position="insideRight"
+                                formatter={(value) => formatPlainNumber(value)}
+                                style={{
+                                  fill: CHART_COLORS.text,
+                                  fontWeight: 800,
+                                  fontSize: 12,
+                                }}
+                              />
+                              <LabelList content={<PersonProgressLabel />} />
+                            </Bar>
+                          </>
+                        )}
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -4655,6 +4692,9 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                         <th>Entidad</th>
                         <th>Meta</th>
                         <th>Acumulado</th>
+                        {(dashboardData.dimensions || []).map((d) => (
+                          <th key={d}>{d}</th>
+                        ))}
                         <th>Faltante</th>
                         <th>Cumplimiento</th>
                         <th>Estado</th>
@@ -4675,6 +4715,14 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                             <td>{safeDisplay(item.entity_name)}</td>
                             <td>{safeDisplay(item.target_value, formatPlainNumber)}</td>
                             <td>{safeDisplay(item.accumulated, formatPlainNumber)}</td>
+                            {(dashboardData.dimensions || []).map((d) => (
+                              <td key={d}>
+                                {safeDisplay(
+                                  (item.by_dimension || {})[d],
+                                  formatPlainNumber
+                                )}
+                              </td>
+                            ))}
                             <td>{safeDisplay(item.remaining, formatPlainNumber)}</td>
                             <td>{safeDisplay(item.compliance, formatPercent)}</td>
                             <td>

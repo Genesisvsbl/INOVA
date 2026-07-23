@@ -448,6 +448,44 @@ export default function IndicatorsView({
               </select>
             </div>
 
+            {isEntityIndicatorForm && (
+              <div className="indicator-field full-field">
+                <label>
+                  <ClipboardList size={15} />
+                  Condiciones (separadas por coma)
+                </label>
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  <input
+                    value={indicatorForm.dimensions || ""}
+                    onChange={(e) =>
+                      setIndicatorForm({
+                        ...indicatorForm,
+                        dimensions: e.target.value,
+                      })
+                    }
+                    placeholder="Ej. Ambiental, Seguridad (déjalo vacío si no aplica)"
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    className="indicator-secondary"
+                    onClick={() =>
+                      setIndicatorForm({
+                        ...indicatorForm,
+                        dimensions: "Ambiental, Seguridad",
+                      })
+                    }
+                  >
+                    Ambiental / Seguridad
+                  </button>
+                </div>
+                <small style={{ color: "#64748b" }}>
+                  Si defines condiciones, el indicador guarda un valor por entidad y
+                  por condición, y al importar clasifica por "Impacto ambiental".
+                </small>
+              </div>
+            )}
+
             <div className="form-two-cols">
               <div className="indicator-field">
                 <label>

@@ -489,6 +489,7 @@ async function entityCaptureGridSupabase(params) {
 
 async function saveEntityGridSupabase(body) {
   const saved = [];
+  const gridDimension = body.dimension || "";
   for (const row of body.rows || []) {
     saved.push(
       await upsertByMatch(
@@ -497,6 +498,7 @@ async function saveEntityGridSupabase(body) {
           indicator_id: Number(body.indicator_id),
           entity_id: Number(row.entity_id),
           record_date: body.record_date,
+          dimension: row.dimension ?? gridDimension,
         },
         {
           value: row.value === "" || row.value === null || row.value === undefined ? 0 : Number(row.value),
@@ -601,12 +603,24 @@ async function entityDashboardSupabase(params) {
   const indicatorMap = await getIndicatorMap();
   const indicator = indicatorMap.get(indicatorId) || {};
   const targets = await entityTargetsSupabase(new URLSearchParams({ indicator_id: String(indicatorId), active_only: "true" }));
-  // Acumulado (suma de valores del periodo) e info por entidad
+  // Condiciones (dimensiones) configuradas en el indicador
+  const dimensionList = String(indicator.dimensions || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  // Acumulado total y por dimension, e info por entidad
   const accByEntity = new Map();
+  const accByEntityDim = new Map();
   const infoByEntity = new Map();
   for (const record of records) {
     const eid = Number(record.entity_id);
-    accByEntity.set(eid, (accByEntity.get(eid) || 0) + Number(record.value || 0));
+    const dim = String(record.dimension || "");
+    const val = Number(record.value || 0);
+    accByEntity.set(eid, (accByEntity.get(eid) || 0) + val);
+    if (!accByEntityDim.has(eid)) accByEntityDim.set(eid, new Map());
+    const dm = accByEntityDim.get(eid);
+    dm.set(dim, (dm.get(dim) || 0) + val);
     if (!infoByEntity.has(eid)) infoByEntity.set(eid, record);
   }
 
@@ -616,6 +630,9 @@ async function entityDashboardSupabase(params) {
     const info = infoByEntity.get(eid) || {};
     const meta = Number(target.target_value ?? indicator.target_value ?? 0);
     const accumulated = accByEntity.get(eid) || 0;
+    const dimMap = accByEntityDim.get(eid) || new Map();
+    const by_dimension = {};
+    for (const d of dimensionList) by_dimension[d] = dimMap.get(d) || 0;
     const remaining = meta > 0 ? Math.max(0, meta - accumulated) : 0;
     const compliance = meta > 0 ? (accumulated / meta) * 100 : 0;
     const general = calculateGeneral({ ...indicator, target_value: meta }, accumulated);
@@ -627,6 +644,7 @@ async function entityDashboardSupabase(params) {
       target_value: meta,
       value: accumulated,
       accumulated,
+      by_dimension,
       remaining,
       compliance,
       general,
@@ -646,6 +664,7 @@ async function entityDashboardSupabase(params) {
       warning_count: ranking.filter((item) => item.estado === "warning").length,
       critical_count: ranking.filter((item) => item.estado === "critical").length,
     },
+    dimensions: dimensionList,
     ranking,
   };
 }
@@ -1217,12 +1236,13 @@ const API = {
     return request(`/entity-records/grid?${q}`);
   },
 
-  saveEntityGrid: ({ indicator_id, record_date, rows }) =>
+  saveEntityGrid: ({ indicator_id, record_date, rows, dimension = "" }) =>
     request("/entity-records/bulk", {
       method: "POST",
       body: JSON.stringify({
         indicator_id: Number(indicator_id),
         record_date,
+        dimension,
         rows: (rows || []).map((row) => ({
           entity_id: Number(row.entity_id),
           value:
@@ -1230,6 +1250,7 @@ const API = {
               ? 0
               : Number(row.value),
           observation: row.observation || "",
+          dimension: row.dimension ?? dimension,
         })),
       }),
     }),
