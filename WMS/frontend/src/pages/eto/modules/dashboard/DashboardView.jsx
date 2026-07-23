@@ -3559,6 +3559,7 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
   const [historySummary, setHistorySummary] = useState(null);
   const [isTrendExpanded, setIsTrendExpanded] = useState(false);
   const [selectedTrendIndex, setSelectedTrendIndex] = useState(-1);
+  const [expandedRankCard, setExpandedRankCard] = useState(null);
 
   const [dashboardFilter, setDashboardFilter] = useState({
     process_id: "",
@@ -4732,6 +4733,12 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                         }}
                       >
                         <div
+                          onClick={() =>
+                            setExpandedRankCard(
+                              expandedRankCard === titulo ? null : titulo
+                            )
+                          }
+                          title="Clic para ampliar / contraer"
                           style={{
                             background: color,
                             color: "#ffffff",
@@ -4739,12 +4746,24 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                             fontWeight: 800,
                             display: "flex",
                             justifyContent: "space-between",
+                            gap: 8,
+                            cursor: "pointer",
                           }}
                         >
-                          <span>{titulo}</span>
+                          <span>
+                            {expandedRankCard === titulo ? "▾ " : "▸ "}
+                            {titulo}
+                          </span>
                           <span>{arr.length}</span>
                         </div>
-                        <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                        <div
+                          style={{
+                            maxHeight:
+                              expandedRankCard === titulo ? "none" : 260,
+                            overflowY:
+                              expandedRankCard === titulo ? "visible" : "auto",
+                          }}
+                        >
                           {arr.length === 0 ? (
                             <div style={{ padding: 14, color: "#94a3b8" }}>
                               Sin personas
