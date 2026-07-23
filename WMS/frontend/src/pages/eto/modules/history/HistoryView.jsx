@@ -2488,10 +2488,14 @@ const historyCss = `
 
 .indicator-name {
   display: block;
-  max-width: 330px;
-  color: #1e293b;
-  font-weight: 800;
-  line-height: 1.35;
+  max-width: 320px;
+  color: #1f2937;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .green-value,
