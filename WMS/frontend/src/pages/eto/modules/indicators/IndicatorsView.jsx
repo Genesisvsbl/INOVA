@@ -6,11 +6,14 @@ import {
   FilePlus2,
   Gauge,
   Pencil,
+  Save,
   Search,
   SlidersHorizontal,
   Target,
   Trash2,
+  Upload,
   UsersRound,
+  X,
 } from "lucide-react";
 
 const OPERATORS = [">", ">=", "<", "<=", "="];
@@ -120,6 +123,7 @@ export default function IndicatorsView({
   handleCreateEntity = () => {},
   handleEditEntity = () => {},
   handleDeleteEntity = () => {},
+  handleImportEntities = async () => {},
   editingEntityId = null,
   resetEntityForm = () => {},
 }) {
@@ -138,6 +142,72 @@ export default function IndicatorsView({
     setEntityForm({ ...entityForm, entity_type: value });
     setNewEntityType("");
     setEntityTypeAdding(false);
+  };
+
+  const iconActionStyle = {
+    width: "44px",
+    height: "44px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "10px",
+    border: "1px solid #cbd5e1",
+    background: "#f1f5f9",
+    color: "#0f172a",
+    cursor: "pointer",
+  };
+
+  // Lee un Excel de entidades (Codigo, Nombre, Tipo de entidad, Activo, Meta)
+  // y delega la creacion/asociacion masiva. El Excel NO se guarda.
+  const handleEntityFileImport = async (event) => {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const XLSX = await import("xlsx");
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      if (!raw.length) {
+        window.alert("El archivo no tiene filas.");
+        return;
+      }
+
+      const norm = (s) => String(s).trim().toLowerCase();
+      const pick = (rowObj, names) => {
+        const keys = Object.keys(rowObj);
+        for (const n of names) {
+          const hit = keys.find((k) => norm(k) === n);
+          if (hit) return rowObj[hit];
+        }
+        for (const n of names) {
+          const hit = keys.find((k) => norm(k).includes(n));
+          if (hit) return rowObj[hit];
+        }
+        return "";
+      };
+      const isTruthy = (v) =>
+        v === true ||
+        ["1", "true", "si", "sí", "activo", "activa", "x", "verdadero"].includes(
+          norm(v)
+        );
+
+      const rows = raw.map((r) => {
+        const activo = pick(r, ["activo", "activa", "estado", "active"]);
+        return {
+          code: pick(r, ["codigo", "código", "code"]),
+          name: pick(r, ["nombre", "name"]),
+          entity_type: pick(r, ["tipo de entidad", "tipo", "type"]),
+          is_active: activo === "" ? true : isTruthy(activo),
+          meta: pick(r, ["meta", "target", "objetivo"]),
+        };
+      });
+
+      await handleImportEntities(rows);
+    } catch (err) {
+      window.alert(err.message || "No se pudo leer el archivo.");
+    }
   };
 
   const visibleEntities = useMemo(() => {
@@ -980,22 +1050,48 @@ export default function IndicatorsView({
                 </div>
               </div>
 
-              <div className="form-actions">
+              <div
+                className="form-actions"
+                style={{ display: "flex", gap: "10px", alignItems: "center" }}
+              >
                 <button
                   type="button"
-                  className="indicator-secondary"
                   onClick={handleCreateEntity}
+                  title={editingEntityId ? "Actualizar entidad" : "Guardar entidad"}
+                  aria-label={editingEntityId ? "Actualizar entidad" : "Guardar entidad"}
+                  style={{
+                    ...iconActionStyle,
+                    background: "#16a34a",
+                    borderColor: "#16a34a",
+                    color: "#ffffff",
+                  }}
                 >
-                  {editingEntityId ? "Actualizar entidad" : "Guardar entidad"}
+                  <Save size={18} />
                 </button>
+
+                <label
+                  title="Importar entidades desde Excel (Código, Nombre, Tipo de entidad, Activo, Meta)"
+                  aria-label="Importar entidades desde Excel"
+                  style={iconActionStyle}
+                >
+                  <Upload size={18} />
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    style={{ display: "none" }}
+                    onChange={handleEntityFileImport}
+                  />
+                </label>
 
                 {editingEntityId && (
                   <button
                     type="button"
-                    className="indicator-secondary"
                     onClick={resetEntityForm}
+                    title="Cancelar edición"
+                    aria-label="Cancelar edición"
+                    style={iconActionStyle}
                   >
-                    Cancelar edición
+                    <X size={18} />
                   </button>
                 )}
               </div>

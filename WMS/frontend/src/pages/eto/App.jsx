@@ -1020,6 +1020,84 @@ export default function App() {
     }
   }
 
+  async function handleImportEntities(rows) {
+    if (!Array.isArray(rows) || !rows.length) {
+      showError("El archivo no tiene filas para importar.");
+      return;
+    }
+    try {
+      setLoading(true);
+      const existing = await loadEntities();
+      const byCode = new Map(
+        (existing || []).map((e) => [
+          String(e.code || "").trim().toLowerCase(),
+          e,
+        ])
+      );
+
+      let created = 0;
+      let associated = 0;
+      let skipped = 0;
+
+      for (const row of rows) {
+        const code = String(row.code || "").trim();
+        const name = String(row.name || "").trim();
+        const entity_type = String(row.entity_type || "").trim();
+        if (!name) {
+          skipped += 1;
+          continue;
+        }
+
+        let entity = code ? byCode.get(code.toLowerCase()) : null;
+        if (!entity) {
+          entity = await API.createEntity({
+            code,
+            name,
+            entity_type: entity_type || "Persona",
+            is_active: row.is_active !== false,
+          });
+          created += 1;
+          const savedCode = String(entity?.code || code).trim().toLowerCase();
+          if (entity?.id && savedCode) byCode.set(savedCode, entity);
+        }
+
+        if (entity?.id && selectedIndicatorForEntities?.id) {
+          const meta =
+            row.meta === "" || row.meta === null || row.meta === undefined
+              ? Number(selectedIndicatorForEntities.target_value || 0)
+              : Number(row.meta);
+          await API.createOrUpdateEntityTarget({
+            indicator_id: Number(selectedIndicatorForEntities.id),
+            entity_id: Number(entity.id),
+            target_value: Number.isFinite(meta) ? meta : 0,
+            is_active: true,
+          });
+          associated += 1;
+        }
+      }
+
+      await loadEntities();
+      if (selectedIndicatorForEntities?.id) {
+        const targets = await API.getEntityTargets({
+          indicator_id: selectedIndicatorForEntities.id,
+          active_only: true,
+        });
+        setSelectedIndicatorEntityTargets(targets || []);
+      }
+
+      clearMessageSoon(
+        `Importadas correctamente: ${created} entidad(es) creada(s)` +
+          (selectedIndicatorForEntities?.id
+            ? `, ${associated} asociada(s) al indicador.`
+            : ".")
+      );
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleEditEntity(item) {
     setEditingEntityId(item.id);
     setEntityForm({
@@ -1231,6 +1309,7 @@ export default function App() {
           entityForm={entityForm}
           setEntityForm={setEntityForm}
           handleCreateEntity={handleCreateEntity}
+          handleImportEntities={handleImportEntities}
           handleEditEntity={handleEditEntity}
           handleDeleteEntity={handleDeleteEntity}
           editingEntityId={editingEntityId}
