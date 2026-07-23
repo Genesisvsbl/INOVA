@@ -1424,21 +1424,6 @@ export default function HistoryView({
                 />
               </label>
 
-              <label
-                className="history-secondary"
-                style={{ cursor: loading ? "not-allowed" : "pointer" }}
-                title="Cuenta por Impacto ambiental: Sí→Ambiental, No→Seguridad"
-              >
-                <FileInput size={18} />
-                Importar por condición
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  style={{ display: "none" }}
-                  onChange={handleImportConditions}
-                />
-              </label>
-
               <button
                 type="button"
                 className="history-secondary"
