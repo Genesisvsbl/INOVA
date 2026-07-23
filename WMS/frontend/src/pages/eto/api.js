@@ -189,6 +189,18 @@ async function nextIndicatorCode() {
   return `IND-${String(lastNumber + 1).padStart(4, "0")}`;
 }
 
+// Borra en cascada las filas hijas antes de eliminar el padre, porque las FK
+// de eto_digital no tienen ON DELETE CASCADE.
+async function deleteEtoChildren(table, filterKey, filterValue) {
+  const rows = await supabaseRows(table, {
+    [filterKey]: `eq.${filterValue}`,
+    select: "id",
+  });
+  await Promise.all(
+    (rows || []).map((row) => deleteById("eto_digital", table, row.id))
+  );
+}
+
 async function getProcessMap() {
   const rows = await supabaseRows("processes", { select: "*" });
   return new Map(rows.map((item) => [Number(item.id), item]));
@@ -820,6 +832,25 @@ async function requestSupabase(path, options = {}) {
   }
 
   if (method === "DELETE" && id) {
+    if (resource === "indicators") {
+      await deleteEtoChildren("entity_records", "indicator_id", id);
+      await deleteEtoChildren("entity_indicator_targets", "indicator_id", id);
+      await deleteEtoChildren("daily_records", "indicator_id", id);
+    } else if (resource === "entities") {
+      await deleteEtoChildren("entity_records", "entity_id", id);
+      await deleteEtoChildren("entity_indicator_targets", "entity_id", id);
+    } else if (resource === "processes") {
+      const childIndicators = await supabaseRows("indicators", {
+        process_id: `eq.${id}`,
+        select: "id",
+      });
+      for (const ind of childIndicators || []) {
+        await deleteEtoChildren("entity_records", "indicator_id", ind.id);
+        await deleteEtoChildren("entity_indicator_targets", "indicator_id", ind.id);
+        await deleteEtoChildren("daily_records", "indicator_id", ind.id);
+        await deleteById("eto_digital", "indicators", ind.id);
+      }
+    }
     return deleteById("eto_digital", table, id);
   }
 
