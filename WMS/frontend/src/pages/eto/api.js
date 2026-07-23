@@ -644,10 +644,14 @@ async function entityDashboardSupabase(params) {
     const eid = Number(target.entity_id);
     const info = infoByEntity.get(eid) || {};
     const meta = Number(target.target_value ?? indicator.target_value ?? 0);
-    const accumulated = accByEntity.get(eid) || 0;
     const dimMap = accByEntityDim.get(eid) || new Map();
     const by_dimension = {};
     for (const d of dimensionList) by_dimension[d] = dimMap.get(d) || 0;
+    // Si el indicador tiene condiciones, el acumulado es la suma de esas
+    // condiciones (ignora registros viejos sin condicion, para que no descuadre).
+    const accumulated = dimensionList.length
+      ? dimensionList.reduce((sum, d) => sum + (by_dimension[d] || 0), 0)
+      : accByEntity.get(eid) || 0;
     const remaining = meta > 0 ? Math.max(0, meta - accumulated) : 0;
     const compliance = meta > 0 ? (accumulated / meta) * 100 : 0;
     const general = calculateGeneral({ ...indicator, target_value: meta }, accumulated);
