@@ -167,6 +167,7 @@ export default function HistoryView({
   const [entityMatrixMeta, setEntityMatrixMeta] = useState(null);
   const [entityMatrixRows, setEntityMatrixRows] = useState([]);
   const [entityQuickFilter, setEntityQuickFilter] = useState("");
+  const [occImpactFilter, setOccImpactFilter] = useState("todas");
 
   const [historyFilter, setHistoryFilter] = useState({
     year: new Date().getFullYear(),
@@ -794,10 +795,18 @@ export default function HistoryView({
         "fecha del informe",
         "fecha informe",
       ]);
+      const impactKey = findColumnKey(rows[0], ["impacto ambiental", "impacto"]);
 
       if (!idKey || !dateKey) {
         setMessage(
           "No encontre las columnas 'ID de quien reporto' y 'Fecha del informe' en el archivo."
+        );
+        return;
+      }
+
+      if (occImpactFilter !== "todas" && !impactKey) {
+        setMessage(
+          "El filtro por condicion necesita la columna 'Impacto ambiental' en el archivo."
         );
         return;
       }
@@ -823,6 +832,16 @@ export default function HistoryView({
         if (!target) {
           notFound += 1;
           continue;
+        }
+        if (occImpactFilter !== "todas" && impactKey) {
+          const impact = String(raw[impactKey] ?? "")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .trim();
+          const isAmbiental = impact === "si" || impact.startsWith("si");
+          if (occImpactFilter === "ambiental" && !isAmbiental) continue;
+          if (occImpactFilter === "seguridad" && isAmbiental) continue;
         }
         const iso = parseReportDate(raw[dateKey]);
         if (!iso) continue;
@@ -1273,6 +1292,17 @@ export default function HistoryView({
                 <UsersRound size={18} />
                 Cargar por entidad
               </button>
+
+              <select
+                value={occImpactFilter}
+                onChange={(e) => setOccImpactFilter(e.target.value)}
+                title="Al importar ocurrencias por persona, contar solo esta condición"
+                style={{ height: "38px", borderRadius: "8px", padding: "0 8px" }}
+              >
+                <option value="todas">Condición: Todas</option>
+                <option value="ambiental">Condición: Solo ambiental</option>
+                <option value="seguridad">Condición: Solo seguridad</option>
+              </select>
 
               <label
                 className="history-secondary"
