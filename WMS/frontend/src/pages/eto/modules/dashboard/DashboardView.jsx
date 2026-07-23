@@ -4750,22 +4750,51 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                               Sin personas
                             </div>
                           ) : (
-                            arr.map((it) => (
-                              <div
-                                key={it.entity_id}
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  gap: 10,
-                                  padding: "8px 14px",
-                                  borderTop: `1px solid ${CHART_COLORS.cardBorder}`,
-                                  fontSize: 13,
-                                }}
-                              >
-                                <span>{it.entity_name}</span>
-                                <strong>{extra(it)}</strong>
-                              </div>
-                            ))
+                            arr.map((it) => {
+                              const dims = dashboardData.dimensions || [];
+                              const by = it.by_dimension || {};
+                              const breakdown = dims.length
+                                ? dims
+                                    .map(
+                                      (d) =>
+                                        `${d.slice(0, 3)}: ${formatPlainNumber(
+                                          by[d] || 0
+                                        )}`
+                                    )
+                                    .join("  ·  ")
+                                : "";
+                              return (
+                                <div
+                                  key={it.entity_id}
+                                  style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 2,
+                                    padding: "8px 14px",
+                                    borderTop: `1px solid ${CHART_COLORS.cardBorder}`,
+                                    fontSize: 13,
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      gap: 10,
+                                    }}
+                                  >
+                                    <span>{it.entity_name}</span>
+                                    <strong>{extra(it)}</strong>
+                                  </div>
+                                  {breakdown && (
+                                    <span
+                                      style={{ fontSize: 11, color: "#64748b" }}
+                                    >
+                                      {breakdown}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })
                           )}
                         </div>
                       </div>
