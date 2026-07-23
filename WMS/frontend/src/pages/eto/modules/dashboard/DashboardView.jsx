@@ -4765,15 +4765,20 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                             )}`
                         )}
                         {card(
-                          "Les falta",
-                          "#dc2626",
+                          "Les falta (van atrasados)",
+                          "#f59e0b",
                           faltan,
                           (it) =>
                             `faltan ${formatPlainNumber(
                               Math.max(0, metaOf(it) - accOf(it))
                             )}`
                         )}
-                        {card("En cero", "#64748b", enCero, () => "0")}
+                        {card(
+                          "No han hecho nada",
+                          "#dc2626",
+                          enCero,
+                          () => "0"
+                        )}
                       </>
                     );
                   })()}
@@ -4818,13 +4823,17 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                         .map((item) => {
                           const metaVal = Number(item.target_value || 0);
                           const accVal = Number(item.accumulated || 0);
-                          const incompleto = metaVal > 0 && accVal < metaVal;
+                          const enCeroRow = accVal === 0;
+                          const atrasadoRow =
+                            metaVal > 0 && accVal > 0 && accVal < metaVal;
                           return (
                           <tr
                             key={item.entity_id}
                             style={
-                              incompleto
-                                ? { background: "rgba(220,38,38,0.09)" }
+                              enCeroRow
+                                ? { background: "rgba(220,38,38,0.12)" }
+                                : atrasadoRow
+                                ? { background: "rgba(245,158,11,0.12)" }
                                 : undefined
                             }
                           >
