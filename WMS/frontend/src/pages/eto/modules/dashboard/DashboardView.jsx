@@ -4483,7 +4483,24 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                     flexWrap: "wrap",
                   }}
                 >
-                  <span>Avance por entidad frente a la meta</span>
+                  <span>
+                    Avance por{" "}
+                    {(() => {
+                      const types = (dashboardData.ranking || [])
+                        .map((r) => String(r.entity_type || "").trim())
+                        .filter(Boolean);
+                      if (!types.length) return "entidad";
+                      const counts = {};
+                      types.forEach((t) => {
+                        counts[t] = (counts[t] || 0) + 1;
+                      });
+                      const top = Object.keys(counts).sort(
+                        (a, b) => counts[b] - counts[a]
+                      )[0];
+                      return top.toLowerCase();
+                    })()}{" "}
+                    frente a la meta
+                  </span>
                   <span
                     style={{
                       fontSize: 12,
