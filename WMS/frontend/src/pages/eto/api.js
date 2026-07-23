@@ -660,6 +660,10 @@ async function entityDashboardSupabase(params) {
       total_entities: targets.length,
       total_records: records.length,
       average_general: buildSummary(ranking).average_general,
+      average_compliance: ranking.length
+        ? ranking.reduce((acc, item) => acc + Number(item.compliance || 0), 0) /
+          ranking.length
+        : 0,
       ok_count: ranking.filter((item) => item.estado === "ok").length,
       warning_count: ranking.filter((item) => item.estado === "warning").length,
       critical_count: ranking.filter((item) => item.estado === "critical").length,

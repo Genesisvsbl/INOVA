@@ -4680,6 +4680,113 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                   border: `1px solid ${CHART_COLORS.cardBorder}`,
                   boxShadow: CHART_COLORS.cardShadowSoft,
                   background: "#ffffff",
+                  marginBottom: 18,
+                }}
+              >
+                <div className="subsection-title">Ranking por estado de meta</div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(220px, 1fr))",
+                    gap: 16,
+                  }}
+                >
+                  {(() => {
+                    const rk = dashboardData.ranking || [];
+                    const metaOf = (it) => Number(it.target_value || 0);
+                    const accOf = (it) => Number(it.accumulated || 0);
+                    const cumplieron = rk.filter(
+                      (it) => metaOf(it) > 0 && accOf(it) >= metaOf(it)
+                    );
+                    const enCero = rk.filter((it) => accOf(it) === 0);
+                    const faltan = rk.filter(
+                      (it) =>
+                        accOf(it) > 0 &&
+                        metaOf(it) > 0 &&
+                        accOf(it) < metaOf(it)
+                    );
+                    const card = (titulo, color, arr, extra) => (
+                      <div
+                        style={{
+                          border: `1px solid ${CHART_COLORS.cardBorder}`,
+                          borderRadius: 16,
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            background: color,
+                            color: "#ffffff",
+                            padding: "10px 14px",
+                            fontWeight: 800,
+                            display: "flex",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <span>{titulo}</span>
+                          <span>{arr.length}</span>
+                        </div>
+                        <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                          {arr.length === 0 ? (
+                            <div style={{ padding: 14, color: "#94a3b8" }}>
+                              Sin personas
+                            </div>
+                          ) : (
+                            arr.map((it) => (
+                              <div
+                                key={it.entity_id}
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  gap: 10,
+                                  padding: "8px 14px",
+                                  borderTop: `1px solid ${CHART_COLORS.cardBorder}`,
+                                  fontSize: 13,
+                                }}
+                              >
+                                <span>{it.entity_name}</span>
+                                <strong>{extra(it)}</strong>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    );
+                    return (
+                      <>
+                        {card(
+                          "Ya cumplieron",
+                          "#16a34a",
+                          cumplieron,
+                          (it) =>
+                            `${formatPlainNumber(accOf(it))}/${formatPlainNumber(
+                              metaOf(it)
+                            )}`
+                        )}
+                        {card(
+                          "Les falta",
+                          "#dc2626",
+                          faltan,
+                          (it) =>
+                            `faltan ${formatPlainNumber(
+                              Math.max(0, metaOf(it) - accOf(it))
+                            )}`
+                        )}
+                        {card("En cero", "#64748b", enCero, () => "0")}
+                      </>
+                    );
+                  })()}
+                </div>
+              </section>
+
+              <section
+                className="panel-block"
+                style={{
+                  borderRadius: 24,
+                  border: `1px solid ${CHART_COLORS.cardBorder}`,
+                  boxShadow: CHART_COLORS.cardShadowSoft,
+                  background: "#ffffff",
                 }}
               >
                 <div className="subsection-title">Ranking por entidad</div>
@@ -4708,8 +4815,19 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                             dashboardFilter.status_filter
                           )
                         )
-                        .map((item) => (
-                          <tr key={item.entity_id}>
+                        .map((item) => {
+                          const metaVal = Number(item.target_value || 0);
+                          const accVal = Number(item.accumulated || 0);
+                          const incompleto = metaVal > 0 && accVal < metaVal;
+                          return (
+                          <tr
+                            key={item.entity_id}
+                            style={
+                              incompleto
+                                ? { background: "rgba(220,38,38,0.09)" }
+                                : undefined
+                            }
+                          >
                             <td>{safeDisplay(item.entity_type || "-")}</td>
                             <td>{safeDisplay(item.entity_code)}</td>
                             <td>{safeDisplay(item.entity_name)}</td>
@@ -4741,7 +4859,8 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                               </span>
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
 
                       {!dashboardData.ranking?.filter((item) =>
                         isMatchingStatusFilter(
