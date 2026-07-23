@@ -823,12 +823,18 @@ export default function HistoryView({
 
       // === Modo multi-condicion: si el indicador tiene condiciones definidas,
       // clasifica cada reporte por "Impacto ambiental" y guarda ambas de una.
-      const dims = String(selectedHistoryIndicator?.dimensions || "")
+      const configuredDims = String(selectedHistoryIndicator?.dimensions || "")
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean);
+      const autoSplit =
+        configuredDims.length < 2 && !!impactKey && occImpactFilter === "todas";
+      const dims =
+        configuredDims.length >= 2
+          ? configuredDims
+          : ["Ambiental", "Seguridad"];
 
-      if (dims.length >= 2) {
+      if (configuredDims.length >= 2 || autoSplit) {
         if (!impactKey) {
           setMessage(
             "Este indicador usa condiciones: el archivo debe tener la columna 'Impacto ambiental'."
@@ -899,6 +905,15 @@ export default function HistoryView({
               dimension: dim,
             });
           }
+        }
+
+        // Auto-configura las condiciones en el indicador (si no las tenía),
+        // para que el dashboard muestre las columnas/barras por condición.
+        if (autoSplit) {
+          await API.setIndicatorDimensions({
+            indicator_id: indicatorId,
+            dimensions: dims.join(", "),
+          });
         }
 
         await handleLoadEntityMatrix();

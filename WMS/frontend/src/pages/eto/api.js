@@ -1279,6 +1279,13 @@ const API = {
       ? clearEntityRecordsSupabase({ indicator_id, year, month })
       : Promise.resolve({ deleted: 0 }),
 
+  setIndicatorDimensions: ({ indicator_id, dimensions }) =>
+    supabaseEnabled
+      ? updateById("eto_digital", "indicators", indicator_id, {
+          dimensions: dimensions || "",
+        })
+      : Promise.resolve(null),
+
   getEntityRecords: ({ indicator_id, entity_id, year, month } = {}) => {
     const q = buildQuery({
       indicator_id,
