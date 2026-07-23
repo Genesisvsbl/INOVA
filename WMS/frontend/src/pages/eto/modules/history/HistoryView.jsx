@@ -718,6 +718,34 @@ export default function HistoryView({
     }
   }
 
+  async function handleClearEntityMonth() {
+    if (!entityMatrixMeta) {
+      setMessage("Primero usa 'Cargar por entidad' para seleccionar el mes.");
+      return;
+    }
+    const ok = await showEtoConfirm(
+      `¿Borrar TODOS los valores capturados de ${entityMatrixMeta.indicator_code} para ${String(
+        entityMatrixMeta.month
+      ).padStart(2, "0")}/${entityMatrixMeta.year}? Esto NO borra las entidades, solo los registros del mes.`
+    );
+    if (!ok) return;
+    try {
+      setLoading(true);
+      await API.clearEntityRecords({
+        indicator_id: Number(entityMatrixMeta.indicator_id),
+        year: entityMatrixMeta.year,
+        month: entityMatrixMeta.month,
+      });
+      await handleLoadEntityMatrix();
+      await runHistorySearch();
+      clearMessageSoon("Registros del mes borrados correctamente.");
+    } catch (err) {
+      setMessage(err.message || "No se pudo borrar.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function parseReportDate(value) {
     if (value === null || value === undefined || value === "") return null;
     if (value instanceof Date && !Number.isNaN(value.getTime())) {
@@ -1432,6 +1460,17 @@ export default function HistoryView({
               >
                 <FileDown size={18} />
                 Guardar por entidad
+              </button>
+
+              <button
+                type="button"
+                className="history-secondary danger-light"
+                onClick={handleClearEntityMonth}
+                disabled={loading}
+                title="Borra los valores capturados del mes (no borra las entidades)"
+              >
+                <Trash2 size={18} />
+                Borrar registros del mes
               </button>
             </>
           )}
