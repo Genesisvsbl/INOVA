@@ -125,6 +125,20 @@ export default function IndicatorsView({
 }) {
   const [entityFilter, setEntityFilter] = useState("");
   const [indicatorFilter, setIndicatorFilter] = useState("");
+  const [entityTypeAdding, setEntityTypeAdding] = useState(false);
+  const [customEntityTypes, setCustomEntityTypes] = useState([]);
+  const [newEntityType, setNewEntityType] = useState("");
+
+  const addEntityType = () => {
+    const value = newEntityType.trim();
+    if (!value) return;
+    setCustomEntityTypes((prev) =>
+      prev.includes(value) ? prev : [...prev, value]
+    );
+    setEntityForm({ ...entityForm, entity_type: value });
+    setNewEntityType("");
+    setEntityTypeAdding(false);
+  };
 
   const visibleEntities = useMemo(() => {
     const query = String(entityFilter || "").trim().toLowerCase();
@@ -878,16 +892,75 @@ export default function IndicatorsView({
 
                 <div className="indicator-field">
                   <label>Tipo de entidad</label>
-                  <input
-                    value={entityForm.entity_type}
-                    onChange={(e) =>
-                      setEntityForm({
-                        ...entityForm,
-                        entity_type: e.target.value,
-                      })
-                    }
-                    placeholder="Ej. persona, máquina, línea, vehículo"
-                  />
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <select
+                      value={entityForm.entity_type || ""}
+                      onChange={(e) =>
+                        setEntityForm({
+                          ...entityForm,
+                          entity_type: e.target.value,
+                        })
+                      }
+                      style={{ flex: 1 }}
+                    >
+                      <option value="">Seleccione</option>
+                      {Array.from(
+                        new Set([
+                          "Persona",
+                          "Máquina",
+                          ...customEntityTypes,
+                          ...(entityForm.entity_type ? [entityForm.entity_type] : []),
+                        ])
+                      ).map((tipo) => (
+                        <option key={tipo} value={tipo}>
+                          {tipo}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      title="Agregar tipo"
+                      onClick={() => setEntityTypeAdding((v) => !v)}
+                      style={{
+                        width: "38px",
+                        height: "38px",
+                        flexShrink: 0,
+                        borderRadius: "10px",
+                        border: "1px solid #cbd5e1",
+                        background: entityTypeAdding ? "#16a34a" : "#f1f5f9",
+                        color: entityTypeAdding ? "#ffffff" : "#0f172a",
+                        fontSize: "20px",
+                        lineHeight: 1,
+                        cursor: "pointer",
+                      }}
+                    >
+                      +
+                    </button>
+                  </div>
+                  {entityTypeAdding && (
+                    <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                      <input
+                        autoFocus
+                        value={newEntityType}
+                        onChange={(e) => setNewEntityType(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addEntityType();
+                          }
+                        }}
+                        placeholder="Nuevo tipo (ej. Línea, Vehículo)"
+                        style={{ flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        className="indicator-secondary"
+                        onClick={addEntityType}
+                      >
+                        Agregar
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="indicator-field">
