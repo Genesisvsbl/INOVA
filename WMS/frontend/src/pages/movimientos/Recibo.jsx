@@ -565,6 +565,7 @@ export default function Recibo() {
   const [proveedores, setProveedores] = useState([]);
   const [proveedoresError, setProveedoresError] = useState("");
   const [provOpen, setProvOpen] = useState(false);
+  const provSearchRef = useRef(null);
   const [tipoRecibo, setTipoRecibo] = useState("");
   const [header, setHeader] = useState(createInitialHeader());
   const [materiales, setMateriales] = useState([]);
@@ -2748,13 +2749,24 @@ export default function Recibo() {
                       <input
                         value={header.proveedor}
                         onChange={(e) => {
+                          const nombre = e.target.value;
                           setHeader((prev) => ({
                             ...prev,
-                            proveedor: e.target.value,
+                            proveedor: nombre,
                             proveedor_id: "",
                             acreedor: "",
                           }));
                           setProvOpen(true);
+                          // Busca en la base (no solo lo precargado), por si
+                          // hay miles de proveedores y el listado se corta.
+                          clearTimeout(provSearchRef.current);
+                          provSearchRef.current = setTimeout(() => {
+                            getProveedores(nombre.trim())
+                              .then((data) =>
+                                setProveedores(Array.isArray(data) ? data : [])
+                              )
+                              .catch(() => {});
+                          }, 250);
                         }}
                         onFocus={() => setProvOpen(true)}
                         onBlur={() =>
