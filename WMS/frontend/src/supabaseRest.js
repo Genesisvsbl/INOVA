@@ -73,6 +73,28 @@ export function selectRows(schema, table, params = {}) {
   return request(schema, table, { params });
 }
 
+// Trae TODOS los registros que cumplen el filtro, paginando de a 1000,
+// para que los catalogos (materiales, ubicaciones, proveedores) no se corten.
+export async function selectAllRows(schema, table, params = {}) {
+  const pageSize = 1000;
+  const base = { ...params };
+  delete base.limit;
+  delete base.offset;
+
+  let all = [];
+  let offset = 0;
+  for (let i = 0; i < 500; i += 1) {
+    const page = await request(schema, table, {
+      params: { ...base, limit: String(pageSize), offset: String(offset) },
+    });
+    if (!Array.isArray(page) || page.length === 0) break;
+    all = all.concat(page);
+    if (page.length < pageSize) break;
+    offset += pageSize;
+  }
+  return all;
+}
+
 export function insertRow(schema, table, row) {
   return request(schema, table, { method: "POST", body: row });
 }

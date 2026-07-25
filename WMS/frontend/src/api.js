@@ -2,6 +2,7 @@ import {
   deleteById,
   empresaId,
   insertRow,
+  selectAllRows,
   selectRows,
   supabaseEnabled,
   updateById,
@@ -486,10 +487,13 @@ export function getMateriales(search = "") {
       empresa_id: `eq.${empresaId}`,
       select: "*",
       order: "codigo.asc",
-      limit: "1000",
     };
-    if (search) params.or = `(codigo.ilike.*${search}*,descripcion.ilike.*${search}*)`;
-    return selectRows("wms", "materiales", params);
+    if (search) {
+      params.or = `(codigo.ilike.*${search}*,descripcion.ilike.*${search}*)`;
+      params.limit = "1000";
+      return selectRows("wms", "materiales", params);
+    }
+    return selectAllRows("wms", "materiales", params);
   }
 
   return apiFetch("/materiales");
@@ -687,10 +691,13 @@ export function getProveedores(search = "") {
       empresa_id: `eq.${empresaId}`,
       select: "*",
       order: "nombre.asc",
-      limit: "3000",
     };
-    if (search) params.or = `(nombre.ilike.*${search}*,acreedor.ilike.*${search}*)`;
-    return selectRows("wms", "proveedores", params);
+    if (search) {
+      params.or = `(nombre.ilike.*${search}*,acreedor.ilike.*${search}*)`;
+      params.limit = "1000";
+      return selectRows("wms", "proveedores", params);
+    }
+    return selectAllRows("wms", "proveedores", params);
   }
 
   return apiFetch("/proveedores");
