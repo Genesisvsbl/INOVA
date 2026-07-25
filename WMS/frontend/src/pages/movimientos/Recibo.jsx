@@ -2777,7 +2777,7 @@ export default function Recibo() {
                                   .toLowerCase()
                                   .includes(q)
                             )
-                            .slice(0, 50);
+                            .slice(0, 30);
                           if (!filtered.length) return null;
                           return (
                             <div
@@ -2791,7 +2791,7 @@ export default function Recibo() {
                                 border: "1px solid #e5e7eb",
                                 borderRadius: 10,
                                 marginTop: 4,
-                                maxHeight: 260,
+                                maxHeight: 210,
                                 overflowY: "auto",
                                 boxShadow: "0 10px 30px rgba(0,0,0,.15)",
                               }}
