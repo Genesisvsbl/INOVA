@@ -2743,18 +2743,35 @@ export default function Recibo() {
 
                   <div>
                     <div style={fieldLabelStyle}>Proveedor</div>
-                    <select
-                      value={header.proveedor_id}
-                      onChange={(e) => onProveedorSelect(e.target.value)}
+                    <input
+                      list="proveedores-datalist"
+                      value={header.proveedor}
+                      onChange={(e) => {
+                        const nombre = e.target.value;
+                        const p = proveedores.find(
+                          (x) =>
+                            String(x.nombre || "").trim().toLowerCase() ===
+                            nombre.trim().toLowerCase()
+                        );
+                        if (p) {
+                          onProveedorSelect(p.id);
+                        } else {
+                          setHeader((prev) => ({
+                            ...prev,
+                            proveedor: nombre,
+                            proveedor_id: "",
+                            acreedor: "",
+                          }));
+                        }
+                      }}
+                      placeholder="Escribe para buscar proveedor..."
                       style={selectStyle}
-                    >
-                      <option value="">Seleccione proveedor...</option>
+                    />
+                    <datalist id="proveedores-datalist">
                       {proveedores.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.nombre}
-                        </option>
+                        <option key={p.id} value={p.nombre} />
                       ))}
-                    </select>
+                    </datalist>
                     {!!errores.proveedor && (
                       <div
                         style={{
