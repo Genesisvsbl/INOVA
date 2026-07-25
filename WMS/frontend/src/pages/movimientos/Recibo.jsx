@@ -564,6 +564,7 @@ export default function Recibo() {
   const [usuario, setUsuario] = useState("");
   const [proveedores, setProveedores] = useState([]);
   const [proveedoresError, setProveedoresError] = useState("");
+  const [provOpen, setProvOpen] = useState(false);
   const [tipoRecibo, setTipoRecibo] = useState("");
   const [header, setHeader] = useState(createInitialHeader());
   const [materiales, setMateriales] = useState([]);
@@ -2743,35 +2744,86 @@ export default function Recibo() {
 
                   <div>
                     <div style={fieldLabelStyle}>Proveedor</div>
-                    <input
-                      list="proveedores-datalist"
-                      value={header.proveedor}
-                      onChange={(e) => {
-                        const nombre = e.target.value;
-                        const p = proveedores.find(
-                          (x) =>
-                            String(x.nombre || "").trim().toLowerCase() ===
-                            nombre.trim().toLowerCase()
-                        );
-                        if (p) {
-                          onProveedorSelect(p.id);
-                        } else {
+                    <div style={{ position: "relative" }}>
+                      <input
+                        value={header.proveedor}
+                        onChange={(e) => {
                           setHeader((prev) => ({
                             ...prev,
-                            proveedor: nombre,
+                            proveedor: e.target.value,
                             proveedor_id: "",
                             acreedor: "",
                           }));
+                          setProvOpen(true);
+                        }}
+                        onFocus={() => setProvOpen(true)}
+                        onBlur={() =>
+                          setTimeout(() => setProvOpen(false), 150)
                         }
-                      }}
-                      placeholder="Escribe para buscar proveedor..."
-                      style={selectStyle}
-                    />
-                    <datalist id="proveedores-datalist">
-                      {proveedores.map((p) => (
-                        <option key={p.id} value={p.nombre} />
-                      ))}
-                    </datalist>
+                        placeholder="Escribe para buscar proveedor..."
+                        autoComplete="off"
+                        style={selectStyle}
+                      />
+                      {provOpen &&
+                        (() => {
+                          const q = String(header.proveedor || "")
+                            .trim()
+                            .toLowerCase();
+                          const filtered = proveedores
+                            .filter(
+                              (p) =>
+                                !q ||
+                                String(p.nombre || "")
+                                  .toLowerCase()
+                                  .includes(q)
+                            )
+                            .slice(0, 50);
+                          if (!filtered.length) return null;
+                          return (
+                            <div
+                              style={{
+                                position: "absolute",
+                                top: "100%",
+                                left: 0,
+                                right: 0,
+                                zIndex: 40,
+                                background: "#ffffff",
+                                border: "1px solid #e5e7eb",
+                                borderRadius: 10,
+                                marginTop: 4,
+                                maxHeight: 260,
+                                overflowY: "auto",
+                                boxShadow: "0 10px 30px rgba(0,0,0,.15)",
+                              }}
+                            >
+                              {filtered.map((p) => (
+                                <div
+                                  key={p.id}
+                                  onMouseDown={() => {
+                                    onProveedorSelect(p.id);
+                                    setProvOpen(false);
+                                  }}
+                                  style={{
+                                    padding: "8px 12px",
+                                    cursor: "pointer",
+                                    fontSize: 13,
+                                  }}
+                                  onMouseEnter={(e) =>
+                                    (e.currentTarget.style.background =
+                                      "#f1f5f9")
+                                  }
+                                  onMouseLeave={(e) =>
+                                    (e.currentTarget.style.background =
+                                      "#ffffff")
+                                  }
+                                >
+                                  {p.nombre}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                    </div>
                     {!!errores.proveedor && (
                       <div
                         style={{
