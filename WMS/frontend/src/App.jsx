@@ -402,9 +402,8 @@ function UpdateButton() {
       title="Actualizar a la última versión (sin cerrar la página)"
       style={{
         position: "fixed",
-        top: 8,
-        left: "50%",
-        transform: "translateX(-50%)",
+        bottom: 16,
+        right: 16,
         zIndex: 100000,
         display: "inline-flex",
         alignItems: "center",
@@ -413,11 +412,12 @@ function UpdateButton() {
         color: "#065f46",
         border: "1px solid rgba(0,0,0,.10)",
         borderRadius: 999,
-        padding: "5px 12px",
+        padding: "7px 14px",
         cursor: "pointer",
         fontWeight: 800,
         fontSize: 12,
-        boxShadow: "0 4px 14px rgba(0,0,0,.22)",
+        boxShadow: "0 6px 18px rgba(0,0,0,.28)",
+        opacity: 0.92,
       }}
     >
       <span style={{ fontSize: 14, lineHeight: 1 }}>⟳</span>
