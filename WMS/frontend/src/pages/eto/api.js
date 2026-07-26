@@ -660,6 +660,14 @@ async function entityDashboardSupabase(params) {
     const remaining = meta > 0 ? Math.max(0, meta - accumulated) : 0;
     const compliance = meta > 0 ? (accumulated / meta) * 100 : 0;
     const general = calculateGeneral({ ...indicator, target_value: meta }, accumulated);
+    // Estado alineado con la meta: cumplio = ok, algo pero < meta = warning,
+    // en cero = critical.
+    const estado =
+      accumulated === 0
+        ? "critical"
+        : meta > 0 && accumulated < meta
+        ? "warning"
+        : "ok";
     return {
       entity_id: eid,
       entity_code: target.entity_code || info.entity_code || "",
@@ -673,7 +681,7 @@ async function entityDashboardSupabase(params) {
       remaining,
       compliance,
       general,
-      estado: calculateStatus({ ...indicator, target_value: meta }, general),
+      estado,
     };
   });
   return {
