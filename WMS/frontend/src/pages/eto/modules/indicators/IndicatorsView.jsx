@@ -260,6 +260,41 @@ export default function IndicatorsView({
   const useWarning = !!indicatorForm.use_warning;
   const useCritical = !!indicatorForm.use_critical;
 
+  // Condiciones parametrizadas una a una (nombre + meta/warning/critical).
+  const conditions = (() => {
+    try {
+      const arr = JSON.parse(indicatorForm.conditions_config || "[]");
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  })();
+  const setConditions = (next) => {
+    setIndicatorForm({
+      ...indicatorForm,
+      conditions_config: JSON.stringify(next),
+      dimensions: next
+        .map((c) => String(c.name || "").trim())
+        .filter(Boolean)
+        .join(", "),
+    });
+  };
+  const updateCondition = (i, patch) =>
+    setConditions(conditions.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
+  const addCondition = () =>
+    setConditions([...conditions, { name: "", op: ">=", meta: "", warn: "", crit: "" }]);
+  const removeCondition = (i) =>
+    setConditions(conditions.filter((_, idx) => idx !== i));
+  const presetOutsafety = () =>
+    setConditions([
+      { name: "Diario", op: ">=", meta: "", warn: "", crit: "" },
+      { name: "Semanal", op: ">=", meta: "", warn: "", crit: "" },
+      { name: "Mensual", op: ">=", meta: "", warn: "", crit: "" },
+      { name: "Ambiental", op: ">=", meta: "", warn: "", crit: "" },
+      { name: "5S", op: ">=", meta: "", warn: "", crit: "" },
+      { name: "Acciones", op: ">=", meta: "", warn: "", crit: "" },
+    ]);
+
   const totalEntityIndicators = useMemo(
     () => (indicators || []).filter((item) => item.scope_type === "entity").length,
     [indicators]
@@ -452,36 +487,127 @@ export default function IndicatorsView({
               <div className="indicator-field full-field">
                 <label>
                   <ClipboardList size={15} />
-                  Condiciones (separadas por coma)
+                  Condiciones (cada una con su meta / warning / critical)
                 </label>
-                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                  <input
-                    value={indicatorForm.dimensions || ""}
-                    onChange={(e) =>
-                      setIndicatorForm({
-                        ...indicatorForm,
-                        dimensions: e.target.value,
-                      })
-                    }
-                    placeholder="Ej. Ambiental, Seguridad (déjalo vacío si no aplica)"
-                    style={{ flex: 1 }}
-                  />
+
+                {conditions.length > 0 && (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "1.5fr 0.7fr 0.8fr 0.8fr 0.8fr auto",
+                      gap: 6,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#64748b",
+                      padding: "0 2px 4px",
+                    }}
+                  >
+                    <span>Condición</span>
+                    <span>Op</span>
+                    <span>Meta</span>
+                    <span>Warning</span>
+                    <span>Critical</span>
+                    <span />
+                  </div>
+                )}
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {conditions.map((c, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "1.5fr 0.7fr 0.8fr 0.8fr 0.8fr auto",
+                        gap: 6,
+                        alignItems: "center",
+                      }}
+                    >
+                      <input
+                        placeholder="Ej. Diario"
+                        value={c.name || ""}
+                        onChange={(e) =>
+                          updateCondition(i, { name: e.target.value })
+                        }
+                      />
+                      <select
+                        value={c.op || ">="}
+                        onChange={(e) =>
+                          updateCondition(i, { op: e.target.value })
+                        }
+                      >
+                        {[">=", ">", "<=", "<", "="].map((o) => (
+                          <option key={o} value={o}>
+                            {o}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        placeholder="Meta"
+                        value={c.meta ?? ""}
+                        onChange={(e) =>
+                          updateCondition(i, { meta: e.target.value })
+                        }
+                      />
+                      <input
+                        type="number"
+                        placeholder="Warn"
+                        value={c.warn ?? ""}
+                        onChange={(e) =>
+                          updateCondition(i, { warn: e.target.value })
+                        }
+                      />
+                      <input
+                        type="number"
+                        placeholder="Crit"
+                        value={c.crit ?? ""}
+                        onChange={(e) =>
+                          updateCondition(i, { crit: e.target.value })
+                        }
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeCondition(i)}
+                        title="Quitar condición"
+                        style={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: 8,
+                          border: "1px solid #fecaca",
+                          background: "#fef2f2",
+                          color: "#dc2626",
+                          cursor: "pointer",
+                          fontWeight: 800,
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
                   <button
                     type="button"
                     className="indicator-secondary"
-                    onClick={() =>
-                      setIndicatorForm({
-                        ...indicatorForm,
-                        dimensions: "Ambiental, Seguridad",
-                      })
-                    }
+                    onClick={addCondition}
                   >
-                    Ambiental / Seguridad
+                    + Agregar condición
+                  </button>
+                  <button
+                    type="button"
+                    className="indicator-secondary"
+                    onClick={presetOutsafety}
+                  >
+                    OUTSAFETY (Diario/Semanal/Mensual/Ambiental/5S/Acciones)
                   </button>
                 </div>
+
                 <small style={{ color: "#64748b" }}>
-                  Si defines condiciones, el indicador guarda un valor por entidad y
-                  por condición, y al importar clasifica por "Impacto ambiental".
+                  Meta = objetivo (verde). Warning = alerta (amarillo). Critical =
+                  crítico (rojo). Déjalo vacío si el indicador no usa condiciones.
                 </small>
               </div>
             )}

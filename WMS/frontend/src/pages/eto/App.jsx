@@ -152,6 +152,7 @@ const EMPTY_INDICATOR_FORM = {
   shifts: ["A", "B", "C"],
   scope_type: "standard",
   dimensions: "",
+  conditions_config: "",
 };
 
 const EMPTY_ENTITY_FORM = {
@@ -885,6 +886,7 @@ export default function App() {
       shifts: normalizeShifts(item.shifts),
       scope_type: item.scope_type || "standard",
       dimensions: item.dimensions || "",
+      conditions_config: item.conditions_config || "",
     });
   }
 
