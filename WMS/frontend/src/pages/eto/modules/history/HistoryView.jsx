@@ -814,6 +814,115 @@ export default function HistoryView({
         return;
       }
 
+      // === Modo INSPECCIONES (OUTSAFETY): si el archivo trae "Inspeccion" y "Cedula".
+      const inspKey = findColumnKey(rows[0], ["inspeccion", "inspección"]);
+      const cedKey = findColumnKey(rows[0], ["cedula", "cédula"]);
+      if (inspKey && cedKey) {
+        const dateKeyI = findColumnKey(rows[0], [
+          "fechainspeccion",
+          "fecha inspeccion",
+          "fecha del informe",
+          "fecha informe",
+        ]);
+        const planKey = findColumnKey(rows[0], [
+          "planesaccion",
+          "planes accion",
+          "plan de accion",
+          "planes de accion",
+        ]);
+        const strip = (s) =>
+          String(s ?? "")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .trim();
+        const classify = (name) => {
+          const n = strip(name);
+          if (n.includes("ambiental")) return "Ambiental";
+          if (n.includes("5s")) return "5S";
+          if (n.includes("diario")) return "Diario";
+          if (n.includes("semanal")) return "Semanal";
+          if (n.includes("mensual")) return "Mensual";
+          return null;
+        };
+        const entityByCed = new Map(
+          (entityMatrixMeta.targets || []).map((t) => [
+            String(t.entity_code || "").trim(),
+            t,
+          ])
+        );
+        const year = Number(entityMatrixMeta.year);
+        const month = Number(entityMatrixMeta.month);
+        const grid = {};
+        let matchedI = 0;
+        let notFoundI = 0;
+        let outI = 0;
+        for (const raw of rows) {
+          const code = String(raw[cedKey] ?? "").trim();
+          if (!code) continue;
+          const target = entityByCed.get(code);
+          if (!target) {
+            notFoundI += 1;
+            continue;
+          }
+          if (dateKeyI) {
+            const iso = parseReportDate(raw[dateKeyI]);
+            if (iso) {
+              const [y, m] = iso.split("-").map(Number);
+              if (y !== year || m !== month) {
+                outI += 1;
+                continue;
+              }
+            }
+          }
+          const g = (grid[target.entity_id] = grid[target.entity_id] || {});
+          const cond = classify(raw[inspKey]);
+          if (cond) {
+            g[cond] = (g[cond] || 0) + 1;
+            matchedI += 1;
+          }
+          if (planKey && raw[planKey] && String(raw[planKey]).trim()) {
+            g["Acciones"] = (g["Acciones"] || 0) + 1;
+          }
+        }
+
+        if (!matchedI) {
+          setMessage(
+            `No se cruzó ninguna inspección con tus entidades para ${String(month).padStart(2, "0")}/${year}. (${notFoundI} cédulas sin entidad, ${outI} fuera del mes).`
+          );
+          return;
+        }
+
+        const indicatorId = Number(entityMatrixMeta.indicator_id);
+        const recordDate = `${year}-${String(month).padStart(2, "0")}-01`;
+        const byDim = {};
+        for (const eid of Object.keys(grid)) {
+          for (const dim of Object.keys(grid[eid])) {
+            (byDim[dim] = byDim[dim] || []).push({
+              entity_id: Number(eid),
+              value: grid[eid][dim],
+            });
+          }
+        }
+        for (const dim of Object.keys(byDim)) {
+          await API.saveEntityGrid({
+            indicator_id: indicatorId,
+            record_date: recordDate,
+            rows: byDim[dim],
+            dimension: dim,
+          });
+        }
+
+        await handleLoadEntityMatrix();
+        await runHistorySearch();
+        clearMessageSoon(
+          `Inspecciones importadas: ${matchedI} clasificadas por condición y guardadas por persona (${Object.keys(
+            byDim
+          ).join(", ")}).`
+        );
+        return;
+      }
+
       const idKey = findColumnKey(rows[0], [
         "id de quien reporto",
         "id de quien report",
