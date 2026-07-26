@@ -3564,6 +3564,7 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
   const [detailCard, setDetailCard] = useState(null);
   const [detailPerson, setDetailPerson] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [rankingParts, setRankingParts] = useState(null);
 
   const [dashboardFilter, setDashboardFilter] = useState({
     process_id: "",
@@ -3839,14 +3840,9 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
   const detailRef = useRef(null);
   const rankingTableRef = useRef(null);
 
-  // Dibuja la tabla del ranking directamente en un canvas (texto perfecto,
-  // sin encimarse) y en dos columnas. Copia al portapapeles.
-  const copyRankingImage = () => {
-    const rows = (dashboardData && dashboardData.ranking) || [];
-    if (!rows.length) {
-      setMessage("No hay datos para copiar.");
-      return;
-    }
+  // Dibuja UNA tabla (subconjunto de filas) en un canvas: texto nitido, sin
+  // encimarse (control total del dibujo).
+  const buildRankingCanvas = (subset) => {
     const dims = (dashboardData && dashboardData.dimensions) || [];
     const fmt = (v) => formatPlainNumber(Number(v || 0));
     const estLabel = (e) =>
@@ -3875,22 +3871,16 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
     const tableW = cols.reduce((a, c) => a + c.w, 0) + pad * 2;
     const rowH = 30;
     const headerH = 40;
-    const gap = 40;
-    const half = Math.ceil(rows.length / 2);
-    const left = rows.slice(0, half);
-    const right = rows.slice(half);
-    const bodyRows = Math.max(left.length, right.length);
-    const W = tableW * 2 + gap;
-    const H = headerH + bodyRows * rowH + pad;
+    const H = headerH + subset.length * rowH + pad;
     const scale = 2;
 
     const cv = document.createElement("canvas");
-    cv.width = W * scale;
+    cv.width = tableW * scale;
     cv.height = H * scale;
     const ctx = cv.getContext("2d");
     ctx.scale(scale, scale);
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0, 0, tableW, H);
     ctx.textBaseline = "middle";
 
     const fit = (text, maxW) => {
@@ -3902,65 +3892,81 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
       return t + "…";
     };
 
-    const drawTable = (xOff, subset) => {
-      // encabezado
-      ctx.fillStyle = "#065f46";
-      ctx.fillRect(xOff, 0, tableW, headerH);
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 12px Inter, Arial, sans-serif";
-      let cx = xOff + pad;
+    // encabezado
+    ctx.fillStyle = "#065f46";
+    ctx.fillRect(0, 0, tableW, headerH);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 12px Inter, Arial, sans-serif";
+    let cx = pad;
+    for (const c of cols) {
+      ctx.textAlign = c.align;
+      const tx =
+        c.align === "right"
+          ? cx + c.w - 6
+          : c.align === "center"
+          ? cx + c.w / 2
+          : cx;
+      ctx.fillText(fit(c.label, c.w - 8), tx, headerH / 2);
+      cx += c.w;
+    }
+    // filas
+    ctx.font = "13px Inter, Arial, sans-serif";
+    subset.forEach((r, i) => {
+      const y = headerH + i * rowH;
+      ctx.fillStyle = i % 2 ? "#f5f8fb" : "#ffffff";
+      ctx.fillRect(0, y, tableW, rowH);
+      let cx2 = pad;
       for (const c of cols) {
         ctx.textAlign = c.align;
         const tx =
           c.align === "right"
-            ? cx + c.w - 6
+            ? cx2 + c.w - 6
             : c.align === "center"
-            ? cx + c.w / 2
-            : cx;
-        ctx.fillText(fit(c.label, c.w - 8), tx, headerH / 2);
-        cx += c.w;
+            ? cx2 + c.w / 2
+            : cx2;
+        if (c.label === "Estado") ctx.fillStyle = estColor(r.estado);
+        else if (c.label === "Inv" && Number(r.invalid || 0))
+          ctx.fillStyle = "#7c3aed";
+        else ctx.fillStyle = "#0f172a";
+        ctx.fillText(fit(c.get(r), c.w - 8), tx, y + rowH / 2);
+        cx2 += c.w;
       }
-      // filas
-      ctx.font = "13px Inter, Arial, sans-serif";
-      subset.forEach((r, i) => {
-        const y = headerH + i * rowH;
-        ctx.fillStyle = i % 2 ? "#f5f8fb" : "#ffffff";
-        ctx.fillRect(xOff, y, tableW, rowH);
-        let cx2 = xOff + pad;
-        for (const c of cols) {
-          ctx.textAlign = c.align;
-          const tx =
-            c.align === "right"
-              ? cx2 + c.w - 6
-              : c.align === "center"
-              ? cx2 + c.w / 2
-              : cx2;
-          if (c.label === "Estado") ctx.fillStyle = estColor(r.estado);
-          else if (c.label === "Inv" && Number(r.invalid || 0))
-            ctx.fillStyle = "#7c3aed";
-          else ctx.fillStyle = "#0f172a";
-          ctx.fillText(fit(c.get(r), c.w - 8), tx, y + rowH / 2);
-          cx2 += c.w;
-        }
-      });
-    };
+    });
+    return cv;
+  };
 
-    drawTable(0, left);
-    drawTable(tableW + gap, right);
-
-    cv.toBlob(async (blob) => {
+  const copyCanvas = (canvas, name) => {
+    if (!canvas) return;
+    canvas.toBlob(async (blob) => {
       if (!blob) return;
       try {
         await navigator.clipboard.write([
           new window.ClipboardItem({ "image/png": blob }),
         ]);
-        setMessage("Tabla copiada (en dos columnas). Pégala donde quieras.");
+        setMessage("Copiado al portapapeles. Pégalo donde quieras.");
       } catch {
         const a = document.createElement("a");
-        a.href = cv.toDataURL("image/png");
-        a.download = "ranking_por_entidad.png";
+        a.href = canvas.toDataURL("image/png");
+        a.download = `${name}.png`;
         a.click();
       }
+    });
+  };
+
+  const openRankingView = () => {
+    const rows = (dashboardData && dashboardData.ranking) || [];
+    if (!rows.length) {
+      setMessage("No hay datos para mostrar.");
+      return;
+    }
+    const half = Math.ceil(rows.length / 2);
+    const c1 = buildRankingCanvas(rows.slice(0, half));
+    const c2 = buildRankingCanvas(rows.slice(half));
+    setRankingParts({
+      url1: c1.toDataURL("image/png"),
+      url2: c2.toDataURL("image/png"),
+      canvas1: c1,
+      canvas2: c2,
     });
   };
 
@@ -5300,6 +5306,133 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                 document.body
               )}
 
+              {rankingParts &&
+                createPortal(
+                  <div
+                    onClick={() => setRankingParts(null)}
+                    style={{
+                      position: "fixed",
+                      inset: 0,
+                      zIndex: 9999,
+                      background: "rgba(15,23,42,.55)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 16,
+                    }}
+                  >
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        width: "min(1100px, 96vw)",
+                        maxHeight: "92vh",
+                        background: "#ffffff",
+                        borderRadius: 18,
+                        overflow: "hidden",
+                        display: "flex",
+                        flexDirection: "column",
+                        boxShadow: "0 24px 60px rgba(0,0,0,.35)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          background: "#16a34a",
+                          color: "#fff",
+                          padding: "14px 18px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <strong style={{ fontSize: 16 }}>
+                          Ranking por entidad — 2 partes
+                        </strong>
+                        <button
+                          type="button"
+                          onClick={() => setRankingParts(null)}
+                          style={{
+                            background: "rgba(255,255,255,.2)",
+                            border: "none",
+                            color: "#fff",
+                            borderRadius: 8,
+                            padding: "4px 10px",
+                            cursor: "pointer",
+                            fontWeight: 700,
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div
+                        style={{
+                          overflowY: "auto",
+                          padding: 16,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 22,
+                        }}
+                      >
+                        {[
+                          {
+                            url: rankingParts.url1,
+                            canvas: rankingParts.canvas1,
+                            label: "Parte 1",
+                            name: "ranking_parte_1",
+                          },
+                          {
+                            url: rankingParts.url2,
+                            canvas: rankingParts.canvas2,
+                            label: "Parte 2",
+                            name: "ranking_parte_2",
+                          },
+                        ].map((p) => (
+                          <div key={p.name}>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                marginBottom: 8,
+                              }}
+                            >
+                              <strong>{p.label}</strong>
+                              <button
+                                type="button"
+                                onClick={() => copyCanvas(p.canvas, p.name)}
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  background: "#16a34a",
+                                  color: "#fff",
+                                  border: "none",
+                                  borderRadius: 8,
+                                  padding: "6px 12px",
+                                  cursor: "pointer",
+                                  fontWeight: 700,
+                                  fontSize: 13,
+                                }}
+                              >
+                                ⧉ Copiar {p.label.toLowerCase()}
+                              </button>
+                            </div>
+                            <img
+                              src={p.url}
+                              alt={p.label}
+                              style={{
+                                width: "100%",
+                                border: "1px solid #e5e7eb",
+                                borderRadius: 8,
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>,
+                  document.body
+                )}
+
               <section
                 className="panel-block"
                 style={{
@@ -5321,8 +5454,8 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                   <div className="subsection-title">Ranking por entidad</div>
                   <button
                     type="button"
-                    onClick={copyRankingImage}
-                    title="Copiar la tabla como imagen (dividida en dos columnas)"
+                    onClick={openRankingView}
+                    title="Ver la tabla en 2 partes y copiar cada una"
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
@@ -5337,7 +5470,7 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                       fontSize: 13,
                     }}
                   >
-                    ⧉ Copiar tabla
+                    👁 Visualizar
                   </button>
                 </div>
                 <div className="table-wrap">
