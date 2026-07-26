@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ResponsiveContainer,
@@ -3836,6 +3836,71 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
     setDetailPerson(null);
   };
 
+  const detailRef = useRef(null);
+  const rankingTableRef = useRef(null);
+
+  const copyElementAsImage = async (el, fileName) => {
+    if (!el) return;
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(el, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        windowWidth: el.scrollWidth,
+        windowHeight: el.scrollHeight,
+      });
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        try {
+          await navigator.clipboard.write([
+            new window.ClipboardItem({ "image/png": blob }),
+          ]);
+          setMessage("Imagen copiada al portapapeles. Pégala donde quieras.");
+        } catch {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `${fileName}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+      });
+    } catch {
+      setMessage("No se pudo generar la imagen.");
+    }
+  };
+
+  const copyDetailImage = async () => {
+    if (!detailRef.current) return;
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(detailRef.current, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+      });
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        try {
+          await navigator.clipboard.write([
+            new window.ClipboardItem({ "image/png": blob }),
+          ]);
+          setMessage("Imagen copiada al portapapeles. Pégala donde quieras.");
+        } catch {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `${(detailPerson?.item?.entity_name || detailCard?.titulo || "reporte")
+            .replace(/[^a-z0-9]+/gi, "_")
+            .toLowerCase()}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+      });
+    } catch {
+      setMessage("No se pudo generar la imagen.");
+    }
+  };
+
   const entityDashboardBarData = useMemo(() => {
     if (!dashboardData?.is_entity_dashboard || !dashboardData?.ranking?.length) {
       return [];
@@ -4897,10 +4962,11 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                   }}
                 >
                   <div
+                    ref={detailRef}
                     onClick={(e) => e.stopPropagation()}
                     style={{
                       width: "min(560px, 96vw)",
-                      maxHeight: "86vh",
+                      maxHeight: "90vh",
                       background: "#ffffff",
                       borderRadius: 18,
                       overflow: "hidden",
@@ -4925,7 +4991,10 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                           ? detailPerson.item.entity_name
                           : `${detailCard.titulo} (${detailCard.arr.length})`}
                       </strong>
-                      <div style={{ display: "flex", gap: 8 }}>
+                      <div
+                        data-html2canvas-ignore="true"
+                        style={{ display: "flex", gap: 8 }}
+                      >
                         {detailPerson && (
                           <button
                             type="button"
@@ -4943,6 +5012,22 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                             ← Volver
                           </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={copyDetailImage}
+                          title="Copiar como imagen para pegar donde quieras"
+                          style={{
+                            background: "rgba(255,255,255,.2)",
+                            border: "none",
+                            color: "#fff",
+                            borderRadius: 8,
+                            padding: "4px 12px",
+                            cursor: "pointer",
+                            fontWeight: 700,
+                          }}
+                        >
+                          ⧉ Copiar
+                        </button>
                         <button
                           type="button"
                           onClick={closeDetail}
@@ -4971,12 +5056,17 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                           detailCard.arr.map((it) => {
                             const dims = dashboardData.dimensions || [];
                             const by = it.by_dimension || {};
+                            const n = detailCard.arr.length;
+                            const pad =
+                              n > 22 ? "3px 16px" : n > 14 ? "5px 16px" : "10px 16px";
+                            const nameFs = n > 22 ? 12 : n > 14 ? 13 : 14;
+                            const subFs = n > 22 ? 9 : 10;
                             return (
                               <div
                                 key={it.entity_id}
                                 onClick={() => openPersonDetail(it)}
                                 style={{
-                                  padding: "12px 16px",
+                                  padding: pad,
                                   borderBottom: `1px solid ${CHART_COLORS.cardBorder}`,
                                   cursor: "pointer",
                                   display: "flex",
@@ -4991,11 +5081,13 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                                 }
                               >
                                 <div>
-                                  <div style={{ fontWeight: 700 }}>
+                                  <div
+                                    style={{ fontWeight: 700, fontSize: nameFs }}
+                                  >
                                     {it.entity_name}
                                   </div>
                                   <div
-                                    style={{ fontSize: 11, color: "#64748b" }}
+                                    style={{ fontSize: subFs, color: "#64748b" }}
                                   >
                                     {dims
                                       .map(
@@ -5117,9 +5209,44 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                   background: "#ffffff",
                 }}
               >
-                <div className="subsection-title">Ranking por entidad</div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div className="subsection-title">Ranking por entidad</div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      copyElementAsImage(
+                        rankingTableRef.current,
+                        "ranking_por_entidad"
+                      )
+                    }
+                    title="Copiar la tabla completa como imagen"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      background: "#16a34a",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 10,
+                      padding: "8px 14px",
+                      cursor: "pointer",
+                      fontWeight: 700,
+                      fontSize: 13,
+                    }}
+                  >
+                    ⧉ Copiar tabla
+                  </button>
+                </div>
                 <div className="table-wrap">
-                  <table>
+                  <table ref={rankingTableRef}>
                     <thead>
                       <tr>
                         <th>Tipo</th>
