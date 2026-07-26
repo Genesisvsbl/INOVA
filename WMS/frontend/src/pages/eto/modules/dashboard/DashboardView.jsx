@@ -3839,71 +3839,129 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
   const detailRef = useRef(null);
   const rankingTableRef = useRef(null);
 
-  const copyRankingTwoColumns = async () => {
-    const el = rankingTableRef.current;
-    if (!el) return;
-    try {
-      if (document.fonts && document.fonts.ready) {
-        try {
-          await document.fonts.ready;
-        } catch (_) {}
+  // Dibuja la tabla del ranking directamente en un canvas (texto perfecto,
+  // sin encimarse) y en dos columnas. Copia al portapapeles.
+  const copyRankingImage = () => {
+    const rows = (dashboardData && dashboardData.ranking) || [];
+    if (!rows.length) {
+      setMessage("No hay datos para copiar.");
+      return;
+    }
+    const dims = (dashboardData && dashboardData.dimensions) || [];
+    const fmt = (v) => formatPlainNumber(Number(v || 0));
+    const estLabel = (e) =>
+      e === "ok" ? "OK" : e === "warning" ? "WARN" : "CRIT";
+    const estColor = (e) =>
+      e === "ok" ? "#16a34a" : e === "warning" ? "#d97706" : "#dc2626";
+
+    const cols = [
+      { label: "Código", w: 110, align: "left", get: (r) => String(r.entity_code || "") },
+      { label: "Entidad", w: 250, align: "left", get: (r) => String(r.entity_name || "") },
+      { label: "Meta", w: 55, align: "right", get: (r) => fmt(r.target_value) },
+      { label: "Acum", w: 55, align: "right", get: (r) => fmt(r.accumulated) },
+      ...dims.map((d) => ({
+        label: d,
+        w: 90,
+        align: "right",
+        get: (r) => fmt((r.by_dimension || {})[d] || 0),
+      })),
+      { label: "Falta", w: 55, align: "right", get: (r) => fmt(r.remaining) },
+      { label: "Cumpl", w: 70, align: "right", get: (r) => `${Math.round(Number(r.compliance || 0))}%` },
+      { label: "Inv", w: 45, align: "right", get: (r) => (Number(r.invalid || 0) ? fmt(r.invalid) : "-") },
+      { label: "Estado", w: 70, align: "center", get: (r) => estLabel(r.estado) },
+    ];
+
+    const pad = 12;
+    const tableW = cols.reduce((a, c) => a + c.w, 0) + pad * 2;
+    const rowH = 30;
+    const headerH = 40;
+    const gap = 40;
+    const half = Math.ceil(rows.length / 2);
+    const left = rows.slice(0, half);
+    const right = rows.slice(half);
+    const bodyRows = Math.max(left.length, right.length);
+    const W = tableW * 2 + gap;
+    const H = headerH + bodyRows * rowH + pad;
+    const scale = 2;
+
+    const cv = document.createElement("canvas");
+    cv.width = W * scale;
+    cv.height = H * scale;
+    const ctx = cv.getContext("2d");
+    ctx.scale(scale, scale);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, W, H);
+    ctx.textBaseline = "middle";
+
+    const fit = (text, maxW) => {
+      if (ctx.measureText(text).width <= maxW) return text;
+      let t = text;
+      while (t.length > 1 && ctx.measureText(t + "…").width > maxW) {
+        t = t.slice(0, -1);
       }
-      const html2canvas = (await import("html2canvas")).default;
-      const scale = 2;
-      const canvas = await html2canvas(el, {
-        backgroundColor: "#ffffff",
-        scale,
-        useCORS: true,
-        foreignObjectRendering: true,
-      });
-      const w = canvas.width;
-      const thead = el.querySelector("thead");
-      const headerH = thead ? Math.round(thead.offsetHeight * scale) : 0;
-      const bodyH = canvas.height - headerH;
-      const bodyHalf = Math.ceil(bodyH / 2);
-      const rightH = bodyH - bodyHalf;
-      const gap = 30;
+      return t + "…";
+    };
 
-      const out = document.createElement("canvas");
-      out.width = w * 2 + gap;
-      out.height = headerH + bodyHalf;
-      const ctx = out.getContext("2d");
+    const drawTable = (xOff, subset) => {
+      // encabezado
+      ctx.fillStyle = "#065f46";
+      ctx.fillRect(xOff, 0, tableW, headerH);
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, out.width, out.height);
-      // Columna izquierda: encabezado + primera mitad
-      ctx.drawImage(canvas, 0, 0, w, headerH, 0, 0, w, headerH);
-      ctx.drawImage(canvas, 0, headerH, w, bodyHalf, 0, headerH, w, bodyHalf);
-      // Columna derecha: encabezado + segunda mitad
-      ctx.drawImage(canvas, 0, 0, w, headerH, w + gap, 0, w, headerH);
-      ctx.drawImage(
-        canvas,
-        0,
-        headerH + bodyHalf,
-        w,
-        rightH,
-        w + gap,
-        headerH,
-        w,
-        rightH
-      );
-
-      out.toBlob(async (blob) => {
-        if (!blob) return;
-        try {
-          await navigator.clipboard.write([
-            new window.ClipboardItem({ "image/png": blob }),
-          ]);
-          setMessage("Tabla copiada (en dos columnas). Pégala donde quieras.");
-        } catch {
-          const a = document.createElement("a");
-          a.href = out.toDataURL("image/png");
-          a.download = "ranking_por_entidad.png";
-          a.click();
+      ctx.font = "bold 12px Inter, Arial, sans-serif";
+      let cx = xOff + pad;
+      for (const c of cols) {
+        ctx.textAlign = c.align;
+        const tx =
+          c.align === "right"
+            ? cx + c.w - 6
+            : c.align === "center"
+            ? cx + c.w / 2
+            : cx;
+        ctx.fillText(fit(c.label, c.w - 8), tx, headerH / 2);
+        cx += c.w;
+      }
+      // filas
+      ctx.font = "13px Inter, Arial, sans-serif";
+      subset.forEach((r, i) => {
+        const y = headerH + i * rowH;
+        ctx.fillStyle = i % 2 ? "#f5f8fb" : "#ffffff";
+        ctx.fillRect(xOff, y, tableW, rowH);
+        let cx2 = xOff + pad;
+        for (const c of cols) {
+          ctx.textAlign = c.align;
+          const tx =
+            c.align === "right"
+              ? cx2 + c.w - 6
+              : c.align === "center"
+              ? cx2 + c.w / 2
+              : cx2;
+          if (c.label === "Estado") ctx.fillStyle = estColor(r.estado);
+          else if (c.label === "Inv" && Number(r.invalid || 0))
+            ctx.fillStyle = "#7c3aed";
+          else ctx.fillStyle = "#0f172a";
+          ctx.fillText(fit(c.get(r), c.w - 8), tx, y + rowH / 2);
+          cx2 += c.w;
         }
       });
-    } catch {
-      setMessage("No se pudo generar la imagen.");
-    }
+    };
+
+    drawTable(0, left);
+    drawTable(tableW + gap, right);
+
+    cv.toBlob(async (blob) => {
+      if (!blob) return;
+      try {
+        await navigator.clipboard.write([
+          new window.ClipboardItem({ "image/png": blob }),
+        ]);
+        setMessage("Tabla copiada (en dos columnas). Pégala donde quieras.");
+      } catch {
+        const a = document.createElement("a");
+        a.href = cv.toDataURL("image/png");
+        a.download = "ranking_por_entidad.png";
+        a.click();
+      }
+    });
   };
 
   const copyDetailImage = async () => {
@@ -3919,7 +3977,6 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
         backgroundColor: "#ffffff",
         scale: 2,
         useCORS: true,
-        foreignObjectRendering: true,
       });
       canvas.toBlob(async (blob) => {
         if (!blob) return;
@@ -5264,7 +5321,7 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                   <div className="subsection-title">Ranking por entidad</div>
                   <button
                     type="button"
-                    onClick={copyRankingTwoColumns}
+                    onClick={copyRankingImage}
                     title="Copiar la tabla como imagen (dividida en dos columnas)"
                     style={{
                       display: "inline-flex",
