@@ -657,6 +657,7 @@ export default function IndicatorsView({
               </div>
             </div>
 
+            {!(isEntityIndicatorForm && conditions.length > 0) && (
             <div className="threshold-card">
               <div className="threshold-card-head">
                 <div>
@@ -871,6 +872,7 @@ export default function IndicatorsView({
                 </div>
               </div>
             </div>
+            )}
 
             {indicatorForm.scope_type === "entity" && (
               <div className="indicator-alert">
