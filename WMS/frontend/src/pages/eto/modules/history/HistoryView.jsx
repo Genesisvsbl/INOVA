@@ -2241,8 +2241,22 @@ const historyCss = `
   background: rgba(255,255,255,.92);
   color: #0f172a;
   outline: none;
+  font-size: 14px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.72);
   transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.history-field select option {
+  font-size: 13px;
+  padding: 8px 12px;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.history-field select option:checked {
+  background: rgba(34,197,94,.14);
+  color: #065f46;
+  font-weight: 700;
 }
 
 .history-field input::placeholder,
