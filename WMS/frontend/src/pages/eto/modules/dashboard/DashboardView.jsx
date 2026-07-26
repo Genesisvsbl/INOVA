@@ -3872,6 +3872,7 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
         label: d,
         w: 90,
         align: "right",
+        dim: d,
         get: (r) => fmt((r.by_dimension || {})[d] || 0),
       })),
       { label: "Falta", w: 55, align: "right", get: (r) => fmt(r.remaining) },
@@ -3945,7 +3946,17 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
             ? cx2 + c.w / 2
             : cx2;
         if (c.label === "Estado") ctx.fillStyle = estColor(r.estado);
-        else if (c.label === "Inv" && Number(r.invalid || 0))
+        else if (c.dim) {
+          const st = (r.dim_status || {})[c.dim];
+          ctx.fillStyle =
+            st === "critical"
+              ? "#dc2626"
+              : st === "warning"
+              ? "#d97706"
+              : st === "ok"
+              ? "#16a34a"
+              : "#0f172a";
+        } else if (c.label === "Inv" && Number(r.invalid || 0))
           ctx.fillStyle = "#7c3aed";
         else ctx.fillStyle = "#0f172a";
         ctx.fillText(fit(c.get(r), c.w - 8), tx, y + rowH / 2);
@@ -5541,14 +5552,28 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                             <td>{safeDisplay(item.entity_name)}</td>
                             <td>{safeDisplay(item.target_value, formatPlainNumber)}</td>
                             <td>{safeDisplay(item.accumulated, formatPlainNumber)}</td>
-                            {(dashboardData.dimensions || []).map((d) => (
-                              <td key={d}>
-                                {safeDisplay(
-                                  (item.by_dimension || {})[d],
-                                  formatPlainNumber
-                                )}
-                              </td>
-                            ))}
+                            {(dashboardData.dimensions || []).map((d) => {
+                              const st = (item.dim_status || {})[d];
+                              const color =
+                                st === "critical"
+                                  ? "#dc2626"
+                                  : st === "warning"
+                                  ? "#d97706"
+                                  : st === "ok"
+                                  ? "#16a34a"
+                                  : "#0f172a";
+                              return (
+                                <td
+                                  key={d}
+                                  style={{ color, fontWeight: st ? 800 : 400 }}
+                                >
+                                  {safeDisplay(
+                                    (item.by_dimension || {})[d],
+                                    formatPlainNumber
+                                  )}
+                                </td>
+                              );
+                            })}
                             <td>{safeDisplay(item.remaining, formatPlainNumber)}</td>
                             <td>{safeDisplay(item.compliance, formatPercent)}</td>
                             <td>

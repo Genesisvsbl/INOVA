@@ -612,6 +612,24 @@ async function processDashboardSupabase(params) {
   };
 }
 
+// Estado de una condición (ok/warning/critical) según su meta/warning/critical.
+function conditionStatus(value, cfg) {
+  const v = Number(value || 0);
+  const op = (cfg && cfg.op) || ">=";
+  const num = (x) => (x === "" || x === null || x === undefined ? null : Number(x));
+  const meta = num(cfg && cfg.meta);
+  const crit = num(cfg && cfg.crit);
+  const higherBetter = op === ">=" || op === ">";
+  if (higherBetter) {
+    if (crit !== null && v <= crit) return "critical";
+    if (meta !== null) return (op === ">" ? v > meta : v >= meta) ? "ok" : "warning";
+    return "ok";
+  }
+  if (crit !== null && v >= crit) return "critical";
+  if (meta !== null) return (op === "<" ? v < meta : v <= meta) ? "ok" : "warning";
+  return "ok";
+}
+
 async function entityDashboardSupabase(params) {
   const indicatorId = Number(params.get("indicator_id"));
   const records = await entityRecordsSupabase(params);
@@ -623,6 +641,19 @@ async function entityDashboardSupabase(params) {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+
+  // Umbrales por condición (meta/warning/critical) si están parametrizados.
+  const conditionsCfg = (() => {
+    try {
+      const arr = JSON.parse(indicator.conditions_config || "[]");
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  })();
+  const cfgByName = new Map(
+    conditionsCfg.map((c) => [String(c.name || "").trim(), c])
+  );
 
   // Acumulado total y por dimension, e info por entidad
   const accByEntity = new Map();
@@ -660,14 +691,26 @@ async function entityDashboardSupabase(params) {
     const remaining = meta > 0 ? Math.max(0, meta - accumulated) : 0;
     const compliance = meta > 0 ? (accumulated / meta) * 100 : 0;
     const general = calculateGeneral({ ...indicator, target_value: meta }, accumulated);
-    // Estado alineado con la meta: cumplio = ok, algo pero < meta = warning,
-    // en cero = critical.
-    const estado =
-      accumulated === 0
-        ? "critical"
-        : meta > 0 && accumulated < meta
-        ? "warning"
-        : "ok";
+    // Estado por condición (si hay umbrales parametrizados por condición)
+    const dim_status = {};
+    let worst = null;
+    for (const d of dimensionList) {
+      const cfg = cfgByName.get(d);
+      if (!cfg) continue;
+      const st = conditionStatus(by_dimension[d] || 0, cfg);
+      dim_status[d] = st;
+      if (st === "critical") worst = "critical";
+      else if (st === "warning" && worst !== "critical") worst = "warning";
+      else if (worst === null) worst = "ok";
+    }
+    // Estado general: peor condición si hay umbrales; si no, alineado con la meta.
+    const estado = conditionsCfg.length
+      ? worst || "ok"
+      : accumulated === 0
+      ? "critical"
+      : meta > 0 && accumulated < meta
+      ? "warning"
+      : "ok";
     return {
       entity_id: eid,
       entity_code: target.entity_code || info.entity_code || "",
@@ -677,6 +720,7 @@ async function entityDashboardSupabase(params) {
       value: accumulated,
       accumulated,
       by_dimension,
+      dim_status,
       invalid,
       remaining,
       compliance,
