@@ -3913,7 +3913,14 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
     ctx.font = "13px Inter, Arial, sans-serif";
     subset.forEach((r, i) => {
       const y = headerH + i * rowH;
-      ctx.fillStyle = i % 2 ? "#f5f8fb" : "#ffffff";
+      ctx.fillStyle =
+        r.estado === "critical"
+          ? "#fde2e2"
+          : r.estado === "warning"
+          ? "#fdf0dc"
+          : i % 2
+          ? "#f5f8fb"
+          : "#ffffff";
       ctx.fillRect(0, y, tableW, rowH);
       let cx2 = pad;
       for (const c of cols) {
