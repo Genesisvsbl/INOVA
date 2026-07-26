@@ -914,13 +914,9 @@ export default function HistoryView({
         }
 
         const indicatorId = Number(entityMatrixMeta.indicator_id);
-        // Limpia los registros del mes (incluidos los viejos sin condicion)
-        // para que la reimportacion no sume doble.
-        await API.clearEntityRecords({
-          indicator_id: indicatorId,
-          year,
-          month,
-        });
+        // NO se borra el mes: se hace merge. Cada (entidad, fecha, condicion)
+        // del archivo se crea o actualiza; las fechas que no vienen en el
+        // archivo se conservan tal cual (para subir actualizaciones parciales).
         for (const iso of Object.keys(grid)) {
           for (const dim of Object.keys(grid[iso])) {
             const rowsToSave = Object.entries(grid[iso][dim]).map(
@@ -947,9 +943,9 @@ export default function HistoryView({
         await handleLoadEntityMatrix();
         await runHistorySearch();
         clearMessageSoon(
-          `Importado y guardado correctamente: ${matchedM} reportes clasificados en ${dims.join(
+          `Actualizado correctamente (merge): ${matchedM} reportes clasificados en ${dims.join(
             " / "
-          )} por fecha.`
+          )} por fecha. Las fechas que no venían en el archivo se conservaron.`
         );
         return;
       }
