@@ -3846,8 +3846,6 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
       const canvas = await html2canvas(el, {
         backgroundColor: "#ffffff",
         scale: 2,
-        windowWidth: el.scrollWidth,
-        windowHeight: el.scrollHeight,
       });
       canvas.toBlob(async (blob) => {
         if (!blob) return;
@@ -3867,6 +3865,38 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
       });
     } catch {
       setMessage("No se pudo generar la imagen.");
+    }
+  };
+
+  const downloadRankingInParts = async (parts = 2) => {
+    const el = rankingTableRef.current;
+    if (!el) return;
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(el, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+      });
+      const chunk = Math.ceil(canvas.height / parts);
+      for (let i = 0; i < parts; i += 1) {
+        const y = i * chunk;
+        const h = Math.min(chunk, canvas.height - y);
+        if (h <= 0) break;
+        const part = document.createElement("canvas");
+        part.width = canvas.width;
+        part.height = h;
+        const ctx = part.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, part.width, part.height);
+        ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+        const a = document.createElement("a");
+        a.href = part.toDataURL("image/png");
+        a.download = `ranking_parte_${i + 1}.png`;
+        a.click();
+      }
+      setMessage(`Descargadas ${parts} imágenes del ranking (parte 1 y 2).`);
+    } catch {
+      setMessage("No se pudieron generar las imágenes.");
     }
   };
 
@@ -5219,31 +5249,53 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                   }}
                 >
                   <div className="subsection-title">Ranking por entidad</div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      copyElementAsImage(
-                        rankingTableRef.current,
-                        "ranking_por_entidad"
-                      )
-                    }
-                    title="Copiar la tabla completa como imagen"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      background: "#16a34a",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 10,
-                      padding: "8px 14px",
-                      cursor: "pointer",
-                      fontWeight: 700,
-                      fontSize: 13,
-                    }}
-                  >
-                    ⧉ Copiar tabla
-                  </button>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyElementAsImage(
+                          rankingTableRef.current,
+                          "ranking_por_entidad"
+                        )
+                      }
+                      title="Copiar la tabla completa como imagen"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        background: "#16a34a",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 10,
+                        padding: "8px 14px",
+                        cursor: "pointer",
+                        fontWeight: 700,
+                        fontSize: 13,
+                      }}
+                    >
+                      ⧉ Copiar tabla
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => downloadRankingInParts(2)}
+                      title="Descargar la tabla en 2 imágenes (más legible)"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        background: "#0f172a",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 10,
+                        padding: "8px 14px",
+                        cursor: "pointer",
+                        fontWeight: 700,
+                        fontSize: 13,
+                      }}
+                    >
+                      ⬇ Descargar en 2
+                    </button>
+                  </div>
                 </div>
                 <div className="table-wrap">
                   <table ref={rankingTableRef}>
