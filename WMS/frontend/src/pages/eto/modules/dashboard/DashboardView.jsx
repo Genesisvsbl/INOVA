@@ -5032,15 +5032,22 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                       ) : (
                         detailPerson.records
                           .slice()
+                          .filter(
+                            (r) => String(r.dimension || "").trim() !== ""
+                          )
                           .sort((a, b) =>
                             String(a.record_date).localeCompare(
                               String(b.record_date)
                             )
                           )
                           .map((r) => {
-                            const esInvalido =
-                              String(r.dimension || "").toLowerCase() ===
-                              "invalido";
+                            const dimRaw = String(r.dimension || "").trim();
+                            const esInvalido = dimRaw
+                              .toLowerCase()
+                              .startsWith("invalido");
+                            const cond = esInvalido
+                              ? dimRaw.replace(/^invalido\s*/i, "")
+                              : dimRaw;
                             const chars = String(r.observation || "")
                               .split(",")
                               .map((s) => s.trim())
@@ -5070,7 +5077,8 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                                           : "#16a34a",
                                       }}
                                     >
-                                      {esInvalido ? "Invalidado" : r.dimension}
+                                      {cond || "-"}
+                                      {esInvalido ? " (Invalidado)" : ""}
                                     </span>
                                   </span>
                                   <span>

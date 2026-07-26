@@ -647,8 +647,11 @@ async function entityDashboardSupabase(params) {
     const dimMap = accByEntityDim.get(eid) || new Map();
     const by_dimension = {};
     for (const d of dimensionList) by_dimension[d] = dimMap.get(d) || 0;
-    // Reportes invalidados (descripcion corta): se guardan en dimension "Invalido".
-    const invalid = dimMap.get("Invalido") || 0;
+    // Reportes invalidados (descripcion corta): dimension "Invalido ..." (con la condicion).
+    let invalid = 0;
+    dimMap.forEach((val, key) => {
+      if (String(key).startsWith("Invalido")) invalid += Number(val || 0);
+    });
     // Si el indicador tiene condiciones, el acumulado es la suma de esas
     // condiciones (ignora registros viejos sin condicion, para que no descuadre).
     const accumulated = dimensionList.length

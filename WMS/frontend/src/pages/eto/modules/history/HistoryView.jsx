@@ -910,7 +910,8 @@ export default function HistoryView({
           // Validacion de calidad: la descripcion debe tener >= 200 caracteres.
           const desc = descKey ? String(raw[descKey] ?? "").trim() : "";
           if (descKey && desc.length < MIN_DESC) {
-            dim = INVALID_DIM;
+            // Conserva la condicion (ej. "Invalido Ambiental").
+            dim = `${INVALID_DIM} ${dim}`;
             invalidM += 1;
           } else {
             matchedM += 1;
