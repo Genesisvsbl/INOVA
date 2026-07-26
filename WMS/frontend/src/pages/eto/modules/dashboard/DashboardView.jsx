@@ -3839,28 +3839,66 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
   const detailRef = useRef(null);
   const rankingTableRef = useRef(null);
 
-  const copyElementAsImage = async (el, fileName) => {
+  const copyRankingTwoColumns = async () => {
+    const el = rankingTableRef.current;
     if (!el) return;
     try {
+      if (document.fonts && document.fonts.ready) {
+        try {
+          await document.fonts.ready;
+        } catch (_) {}
+      }
       const html2canvas = (await import("html2canvas")).default;
+      const scale = 2;
       const canvas = await html2canvas(el, {
         backgroundColor: "#ffffff",
-        scale: 2,
+        scale,
+        useCORS: true,
+        foreignObjectRendering: true,
       });
-      canvas.toBlob(async (blob) => {
+      const w = canvas.width;
+      const thead = el.querySelector("thead");
+      const headerH = thead ? Math.round(thead.offsetHeight * scale) : 0;
+      const bodyH = canvas.height - headerH;
+      const bodyHalf = Math.ceil(bodyH / 2);
+      const rightH = bodyH - bodyHalf;
+      const gap = 30;
+
+      const out = document.createElement("canvas");
+      out.width = w * 2 + gap;
+      out.height = headerH + bodyHalf;
+      const ctx = out.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, out.width, out.height);
+      // Columna izquierda: encabezado + primera mitad
+      ctx.drawImage(canvas, 0, 0, w, headerH, 0, 0, w, headerH);
+      ctx.drawImage(canvas, 0, headerH, w, bodyHalf, 0, headerH, w, bodyHalf);
+      // Columna derecha: encabezado + segunda mitad
+      ctx.drawImage(canvas, 0, 0, w, headerH, w + gap, 0, w, headerH);
+      ctx.drawImage(
+        canvas,
+        0,
+        headerH + bodyHalf,
+        w,
+        rightH,
+        w + gap,
+        headerH,
+        w,
+        rightH
+      );
+
+      out.toBlob(async (blob) => {
         if (!blob) return;
         try {
           await navigator.clipboard.write([
             new window.ClipboardItem({ "image/png": blob }),
           ]);
-          setMessage("Imagen copiada al portapapeles. Pégala donde quieras.");
+          setMessage("Tabla copiada (en dos columnas). Pégala donde quieras.");
         } catch {
-          const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
-          a.href = url;
-          a.download = `${fileName}.png`;
+          a.href = out.toDataURL("image/png");
+          a.download = "ranking_por_entidad.png";
           a.click();
-          URL.revokeObjectURL(url);
         }
       });
     } catch {
@@ -3868,45 +3906,20 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
     }
   };
 
-  const downloadRankingInParts = async (parts = 2) => {
-    const el = rankingTableRef.current;
-    if (!el) return;
-    try {
-      const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(el, {
-        backgroundColor: "#ffffff",
-        scale: 2,
-      });
-      const chunk = Math.ceil(canvas.height / parts);
-      for (let i = 0; i < parts; i += 1) {
-        const y = i * chunk;
-        const h = Math.min(chunk, canvas.height - y);
-        if (h <= 0) break;
-        const part = document.createElement("canvas");
-        part.width = canvas.width;
-        part.height = h;
-        const ctx = part.getContext("2d");
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, part.width, part.height);
-        ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
-        const a = document.createElement("a");
-        a.href = part.toDataURL("image/png");
-        a.download = `ranking_parte_${i + 1}.png`;
-        a.click();
-      }
-      setMessage(`Descargadas ${parts} imágenes del ranking (parte 1 y 2).`);
-    } catch {
-      setMessage("No se pudieron generar las imágenes.");
-    }
-  };
-
   const copyDetailImage = async () => {
     if (!detailRef.current) return;
     try {
+      if (document.fonts && document.fonts.ready) {
+        try {
+          await document.fonts.ready;
+        } catch (_) {}
+      }
       const html2canvas = (await import("html2canvas")).default;
       const canvas = await html2canvas(detailRef.current, {
         backgroundColor: "#ffffff",
         scale: 2,
+        useCORS: true,
+        foreignObjectRendering: true,
       });
       canvas.toBlob(async (blob) => {
         if (!blob) return;
@@ -5249,53 +5262,26 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                   }}
                 >
                   <div className="subsection-title">Ranking por entidad</div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        copyElementAsImage(
-                          rankingTableRef.current,
-                          "ranking_por_entidad"
-                        )
-                      }
-                      title="Copiar la tabla completa como imagen"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        background: "#16a34a",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: 10,
-                        padding: "8px 14px",
-                        cursor: "pointer",
-                        fontWeight: 700,
-                        fontSize: 13,
-                      }}
-                    >
-                      ⧉ Copiar tabla
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => downloadRankingInParts(2)}
-                      title="Descargar la tabla en 2 imágenes (más legible)"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        background: "#0f172a",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: 10,
-                        padding: "8px 14px",
-                        cursor: "pointer",
-                        fontWeight: 700,
-                        fontSize: 13,
-                      }}
-                    >
-                      ⬇ Descargar en 2
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={copyRankingTwoColumns}
+                    title="Copiar la tabla como imagen (dividida en dos columnas)"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      background: "#16a34a",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 10,
+                      padding: "8px 14px",
+                      cursor: "pointer",
+                      fontWeight: 700,
+                      fontSize: 13,
+                    }}
+                  >
+                    ⧉ Copiar tabla
+                  </button>
                 </div>
                 <div className="table-wrap">
                   <table ref={rankingTableRef}>
