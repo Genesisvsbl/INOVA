@@ -4724,6 +4724,9 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                         metaOf(it) > 0 &&
                         accOf(it) < metaOf(it)
                     );
+                    const invalidos = rk.filter(
+                      (it) => Number(it.invalid || 0) > 0
+                    );
                     const card = (titulo, color, arr, extra) => (
                       <div
                         style={{
@@ -4844,6 +4847,13 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                           enCero,
                           () => "0"
                         )}
+                        {card(
+                          "Reportes invalidados",
+                          "#7c3aed",
+                          invalidos,
+                          (it) =>
+                            `${formatPlainNumber(it.invalid)} inválido(s)`
+                        )}
                       </>
                     );
                   })()}
@@ -4874,6 +4884,7 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                         ))}
                         <th>Faltante</th>
                         <th>Cumplimiento</th>
+                        <th>Invalidados</th>
                         <th>Estado</th>
                       </tr>
                     </thead>
@@ -4917,6 +4928,20 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                             ))}
                             <td>{safeDisplay(item.remaining, formatPlainNumber)}</td>
                             <td>{safeDisplay(item.compliance, formatPercent)}</td>
+                            <td>
+                              {Number(item.invalid || 0) > 0 ? (
+                                <span
+                                  style={{
+                                    color: "#7c3aed",
+                                    fontWeight: 800,
+                                  }}
+                                >
+                                  {safeDisplay(item.invalid, formatPlainNumber)}
+                                </span>
+                              ) : (
+                                "-"
+                              )}
+                            </td>
                             <td>
                               <span
                                 className={`status ${normalizeStatus(item.status)}`}

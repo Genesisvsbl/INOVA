@@ -877,9 +877,17 @@ export default function HistoryView({
             .trim();
         const dimAmb = dims.find((d) => strip(d).includes("ambient")) || dims[0];
         const dimSeg = dims.find((d) => strip(d).includes("segur")) || dims[1];
+        const descKey = findColumnKey(rows[0], [
+          "descripcion",
+          "descripción",
+          "description",
+        ]);
+        const MIN_DESC = 200;
+        const INVALID_DIM = "Invalido";
 
         const grid = {};
         let matchedM = 0;
+        let invalidM = 0;
         let notFoundM = 0;
         let outM = 0;
         for (const raw of rows) {
@@ -898,15 +906,22 @@ export default function HistoryView({
             continue;
           }
           const impact = strip(raw[impactKey]);
-          const dim = impact === "si" || impact.startsWith("si") ? dimAmb : dimSeg;
+          let dim = impact === "si" || impact.startsWith("si") ? dimAmb : dimSeg;
+          // Validacion de calidad: la descripcion debe tener >= 200 caracteres.
+          const desc = descKey ? String(raw[descKey] ?? "").trim() : "";
+          if (descKey && desc.length < MIN_DESC) {
+            dim = INVALID_DIM;
+            invalidM += 1;
+          } else {
+            matchedM += 1;
+          }
           grid[iso] = grid[iso] || {};
           grid[iso][dim] = grid[iso][dim] || {};
           grid[iso][dim][target.entity_id] =
             (grid[iso][dim][target.entity_id] || 0) + 1;
-          matchedM += 1;
         }
 
-        if (!matchedM) {
+        if (!matchedM && !invalidM) {
           setMessage(
             `No se cruzo ningun reporte para ${String(month).padStart(2, "0")}/${year}. (${notFoundM} IDs sin entidad, ${outM} fuera del mes).`
           );
@@ -943,9 +958,11 @@ export default function HistoryView({
         await handleLoadEntityMatrix();
         await runHistorySearch();
         clearMessageSoon(
-          `Actualizado correctamente (merge): ${matchedM} reportes clasificados en ${dims.join(
-            " / "
-          )} por fecha. Las fechas que no venían en el archivo se conservaron.`
+          `Actualizado (merge): ${matchedM} válidos en ${dims.join(" / ")}${
+            invalidM
+              ? `, ${invalidM} INVALIDADOS por descripción menor a ${MIN_DESC} caracteres`
+              : ""
+          }. Las fechas que no venían se conservaron.`
         );
         return;
       }

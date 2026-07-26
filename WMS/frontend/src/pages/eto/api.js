@@ -647,6 +647,8 @@ async function entityDashboardSupabase(params) {
     const dimMap = accByEntityDim.get(eid) || new Map();
     const by_dimension = {};
     for (const d of dimensionList) by_dimension[d] = dimMap.get(d) || 0;
+    // Reportes invalidados (descripcion corta): se guardan en dimension "Invalido".
+    const invalid = dimMap.get("Invalido") || 0;
     // Si el indicador tiene condiciones, el acumulado es la suma de esas
     // condiciones (ignora registros viejos sin condicion, para que no descuadre).
     const accumulated = dimensionList.length
@@ -664,6 +666,7 @@ async function entityDashboardSupabase(params) {
       value: accumulated,
       accumulated,
       by_dimension,
+      invalid,
       remaining,
       compliance,
       general,
@@ -686,6 +689,10 @@ async function entityDashboardSupabase(params) {
       ok_count: ranking.filter((item) => item.estado === "ok").length,
       warning_count: ranking.filter((item) => item.estado === "warning").length,
       critical_count: ranking.filter((item) => item.estado === "critical").length,
+      total_invalid: ranking.reduce(
+        (acc, item) => acc + Number(item.invalid || 0),
+        0
+      ),
     },
     dimensions: dimensionList,
     ranking,
