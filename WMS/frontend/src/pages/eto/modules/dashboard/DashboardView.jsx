@@ -3560,6 +3560,9 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
   const [isTrendExpanded, setIsTrendExpanded] = useState(false);
   const [selectedTrendIndex, setSelectedTrendIndex] = useState(-1);
   const [expandedRankCard, setExpandedRankCard] = useState(null);
+  const [detailCard, setDetailCard] = useState(null);
+  const [detailPerson, setDetailPerson] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const [dashboardFilter, setDashboardFilter] = useState({
     process_id: "",
@@ -3808,6 +3811,29 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
         isMatchingStatusFilter(item.status, dashboardFilter.status_filter)
       );
   }, [dashboardOverview, dashboardFilter.status_filter]);
+
+  const openPersonDetail = async (item) => {
+    setDetailPerson({ item, records: [] });
+    try {
+      setDetailLoading(true);
+      const recs = await API.getEntityRecords({
+        indicator_id: dashboardData?.indicator_id,
+        entity_id: item.entity_id,
+        year: dashboardFilter.year,
+        month: dashboardFilter.month,
+      });
+      setDetailPerson({ item, records: Array.isArray(recs) ? recs : [] });
+    } catch {
+      setDetailPerson({ item, records: [] });
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const closeDetail = () => {
+    setDetailCard(null);
+    setDetailPerson(null);
+  };
 
   const entityDashboardBarData = useMemo(() => {
     if (!dashboardData?.is_entity_dashboard || !dashboardData?.ranking?.length) {
@@ -4736,12 +4762,11 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                         }}
                       >
                         <div
-                          onClick={() =>
-                            setExpandedRankCard(
-                              expandedRankCard === titulo ? null : titulo
-                            )
-                          }
-                          title="Clic para ampliar / contraer"
+                          onClick={() => {
+                            setDetailCard({ titulo, color, arr });
+                            setDetailPerson(null);
+                          }}
+                          title="Clic para ver el detalle"
                           style={{
                             background: color,
                             color: "#ffffff",
@@ -4753,18 +4778,13 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                             cursor: "pointer",
                           }}
                         >
-                          <span>
-                            {expandedRankCard === titulo ? "▾ " : "▸ "}
-                            {titulo}
-                          </span>
+                          <span>🔍 {titulo}</span>
                           <span>{arr.length}</span>
                         </div>
                         <div
                           style={{
-                            maxHeight:
-                              expandedRankCard === titulo ? "none" : 260,
-                            overflowY:
-                              expandedRankCard === titulo ? "visible" : "auto",
+                            maxHeight: 260,
+                            overflowY: "auto",
                           }}
                         >
                           {arr.length === 0 ? (
@@ -4859,6 +4879,223 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                   })()}
                 </div>
               </section>
+
+              {detailCard && (
+                <div
+                  onClick={closeDetail}
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    zIndex: 9999,
+                    background: "rgba(15,23,42,.55)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 16,
+                  }}
+                >
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      width: "min(560px, 96vw)",
+                      maxHeight: "86vh",
+                      background: "#ffffff",
+                      borderRadius: 18,
+                      overflow: "hidden",
+                      display: "flex",
+                      flexDirection: "column",
+                      boxShadow: "0 24px 60px rgba(0,0,0,.35)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        background: detailCard.color,
+                        color: "#fff",
+                        padding: "14px 18px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 10,
+                      }}
+                    >
+                      <strong style={{ fontSize: 16 }}>
+                        {detailPerson
+                          ? detailPerson.item.entity_name
+                          : `${detailCard.titulo} (${detailCard.arr.length})`}
+                      </strong>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        {detailPerson && (
+                          <button
+                            type="button"
+                            onClick={() => setDetailPerson(null)}
+                            style={{
+                              background: "rgba(255,255,255,.2)",
+                              border: "none",
+                              color: "#fff",
+                              borderRadius: 8,
+                              padding: "4px 10px",
+                              cursor: "pointer",
+                              fontWeight: 700,
+                            }}
+                          >
+                            ← Volver
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={closeDetail}
+                          style={{
+                            background: "rgba(255,255,255,.2)",
+                            border: "none",
+                            color: "#fff",
+                            borderRadius: 8,
+                            padding: "4px 10px",
+                            cursor: "pointer",
+                            fontWeight: 700,
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ overflowY: "auto" }}>
+                      {!detailPerson ? (
+                        detailCard.arr.length === 0 ? (
+                          <div style={{ padding: 20, color: "#94a3b8" }}>
+                            Sin personas
+                          </div>
+                        ) : (
+                          detailCard.arr.map((it) => {
+                            const dims = dashboardData.dimensions || [];
+                            const by = it.by_dimension || {};
+                            return (
+                              <div
+                                key={it.entity_id}
+                                onClick={() => openPersonDetail(it)}
+                                style={{
+                                  padding: "12px 16px",
+                                  borderBottom: `1px solid ${CHART_COLORS.cardBorder}`,
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  gap: 10,
+                                }}
+                                onMouseEnter={(e) =>
+                                  (e.currentTarget.style.background = "#f8fafc")
+                                }
+                                onMouseLeave={(e) =>
+                                  (e.currentTarget.style.background = "#fff")
+                                }
+                              >
+                                <div>
+                                  <div style={{ fontWeight: 700 }}>
+                                    {it.entity_name}
+                                  </div>
+                                  <div
+                                    style={{ fontSize: 11, color: "#64748b" }}
+                                  >
+                                    {dims
+                                      .map(
+                                        (d) =>
+                                          `${d}: ${formatPlainNumber(
+                                            by[d] || 0
+                                          )}`
+                                      )
+                                      .join("  ·  ")}
+                                    {Number(it.invalid || 0) > 0
+                                      ? `  ·  Inválidos: ${formatPlainNumber(
+                                          it.invalid
+                                        )}`
+                                      : ""}
+                                  </div>
+                                </div>
+                                <span
+                                  style={{ color: "#94a3b8", fontSize: 12 }}
+                                >
+                                  ver ›
+                                </span>
+                              </div>
+                            );
+                          })
+                        )
+                      ) : detailLoading ? (
+                        <div style={{ padding: 20, color: "#64748b" }}>
+                          Cargando…
+                        </div>
+                      ) : detailPerson.records.length === 0 ? (
+                        <div style={{ padding: 20, color: "#94a3b8" }}>
+                          Sin reportes en el período.
+                        </div>
+                      ) : (
+                        detailPerson.records
+                          .slice()
+                          .sort((a, b) =>
+                            String(a.record_date).localeCompare(
+                              String(b.record_date)
+                            )
+                          )
+                          .map((r) => {
+                            const esInvalido =
+                              String(r.dimension || "").toLowerCase() ===
+                              "invalido";
+                            const chars = String(r.observation || "")
+                              .split(",")
+                              .map((s) => s.trim())
+                              .filter(Boolean);
+                            return (
+                              <div
+                                key={r.id}
+                                style={{
+                                  padding: "12px 16px",
+                                  borderBottom: `1px solid ${CHART_COLORS.cardBorder}`,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    gap: 10,
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  <span>
+                                    {String(r.record_date).slice(0, 10)} ·{" "}
+                                    <span
+                                      style={{
+                                        color: esInvalido
+                                          ? "#7c3aed"
+                                          : "#16a34a",
+                                      }}
+                                    >
+                                      {esInvalido ? "Invalidado" : r.dimension}
+                                    </span>
+                                  </span>
+                                  <span>
+                                    {formatPlainNumber(r.value)} reporte(s)
+                                  </span>
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: 12,
+                                    color: "#64748b",
+                                    marginTop: 4,
+                                  }}
+                                >
+                                  {chars.length
+                                    ? chars
+                                        .map((c) => `${c} caract.`)
+                                        .join("  ·  ")
+                                    : "sin dato de caracteres"}
+                                </div>
+                              </div>
+                            );
+                          })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <section
                 className="panel-block"

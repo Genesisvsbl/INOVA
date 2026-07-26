@@ -918,7 +918,9 @@ export default function HistoryView({
           grid[iso] = grid[iso] || {};
           grid[iso][dim] = grid[iso][dim] || {};
           grid[iso][dim][target.entity_id] =
-            (grid[iso][dim][target.entity_id] || 0) + 1;
+            grid[iso][dim][target.entity_id] || [];
+          // Guarda la cantidad de caracteres de cada reporte de ese bucket.
+          grid[iso][dim][target.entity_id].push(desc.length);
         }
 
         if (!matchedM && !invalidM) {
@@ -935,7 +937,11 @@ export default function HistoryView({
         for (const iso of Object.keys(grid)) {
           for (const dim of Object.keys(grid[iso])) {
             const rowsToSave = Object.entries(grid[iso][dim]).map(
-              ([entity_id, value]) => ({ entity_id: Number(entity_id), value })
+              ([entity_id, lens]) => ({
+                entity_id: Number(entity_id),
+                value: lens.length,
+                observation: lens.join(", "),
+              })
             );
             await API.saveEntityGrid({
               indicator_id: indicatorId,
