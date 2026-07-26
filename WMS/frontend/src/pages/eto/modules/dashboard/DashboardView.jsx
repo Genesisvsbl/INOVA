@@ -3906,7 +3906,7 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
     };
 
     // encabezado
-    ctx.fillStyle = "#065f46";
+    ctx.fillStyle = "#16a34a";
     ctx.fillRect(0, 0, tableW, headerH);
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 12px Inter, Arial, sans-serif";
