@@ -1,4 +1,4 @@
-const CACHE_NAME = "inova-shell-v1";
+const CACHE_NAME = "inova-shell-v3";
 const APP_SHELL = [
   "/",
   "/login",
@@ -29,7 +29,11 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === "navigate") {
-    event.respondWith(fetch(request).catch(() => caches.match("/index.html")));
+    event.respondWith(
+      fetch(new Request(request, { cache: "no-store" })).catch(() =>
+        caches.match("/index.html")
+      )
+    );
     return;
   }
 
