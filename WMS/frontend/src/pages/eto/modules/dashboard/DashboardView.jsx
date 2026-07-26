@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ResponsiveContainer,
   LineChart,
@@ -4880,7 +4881,8 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                 </div>
               </section>
 
-              {detailCard && (
+              {detailCard &&
+                createPortal(
                 <div
                   onClick={closeDetail}
                   style={{
@@ -5094,7 +5096,8 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                       )}
                     </div>
                   </div>
-                </div>
+                </div>,
+                document.body
               )}
 
               <section
