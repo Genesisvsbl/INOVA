@@ -958,11 +958,13 @@ export default function HistoryView({
         await handleLoadEntityMatrix();
         await runHistorySearch();
         clearMessageSoon(
-          `Actualizado (merge): ${matchedM} válidos en ${dims.join(" / ")}${
+          `Actualizado correctamente: ${matchedM} reportes válidos (${dims.join(
+            " / "
+          )})${
             invalidM
-              ? `, ${invalidM} INVALIDADOS por descripción menor a ${MIN_DESC} caracteres`
+              ? ` y ${invalidM} invalidados por descripción menor a ${MIN_DESC} caracteres`
               : ""
-          }. Las fechas que no venían se conservaron.`
+          }. Se conservaron los registros anteriores.`
         );
         return;
       }
