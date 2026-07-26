@@ -3845,6 +3845,19 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
   const buildRankingCanvas = (subset) => {
     const dims = (dashboardData && dashboardData.dimensions) || [];
     const fmt = (v) => formatPlainNumber(Number(v || 0));
+    // Etiqueta de la columna = tipo de entidad predominante (ej. "Persona").
+    const tipoLabel = (() => {
+      const all = (dashboardData && dashboardData.ranking) || [];
+      const types = all
+        .map((r) => String(r.entity_type || "").trim())
+        .filter(Boolean);
+      if (!types.length) return "Entidad";
+      const counts = {};
+      types.forEach((t) => {
+        counts[t] = (counts[t] || 0) + 1;
+      });
+      return Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+    })();
     const estLabel = (e) =>
       e === "ok" ? "OK" : e === "warning" ? "WARN" : "CRIT";
     const estColor = (e) =>
@@ -3852,7 +3865,7 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
 
     const cols = [
       { label: "Código", w: 110, align: "left", get: (r) => String(r.entity_code || "") },
-      { label: "Entidad", w: 250, align: "left", get: (r) => String(r.entity_name || "") },
+      { label: tipoLabel, w: 250, align: "left", get: (r) => String(r.entity_name || "") },
       { label: "Meta", w: 55, align: "right", get: (r) => fmt(r.target_value) },
       { label: "Acum", w: 55, align: "right", get: (r) => fmt(r.accumulated) },
       ...dims.map((d) => ({

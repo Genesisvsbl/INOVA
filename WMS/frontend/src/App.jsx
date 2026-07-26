@@ -407,21 +407,21 @@ function UpdateButton() {
         zIndex: 100000,
         display: "inline-flex",
         alignItems: "center",
-        gap: 6,
+        justifyContent: "center",
+        width: 40,
+        height: 40,
         background: "#ffffff",
         color: "#065f46",
         border: "1px solid rgba(0,0,0,.10)",
-        borderRadius: 999,
-        padding: "7px 14px",
+        borderRadius: "50%",
         cursor: "pointer",
-        fontWeight: 800,
-        fontSize: 12,
+        fontSize: 20,
+        lineHeight: 1,
         boxShadow: "0 6px 18px rgba(0,0,0,.28)",
         opacity: 0.92,
       }}
     >
-      <span style={{ fontSize: 14, lineHeight: 1 }}>⟳</span>
-      Actualizar
+      ⟳
     </button>
   );
 }
