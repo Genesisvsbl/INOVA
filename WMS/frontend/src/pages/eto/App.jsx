@@ -1151,7 +1151,7 @@ export default function App() {
     }
   }
 
-  async function handleCreateOrUpdateEntityTarget() {
+  async function handleCreateOrUpdateEntityTarget(conditionsConfig) {
     try {
       if (!selectedIndicatorForEntities?.id) {
         throw new Error("Primero debes seleccionar un indicador");
@@ -1172,6 +1172,8 @@ export default function App() {
             ? Number(selectedIndicatorForEntities.target_value || 0)
             : Number(selectedEntityTargetValue),
         is_active: true,
+        conditions_config:
+          typeof conditionsConfig === "string" ? conditionsConfig : "",
       });
 
       const targets = await API.getEntityTargets({

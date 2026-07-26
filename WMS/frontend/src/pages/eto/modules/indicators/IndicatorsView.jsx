@@ -295,6 +295,19 @@ export default function IndicatorsView({
       { name: "Acciones", op: ">=", meta: "", warn: "", crit: "" },
     ]);
 
+  // Metas por condición a nivel de entidad (override por persona).
+  const entityIndicatorConds = (() => {
+    try {
+      const a = JSON.parse(
+        selectedIndicatorForEntities?.conditions_config || "[]"
+      );
+      return Array.isArray(a) ? a : [];
+    } catch {
+      return [];
+    }
+  })();
+  const [entityCondMetas, setEntityCondMetas] = useState({});
+
   const totalEntityIndicators = useMemo(
     () => (indicators || []).filter((item) => item.scope_type === "entity").length,
     [indicators]
@@ -1299,25 +1312,86 @@ export default function IndicatorsView({
                   </select>
                 </div>
 
-                <div className="indicator-field">
-                  <label>Meta individual</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={selectedEntityTargetValue}
-                    onChange={(e) => setSelectedEntityTargetValue(e.target.value)}
-                    placeholder="Ej. 0, 10, 25"
-                  />
-                </div>
+                {entityIndicatorConds.length > 0 ? (
+                  <div
+                    className="indicator-field"
+                    style={{ gridColumn: "1 / -1" }}
+                  >
+                    <label>
+                      Metas por condición (vacío = usa la meta del indicador)
+                    </label>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(110px, 1fr))",
+                        gap: 8,
+                      }}
+                    >
+                      {entityIndicatorConds.map((c) => (
+                        <div key={c.name}>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "#64748b",
+                              marginBottom: 2,
+                            }}
+                          >
+                            {c.name}
+                          </div>
+                          <input
+                            type="number"
+                            value={entityCondMetas[c.name] ?? ""}
+                            onChange={(e) =>
+                              setEntityCondMetas({
+                                ...entityCondMetas,
+                                [c.name]: e.target.value,
+                              })
+                            }
+                            placeholder={`def ${c.meta ?? ""}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="indicator-field">
+                    <label>Meta individual</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={selectedEntityTargetValue}
+                      onChange={(e) =>
+                        setSelectedEntityTargetValue(e.target.value)
+                      }
+                      placeholder="Ej. 0, 10, 25"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="form-actions">
                 <button
                   type="button"
                   className="indicator-primary"
-                  onClick={handleCreateOrUpdateEntityTarget}
+                  onClick={() => {
+                    if (entityIndicatorConds.length > 0) {
+                      const cfg = entityIndicatorConds.map((c) => ({
+                        ...c,
+                        meta:
+                          entityCondMetas[c.name] !== undefined &&
+                          String(entityCondMetas[c.name]).trim() !== ""
+                            ? Number(entityCondMetas[c.name])
+                            : c.meta,
+                      }));
+                      handleCreateOrUpdateEntityTarget(JSON.stringify(cfg));
+                      setEntityCondMetas({});
+                    } else {
+                      handleCreateOrUpdateEntityTarget();
+                    }
+                  }}
                 >
-                  Agregar entidad
+                  Agregar / actualizar entidad
                 </button>
               </div>
 

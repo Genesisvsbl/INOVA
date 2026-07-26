@@ -691,11 +691,22 @@ async function entityDashboardSupabase(params) {
     const remaining = meta > 0 ? Math.max(0, meta - accumulated) : 0;
     const compliance = meta > 0 ? (accumulated / meta) * 100 : 0;
     const general = calculateGeneral({ ...indicator, target_value: meta }, accumulated);
-    // Estado por condición (si hay umbrales parametrizados por condición)
+    // Estado por condición (usa el override por entidad si existe, si no el del indicador)
+    const entityCfg = (() => {
+      try {
+        const a = JSON.parse(target.conditions_config || "[]");
+        return Array.isArray(a) ? a : [];
+      } catch {
+        return [];
+      }
+    })();
+    const entityCfgByName = new Map(
+      entityCfg.map((c) => [String(c.name || "").trim(), c])
+    );
     const dim_status = {};
     let worst = null;
     for (const d of dimensionList) {
-      const cfg = cfgByName.get(d);
+      const cfg = entityCfgByName.get(d) || cfgByName.get(d);
       if (!cfg) continue;
       const st = conditionStatus(by_dimension[d] || 0, cfg);
       dim_status[d] = st;
@@ -899,6 +910,7 @@ async function requestSupabase(path, options = {}) {
         {
           target_value: Number(body.target_value || 0),
           is_active: body.is_active ?? true,
+          conditions_config: body.conditions_config || "",
         }
       );
     }
@@ -1301,6 +1313,7 @@ const API = {
         entity_id: Number(payload.entity_id),
         target_value: Number(payload.target_value),
         is_active: payload.is_active ?? true,
+        conditions_config: payload.conditions_config || "",
       }),
     }),
 
