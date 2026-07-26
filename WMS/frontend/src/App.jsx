@@ -380,9 +380,56 @@ function AppRoutes() {
   );
 }
 
+function UpdateButton() {
+  const doUpdate = async () => {
+    try {
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.update().catch(() => {})));
+      }
+      if (window.caches) {
+        const keys = await window.caches.keys();
+        await Promise.all(keys.map((k) => window.caches.delete(k)));
+      }
+    } catch (_) {}
+    window.location.reload();
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={doUpdate}
+      title="Actualizar a la última versión (sin cerrar la página)"
+      style={{
+        position: "fixed",
+        top: 8,
+        left: "50%",
+        transform: "translateX(-50%)",
+        zIndex: 100000,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        background: "#ffffff",
+        color: "#065f46",
+        border: "1px solid rgba(0,0,0,.10)",
+        borderRadius: 999,
+        padding: "5px 12px",
+        cursor: "pointer",
+        fontWeight: 800,
+        fontSize: 12,
+        boxShadow: "0 4px 14px rgba(0,0,0,.22)",
+      }}
+    >
+      <span style={{ fontSize: 14, lineHeight: 1 }}>⟳</span>
+      Actualizar
+    </button>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <UpdateButton />
       <AppRoutes />
     </BrowserRouter>
   );
