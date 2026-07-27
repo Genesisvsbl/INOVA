@@ -2252,14 +2252,20 @@ const historyCss = `
   min-height: 94px;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 16px;
+  gap: 11px;
+  padding: 14px;
   border-radius: 18px;
   border: 1px solid rgba(226,232,240,.88);
   background:
     radial-gradient(circle at 100% 0%, rgba(34,197,94,.10), transparent 36%),
     rgba(255,255,255,.88);
   box-shadow: 0 16px 38px rgba(15,23,42,.07);
+  overflow: hidden;
+}
+
+.history-mini-kpi > div {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .history-mini-kpi svg {
@@ -2281,9 +2287,19 @@ const historyCss = `
   display: block;
   margin-top: 7px;
   color: #059669;
-  font-size: 27px;
+  font-size: clamp(18px, 1.5vw, 26px);
   line-height: 1;
   font-weight: 950;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-mini-kpi span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .history-mini-kpi.warning strong { color: #f59e0b; }
