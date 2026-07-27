@@ -195,12 +195,19 @@ export default function IndicatorsView({
 
       const rows = raw.map((r) => {
         const activo = pick(r, ["activo", "activa", "estado", "active"]);
+        // Metas por condición: una columna por cada condición del indicador.
+        const condMetas = {};
+        entityIndicatorConds.forEach((c) => {
+          const v = pick(r, [String(c.name || "").toLowerCase()]);
+          if (v !== "" && v !== null && v !== undefined) condMetas[c.name] = v;
+        });
         return {
           code: pick(r, ["codigo", "código", "code"]),
           name: pick(r, ["nombre", "name"]),
           entity_type: pick(r, ["tipo de entidad", "tipo", "type"]),
           is_active: activo === "" ? true : isTruthy(activo),
           meta: pick(r, ["meta", "target", "objetivo"]),
+          condMetas,
         };
       });
 

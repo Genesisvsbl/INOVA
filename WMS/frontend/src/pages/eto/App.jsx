@@ -1066,6 +1066,29 @@ export default function App() {
         }
 
         if (entity?.id && selectedIndicatorForEntities?.id) {
+          // Metas por condición desde el Excel (una columna por condición).
+          let baseConds = [];
+          try {
+            const a = JSON.parse(
+              selectedIndicatorForEntities.conditions_config || "[]"
+            );
+            baseConds = Array.isArray(a) ? a : [];
+          } catch (_) {
+            baseConds = [];
+          }
+          let conditions_config = "";
+          if (baseConds.length && row.condMetas) {
+            const merged = baseConds.map((c) => {
+              const v = row.condMetas[c.name];
+              return {
+                ...c,
+                meta:
+                  v === "" || v === null || v === undefined ? c.meta : Number(v),
+              };
+            });
+            conditions_config = JSON.stringify(merged);
+          }
+
           const meta =
             row.meta === "" || row.meta === null || row.meta === undefined
               ? Number(selectedIndicatorForEntities.target_value || 0)
@@ -1075,6 +1098,7 @@ export default function App() {
             entity_id: Number(entity.id),
             target_value: Number.isFinite(meta) ? meta : 0,
             is_active: true,
+            conditions_config,
           });
           associated += 1;
         }
