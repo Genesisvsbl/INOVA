@@ -3885,7 +3885,11 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
     const tableW = cols.reduce((a, c) => a + c.w, 0) + pad * 2;
     const rowH = 30;
     const headerH = 40;
-    const H = headerH + subset.length * rowH + pad;
+    const titleH = 36;
+    const titleText = `${dashboardData?.indicator_code || ""} - ${
+      dashboardData?.indicator_name || ""
+    }${dashboardData?.period_label ? "   ·   " + dashboardData.period_label : ""}`;
+    const H = titleH + headerH + subset.length * rowH + pad;
     const scale = 2;
 
     const cv = document.createElement("canvas");
@@ -3906,9 +3910,17 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
       return t + "…";
     };
 
+    // titulo con el nombre del indicador (para que la imagen quede identificada)
+    ctx.fillStyle = "#0f7a37";
+    ctx.fillRect(0, 0, tableW, titleH);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 15px Inter, Arial, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText(fit(titleText, tableW - pad * 2), pad, titleH / 2);
+
     // encabezado
     ctx.fillStyle = "#16a34a";
-    ctx.fillRect(0, 0, tableW, headerH);
+    ctx.fillRect(0, titleH, tableW, headerH);
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 12px Inter, Arial, sans-serif";
     let cx = pad;
@@ -3920,13 +3932,13 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
           : c.align === "center"
           ? cx + c.w / 2
           : cx;
-      ctx.fillText(fit(c.label, c.w - 8), tx, headerH / 2);
+      ctx.fillText(fit(c.label, c.w - 8), tx, titleH + headerH / 2);
       cx += c.w;
     }
     // filas
     ctx.font = "13px Inter, Arial, sans-serif";
     subset.forEach((r, i) => {
-      const y = headerH + i * rowH;
+      const y = titleH + headerH + i * rowH;
       ctx.fillStyle =
         r.estado === "critical"
           ? "#fde2e2"
