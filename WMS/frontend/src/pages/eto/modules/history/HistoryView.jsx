@@ -275,6 +275,73 @@ export default function HistoryView({
       if (selectedIndicator?.scope_type === "entity") {
         const indicatorId = Number(filters.indicator_id);
 
+        // Condiciones del indicador (Diario/Semanal/...).
+        let dims = [];
+        try {
+          const cfg = JSON.parse(selectedIndicator.conditions_config || "[]");
+          if (Array.isArray(cfg) && cfg.length) {
+            dims = cfg.map((c) => String(c.name || "").trim()).filter(Boolean);
+          }
+        } catch (_) {
+          /* ignore */
+        }
+        if (!dims.length) {
+          dims = String(selectedIndicator.dimensions || "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+
+        // Con condiciones: usamos la MISMA evaluación del Dashboard
+        // (una fila por persona, estado por condición, sin contar el Diario).
+        if (dims.length) {
+          const dash = await API.getEntityDashboard({
+            indicator_id: indicatorId,
+            year: filters.year ? Number(filters.year) : undefined,
+            month: filters.month ? Number(filters.month) : undefined,
+          });
+          const rk = (dash && dash.ranking) || [];
+          const recordDate = `${filters.year}-${String(
+            filters.month || 1
+          ).padStart(2, "0")}-01`;
+          const mappedCond = rk
+            .filter(
+              (it) =>
+                !filters.entity_id ||
+                Number(it.entity_id) === Number(filters.entity_id)
+            )
+            .map((it) => ({
+              id: `person-${it.entity_id}`,
+              indicator_id: indicatorId,
+              indicator_code: selectedIndicator.code,
+              indicator_name: selectedIndicator.name,
+              process_id: Number(selectedIndicator.process_id),
+              process_name: selectedIndicator.process_name,
+              meeting_level: selectedIndicator.meeting_level,
+              entity_id: Number(it.entity_id),
+              entity_code: it.entity_code,
+              entity_name: it.entity_name,
+              entity_type: it.entity_type || "",
+              record_date: recordDate,
+              value: Number(it.accumulated || 0),
+              general: Number(it.compliance || 0),
+              status: it.estado || "ok",
+              observation: "",
+              unit: selectedIndicator.unit || "%",
+              frequency: selectedIndicator.frequency,
+              capture_mode: "single",
+              shifts: "",
+              scope_type: "entity",
+              target_value: Number(it.target_value || 0),
+              by_dimension: it.by_dimension || {},
+              dim_status: it.dim_status || {},
+              conditions: dims,
+            }));
+          setHistoryResults(mappedCond);
+          setHistorySummary(buildEntityHistorySummary(mappedCond));
+          return;
+        }
+
         const [entityRecords, entityTargets] = await Promise.all([
           API.getEntityRecords({
             indicator_id: indicatorId,
@@ -2265,7 +2332,11 @@ export default function HistoryView({
                 <th>Indicador</th>
                 {isEntityHistoryIndicator && <th>Tipo</th>}
                 {isEntityHistoryIndicator && <th>Entidad</th>}
-                <th>Valor</th>
+                {isEntityHistoryIndicator && historyConditions.length > 0 ? (
+                  historyConditions.map((c) => <th key={c}>{c}</th>)
+                ) : (
+                  <th>Valor</th>
+                )}
                 {!isEntityHistoryIndicator && <th>A</th>}
                 {!isEntityHistoryIndicator && <th>B</th>}
                 {!isEntityHistoryIndicator && <th>C</th>}
@@ -2291,13 +2362,35 @@ export default function HistoryView({
                   </td>
                   {isEntityHistoryIndicator && <td>{item.entity_type || "-"}</td>}
                   {isEntityHistoryIndicator && <td>{item.entity_name || "-"}</td>}
-                  <td>
-                    {item.scope_type === "entity"
-                      ? formatPlainNumber(item.value ?? 0)
-                      : item.capture_mode === "single"
-                      ? item.single_value ?? 0
-                      : "-"}
-                  </td>
+                  {isEntityHistoryIndicator && historyConditions.length > 0 ? (
+                    historyConditions.map((c) => {
+                      const st = (item.dim_status || {})[c];
+                      const color =
+                        st === "critical"
+                          ? "#dc2626"
+                          : st === "warning"
+                          ? "#d97706"
+                          : st === "ok"
+                          ? "#16a34a"
+                          : "#94a3b8";
+                      return (
+                        <td
+                          key={c}
+                          style={{ color, fontWeight: st ? 800 : 500 }}
+                        >
+                          {formatPlainNumber((item.by_dimension || {})[c] || 0)}
+                        </td>
+                      );
+                    })
+                  ) : (
+                    <td>
+                      {item.scope_type === "entity"
+                        ? formatPlainNumber(item.value ?? 0)
+                        : item.capture_mode === "single"
+                        ? item.single_value ?? 0
+                        : "-"}
+                    </td>
+                  )}
                   {!isEntityHistoryIndicator && (
                     <td>{hasShift(item.shifts, "A") ? item.shift_a ?? 0 : "-"}</td>
                   )}
@@ -2344,7 +2437,13 @@ export default function HistoryView({
               {!visibleHistoryResults.length && (
                 <tr>
                   <td
-                    colSpan={isEntityHistoryIndicator ? "10" : "12"}
+                    colSpan={
+                      isEntityHistoryIndicator
+                        ? historyConditions.length > 0
+                          ? String(9 + historyConditions.length)
+                          : "10"
+                        : "12"
+                    }
                     className="history-empty"
                   >
                     Sin resultados
