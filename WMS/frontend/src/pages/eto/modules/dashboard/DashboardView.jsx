@@ -3978,6 +3978,120 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
     return cv;
   };
 
+  // Imagen del MAPA DE CALOR (celdas con color por condición), para copiar.
+  const buildHeatmapCanvas = (subset) => {
+    const dims = (dashboardData && dashboardData.dimensions) || [];
+    const fmt = (v) => formatPlainNumber(Number(v || 0));
+    const titleText = `${dashboardData?.indicator_code || ""} - ${
+      dashboardData?.indicator_name || ""
+    }${dashboardData?.period_label ? "   ·   " + dashboardData.period_label : ""}`;
+
+    const pad = 14;
+    const nameW = 250;
+    const cellW = 120;
+    const gap = 6;
+    const rowH = 34;
+    const headerH = 34;
+    const titleH = 38;
+    const tableW = pad * 2 + nameW + dims.length * cellW;
+    const H = titleH + headerH + subset.length * rowH + pad;
+    const scale = 2;
+
+    const cv = document.createElement("canvas");
+    cv.width = tableW * scale;
+    cv.height = H * scale;
+    const ctx = cv.getContext("2d");
+    ctx.scale(scale, scale);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, tableW, H);
+    ctx.textBaseline = "middle";
+
+    const fit = (text, maxW) => {
+      if (ctx.measureText(text).width <= maxW) return text;
+      let t = text;
+      while (t.length > 1 && ctx.measureText(t + "…").width > maxW) {
+        t = t.slice(0, -1);
+      }
+      return t + "…";
+    };
+    const rrect = (x, y, w, h, r) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    };
+
+    // título
+    ctx.fillStyle = "#0f7a37";
+    ctx.fillRect(0, 0, tableW, titleH);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 15px Inter, Arial, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText(fit(titleText, tableW - pad * 2), pad, titleH / 2);
+
+    // encabezado de condiciones
+    ctx.font = "bold 11px Inter, Arial, sans-serif";
+    ctx.fillStyle = "#334155";
+    ctx.textAlign = "left";
+    ctx.fillText("PERSONA", pad, titleH + headerH / 2);
+    dims.forEach((d, i) => {
+      const x = pad + nameW + i * cellW;
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#334155";
+      ctx.fillText(String(d).toUpperCase(), x + cellW / 2, titleH + headerH / 2);
+    });
+
+    // filas
+    subset.forEach((r, i) => {
+      const y = titleH + headerH + i * rowH;
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "bold 12px Inter, Arial, sans-serif";
+      ctx.fillText(fit(String(r.entity_name || ""), nameW - 8), pad, y + rowH / 2);
+      dims.forEach((d, j) => {
+        const st = (r.dim_status || {})[d];
+        const bg =
+          st === "ok"
+            ? "#22c55e"
+            : st === "warning"
+            ? "#f59e0b"
+            : st === "critical"
+            ? "#ef4444"
+            : "#e2e8f0";
+        const fg = st && st !== "none" ? "#ffffff" : "#64748b";
+        const x = pad + nameW + j * cellW;
+        ctx.fillStyle = bg;
+        rrect(x + gap / 2, y + 3, cellW - gap, rowH - 6, 8);
+        ctx.fill();
+        ctx.fillStyle = fg;
+        ctx.font = "bold 13px Inter, Arial, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(fmt((r.by_dimension || {})[d] || 0), x + cellW / 2, y + rowH / 2);
+      });
+    });
+    return cv;
+  };
+
+  const openHeatmapView = () => {
+    const rows = (dashboardData && dashboardData.ranking) || [];
+    if (!rows.length) {
+      setMessage("No hay datos para mostrar.");
+      return;
+    }
+    const half = Math.ceil(rows.length / 2);
+    const c1 = buildHeatmapCanvas(rows.slice(0, half));
+    const c2 = buildHeatmapCanvas(rows.slice(half));
+    setRankingParts({
+      url1: c1.toDataURL("image/png"),
+      url2: c2.toDataURL("image/png"),
+      canvas1: c1,
+      canvas2: c2,
+    });
+  };
+
   const flashMessage = (text, ms = 1500) => {
     setMessage(text);
     window.clearTimeout(flashMessage._t);
@@ -4769,8 +4883,8 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                     {(dashboardData.dimensions || []).length > 0 && (
                       <button
                         type="button"
-                        onClick={openRankingView}
-                        title="Ver en 2 partes y copiar cada una"
+                        onClick={openHeatmapView}
+                        title="Ver el mapa de calor en 2 partes y copiar cada una"
                         style={{
                           display: "inline-flex",
                           alignItems: "center",
