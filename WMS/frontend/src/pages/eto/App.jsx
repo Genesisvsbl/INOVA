@@ -840,6 +840,8 @@ export default function App() {
             ? []
             : normalizeShifts(source.shifts),
         scope_type: scopeType,
+        dimensions: source.dimensions || "",
+        conditions_config: source.conditions_config || "",
       };
 
       if (editingIndicatorId) {
