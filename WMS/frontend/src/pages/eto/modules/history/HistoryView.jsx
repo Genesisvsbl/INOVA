@@ -978,10 +978,20 @@ export default function HistoryView({
         const condNames = historyConditions.filter(
           (c) => strip(c) !== "acciones"
         );
+        // OJO: un nombre puede traer frecuencia + tipo, ej.
+        // "Monitoreo Integral - Mensual - Ambiental". El TIPO (Ambiental/5S)
+        // debe ganar sobre la frecuencia (Diario/Semanal/Mensual). Por eso
+        // evaluamos primero las condiciones que NO son de frecuencia.
+        const FREQ = new Set(["diario", "semanal", "mensual"]);
+        const orderedConds = [...condNames].sort((a, b) => {
+          const fa = FREQ.has(strip(a)) ? 1 : 0;
+          const fb = FREQ.has(strip(b)) ? 1 : 0;
+          return fa - fb;
+        });
         const classify = (name) => {
           const n = strip(name);
           if (!n) return null;
-          for (const c of condNames) {
+          for (const c of orderedConds) {
             const key = strip(c);
             if (key && n.includes(key)) return c;
           }
