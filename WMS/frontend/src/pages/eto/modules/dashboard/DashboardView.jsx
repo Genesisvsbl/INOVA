@@ -5804,7 +5804,9 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                               src={p.url}
                               alt={p.label}
                               style={{
-                                width: "100%",
+                                display: "block",
+                                width: "auto",
+                                maxWidth: "min(100%, 560px)",
                                 border: "1px solid #e5e7eb",
                                 borderRadius: 8,
                               }}
