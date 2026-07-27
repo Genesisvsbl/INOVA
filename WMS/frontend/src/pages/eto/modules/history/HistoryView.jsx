@@ -189,6 +189,25 @@ export default function HistoryView({
   const isEntityHistoryIndicator =
     selectedHistoryIndicator?.scope_type === "entity";
 
+  // Condiciones reales del indicador seleccionado (no quemadas).
+  // Se leen de conditions_config; si no hay, de dimensions (CSV).
+  const historyConditions = useMemo(() => {
+    const ind = selectedHistoryIndicator;
+    if (!ind) return [];
+    try {
+      const cfg = JSON.parse(ind.conditions_config || "[]");
+      if (Array.isArray(cfg) && cfg.length) {
+        return cfg.map((c) => String(c.name || "").trim()).filter(Boolean);
+      }
+    } catch (_) {
+      /* ignore */
+    }
+    return String(ind.dimensions || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }, [selectedHistoryIndicator]);
+
   function clearMessageSoon(text) {
     setMessage(text);
     window.clearTimeout(window.__etoHistoryMsgTimeout);
@@ -836,15 +855,26 @@ export default function HistoryView({
             .replace(/[\u0300-\u036f]/g, "")
             .toLowerCase()
             .trim();
+        // Clasifica según las condiciones REALES del indicador (no quemadas).
+        // "Acciones" no se cruza por nombre de inspección sino por la columna de planes.
+        const condNames = historyConditions.filter(
+          (c) => strip(c) !== "acciones"
+        );
         const classify = (name) => {
           const n = strip(name);
-          if (n.includes("ambiental")) return "Ambiental";
-          if (n.includes("5s")) return "5S";
-          if (n.includes("diario")) return "Diario";
-          if (n.includes("semanal")) return "Semanal";
-          if (n.includes("mensual")) return "Mensual";
+          if (!n) return null;
+          for (const c of condNames) {
+            const key = strip(c);
+            if (key && n.includes(key)) return c;
+          }
           return null;
         };
+        // Filtro de condición seleccionado en el dropdown.
+        const onlyCond =
+          occImpactFilter !== "todas" &&
+          historyConditions.some((c) => c === occImpactFilter)
+            ? occImpactFilter
+            : null;
         const entityByCed = new Map(
           (entityMatrixMeta.targets || []).map((t) => [
             String(t.entity_code || "").trim(),
@@ -877,12 +907,18 @@ export default function HistoryView({
           }
           const g = (grid[target.entity_id] = grid[target.entity_id] || {});
           const cond = classify(raw[inspKey]);
-          if (cond) {
+          if (cond && (!onlyCond || cond === onlyCond)) {
             g[cond] = (g[cond] || 0) + 1;
             matchedI += 1;
           }
-          if (planKey && raw[planKey] && String(raw[planKey]).trim()) {
+          const countAcciones =
+            planKey &&
+            raw[planKey] &&
+            String(raw[planKey]).trim() &&
+            (!onlyCond || onlyCond === "Acciones");
+          if (countAcciones) {
             g["Acciones"] = (g["Acciones"] || 0) + 1;
+            matchedI += 1;
           }
         }
 
@@ -1105,8 +1141,9 @@ export default function HistoryView({
             .toLowerCase()
             .trim();
           const isAmbiental = impact === "si" || impact.startsWith("si");
-          if (occImpactFilter === "ambiental" && !isAmbiental) continue;
-          if (occImpactFilter === "seguridad" && isAmbiental) continue;
+          const filt = occImpactFilter.toLowerCase();
+          if (filt === "ambiental" && !isAmbiental) continue;
+          if (filt === "seguridad" && isAmbiental) continue;
         }
         const iso = parseReportDate(raw[dateKey]);
         if (!iso) continue;
@@ -1558,16 +1595,21 @@ export default function HistoryView({
                 Cargar por entidad
               </button>
 
-              <select
-                value={occImpactFilter}
-                onChange={(e) => setOccImpactFilter(e.target.value)}
-                title="Al importar ocurrencias por persona, contar solo esta condición"
-                style={{ height: "38px", borderRadius: "8px", padding: "0 8px" }}
-              >
-                <option value="todas">Condición: Todas</option>
-                <option value="ambiental">Condición: Solo ambiental</option>
-                <option value="seguridad">Condición: Solo seguridad</option>
-              </select>
+              {historyConditions.length > 0 && (
+                <select
+                  value={occImpactFilter}
+                  onChange={(e) => setOccImpactFilter(e.target.value)}
+                  title="Al importar, contar solo esta condición del indicador"
+                  style={{ height: "38px", borderRadius: "8px", padding: "0 8px" }}
+                >
+                  <option value="todas">Condición: Todas</option>
+                  {historyConditions.map((c) => (
+                    <option key={c} value={c}>
+                      Condición: {c}
+                    </option>
+                  ))}
+                </select>
+              )}
 
               <label
                 className="history-secondary"
