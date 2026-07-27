@@ -1724,7 +1724,7 @@ export default function Recibo() {
             }
 
             .summary-label {
-              font-size: 6.3px;
+              font-size: 8px;
               line-height: 1;
               font-weight: 900;
               color: #0f2744;
@@ -1735,7 +1735,7 @@ export default function Recibo() {
 
             .summary-value {
               margin: 0;
-              font-size: 10px;
+              font-size: 12px;
               font-weight: 900;
               color: #000000;
               line-height: 1;
@@ -1746,18 +1746,18 @@ export default function Recibo() {
               width: 100%;
               table-layout: fixed;
               border-collapse: collapse;
-              font-size: 6.7px;
-              line-height: 1;
+              font-size: 9px;
+              line-height: 1.05;
             }
 
             .receipt-table th,
             .receipt-table td {
               border: 1px solid #d9e2ec;
-              padding: 2px 3px;
+              padding: 3px 4px;
               vertical-align: middle;
               white-space: normal;
               word-break: break-word;
-              line-height: 1;
+              line-height: 1.05;
             }
 
             .receipt-table th {
