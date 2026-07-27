@@ -551,7 +551,7 @@ export default function Rotulos() {
       top: 13.6mm;
       left: 3mm;
       width: 58mm;
-      font-size: 11.5px;
+      font-size: 14px;
       line-height: 1;
       font-weight: 800;
       white-space: nowrap;
@@ -571,18 +571,18 @@ export default function Rotulos() {
 
     .info {
       position: absolute;
-      top: 20.8mm;
+      top: 20.2mm;
       left: 3mm;
-      width: 60mm;
+      width: 62mm;
       overflow: hidden;
     }
 
     .line {
       display: grid;
-      grid-template-columns: 33mm 2mm 1fr;
+      grid-template-columns: 34mm 2mm 1fr;
       align-items: center;
-      height: 4.9mm;
-      font-size: 10.4px;
+      height: 5.4mm;
+      font-size: 12.6px;
       line-height: 1;
       font-weight: 900;
       white-space: nowrap;
@@ -625,7 +625,7 @@ export default function Rotulos() {
 
     .sku-text {
       margin-top: 0.6mm;
-      font-size: 12px;
+      font-size: 14px;
       line-height: 1;
       font-weight: 900;
       text-align: center;
@@ -636,7 +636,7 @@ export default function Rotulos() {
 
     .linea-media {
       position: absolute;
-      top: 35.7mm;
+      top: 36.9mm;
       left: 3mm;
       right: 3mm;
       height: 0.25mm;
@@ -645,10 +645,10 @@ export default function Rotulos() {
 
     .barcode-almacen-box {
       position: absolute;
-      top: 36.7mm;
+      top: 37.6mm;
       left: 4mm;
       width: 92mm;
-      height: 9.6mm;
+      height: 8.4mm;
       overflow: hidden;
       display: flex;
       align-items: center;
@@ -657,18 +657,18 @@ export default function Rotulos() {
 
     #barcode2 {
       width: 92mm;
-      height: 9.6mm;
+      height: 8.4mm;
       display: block;
       overflow: hidden;
     }
 
     .almacen-text {
       position: absolute;
-      top: 46.2mm;
+      top: 46.4mm;
       left: 3mm;
       right: 3mm;
       text-align: center;
-      font-size: 12px;
+      font-size: 14px;
       line-height: 1;
       font-weight: 900;
       white-space: nowrap;
