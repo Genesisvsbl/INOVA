@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { showWmsAlert, showWmsConfirm, showWmsPrompt } from "../../wmsDialog.jsx";
 import { useNavigate } from "react-router-dom";
-import { getMateriales, getProveedores } from "../../api";
+import {
+  getMateriales,
+  getProveedores,
+  buscarReciboGuardado,
+  corregirTrazabilidadPorSerial,
+} from "../../api";
 import {
   Inbox,
   RotateCcw,
   Printer,
   Save,
+  Search,
   Plus,
   Trash2,
   User,
@@ -577,6 +583,9 @@ export default function Recibo() {
   const [amcorToolboxOpen, setAmcorToolboxOpen] = useState(false);
   const [amcorSetup, setAmcorSetup] = useState({ cantidadLineas: 40, sku: "" });
   const loteInputRefs = useRef([]);
+  const [consultaQuery, setConsultaQuery] = useState("");
+  const [modoCorreccion, setModoCorreccion] = useState(null);
+  const [cargandoConsulta, setCargandoConsulta] = useState(false);
 
   const proveedorEsAmcor = useMemo(
     () => isAmcorProveedor(header.proveedor),
@@ -1343,6 +1352,82 @@ export default function Recibo() {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
       navigate("/movimientos/desde-recibo");
     }, 0);
+  };
+
+  const consultarRecibo = async () => {
+    const q = consultaQuery.trim();
+    if (!q) {
+      showWmsAlert("Escribe un dato para consultar (serial, documento, remesa, orden, lote o código).");
+      return;
+    }
+    setCargandoConsulta(true);
+    try {
+      const res = await buscarReciboGuardado(q);
+      if (!res) {
+        showWmsAlert("No se encontró ningún recibo guardado con ese dato.");
+        return;
+      }
+      setTipoRecibo("recibo");
+      setHeader((prev) => ({
+        ...createInitialHeader(),
+        ...res.header,
+        fecha_recepcion: res.header.fecha_recepcion || prev.fecha_recepcion,
+      }));
+      setLineas(
+        (res.lineas.length ? res.lineas : [{}]).map((ln) => ({
+          ...createEmptyLinea(),
+          ...ln,
+        }))
+      );
+      setModoCorreccion(res.serial);
+      showWmsAlert(
+        `Recibo ${res.serial} cargado (${res.lineas.length} línea(s)). Corrige lo necesario y usa "Guardar corrección".`
+      );
+    } catch (e) {
+      showWmsAlert(e?.message || "Error consultando el recibo.");
+    } finally {
+      setCargandoConsulta(false);
+    }
+  };
+
+  const salirCorreccion = () => {
+    setModoCorreccion(null);
+    setConsultaQuery("");
+    setHeader(createInitialHeader());
+    setLineas([createEmptyLinea()]);
+    setTipoRecibo("");
+  };
+
+  const guardarCorreccion = async () => {
+    if (!modoCorreccion) return;
+    for (const ln of lineas) {
+      if (String(ln.lote_proveedor || "").trim().length !== 10) {
+        showWmsAlert("Cada lote proveedor debe quedar de 10 caracteres.");
+        return;
+      }
+      if (!ln.fecha_fabricacion || !ln.fecha_vencimiento) {
+        showWmsAlert("Cada línea debe tener fecha de fabricación y vencimiento.");
+        return;
+      }
+    }
+    const ok = await showWmsConfirm(
+      `Se actualizarán los movimientos (stock) y los rótulos del recibo ${modoCorreccion}. ¿Continuar?`
+    );
+    if (!ok) return;
+    try {
+      const correcciones = lineas.map((ln, idx) => ({
+        codigo_cita: serialItem(modoCorreccion, idx),
+        lote_proveedor: String(ln.lote_proveedor || "").trim(),
+        fecha_fabricacion: ln.fecha_fabricacion,
+        fecha_vencimiento: ln.fecha_vencimiento,
+      }));
+      const res = await corregirTrazabilidadPorSerial(modoCorreccion, correcciones);
+      showWmsAlert(
+        `Corrección guardada: ${res.movActualizados} movimiento(s) y ${res.rotActualizados} rótulo(s) actualizados. Reimprime el rótulo desde Datos maestros → Rótulos si lo necesitas.`
+      );
+    } catch (e) {
+      showWmsAlert(e?.message || "Error guardando la corrección.");
+    }
   };
 
   const buildReciboRowsHtml = () => {
@@ -2573,6 +2658,86 @@ export default function Recibo() {
         </div>
 
         <div style={panelBodyStyle}>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              alignItems: "center",
+              marginBottom: 14,
+              padding: "10px 12px",
+              borderRadius: 10,
+              border: `1px solid ${modoCorreccion ? "#f59e0b" : colors.border}`,
+              background: modoCorreccion ? "#fff7ed" : colors.soft,
+            }}
+          >
+            <span style={{ fontWeight: 800, color: colors.navy, fontSize: 13 }}>
+              Consultar recibo guardado:
+            </span>
+            <input
+              value={consultaQuery}
+              onChange={(e) => setConsultaQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && consultarRecibo()}
+              placeholder="Serial, documento, remesa, orden, lote o código..."
+              style={{
+                flex: "1 1 260px",
+                minWidth: 180,
+                padding: "8px 10px",
+                borderRadius: 8,
+                border: `1px solid ${colors.border}`,
+                fontSize: 13,
+              }}
+            />
+            <button
+              type="button"
+              onClick={consultarRecibo}
+              disabled={cargandoConsulta}
+              style={{
+                ...secondaryButtonStyle,
+                background: colors.blue,
+                color: "#fff",
+                borderColor: colors.blue,
+              }}
+            >
+              <Search size={15} />
+              {cargandoConsulta ? "Buscando..." : "Consultar"}
+            </button>
+            {modoCorreccion && (
+              <>
+                <span
+                  style={{
+                    fontWeight: 900,
+                    color: "#b45309",
+                    fontSize: 13,
+                    marginLeft: 4,
+                  }}
+                >
+                  Corrigiendo recibo {modoCorreccion}
+                </span>
+                <button
+                  type="button"
+                  onClick={guardarCorreccion}
+                  style={{
+                    ...secondaryButtonStyle,
+                    background: colors.green,
+                    color: "#fff",
+                    borderColor: colors.green,
+                  }}
+                >
+                  <Save size={15} />
+                  Guardar corrección
+                </button>
+                <button
+                  type="button"
+                  onClick={salirCorreccion}
+                  style={secondaryButtonStyle}
+                >
+                  Salir
+                </button>
+              </>
+            )}
+          </div>
+
           <div
             style={{
               display: "flex",

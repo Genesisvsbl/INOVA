@@ -583,6 +583,155 @@ export function getMovimientos() {
 }
 
 
+// ---- Corrección de recibo ya guardado (por serial) ----
+function excelSerial5FromISO(iso) {
+  const s = String(iso || "").slice(0, 10);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return "";
+  const base = Date.UTC(1899, 11, 30);
+  const target = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const diff = Math.round((target - base) / 86400000);
+  if (!Number.isFinite(diff) || diff <= 0) return "";
+  return String(diff).padStart(5, "0").slice(-5);
+}
+function buildLoteAlmacen15(loteProv, fechaVencISO) {
+  const lp = String(loteProv || "").trim().slice(0, 10);
+  const s5 = excelSerial5FromISO(fechaVencISO);
+  if (lp.length !== 10 || s5.length !== 5) return "";
+  return lp + s5;
+}
+
+// Carga los movimientos guardados de un recibo (por su serial). codigo_cita = serial-item.
+export function getMovimientosPorSerial(serial) {
+  const s = String(serial || "").trim();
+  if (!supabaseEnabled || !s) return Promise.resolve([]);
+  return selectRows("wms", "movimientos", {
+    empresa_id: `eq.${empresaId}`,
+    codigo_cita: `like.${s}-*`,
+    select:
+      "id,codigo_cita,estado,cantidad_r,lote_almacen,lote_proveedor,fecha_fabricacion,fecha_vencimiento,um,proveedor,documento,material:materiales(codigo,descripcion),ubicacion:ubicaciones(ubicacion)",
+    order: "codigo_cita.asc",
+  }).then((rows) =>
+    (rows || []).map((r) => ({
+      id: r.id,
+      codigo_cita: r.codigo_cita,
+      estado: r.estado,
+      cantidad: Number(r.cantidad_r || 0),
+      lote_almacen: r.lote_almacen || "",
+      lote_proveedor: r.lote_proveedor || "",
+      fecha_fabricacion: (r.fecha_fabricacion || "").slice(0, 10),
+      fecha_vencimiento: (r.fecha_vencimiento || "").slice(0, 10),
+      sku: r.material?.codigo || "",
+      descripcion: r.material?.descripcion || "",
+      proveedor: r.proveedor || "",
+      documento: r.documento || "",
+      ubicacion:
+        r.ubicacion?.ubicacion ||
+        (r.estado === "EN_TRANSITO" ? "EN TRANSITO" : ""),
+    }))
+  );
+}
+
+// Busca un recibo YA guardado por cualquier dato (serial, documento, remesa,
+// orden de compra, lote o sku) y reconstruye la cabecera + líneas desde los rótulos.
+export async function buscarReciboGuardado(query) {
+  const q = String(query || "").trim();
+  if (!supabaseEnabled || !q) return null;
+  const rows = await selectRows("wms", "rotulos", {
+    empresa_id: `eq.${empresaId}`,
+    or: `(codigo_cita.ilike.*${q}*,documento.ilike.*${q}*,remesa.ilike.*${q}*,orden_compra.ilike.*${q}*,lote_proveedor.ilike.*${q}*,lote_almacen.ilike.*${q}*,sku.ilike.*${q}*)`,
+    select: "*",
+    order: "impresion.asc",
+    limit: "500",
+  });
+  if (!rows || !rows.length) return null;
+
+  const serial = String(rows[0].codigo_cita || "").trim();
+  const delRecibo = rows.filter(
+    (r) => String(r.codigo_cita || "").trim() === serial
+  );
+  const first = delRecibo[0] || {};
+
+  const header = {
+    serial,
+    proveedor_id: "",
+    proveedor: first.proveedor || "",
+    acreedor: "",
+    remesa_transp: first.remesa || "",
+    documento: first.documento || "",
+    orden_compra: first.orden_compra || "",
+    auxiliar: first.auxiliar || "",
+    fecha_recepcion: (first.fecha_recepcion || "").slice(0, 10) || undefined,
+  };
+
+  const lineas = [...delRecibo]
+    .sort((a, b) =>
+      String(a.impresion || "").localeCompare(String(b.impresion || ""), "es", {
+        numeric: true,
+      })
+    )
+    .map((r) => ({
+      fecha_recepcion: (r.fecha_recepcion || "").slice(0, 10),
+      codigo: r.sku || "",
+      descripcion: r.texto_breve || "",
+      empaque: "",
+      umb: r.umb != null ? String(r.umb) : "",
+      um: r.um || "",
+      cantidad: r.cantidad != null ? String(r.cantidad) : "",
+      total: Number(r.cantidad || 0),
+      lote_proveedor: r.lote_proveedor || "",
+      fecha_fabricacion: (r.fecha_fabricacion || "").slice(0, 10),
+      fecha_vencimiento: (r.fecha_vencimiento || "").slice(0, 10),
+      impresion: r.impresion || "",
+    }));
+
+  return { serial, header, lineas };
+}
+
+// Corrige lote_proveedor / fechas (y recalcula lote_almacen) en movimientos Y rotulos
+// de un recibo ya guardado, por item (codigo_cita). NO toca cantidad ni ubicacion.
+export async function corregirTrazabilidadPorSerial(serial, correcciones) {
+  const s = String(serial || "").trim();
+  if (!supabaseEnabled) throw new Error("Sin conexión con la base.");
+  if (!s) throw new Error("Serial vacío.");
+
+  const [movs, rots] = await Promise.all([
+    selectRows("wms", "movimientos", {
+      empresa_id: `eq.${empresaId}`,
+      codigo_cita: `like.${s}-*`,
+      select: "id,codigo_cita",
+    }),
+    selectRows("wms", "rotulos", {
+      empresa_id: `eq.${empresaId}`,
+      codigo_cita: `eq.${s}`,
+      select: "id,impresion",
+    }),
+  ]);
+
+  let movActualizados = 0;
+  let rotActualizados = 0;
+
+  for (const c of correcciones || []) {
+    const la = buildLoteAlmacen15(c.lote_proveedor, c.fecha_vencimiento);
+    const campos = {
+      lote_proveedor: String(c.lote_proveedor || "").trim(),
+      fecha_fabricacion: c.fecha_fabricacion || null,
+      fecha_vencimiento: c.fecha_vencimiento || null,
+      ...(la ? { lote_almacen: la } : {}),
+    };
+    for (const mv of (movs || []).filter((m) => m.codigo_cita === c.codigo_cita)) {
+      await updateById("wms", "movimientos", mv.id, campos);
+      movActualizados += 1;
+    }
+    for (const rt of (rots || []).filter((r) => r.impresion === c.codigo_cita)) {
+      await updateById("wms", "rotulos", rt.id, campos);
+      rotActualizados += 1;
+    }
+  }
+
+  return { movActualizados, rotActualizados };
+}
+
 export function getMovimientosLayoutStock() {
   if (supabaseEnabled) {
     return selectRows("wms", "movimientos", {
