@@ -195,11 +195,23 @@ export default function IndicatorsView({
 
       const rows = raw.map((r) => {
         const activo = pick(r, ["activo", "activa", "estado", "active"]);
+        // Meta general (columna "Meta"), sirve de respaldo para las condiciones
+        // cuando el Excel no trae una columna por cada condición.
+        const generalMeta = pick(r, ["meta", "target", "objetivo"]);
         // Metas por condición: una columna por cada condición del indicador.
+        // Si no viene la columna de esa condición, usa la Meta general.
         const condMetas = {};
         entityIndicatorConds.forEach((c) => {
           const v = pick(r, [String(c.name || "").toLowerCase()]);
-          if (v !== "" && v !== null && v !== undefined) condMetas[c.name] = v;
+          if (v !== "" && v !== null && v !== undefined) {
+            condMetas[c.name] = v;
+          } else if (
+            generalMeta !== "" &&
+            generalMeta !== null &&
+            generalMeta !== undefined
+          ) {
+            condMetas[c.name] = generalMeta;
+          }
         });
         return {
           code: pick(r, ["codigo", "código", "code"]),
@@ -300,6 +312,11 @@ export default function IndicatorsView({
       { name: "Ambiental", op: ">=", meta: "", warn: "", crit: "" },
       { name: "5S", op: ">=", meta: "", warn: "", crit: "" },
       { name: "Acciones", op: ">=", meta: "", warn: "", crit: "" },
+    ]);
+  const presetGuardian = () =>
+    setConditions([
+      { name: "Ambiental", op: ">=", meta: "", warn: "", crit: "" },
+      { name: "Seguridad", op: ">=", meta: "", warn: "", crit: "" },
     ]);
 
   // Metas por condición a nivel de entidad (override por persona).
@@ -622,6 +639,13 @@ export default function IndicatorsView({
                     onClick={presetOutsafety}
                   >
                     OUTSAFETY (Diario/Semanal/Mensual/Ambiental/5S/Acciones)
+                  </button>
+                  <button
+                    type="button"
+                    className="indicator-secondary"
+                    onClick={presetGuardian}
+                  >
+                    GUARDIAN (Ambiental/Seguridad)
                   </button>
                 </div>
 
