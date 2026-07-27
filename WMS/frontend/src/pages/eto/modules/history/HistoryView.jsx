@@ -611,6 +611,85 @@ export default function HistoryView({
         }),
       ]);
 
+      // ¿El indicador tiene condiciones? -> matriz por persona con 1 columna por condición.
+      let conds = [];
+      try {
+        const cfg = JSON.parse(selected.conditions_config || "[]");
+        if (Array.isArray(cfg) && cfg.length) {
+          conds = cfg.map((c) => String(c.name || "").trim()).filter(Boolean);
+        }
+      } catch (_) {
+        /* ignore */
+      }
+      if (!conds.length) {
+        conds = String(selected.dimensions || "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+
+      if (conds.length) {
+        const recordDate = `${year}-${String(month).padStart(2, "0")}-01`;
+        // Mapa por entidad + condición (dimension).
+        const cmap = new Map();
+        for (const row of records || []) {
+          cmap.set(
+            `${row.entity_id}::${String(row.dimension || "").trim()}`,
+            row
+          );
+        }
+        const condRows = (targets || []).map((target) => {
+          // Metas por condición de ESTA persona (override) o del indicador.
+          const metaByCond = {};
+          try {
+            JSON.parse(target.conditions_config || "[]").forEach((c) => {
+              metaByCond[String(c.name || "").trim()] = c.meta;
+            });
+          } catch (_) {
+            /* ignore */
+          }
+          const condCells = {};
+          const condMetas = {};
+          for (const cond of conds) {
+            const rec = cmap.get(`${target.entity_id}::${cond}`);
+            condCells[cond] =
+              rec && rec.value !== null && rec.value !== undefined
+                ? String(rec.value)
+                : "";
+            condMetas[cond] =
+              metaByCond[cond] !== undefined && metaByCond[cond] !== null
+                ? metaByCond[cond]
+                : "";
+          }
+          return {
+            __rowId: `entity-${target.entity_id}`,
+            entity_id: Number(target.entity_id),
+            entity_code: target.entity_code || "",
+            entity_name: target.entity_name || "",
+            entity_type: target.entity_type || "",
+            record_date: recordDate,
+            condCells,
+            condMetas,
+          };
+        });
+
+        setEntityMatrixMeta({
+          indicator_id: indicatorId,
+          indicator_code: selected.code,
+          indicator_name: selected.name,
+          process_name: selected.process_name,
+          unit: selected.unit,
+          frequency: selected.frequency,
+          year,
+          month,
+          targets: targets || [],
+          conditions: conds,
+        });
+        setEntityMatrixRows(condRows);
+        clearMessageSoon("Matriz por entidad (por condición) cargada correctamente");
+        return;
+      }
+
       const recordMap = new Map();
       for (const row of records || []) {
         const key = `${row.entity_id}-${String(row.record_date).slice(0, 10)}`;
@@ -682,6 +761,45 @@ export default function HistoryView({
       setLoading(true);
 
       const indicatorId = Number(historyFilter.indicator_id);
+
+      // Modo condiciones: guarda cada condición como su propia dimension.
+      if (entityMatrixMeta.conditions && entityMatrixMeta.conditions.length) {
+        const byDim = {};
+        const recordDate = `${entityMatrixMeta.year}-${String(
+          entityMatrixMeta.month
+        ).padStart(2, "0")}-01`;
+        for (const row of entityMatrixRows) {
+          const entityId = Number(row.entity_id);
+          if (!entityId) continue;
+          for (const cond of entityMatrixMeta.conditions) {
+            const raw = row.condCells?.[cond];
+            if (isBlank(raw)) continue;
+            (byDim[cond] = byDim[cond] || []).push({
+              entity_id: entityId,
+              value: toNullableNumber(raw),
+            });
+          }
+        }
+        const dims = Object.keys(byDim);
+        if (!dims.length) {
+          setMessage("No hay valores por condición para guardar.");
+          return;
+        }
+        await Promise.all(
+          dims.map((dimension) =>
+            API.saveEntityGrid({
+              indicator_id: indicatorId,
+              record_date: recordDate,
+              rows: byDim[dimension],
+              dimension,
+            })
+          )
+        );
+        clearMessageSoon("Carga por entidad (por condición) guardada correctamente");
+        await handleLoadEntityMatrix();
+        return;
+      }
+
       const groupedByDate = {};
 
       for (const row of entityMatrixRows) {
@@ -1304,13 +1422,38 @@ export default function HistoryView({
     );
   }
 
+  function updateEntityMatrixCond(rowId, cond, value) {
+    setEntityMatrixRows((prev) =>
+      prev.map((row) =>
+        row.__rowId === rowId
+          ? { ...row, condCells: { ...row.condCells, [cond]: value } }
+          : row
+      )
+    );
+  }
+
   const entityMatrixAccumulated = useMemo(() => {
     const grouped = entityMatrixRows.reduce((acc, row) => {
       const entityId = Number(row.entity_id);
       const entityName = String(row.entity_name || "").trim();
       if (!entityId || !entityName) return acc;
 
-      const numericValue = toNullableNumber(row.value) ?? 0;
+      // Modo condiciones: suma todos los valores de las condiciones de la fila.
+      let numericValue = 0;
+      let recordCount = 1;
+      if (row.condCells) {
+        numericValue = 0;
+        recordCount = 0;
+        for (const k of Object.keys(row.condCells)) {
+          const v = toNullableNumber(row.condCells[k]);
+          if (v !== null && v !== undefined) {
+            numericValue += v;
+            recordCount += 1;
+          }
+        }
+      } else {
+        numericValue = toNullableNumber(row.value) ?? 0;
+      }
 
       if (!acc[entityId]) {
         acc[entityId] = {
@@ -1324,7 +1467,7 @@ export default function HistoryView({
       }
 
       acc[entityId].accumulated += numericValue;
-      acc[entityId].records += 1;
+      acc[entityId].records += recordCount;
       return acc;
     }, {});
 
@@ -1830,6 +1973,74 @@ export default function HistoryView({
             </div>
           </div>
 
+          {entityMatrixMeta.conditions?.length > 0 && (
+            <div className="history-table-wrap compact-table">
+              <table className="history-table">
+                <thead>
+                  <tr>
+                    <th>Tipo</th>
+                    <th>Entidad</th>
+                    {entityMatrixMeta.conditions.map((cond) => (
+                      <th key={cond}>{cond}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEntityMatrixRows.map((row, index) => (
+                    <tr key={getStableRowId(row, index)}>
+                      <td>
+                        <input value={row.entity_type || "-"} disabled />
+                      </td>
+                      <td>
+                        <input value={row.entity_name ?? ""} disabled />
+                      </td>
+                      {entityMatrixMeta.conditions.map((cond) => (
+                        <td key={cond}>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={row.condCells?.[cond] ?? ""}
+                            title={
+                              row.condMetas?.[cond] !== "" &&
+                              row.condMetas?.[cond] !== undefined
+                                ? `Meta: ${row.condMetas[cond]}`
+                                : undefined
+                            }
+                            onChange={(e) =>
+                              updateEntityMatrixCond(
+                                row.__rowId,
+                                cond,
+                                e.target.value
+                              )
+                            }
+                            placeholder={
+                              row.condMetas?.[cond] !== "" &&
+                              row.condMetas?.[cond] !== undefined
+                                ? `meta ${row.condMetas[cond]}`
+                                : "0"
+                            }
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+
+                  {!filteredEntityMatrixRows.length && (
+                    <tr>
+                      <td
+                        colSpan={2 + entityMatrixMeta.conditions.length}
+                        className="history-empty"
+                      >
+                        Sin filas para el período seleccionado
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {!entityMatrixMeta.conditions?.length && (
           <div className="history-table-wrap compact-table">
             <table className="history-table">
               <thead>
@@ -1902,6 +2113,7 @@ export default function HistoryView({
               </tbody>
             </table>
           </div>
+          )}
 
           <div className="subtable-title">Acumulado por entidad</div>
           <div className="history-table-wrap compact-table short-table">
