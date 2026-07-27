@@ -551,7 +551,7 @@ export default function Rotulos() {
       top: 13.6mm;
       left: 3mm;
       width: 58mm;
-      font-size: 6.2px;
+      font-size: 8.6px;
       line-height: 1;
       font-weight: 800;
       white-space: nowrap;
@@ -579,10 +579,10 @@ export default function Rotulos() {
 
     .line {
       display: grid;
-      grid-template-columns: 29mm 2mm 1fr;
+      grid-template-columns: 31mm 2mm 1fr;
       align-items: center;
-      height: 4.4mm;
-      font-size: 6.8px;
+      height: 4.7mm;
+      font-size: 8.4px;
       line-height: 1;
       font-weight: 900;
       white-space: nowrap;
@@ -625,7 +625,7 @@ export default function Rotulos() {
 
     .sku-text {
       margin-top: 0.6mm;
-      font-size: 7.2px;
+      font-size: 9.4px;
       line-height: 1;
       font-weight: 900;
       text-align: center;
@@ -664,11 +664,11 @@ export default function Rotulos() {
 
     .almacen-text {
       position: absolute;
-      top: 46.6mm;
+      top: 46.4mm;
       left: 3mm;
       right: 3mm;
       text-align: center;
-      font-size: 7.2px;
+      font-size: 9.6px;
       line-height: 1;
       font-weight: 900;
       white-space: nowrap;
