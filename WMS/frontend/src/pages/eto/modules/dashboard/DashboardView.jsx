@@ -3978,22 +3978,42 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
     return cv;
   };
 
+  const flashMessage = (text, ms = 1500) => {
+    setMessage(text);
+    window.clearTimeout(flashMessage._t);
+    flashMessage._t = window.setTimeout(() => setMessage(""), ms);
+  };
+
   const copyCanvas = (canvas, name) => {
     if (!canvas) return;
-    canvas.toBlob(async (blob) => {
-      if (!blob) return;
-      try {
-        await navigator.clipboard.write([
-          new window.ClipboardItem({ "image/png": blob }),
-        ]);
-        setMessage("Copiado al portapapeles. Pégalo donde quieras.");
-      } catch {
+    // Copiado rápido: pasamos una Promesa<Blob> directo al portapapeles.
+    try {
+      const blobPromise = new Promise((resolve) =>
+        canvas.toBlob((b) => resolve(b), "image/png")
+      );
+      navigator.clipboard
+        .write([new window.ClipboardItem({ "image/png": blobPromise })])
+        .then(() => flashMessage("✓ Copiado"))
+        .catch(() => {
+          blobPromise.then((blob) => {
+            if (!blob) return;
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `${name}.png`;
+            a.click();
+            flashMessage("✓ Descargado");
+          });
+        });
+    } catch {
+      canvas.toBlob((blob) => {
+        if (!blob) return;
         const a = document.createElement("a");
-        a.href = canvas.toDataURL("image/png");
+        a.href = URL.createObjectURL(blob);
         a.download = `${name}.png`;
         a.click();
-      }
-    });
+        flashMessage("✓ Descargado");
+      }, "image/png");
+    }
   };
 
   const openRankingView = () => {
@@ -4743,19 +4763,45 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                     })()}{" "}
                     frente a la meta
                   </span>
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: CHART_COLORS.textSoft,
-                      background: "#f3f7fd",
-                      border: "1px solid #e2ebf6",
-                      padding: "6px 10px",
-                      borderRadius: 999,
-                    }}
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 10 }}
                   >
-                    Estilo ejecutivo · vista tipo Power BI
-                  </span>
+                    {(dashboardData.dimensions || []).length > 0 && (
+                      <button
+                        type="button"
+                        onClick={openRankingView}
+                        title="Ver en 2 partes y copiar cada una"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          background: "#16a34a",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 10,
+                          padding: "8px 14px",
+                          cursor: "pointer",
+                          fontWeight: 700,
+                          fontSize: 13,
+                        }}
+                      >
+                        👁 Visualizar
+                      </button>
+                    )}
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: CHART_COLORS.textSoft,
+                        background: "#f3f7fd",
+                        border: "1px solid #e2ebf6",
+                        padding: "6px 10px",
+                        borderRadius: 999,
+                      }}
+                    >
+                      Estilo ejecutivo · vista tipo Power BI
+                    </span>
+                  </div>
                 </div>
 
                 {(dashboardData.dimensions || []).length > 0 ? (
