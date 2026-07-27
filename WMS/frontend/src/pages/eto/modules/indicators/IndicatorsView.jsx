@@ -625,6 +625,26 @@ export default function IndicatorsView({
                   </button>
                 </div>
 
+                {conditions.length === 0 &&
+                  String(indicatorForm.dimensions || "").trim() && (
+                    <div
+                      style={{
+                        marginTop: 4,
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        background: "#eff6ff",
+                        border: "1px solid #bfdbfe",
+                        color: "#1e3a8a",
+                        fontSize: 12,
+                      }}
+                    >
+                      Este indicador usa condiciones en modo clásico:{" "}
+                      <strong>{indicatorForm.dimensions}</strong> (evaluadas con
+                      el Meta/Warning/Critical de abajo). No toques este bloque si
+                      no quieres cambiarlas.
+                    </div>
+                  )}
+
                 <small style={{ color: "#64748b" }}>
                   Meta = objetivo (verde). Warning = alerta (amarillo). Critical =
                   crítico (rojo). Déjalo vacío si el indicador no usa condiciones.
