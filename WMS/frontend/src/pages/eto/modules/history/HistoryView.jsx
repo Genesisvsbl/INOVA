@@ -1504,7 +1504,11 @@ export default function HistoryView({
               <BarChart3 size={24} />
               <div>
                 <span>Promedio general</span>
-                <strong>{formatPercent(historySummary.average_general)}</strong>
+                <strong>
+                  {`${Number(historySummary.average_general || 0)
+                    .toFixed(1)
+                    .replace(/\.0$/, "")}%`}
+                </strong>
               </div>
             </div>
             <div className="history-mini-kpi ok">
@@ -2491,27 +2495,22 @@ const historyCss = `
 .history-mini-kpi span {
   display: block;
   color: #64748b;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 850;
+  line-height: 1.15;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .history-mini-kpi strong {
   display: block;
-  margin-top: 7px;
+  margin-top: 6px;
   color: #059669;
-  font-size: clamp(18px, 1.5vw, 26px);
+  font-size: clamp(17px, 1.5vw, 24px);
   line-height: 1;
   font-weight: 950;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.6px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.history-mini-kpi span {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .history-mini-kpi.warning strong { color: #f59e0b; }
