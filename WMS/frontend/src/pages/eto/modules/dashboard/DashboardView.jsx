@@ -4748,6 +4748,7 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
 
                 {(dashboardData.dimensions || []).length > 0 ? (
                   <div
+                    className="table-tools-skip"
                     style={{
                       maxHeight: 560,
                       overflow: "auto",
@@ -4819,13 +4820,13 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                               const st = (it.dim_status || {})[d];
                               const val = (it.by_dimension || {})[d] || 0;
                               const palette = {
-                                ok: { bg: "#dcfce7", fg: "#166534" },
-                                warning: { bg: "#fef3c7", fg: "#92400e" },
-                                critical: { bg: "#fee2e2", fg: "#991b1b" },
+                                ok: { bg: "#22c55e", fg: "#ffffff" },
+                                warning: { bg: "#f59e0b", fg: "#ffffff" },
+                                critical: { bg: "#ef4444", fg: "#ffffff" },
                               };
                               const c = palette[st] || {
-                                bg: "#f1f5f9",
-                                fg: "#94a3b8",
+                                bg: "#e2e8f0",
+                                fg: "#64748b",
                               };
                               return (
                                 <td
@@ -4864,10 +4865,10 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                       }}
                     >
                       {[
-                        { c: "#dcfce7", t: "Cumple la meta" },
-                        { c: "#fef3c7", t: "Va atrasado" },
-                        { c: "#fee2e2", t: "Crítico" },
-                        { c: "#f1f5f9", t: "Sin meta (no evaluado, ej. Diario)" },
+                        { c: "#22c55e", t: "Cumple la meta" },
+                        { c: "#f59e0b", t: "Va atrasado" },
+                        { c: "#ef4444", t: "Crítico" },
+                        { c: "#e2e8f0", t: "Sin meta (no evaluado, ej. Diario)" },
                       ].map((l) => (
                         <span
                           key={l.t}
