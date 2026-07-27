@@ -705,16 +705,27 @@ async function entityDashboardSupabase(params) {
     );
     const dim_status = {};
     let worst = null;
+    let evaluatedCount = 0;
+    let okCount = 0;
+    const hasMetaValue = (x) =>
+      x !== "" && x !== null && x !== undefined && !Number.isNaN(Number(x));
     for (const d of dimensionList) {
       const cfg = entityCfgByName.get(d) || cfgByName.get(d);
       if (!cfg) continue;
+      // Condiciones SIN meta (ej. Diario, cuya meta varía) NO se evalúan.
+      if (!hasMetaValue(cfg.meta)) {
+        dim_status[d] = "none";
+        continue;
+      }
       const st = conditionStatus(by_dimension[d] || 0, cfg);
       dim_status[d] = st;
+      evaluatedCount += 1;
+      if (st === "ok") okCount += 1;
       if (st === "critical") worst = "critical";
       else if (st === "warning" && worst !== "critical") worst = "warning";
       else if (worst === null) worst = "ok";
     }
-    // Estado general: peor condición si hay umbrales; si no, alineado con la meta.
+    // Estado general: peor condición (solo de las que tienen meta); si no, alineado con la meta.
     const estado = conditionsCfg.length
       ? worst || "ok"
       : accumulated === 0
@@ -722,6 +733,12 @@ async function entityDashboardSupabase(params) {
       : meta > 0 && accumulated < meta
       ? "warning"
       : "ok";
+    // Cumplimiento: en modo condiciones, % de condiciones con meta cumplidas.
+    const compliancePct = conditionsCfg.length
+      ? evaluatedCount > 0
+        ? (okCount / evaluatedCount) * 100
+        : 0
+      : compliance;
     return {
       entity_id: eid,
       entity_code: target.entity_code || info.entity_code || "",
@@ -734,7 +751,9 @@ async function entityDashboardSupabase(params) {
       dim_status,
       invalid,
       remaining,
-      compliance,
+      compliance: compliancePct,
+      evaluated_count: evaluatedCount,
+      ok_conditions: okCount,
       general,
       estado,
     };

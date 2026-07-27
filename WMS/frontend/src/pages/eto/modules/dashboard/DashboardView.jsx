@@ -4746,6 +4746,148 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                   </span>
                 </div>
 
+                {(dashboardData.dimensions || []).length > 0 ? (
+                  <div
+                    style={{
+                      maxHeight: 560,
+                      overflow: "auto",
+                      marginTop: 10,
+                    }}
+                  >
+                    <table
+                      style={{
+                        borderCollapse: "separate",
+                        borderSpacing: "4px",
+                        width: "100%",
+                        fontSize: 12,
+                      }}
+                    >
+                      <thead>
+                        <tr>
+                          <th
+                            style={{
+                              position: "sticky",
+                              left: 0,
+                              background: "#ffffff",
+                              textAlign: "left",
+                              padding: "6px 10px",
+                              color: CHART_COLORS.textSoft,
+                              fontSize: 11,
+                              zIndex: 2,
+                            }}
+                          >
+                            Persona
+                          </th>
+                          {(dashboardData.dimensions || []).map((d) => (
+                            <th
+                              key={d}
+                              style={{
+                                padding: "6px 8px",
+                                color: CHART_COLORS.textSoft,
+                                fontSize: 11,
+                                textAlign: "center",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {d}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(dashboardData.ranking || []).map((it) => (
+                          <tr key={it.entity_id}>
+                            <td
+                              style={{
+                                position: "sticky",
+                                left: 0,
+                                background: "#ffffff",
+                                padding: "6px 10px",
+                                fontWeight: 700,
+                                color: CHART_COLORS.text,
+                                whiteSpace: "nowrap",
+                                maxWidth: 200,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                zIndex: 1,
+                              }}
+                              title={it.entity_name}
+                            >
+                              {it.entity_name}
+                            </td>
+                            {(dashboardData.dimensions || []).map((d) => {
+                              const st = (it.dim_status || {})[d];
+                              const val = (it.by_dimension || {})[d] || 0;
+                              const palette = {
+                                ok: { bg: "#dcfce7", fg: "#166534" },
+                                warning: { bg: "#fef3c7", fg: "#92400e" },
+                                critical: { bg: "#fee2e2", fg: "#991b1b" },
+                              };
+                              const c = palette[st] || {
+                                bg: "#f1f5f9",
+                                fg: "#94a3b8",
+                              };
+                              return (
+                                <td
+                                  key={d}
+                                  title={
+                                    st
+                                      ? `${d}: ${formatPlainNumber(val)} (${st})`
+                                      : `${d}: sin meta (no evaluado)`
+                                  }
+                                  style={{
+                                    background: c.bg,
+                                    color: c.fg,
+                                    textAlign: "center",
+                                    fontWeight: 800,
+                                    padding: "8px 6px",
+                                    borderRadius: 8,
+                                    minWidth: 54,
+                                  }}
+                                >
+                                  {formatPlainNumber(val)}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 16,
+                        flexWrap: "wrap",
+                        marginTop: 12,
+                        fontSize: 12,
+                        color: CHART_COLORS.textSoft,
+                      }}
+                    >
+                      {[
+                        { c: "#dcfce7", t: "Cumple la meta" },
+                        { c: "#fef3c7", t: "Va atrasado" },
+                        { c: "#fee2e2", t: "Crítico" },
+                        { c: "#f1f5f9", t: "Sin meta (no evaluado, ej. Diario)" },
+                      ].map((l) => (
+                        <span
+                          key={l.t}
+                          style={{ display: "flex", alignItems: "center", gap: 6 }}
+                        >
+                          <span
+                            style={{
+                              width: 14,
+                              height: 14,
+                              borderRadius: 4,
+                              background: l.c,
+                              border: "1px solid #e2e8f0",
+                            }}
+                          />
+                          {l.t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
                 <div
                   style={{
                     maxHeight: 560,
@@ -4918,6 +5060,7 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                     </ResponsiveContainer>
                   </div>
                 </div>
+                )}
               </section>
 
               <section
@@ -4943,16 +5086,24 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                     const rk = dashboardData.ranking || [];
                     const metaOf = (it) => Number(it.target_value || 0);
                     const accOf = (it) => Number(it.accumulated || 0);
-                    const cumplieron = rk.filter(
-                      (it) => metaOf(it) > 0 && accOf(it) >= metaOf(it)
-                    );
-                    const enCero = rk.filter((it) => accOf(it) === 0);
-                    const faltan = rk.filter(
-                      (it) =>
-                        accOf(it) > 0 &&
-                        metaOf(it) > 0 &&
-                        accOf(it) < metaOf(it)
-                    );
+                    // Con condiciones usamos el estado (que ya excluye el Diario).
+                    const hasConds = (dashboardData.dimensions || []).length > 0;
+                    const cumplieron = hasConds
+                      ? rk.filter((it) => it.estado === "ok")
+                      : rk.filter(
+                          (it) => metaOf(it) > 0 && accOf(it) >= metaOf(it)
+                        );
+                    const faltan = hasConds
+                      ? rk.filter((it) => it.estado === "warning")
+                      : rk.filter(
+                          (it) =>
+                            accOf(it) > 0 &&
+                            metaOf(it) > 0 &&
+                            accOf(it) < metaOf(it)
+                        );
+                    const enCero = hasConds
+                      ? rk.filter((it) => it.estado === "critical")
+                      : rk.filter((it) => accOf(it) === 0);
                     const invalidos = rk.filter(
                       (it) => Number(it.invalid || 0) > 0
                     );
