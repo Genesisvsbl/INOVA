@@ -573,16 +573,16 @@ export default function Rotulos() {
       position: absolute;
       top: 20.2mm;
       left: 3mm;
-      width: 62mm;
+      width: 63mm;
       overflow: hidden;
     }
 
     .line {
       display: grid;
-      grid-template-columns: 34mm 2mm 1fr;
+      grid-template-columns: 41mm 2mm 1fr;
       align-items: center;
       height: 5.4mm;
-      font-size: 12.6px;
+      font-size: 11px;
       line-height: 1;
       font-weight: 900;
       white-space: nowrap;
