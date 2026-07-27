@@ -1410,7 +1410,11 @@ export default function IndicatorsView({
                   <th>Código</th>
                   <th>Entidad</th>
                   <th>Tipo</th>
-                  <th>Meta individual</th>
+                  <th>
+                    {entityIndicatorConds.length > 0
+                      ? "Metas por condición"
+                      : "Meta individual"}
+                  </th>
                   <th>Estado</th>
                   <th className="actions-col">Acciones</th>
                 </tr>
@@ -1421,14 +1425,66 @@ export default function IndicatorsView({
                     <td>{item.entity_code}</td>
                     <td>{item.entity_name}</td>
                     <td>{item.entity_type}</td>
-                    <td>{item.target_value ?? 0}</td>
+                    <td>
+                      {entityIndicatorConds.length > 0
+                        ? (() => {
+                            let cfg = [];
+                            try {
+                              cfg = JSON.parse(item.conditions_config || "[]");
+                            } catch (_) {
+                              cfg = [];
+                            }
+                            const byName = new Map(
+                              (Array.isArray(cfg) ? cfg : []).map((c) => [
+                                c.name,
+                                c.meta,
+                              ])
+                            );
+                            return (
+                              <span style={{ fontSize: 12 }}>
+                                {entityIndicatorConds
+                                  .map((c) => {
+                                    const v = byName.get(c.name);
+                                    return `${c.name}: ${
+                                      v === "" || v === null || v === undefined
+                                        ? c.meta ?? "-"
+                                        : v
+                                    }`;
+                                  })
+                                  .join("  ·  ")}
+                              </span>
+                            );
+                          })()
+                        : item.target_value ?? 0}
+                    </td>
                     <td>{item.is_active ? "Activa" : "Inactiva"}</td>
                     <td>
                       <div className="row-actions">
                         <button
                           type="button"
                           className="table-btn edit"
-                          onClick={() => handleEditEntity(item)}
+                          onClick={() => {
+                            handleEditEntity(item);
+                            if (entityIndicatorConds.length > 0) {
+                              setSelectedEntityId(String(item.entity_id));
+                              let cfg = [];
+                              try {
+                                cfg = JSON.parse(item.conditions_config || "[]");
+                              } catch (_) {
+                                cfg = [];
+                              }
+                              const m = {};
+                              (Array.isArray(cfg) ? cfg : []).forEach((c) => {
+                                if (
+                                  c.meta !== "" &&
+                                  c.meta !== null &&
+                                  c.meta !== undefined
+                                )
+                                  m[c.name] = c.meta;
+                              });
+                              setEntityCondMetas(m);
+                            }
+                          }}
                         >
                           Editar entidad
                         </button>
