@@ -3000,22 +3000,22 @@ const historyCss = `
 .process-pill {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: 9px;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 7px;
   color: #047857;
   background: rgba(34,197,94,.12);
-  font-size: 12px;
-  font-weight: 950;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .indicator-name {
   display: block;
-  max-width: 320px;
+  max-width: 260px;
   color: #1f2937;
-  font-weight: 600;
-  font-size: 13px;
-  line-height: 1.3;
+  font-weight: 500;
+  font-size: 12px;
+  line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3040,11 +3040,11 @@ const historyCss = `
 .history-status {
   display: inline-flex;
   align-items: center;
-  min-height: 30px;
-  padding: 0 12px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 950;
+  min-height: 22px;
+  padding: 0 9px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 800;
   text-transform: uppercase;
 }
 
