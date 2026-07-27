@@ -3986,13 +3986,13 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
       dashboardData?.indicator_name || ""
     }${dashboardData?.period_label ? "   ·   " + dashboardData.period_label : ""}`;
 
-    const pad = 14;
-    const nameW = 250;
-    const cellW = 120;
-    const gap = 6;
-    const rowH = 34;
-    const headerH = 34;
-    const titleH = 38;
+    const pad = 12;
+    const nameW = 200;
+    const cellW = 86;
+    const gap = 5;
+    const rowH = 24;
+    const headerH = 24;
+    const titleH = 30;
     const tableW = pad * 2 + nameW + dims.length * cellW;
     const H = titleH + headerH + subset.length * rowH + pad;
     const scale = 2;
@@ -4028,12 +4028,12 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
     ctx.fillStyle = "#0f7a37";
     ctx.fillRect(0, 0, tableW, titleH);
     ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 15px Inter, Arial, sans-serif";
+    ctx.font = "bold 12px Inter, Arial, sans-serif";
     ctx.textAlign = "left";
     ctx.fillText(fit(titleText, tableW - pad * 2), pad, titleH / 2);
 
     // encabezado de condiciones
-    ctx.font = "bold 11px Inter, Arial, sans-serif";
+    ctx.font = "bold 9px Inter, Arial, sans-serif";
     ctx.fillStyle = "#334155";
     ctx.textAlign = "left";
     ctx.fillText("PERSONA", pad, titleH + headerH / 2);
@@ -4049,7 +4049,7 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
       const y = titleH + headerH + i * rowH;
       ctx.textAlign = "left";
       ctx.fillStyle = "#0f172a";
-      ctx.font = "bold 12px Inter, Arial, sans-serif";
+      ctx.font = "bold 10px Inter, Arial, sans-serif";
       ctx.fillText(fit(String(r.entity_name || ""), nameW - 8), pad, y + rowH / 2);
       dims.forEach((d, j) => {
         const st = (r.dim_status || {})[d];
@@ -4064,10 +4064,10 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
         const fg = st && st !== "none" ? "#ffffff" : "#64748b";
         const x = pad + nameW + j * cellW;
         ctx.fillStyle = bg;
-        rrect(x + gap / 2, y + 3, cellW - gap, rowH - 6, 8);
+        rrect(x + gap / 2, y + 2, cellW - gap, rowH - 4, 6);
         ctx.fill();
         ctx.fillStyle = fg;
-        ctx.font = "bold 13px Inter, Arial, sans-serif";
+        ctx.font = "bold 11px Inter, Arial, sans-serif";
         ctx.textAlign = "center";
         ctx.fillText(fmt((r.by_dimension || {})[d] || 0), x + cellW / 2, y + rowH / 2);
       });
