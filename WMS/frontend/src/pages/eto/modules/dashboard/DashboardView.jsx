@@ -4783,11 +4783,15 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                             <th
                               key={d}
                               style={{
-                                padding: "6px 8px",
-                                color: CHART_COLORS.textSoft,
+                                padding: "8px 10px",
+                                color: "#334155",
                                 fontSize: 11,
+                                fontWeight: 800,
+                                letterSpacing: "0.4px",
+                                textTransform: "uppercase",
                                 textAlign: "center",
                                 whiteSpace: "nowrap",
+                                borderBottom: "2px solid #e2e8f0",
                               }}
                             >
                               {d}
@@ -4840,10 +4844,15 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                                     background: c.bg,
                                     color: c.fg,
                                     textAlign: "center",
-                                    fontWeight: 800,
-                                    padding: "8px 6px",
-                                    borderRadius: 8,
-                                    minWidth: 54,
+                                    fontWeight: 900,
+                                    fontSize: 13,
+                                    padding: "10px 6px",
+                                    borderRadius: 10,
+                                    minWidth: 58,
+                                    boxShadow:
+                                      st && st !== "none"
+                                        ? "0 2px 6px rgba(15,23,42,0.12)"
+                                        : "none",
                                   }}
                                 >
                                   {formatPlainNumber(val)}
@@ -4857,22 +4866,42 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                     <div
                       style={{
                         display: "flex",
-                        gap: 16,
+                        gap: 10,
                         flexWrap: "wrap",
-                        marginTop: 12,
-                        fontSize: 12,
-                        color: CHART_COLORS.textSoft,
+                        alignItems: "center",
+                        marginTop: 16,
                       }}
                     >
+                      <span
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 800,
+                          color: CHART_COLORS.text,
+                          marginRight: 4,
+                        }}
+                      >
+                        Leyenda:
+                      </span>
                       {[
                         { c: "#22c55e", t: "Cumple la meta" },
                         { c: "#f59e0b", t: "Va atrasado" },
                         { c: "#ef4444", t: "Crítico" },
-                        { c: "#e2e8f0", t: "Sin meta (no evaluado, ej. Diario)" },
+                        { c: "#e2e8f0", t: "Sin meta (Diario, no evaluado)" },
                       ].map((l) => (
                         <span
                           key={l.t}
-                          style={{ display: "flex", alignItems: "center", gap: 6 }}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 7,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: "#334155",
+                            background: "#f8fafc",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: 999,
+                            padding: "5px 12px 5px 8px",
+                          }}
                         >
                           <span
                             style={{
@@ -4880,7 +4909,7 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                               height: 14,
                               borderRadius: 4,
                               background: l.c,
-                              border: "1px solid #e2e8f0",
+                              boxShadow: "0 1px 3px rgba(15,23,42,0.18)",
                             }}
                           />
                           {l.t}
