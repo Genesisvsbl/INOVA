@@ -1253,7 +1253,7 @@ export default function Recibo() {
     });
 
     setErrores(errs);
-    return Object.keys(errs).length === 0;
+    return errs;
   };
 
   const onGuardarRecibo = async () => {
@@ -1276,7 +1276,12 @@ export default function Recibo() {
     }
 
     setTimeout(() => {
-      if (!validarAntesDeContinuar()) {
+      const errs = validarAntesDeContinuar();
+      if (Object.keys(errs).length) {
+        const lista = Array.from(new Set(Object.values(errs)));
+        showWmsAlert(
+          "No se puede guardar. Revisa:\n\n• " + lista.join("\n• ")
+        );
         return;
       }
 
