@@ -1106,13 +1106,17 @@ export default function HistoryView({
             g[cond] = (g[cond] || 0) + 1;
             matchedI += 1;
           }
-          const countAcciones =
-            planKey &&
-            raw[planKey] &&
-            String(raw[planKey]).trim() &&
+          // PlanesAccion trae la CANTIDAD de planes por fila (0, 1, 2...).
+          // Hay que SUMAR ese número, no contar 1 por fila.
+          const planVal = planKey
+            ? Number(String(raw[planKey] ?? "").trim())
+            : 0;
+          const contarAcciones =
+            Number.isFinite(planVal) &&
+            planVal > 0 &&
             (!onlyCond || onlyCond === "Acciones");
-          if (countAcciones) {
-            g["Acciones"] = (g["Acciones"] || 0) + 1;
+          if (contarAcciones) {
+            g["Acciones"] = (g["Acciones"] || 0) + planVal;
             matchedI += 1;
           }
         }
