@@ -605,12 +605,14 @@ function buildLoteAlmacen15(loteProv, fechaVencISO) {
 export function getMovimientosPorSerial(serial) {
   const s = String(serial || "").trim();
   if (!supabaseEnabled || !s) return Promise.resolve([]);
+  // Los movimientos guardan codigo_cita = serial (ej. "40463"), no "40463-01".
+  // Usamos like para cubrir ambos formatos.
   return selectRows("wms", "movimientos", {
     empresa_id: `eq.${empresaId}`,
-    codigo_cita: `like.${s}-*`,
+    codigo_cita: `like.${s}*`,
     select:
       "id,codigo_cita,estado,cantidad_r,umb,um,lote_almacen,lote_proveedor,fecha_fabricacion,fecha_vencimiento,proveedor,documento,material:materiales(codigo,descripcion),ubicacion:ubicaciones(ubicacion)",
-    order: "codigo_cita.asc",
+    order: "id.asc",
   }).then((rows) =>
     (rows || []).map((r) => ({
       id: r.id,
@@ -671,18 +673,9 @@ export async function buscarReciboGuardado(query) {
   // el rango correcto, reconstruimos las líneas desde los movimientos.
   if (/amcor/i.test(header.proveedor)) {
     const movs = await getMovimientosPorSerial(serial);
-    const byItem = new Map();
-    for (const m of movs || []) {
-      if (!byItem.has(m.codigo_cita)) byItem.set(m.codigo_cita, m);
-    }
-    const lineasAmcor = Array.from(byItem.values())
-      .sort((a, b) =>
-        String(a.codigo_cita || "").localeCompare(
-          String(b.codigo_cita || ""),
-          "es",
-          { numeric: true }
-        )
-      )
+    // Cada movimiento es un lote individual (todos con codigo_cita = serial).
+    const lineasAmcor = (movs || [])
+      .filter((m) => (m.lote_proveedor || "").trim())
       .map((m) => {
         const umb = Number(m.umb || 0);
         return {
