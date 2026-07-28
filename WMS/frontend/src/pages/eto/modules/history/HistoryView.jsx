@@ -1289,10 +1289,19 @@ export default function HistoryView({
         return;
       }
 
+      // Validaci\u00f3n de calidad: la descripci\u00f3n debe tener >= 200 caracteres.
+      const descKeyN = findColumnKey(rows[0], [
+        "descripcion",
+        "descripci\u00f3n",
+        "description",
+      ]);
+      const MIN_DESC_N = 200;
+
       const counts = {};
       let matched = 0;
       let notFound = 0;
       let outOfMonth = 0;
+      let invalidN = 0;
 
       for (const raw of rows) {
         const code = String(raw[idKey] ?? "").trim();
@@ -1319,6 +1328,14 @@ export default function HistoryView({
         if (y !== year || m !== month) {
           outOfMonth += 1;
           continue;
+        }
+        // Si trae descripci\u00f3n y es menor a 200 caracteres, se invalida (no cuenta).
+        if (descKeyN) {
+          const desc = String(raw[descKeyN] ?? "").trim();
+          if (desc.length < MIN_DESC_N) {
+            invalidN += 1;
+            continue;
+          }
         }
         const key = `${target.entity_id}-${iso}`;
         counts[key] = (counts[key] || 0) + 1;
@@ -1347,7 +1364,11 @@ export default function HistoryView({
       ).size;
 
       clearMessageSoon(
-        `Ocurrencias cruzadas correctamente: ${matched} reportes en ${entidades} entidad(es). Revisa la matriz y dale "Guardar por entidad".`
+        `Ocurrencias cruzadas correctamente: ${matched} reportes válidos en ${entidades} entidad(es)${
+          invalidN
+            ? ` y ${invalidN} invalidados por descripción menor a ${MIN_DESC_N} caracteres`
+            : ""
+        }. Revisa la matriz y dale "Guardar por entidad".`
       );
     } catch (err) {
       setMessage(err.message || "No se pudo leer el archivo.");
