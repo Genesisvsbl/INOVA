@@ -1337,7 +1337,9 @@ export default function HistoryView({
           if (desc.length < MIN_DESC_N) {
             invalidN += 1;
             invalidByEntity[target.entity_id] =
-              (invalidByEntity[target.entity_id] || 0) + 1;
+              invalidByEntity[target.entity_id] || [];
+            // Guarda cuántos caracteres tuvo cada reporte invalidado.
+            invalidByEntity[target.entity_id].push(desc.length);
             continue;
           }
         }
@@ -1367,9 +1369,10 @@ export default function HistoryView({
       // el dashboard los muestre sin sumarlos al total.
       if (Object.keys(invalidByEntity).length) {
         const recordDateInv = `${year}-${String(month).padStart(2, "0")}-01`;
-        const rowsInv = Object.entries(invalidByEntity).map(([entity_id, c]) => ({
+        const rowsInv = Object.entries(invalidByEntity).map(([entity_id, lens]) => ({
           entity_id: Number(entity_id),
-          value: c,
+          value: lens.length,
+          observation: lens.join(", "),
         }));
         await API.saveEntityGrid({
           indicator_id: Number(entityMatrixMeta.indicator_id),
