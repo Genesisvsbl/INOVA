@@ -1208,6 +1208,10 @@ export default function HistoryView({
         ]);
         const MIN_DESC = 200;
         const INVALID_DIM = "Invalido";
+        // Se agrega por MES (una fila al 01), sumando todos los días, igual que
+        // el import de inspecciones. Así el dashboard (que suma) y la matriz
+        // (que lee el mes) coinciden y no se "duplica".
+        const recordDateMes = `${year}-${String(month).padStart(2, "0")}-01`;
 
         const grid = {};
         let matchedM = 0;
@@ -1240,12 +1244,10 @@ export default function HistoryView({
           } else {
             matchedM += 1;
           }
-          grid[iso] = grid[iso] || {};
-          grid[iso][dim] = grid[iso][dim] || {};
-          grid[iso][dim][target.entity_id] =
-            grid[iso][dim][target.entity_id] || [];
+          grid[dim] = grid[dim] || {};
+          grid[dim][target.entity_id] = grid[dim][target.entity_id] || [];
           // Guarda la cantidad de caracteres de cada reporte de ese bucket.
-          grid[iso][dim][target.entity_id].push(desc.length);
+          grid[dim][target.entity_id].push(desc.length);
         }
 
         if (!matchedM && !invalidM) {
@@ -1256,25 +1258,21 @@ export default function HistoryView({
         }
 
         const indicatorId = Number(entityMatrixMeta.indicator_id);
-        // NO se borra el mes: se hace merge. Cada (entidad, fecha, condicion)
-        // del archivo se crea o actualiza; las fechas que no vienen en el
-        // archivo se conservan tal cual (para subir actualizaciones parciales).
-        for (const iso of Object.keys(grid)) {
-          for (const dim of Object.keys(grid[iso])) {
-            const rowsToSave = Object.entries(grid[iso][dim]).map(
-              ([entity_id, lens]) => ({
-                entity_id: Number(entity_id),
-                value: lens.length,
-                observation: lens.join(", "),
-              })
-            );
-            await API.saveEntityGrid({
-              indicator_id: indicatorId,
-              record_date: iso,
-              rows: rowsToSave,
-              dimension: dim,
-            });
-          }
+        // Guarda una fila por condición al 01 del mes (agregado mensual).
+        for (const dim of Object.keys(grid)) {
+          const rowsToSave = Object.entries(grid[dim]).map(
+            ([entity_id, lens]) => ({
+              entity_id: Number(entity_id),
+              value: lens.length,
+              observation: lens.join(", "),
+            })
+          );
+          await API.saveEntityGrid({
+            indicator_id: indicatorId,
+            record_date: recordDateMes,
+            rows: rowsToSave,
+            dimension: dim,
+          });
         }
 
         await handleLoadEntityMatrix();
