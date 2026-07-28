@@ -1277,15 +1277,6 @@ export default function HistoryView({
           }
         }
 
-        // Auto-configura las condiciones en el indicador (si no las tenía),
-        // para que el dashboard muestre las columnas/barras por condición.
-        if (autoSplit) {
-          await API.setIndicatorDimensions({
-            indicator_id: indicatorId,
-            dimensions: dims.join(", "),
-          });
-        }
-
         await handleLoadEntityMatrix();
         await runHistorySearch();
         clearMessageSoon(
