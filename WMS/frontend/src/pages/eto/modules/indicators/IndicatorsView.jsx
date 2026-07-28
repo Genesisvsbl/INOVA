@@ -666,6 +666,35 @@ export default function IndicatorsView({
                       <strong>{indicatorForm.dimensions}</strong> (evaluadas con
                       el Meta/Warning/Critical de abajo). No toques este bloque si
                       no quieres cambiarlas.
+                      <div style={{ marginTop: 8 }}>
+                        <button
+                          type="button"
+                          className="indicator-secondary"
+                          onClick={() =>
+                            setIndicatorForm({
+                              ...indicatorForm,
+                              dimensions: "",
+                              conditions_config: "",
+                            })
+                          }
+                          style={{
+                            borderColor: "#fecaca",
+                            color: "#b91c1c",
+                            background: "#fef2f2",
+                          }}
+                        >
+                          Quitar división por condición (dejar meta única)
+                        </button>
+                        <span
+                          style={{
+                            marginLeft: 8,
+                            fontSize: 11,
+                            color: "#64748b",
+                          }}
+                        >
+                          Luego dale "Actualizar indicador".
+                        </span>
+                      </div>
                     </div>
                   )}
 
