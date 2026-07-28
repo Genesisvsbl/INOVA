@@ -1181,20 +1181,12 @@ export default function HistoryView({
       const year = Number(entityMatrixMeta.year);
       const month = Number(entityMatrixMeta.month);
 
-      // === Modo multi-condicion: si el indicador tiene condiciones definidas,
-      // clasifica cada reporte por "Impacto ambiental" y guarda ambas de una.
-      const configuredDims = String(selectedHistoryIndicator?.dimensions || "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const autoSplit =
-        configuredDims.length < 2 && !!impactKey && occImpactFilter === "todas";
-      const dims =
-        configuredDims.length >= 2
-          ? configuredDims
-          : ["Ambiental", "Seguridad"];
+      // === Modo multi-condicion: SOLO si el indicador tiene condiciones reales
+      // (conditions_config). Si no, se guarda un total por persona (no se divide).
+      const dims = historyConditions.filter(Boolean);
+      const useSplit = dims.length >= 2 && !!impactKey;
 
-      if (configuredDims.length >= 2 || autoSplit) {
+      if (useSplit) {
         if (!impactKey) {
           setMessage(
             "Este indicador usa condiciones: el archivo debe tener la columna 'Impacto ambiental'."
