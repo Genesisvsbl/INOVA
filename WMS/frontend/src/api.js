@@ -609,7 +609,7 @@ export function getMovimientosPorSerial(serial) {
     empresa_id: `eq.${empresaId}`,
     codigo_cita: `like.${s}-*`,
     select:
-      "id,codigo_cita,estado,cantidad_r,lote_almacen,lote_proveedor,fecha_fabricacion,fecha_vencimiento,um,proveedor,documento,material:materiales(codigo,descripcion),ubicacion:ubicaciones(ubicacion)",
+      "id,codigo_cita,estado,cantidad_r,umb,um,lote_almacen,lote_proveedor,fecha_fabricacion,fecha_vencimiento,proveedor,documento,material:materiales(codigo,descripcion),ubicacion:ubicaciones(ubicacion)",
     order: "codigo_cita.asc",
   }).then((rows) =>
     (rows || []).map((r) => ({
@@ -617,6 +617,8 @@ export function getMovimientosPorSerial(serial) {
       codigo_cita: r.codigo_cita,
       estado: r.estado,
       cantidad: Number(r.cantidad_r || 0),
+      umb: r.umb != null ? r.umb : "",
+      um: r.um || "",
       lote_almacen: r.lote_almacen || "",
       lote_proveedor: r.lote_proveedor || "",
       fecha_fabricacion: (r.fecha_fabricacion || "").slice(0, 10),
@@ -663,6 +665,45 @@ export async function buscarReciboGuardado(query) {
     auxiliar: first.auxiliar || "",
     fecha_recepcion: (first.fecha_recepcion || "").slice(0, 10) || undefined,
   };
+
+  // AMCOR: en rótulos se guarda agrupado (un lote por grupo), pero los
+  // movimientos guardan TODOS los lotes individuales. Para poder re-imprimir
+  // el rango correcto, reconstruimos las líneas desde los movimientos.
+  if (/amcor/i.test(header.proveedor)) {
+    const movs = await getMovimientosPorSerial(serial);
+    const byItem = new Map();
+    for (const m of movs || []) {
+      if (!byItem.has(m.codigo_cita)) byItem.set(m.codigo_cita, m);
+    }
+    const lineasAmcor = Array.from(byItem.values())
+      .sort((a, b) =>
+        String(a.codigo_cita || "").localeCompare(
+          String(b.codigo_cita || ""),
+          "es",
+          { numeric: true }
+        )
+      )
+      .map((m) => {
+        const umb = Number(m.umb || 0);
+        return {
+          fecha_recepcion: header.fecha_recepcion || "",
+          codigo: m.sku || "",
+          descripcion: m.descripcion || "",
+          empaque: "",
+          umb: m.umb != null && m.umb !== "" ? String(m.umb) : "",
+          um: m.um || "",
+          cantidad: "1",
+          total: umb,
+          lote_proveedor: m.lote_proveedor || "",
+          fecha_fabricacion: (m.fecha_fabricacion || "").slice(0, 10),
+          fecha_vencimiento: (m.fecha_vencimiento || "").slice(0, 10),
+          impresion: m.codigo_cita || "",
+        };
+      });
+    if (lineasAmcor.length) {
+      return { serial, header, lineas: lineasAmcor };
+    }
+  }
 
   const lineas = [...delRecibo]
     .sort((a, b) =>
