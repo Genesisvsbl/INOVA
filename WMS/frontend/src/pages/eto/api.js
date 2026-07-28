@@ -1,5 +1,6 @@
 import {
   deleteById,
+  deleteWhere,
   empresaId,
   insertRow,
   selectRows,
@@ -514,15 +515,13 @@ async function clearEntityRecordsSupabase({ indicator_id, year, month }) {
   const params = new URLSearchParams({ indicator_id: String(indicator_id) });
   if (year) params.set("year", String(year));
   if (month) params.set("month", String(month));
-  const rows = await supabaseRows("entity_records", {
+  // Borrado por filtro en una sola llamada (sin límite de 1000 filas).
+  await deleteWhere("eto_digital", "entity_records", {
+    empresa_id: `eq.${empresaId}`,
     indicator_id: `eq.${indicator_id}`,
     ...filterDateParams(params),
-    select: "id",
   });
-  await Promise.all(
-    (rows || []).map((r) => deleteById("eto_digital", "entity_records", r.id))
-  );
-  return { deleted: (rows || []).length };
+  return { deleted: true };
 }
 
 async function historySupabase(params) {

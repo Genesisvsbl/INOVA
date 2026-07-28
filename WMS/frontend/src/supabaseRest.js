@@ -122,3 +122,13 @@ export function deleteById(schema, table, id) {
     params: { id: `eq.${id}` },
   });
 }
+
+// Borra TODOS los registros que cumplen el filtro en una sola llamada
+// (sin límite de página). params debe traer al menos un filtro.
+export function deleteWhere(schema, table, params = {}) {
+  return request(schema, table, {
+    method: "DELETE",
+    params,
+    prefer: "return=minimal",
+  });
+}
