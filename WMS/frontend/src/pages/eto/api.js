@@ -636,11 +636,6 @@ async function entityDashboardSupabase(params) {
   const indicatorMap = await getIndicatorMap();
   const indicator = indicatorMap.get(indicatorId) || {};
   const targets = await entityTargetsSupabase(new URLSearchParams({ indicator_id: String(indicatorId), active_only: "true" }));
-  // Condiciones (dimensiones) configuradas en el indicador
-  const dimensionList = String(indicator.dimensions || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
 
   // Umbrales por condición (meta/warning/critical) si están parametrizados.
   const conditionsCfg = (() => {
@@ -651,6 +646,13 @@ async function entityDashboardSupabase(params) {
       return [];
     }
   })();
+
+  // El dashboard se divide SOLO si el indicador tiene condiciones configuradas
+  // (conditions_config). El campo viejo "dimensions" ya no divide por sí solo,
+  // para que indicadores no condicionados no salgan partidos.
+  const dimensionList = conditionsCfg.length
+    ? conditionsCfg.map((c) => String(c.name || "").trim()).filter(Boolean)
+    : [];
   const cfgByName = new Map(
     conditionsCfg.map((c) => [String(c.name || "").trim(), c])
   );

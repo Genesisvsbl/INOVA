@@ -194,6 +194,8 @@ export default function HistoryView({
   const historyConditions = useMemo(() => {
     const ind = selectedHistoryIndicator;
     if (!ind) return [];
+    // Solo divide por condiciones reales (conditions_config), no por el
+    // campo viejo "dimensions".
     try {
       const cfg = JSON.parse(ind.conditions_config || "[]");
       if (Array.isArray(cfg) && cfg.length) {
@@ -202,10 +204,7 @@ export default function HistoryView({
     } catch (_) {
       /* ignore */
     }
-    return String(ind.dimensions || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    return [];
   }, [selectedHistoryIndicator]);
 
   function clearMessageSoon(text) {
@@ -275,7 +274,7 @@ export default function HistoryView({
       if (selectedIndicator?.scope_type === "entity") {
         const indicatorId = Number(filters.indicator_id);
 
-        // Condiciones del indicador (Diario/Semanal/...).
+        // Condiciones del indicador (Diario/Semanal/...). Solo conditions_config.
         let dims = [];
         try {
           const cfg = JSON.parse(selectedIndicator.conditions_config || "[]");
@@ -284,12 +283,6 @@ export default function HistoryView({
           }
         } catch (_) {
           /* ignore */
-        }
-        if (!dims.length) {
-          dims = String(selectedIndicator.dimensions || "")
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean);
         }
 
         // Con condiciones: usamos la MISMA evaluación del Dashboard
@@ -679,6 +672,7 @@ export default function HistoryView({
       ]);
 
       // ¿El indicador tiene condiciones? -> matriz por persona con 1 columna por condición.
+      // Solo conditions_config (no el campo viejo "dimensions").
       let conds = [];
       try {
         const cfg = JSON.parse(selected.conditions_config || "[]");
@@ -687,12 +681,6 @@ export default function HistoryView({
         }
       } catch (_) {
         /* ignore */
-      }
-      if (!conds.length) {
-        conds = String(selected.dimensions || "")
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean);
       }
 
       if (conds.length) {
