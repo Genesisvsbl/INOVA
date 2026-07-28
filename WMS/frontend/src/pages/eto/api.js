@@ -664,7 +664,11 @@ async function entityDashboardSupabase(params) {
     const eid = Number(record.entity_id);
     const dim = String(record.dimension || "");
     const val = Number(record.value || 0);
-    accByEntity.set(eid, (accByEntity.get(eid) || 0) + val);
+    // Los registros "Invalido..." NO cuentan para el acumulado (solo se listan
+    // aparte como invalidados).
+    if (!dim.startsWith("Invalido")) {
+      accByEntity.set(eid, (accByEntity.get(eid) || 0) + val);
+    }
     if (!accByEntityDim.has(eid)) accByEntityDim.set(eid, new Map());
     const dm = accByEntityDim.get(eid);
     dm.set(dim, (dm.get(dim) || 0) + val);

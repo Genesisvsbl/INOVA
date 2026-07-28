@@ -1298,6 +1298,7 @@ export default function HistoryView({
       const MIN_DESC_N = 200;
 
       const counts = {};
+      const invalidByEntity = {};
       let matched = 0;
       let notFound = 0;
       let outOfMonth = 0;
@@ -1329,11 +1330,14 @@ export default function HistoryView({
           outOfMonth += 1;
           continue;
         }
-        // Si trae descripci\u00f3n y es menor a 200 caracteres, se invalida (no cuenta).
+        // Si trae descripci\u00f3n y es menor a 200 caracteres, se invalida (no cuenta,
+        // pero se registra aparte como "Invalido" para verlo en el dashboard).
         if (descKeyN) {
           const desc = String(raw[descKeyN] ?? "").trim();
           if (desc.length < MIN_DESC_N) {
             invalidN += 1;
+            invalidByEntity[target.entity_id] =
+              (invalidByEntity[target.entity_id] || 0) + 1;
             continue;
           }
         }
@@ -1358,6 +1362,22 @@ export default function HistoryView({
           return row;
         })
       );
+
+      // Guarda los invalidados (dimension "Invalido") al 01 del mes, para que
+      // el dashboard los muestre sin sumarlos al total.
+      if (Object.keys(invalidByEntity).length) {
+        const recordDateInv = `${year}-${String(month).padStart(2, "0")}-01`;
+        const rowsInv = Object.entries(invalidByEntity).map(([entity_id, c]) => ({
+          entity_id: Number(entity_id),
+          value: c,
+        }));
+        await API.saveEntityGrid({
+          indicator_id: Number(entityMatrixMeta.indicator_id),
+          record_date: recordDateInv,
+          rows: rowsInv,
+          dimension: "Invalido",
+        });
+      }
 
       const entidades = new Set(
         Object.keys(counts).map((k) => k.split("-")[0])
