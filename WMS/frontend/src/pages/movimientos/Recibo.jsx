@@ -20,6 +20,7 @@ import {
   Camera,
   FileCheck,
   ClipboardList,
+  ClipboardCheck,
   X,
 } from "lucide-react";
 
@@ -296,6 +297,15 @@ function createInitialHeader() {
     auxiliar: "",
     fecha_recepcion: todayISODate(),
   };
+}
+
+// Evalúa una suma tipo "1056000+352000" o "+1056000+352000-100" de forma segura.
+function evalSumaExpr(expr) {
+  const s = String(expr ?? "").replace(/\s+/g, "");
+  if (!s) return 0;
+  const matches = s.match(/[+-]?\d+(?:\.\d+)?/g);
+  if (!matches) return 0;
+  return matches.reduce((a, t) => a + Number(t), 0);
 }
 
 function nuevoBorradorVacio(nombre) {
@@ -601,6 +611,8 @@ export default function Recibo() {
   const [borradores, setBorradores] = useState([]);
   const [borradorActivoId, setBorradorActivoId] = useState(null);
   const hidratandoRef = useRef(false);
+  const [facturadoOpen, setFacturadoOpen] = useState(false);
+  const [facturado, setFacturado] = useState([{ codigo: "", expr: "" }]);
 
   const proveedorEsAmcor = useMemo(
     () => isAmcorProveedor(header.proveedor),
@@ -1459,6 +1471,48 @@ export default function Recibo() {
       navigate("/movimientos/desde-recibo");
     }, 0);
   };
+
+  // Recibido acumulado por código (suma del total de las líneas de ese código).
+  const recibidoPorCodigo = useMemo(() => {
+    const map = {};
+    (lineas || []).forEach((ln) => {
+      const c = String(ln.codigo || "").trim();
+      if (!c) return;
+      map[c] = (map[c] || 0) + (Number(ln.total) || 0);
+    });
+    return map;
+  }, [lineas]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("wms_facturado_v1");
+      if (raw) {
+        const a = JSON.parse(raw);
+        if (Array.isArray(a) && a.length) setFacturado(a);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("wms_facturado_v1", JSON.stringify(facturado));
+    } catch {
+      /* ignore */
+    }
+  }, [facturado]);
+
+  const setFacturadoCampo = (idx, campo, valor) =>
+    setFacturado((prev) =>
+      prev.map((f, i) => (i === idx ? { ...f, [campo]: valor } : f))
+    );
+  const agregarFacturado = () =>
+    setFacturado((prev) => [...prev, { codigo: "", expr: "" }]);
+  const quitarFacturado = (idx) =>
+    setFacturado((prev) =>
+      prev.length > 1 ? prev.filter((_, i) => i !== idx) : [{ codigo: "", expr: "" }]
+    );
 
   const consultarRecibo = async () => {
     const q = consultaQuery.trim();
@@ -3424,6 +3478,21 @@ export default function Recibo() {
                     <ClipboardList size={16} />
                   </button>
                 )}
+                {tipoRecibo === "recibo" && (
+                  <button
+                    onClick={() => setFacturadoOpen(true)}
+                    style={{
+                      ...secondaryButtonStyle,
+                      borderColor: colors.infoBd,
+                      background: colors.infoBg,
+                      color: colors.blue,
+                    }}
+                    title="Cotejar facturado vs recibido (semáforo)"
+                  >
+                    <ClipboardCheck size={15} />
+                    Facturado
+                  </button>
+                )}
                 <button onClick={addLinea} style={secondaryButtonStyle}>
                   <Plus size={15} />
                   Agregar línea
@@ -4005,6 +4074,163 @@ export default function Recibo() {
                   </option>
                 ))}
               </datalist>
+
+              {tipoRecibo === "recibo" && facturadoOpen && (
+                <div
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    zIndex: 85,
+                    background: "rgba(15,23,42,.42)",
+                    display: "grid",
+                    placeItems: "center",
+                    padding: 20,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "min(860px, calc(100vw - 36px))",
+                      maxHeight: "90vh",
+                      borderRadius: 18,
+                      background: "#fff",
+                      border: `1px solid ${colors.border}`,
+                      boxShadow: "0 28px 70px rgba(15,23,42,.28)",
+                      overflow: "hidden",
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: "16px 20px",
+                        borderBottom: `1px solid ${colors.border}`,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 900, color: colors.navy, fontSize: 16 }}>
+                          Facturado vs recibido
+                        </div>
+                        <div style={{ color: colors.muted, fontSize: 12 }}>
+                          Escribe el código y la cantidad facturada. Puedes sumar:
+                          ej. <b>1056000+352000</b>. El semáforo compara con lo que
+                          llevas recibido.
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFacturadoOpen(false)}
+                        style={{ ...secondaryButtonStyle, width: 36, padding: 0, justifyContent: "center" }}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <div style={{ padding: 16, overflowY: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                        <thead>
+                          <tr style={{ textAlign: "left", color: colors.muted, fontSize: 11, textTransform: "uppercase" }}>
+                            <th style={{ padding: "6px 8px" }}>Código</th>
+                            <th style={{ padding: "6px 8px", width: 230 }}>Facturado (suma)</th>
+                            <th style={{ padding: "6px 8px", textAlign: "right" }}>Facturado</th>
+                            <th style={{ padding: "6px 8px", textAlign: "right" }}>Recibido</th>
+                            <th style={{ padding: "6px 8px", textAlign: "right" }}>Diferencia</th>
+                            <th style={{ padding: "6px 8px", textAlign: "center" }}>Estado</th>
+                            <th style={{ padding: "6px 8px" }}></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {facturado.map((row, idx) => {
+                            const cod = String(row.codigo || "").trim();
+                            const fact = evalSumaExpr(row.expr);
+                            const rec = recibidoPorCodigo[cod] || 0;
+                            const dif = fact - rec;
+                            let bg = "#f1f5f9";
+                            let fg = "#94a3b8";
+                            let label = "—";
+                            if (cod && fact > 0) {
+                              if (rec === fact) {
+                                bg = "#22c55e"; fg = "#fff"; label = "OK";
+                              } else if (rec < fact) {
+                                bg = "#f59e0b"; fg = "#fff"; label = "Falta";
+                              } else {
+                                bg = "#ef4444"; fg = "#fff"; label = "Sobra";
+                              }
+                            }
+                            const fmt = (n) => Number(n || 0).toLocaleString("es-CO");
+                            return (
+                              <tr key={idx} style={{ borderTop: `1px solid ${colors.border}` }}>
+                                <td style={{ padding: "6px 8px" }}>
+                                  <input
+                                    value={row.codigo}
+                                    onChange={(e) => setFacturadoCampo(idx, "codigo", e.target.value)}
+                                    placeholder="Ej: 421969"
+                                    style={{ width: 110, padding: "7px 9px", borderRadius: 8, border: `1px solid ${colors.border}`, fontSize: 13 }}
+                                  />
+                                </td>
+                                <td style={{ padding: "6px 8px" }}>
+                                  <input
+                                    value={row.expr}
+                                    onChange={(e) => setFacturadoCampo(idx, "expr", e.target.value)}
+                                    placeholder="1056000+352000"
+                                    style={{ width: "100%", padding: "7px 9px", borderRadius: 8, border: `1px solid ${colors.border}`, fontSize: 13 }}
+                                  />
+                                </td>
+                                <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 800 }}>{fmt(fact)}</td>
+                                <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 800 }}>{fmt(rec)}</td>
+                                <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 800, color: dif === 0 ? colors.muted : dif > 0 ? "#b45309" : "#dc2626" }}>
+                                  {fmt(dif)}
+                                </td>
+                                <td style={{ padding: "6px 8px", textAlign: "center" }}>
+                                  <span style={{ display: "inline-block", minWidth: 54, padding: "4px 8px", borderRadius: 999, background: bg, color: fg, fontWeight: 900, fontSize: 12 }}>
+                                    {label}
+                                  </span>
+                                </td>
+                                <td style={{ padding: "6px 8px" }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => quitarFacturado(idx)}
+                                    style={{ ...secondaryButtonStyle, width: 32, padding: 0, justifyContent: "center", borderColor: "#fecaca", color: "#dc2626" }}
+                                    title="Quitar"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+
+                      <button
+                        type="button"
+                        onClick={agregarFacturado}
+                        style={{ ...secondaryButtonStyle, marginTop: 12 }}
+                      >
+                        <Plus size={15} /> Agregar código
+                      </button>
+
+                      {(() => {
+                        const enFactura = new Set(
+                          facturado.map((f) => String(f.codigo || "").trim()).filter(Boolean)
+                        );
+                        const extra = Object.keys(recibidoPorCodigo).filter(
+                          (c) => c && !enFactura.has(c)
+                        );
+                        if (!extra.length) return null;
+                        return (
+                          <div style={{ marginTop: 14, padding: "10px 12px", borderRadius: 10, background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", fontSize: 12 }}>
+                            <b>Recibidos que no están en la factura:</b>{" "}
+                            {extra.join(", ")}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {tipoRecibo === "recibo" && amcorToolboxOpen && (
                 <div
