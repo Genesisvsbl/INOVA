@@ -904,7 +904,10 @@ export default function Recibo() {
       };
 
       current.indexes.push(idx);
-      current.lotes.push(lote);
+      current.lotes.push({
+        lote,
+        fecha: String(ln.fecha_fabricacion || ln.fecha_vencimiento || ""),
+      });
       current.cantidad += 1;
       current.total += Number(ln.total) || 0;
       groups.set(key, current);
@@ -912,9 +915,21 @@ export default function Recibo() {
 
     return Array.from(groups.values())
       .map((range) => {
-        const sortedLotes = range.lotes.filter(Boolean).sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
-        const first = sortedLotes[0] || "";
-        const last = sortedLotes[sortedLotes.length - 1] || "";
+        const porLote = new Map();
+        range.lotes.forEach(({ lote, fecha }) => {
+          if (!porLote.has(lote) || String(fecha) < String(porLote.get(lote))) {
+            porLote.set(lote, fecha);
+          }
+        });
+        const ordenados = Array.from(porLote.entries())
+          .sort(
+            (a, b) =>
+              String(a[1]).localeCompare(String(b[1])) ||
+              a[0].localeCompare(b[0], "es", { numeric: true })
+          )
+          .map(([lote]) => lote);
+        const first = ordenados[0] || "";
+        const last = ordenados[ordenados.length - 1] || "";
         const complete = range.indexes.every((lineIdx) => !!lineas[lineIdx]?.certificado_data_url);
         const firstWithCert = range.indexes.map((lineIdx) => lineas[lineIdx]).find((ln) => ln?.certificado_data_url);
         return {
@@ -1647,20 +1662,39 @@ export default function Recibo() {
 
       actual.cantidad += 1;
       actual.total += Number(ln.total) || 0;
-      actual.lotes.push(lote);
+      // Guardamos el lote con su fecha (fabricación; si no hay, vencimiento)
+      // para poder ordenar el rango por fecha: del que inicia al que finaliza.
+      actual.lotes.push({
+        lote,
+        fecha: String(ln.fecha_fabricacion || ln.fecha_vencimiento || ""),
+      });
       groups.set(key, actual);
     });
 
     const rows = Array.from(groups.values())
       .map((row) => {
-        const sortedLotes = row.lotes
-          .filter(Boolean)
-          .sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
-        const first = sortedLotes[0] || "";
-        const last = sortedLotes[sortedLotes.length - 1] || "";
+        // Quita repetidos (por lote), conservando su fecha más temprana.
+        const porLote = new Map();
+        row.lotes.forEach(({ lote, fecha }) => {
+          if (!porLote.has(lote) || String(fecha) < String(porLote.get(lote))) {
+            porLote.set(lote, fecha);
+          }
+        });
+        // Ordena por FECHA (el que inicia primero -> el que finaliza).
+        const ordenados = Array.from(porLote.entries())
+          .sort(
+            (a, b) =>
+              String(a[1]).localeCompare(String(b[1])) ||
+              a[0].localeCompare(b[0], "es", { numeric: true })
+          )
+          .map(([lote]) => lote);
+        const first = ordenados[0] || "";
+        const last = ordenados[ordenados.length - 1] || "";
         return {
           ...row,
-          rango: first && last ? `${first} - ${last}` : first || last,
+          lotes: ordenados,
+          rango:
+            first && last && last !== first ? `${first} - ${last}` : first || last,
         };
       })
       .sort((a, b) =>
