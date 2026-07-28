@@ -670,20 +670,30 @@ export async function buscarReciboGuardado(query) {
         numeric: true,
       })
     )
-    .map((r) => ({
-      fecha_recepcion: (r.fecha_recepcion || "").slice(0, 10),
-      codigo: r.sku || "",
-      descripcion: r.texto_breve || "",
-      empaque: "",
-      umb: r.umb != null ? String(r.umb) : "",
-      um: r.um || "",
-      cantidad: r.cantidad != null ? String(r.cantidad) : "",
-      total: Number(r.cantidad || 0),
-      lote_proveedor: r.lote_proveedor || "",
-      fecha_fabricacion: (r.fecha_fabricacion || "").slice(0, 10),
-      fecha_vencimiento: (r.fecha_vencimiento || "").slice(0, 10),
-      impresion: r.impresion || "",
-    }));
+    .map((r) => {
+      // OJO: en rótulos, el campo "cantidad" guarda el TOTAL de la línea
+      // (umb × cantidad). La cantidad real = total ÷ umb.
+      const umb = r.umb != null && r.umb !== "" ? Number(r.umb) : 0;
+      const total = Number(r.cantidad || 0);
+      const cantReal = umb > 0 ? total / umb : total;
+      const cantRedondeada = Number.isFinite(cantReal)
+        ? Math.round(cantReal * 1e6) / 1e6
+        : "";
+      return {
+        fecha_recepcion: (r.fecha_recepcion || "").slice(0, 10),
+        codigo: r.sku || "",
+        descripcion: r.texto_breve || "",
+        empaque: "",
+        umb: r.umb != null ? String(r.umb) : "",
+        um: r.um || "",
+        cantidad: cantRedondeada === "" ? "" : String(cantRedondeada),
+        total: total,
+        lote_proveedor: r.lote_proveedor || "",
+        fecha_fabricacion: (r.fecha_fabricacion || "").slice(0, 10),
+        fecha_vencimiento: (r.fecha_vencimiento || "").slice(0, 10),
+        impresion: r.impresion || "",
+      };
+    });
 
   return { serial, header, lineas };
 }
