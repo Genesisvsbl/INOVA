@@ -938,6 +938,31 @@ export default function HistoryView({
     }
   }
 
+  async function handleClearEntityAll() {
+    if (!entityMatrixMeta) {
+      setMessage("Primero usa 'Cargar por entidad' para seleccionar el indicador.");
+      return;
+    }
+    const ok = await showEtoConfirm(
+      `¿Borrar TODOS los registros históricos de ${entityMatrixMeta.indicator_code} (de TODOS los meses)? Sirve para limpiar datos viejos/duplicados antes de volver a cargar. NO borra las entidades.`
+    );
+    if (!ok) return;
+    try {
+      setLoading(true);
+      // Sin year/month => borra todos los registros del indicador.
+      await API.clearEntityRecords({
+        indicator_id: Number(entityMatrixMeta.indicator_id),
+      });
+      await handleLoadEntityMatrix();
+      await runHistorySearch();
+      clearMessageSoon("Todos los registros del indicador fueron borrados.");
+    } catch (err) {
+      setMessage(err.message || "No se pudo borrar.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function parseReportDate(value) {
     if (value === null || value === undefined || value === "") return null;
     if (value instanceof Date && !Number.isNaN(value.getTime())) {
@@ -1860,6 +1885,16 @@ export default function HistoryView({
               >
                 <Trash2 size={18} />
                 Borrar registros del mes
+              </button>
+              <button
+                type="button"
+                className="history-secondary danger-light"
+                onClick={handleClearEntityAll}
+                disabled={loading}
+                title="Borra TODOS los registros históricos del indicador (todos los meses). Úsalo para limpiar datos viejos/duplicados."
+              >
+                <Trash2 size={18} />
+                Borrar TODO (limpiar duplicados)
               </button>
             </>
           )}
