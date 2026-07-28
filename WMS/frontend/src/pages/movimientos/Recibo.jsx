@@ -248,6 +248,7 @@ const EMPAQUES = [
 ];
 
 const DRAFT_KEY = "wms_recibo_draft";
+const BORRADORES_KEY = "wms_recibo_borradores_v1";
 
 function createEmptyLinea() {
   return {
@@ -294,6 +295,17 @@ function createInitialHeader() {
     orden_compra: "",
     auxiliar: "",
     fecha_recepcion: todayISODate(),
+  };
+}
+
+function nuevoBorradorVacio(nombre) {
+  return {
+    id: `b_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    nombre: nombre || "Recibo",
+    tipoRecibo: "",
+    header: createInitialHeader(),
+    lineas: [createEmptyLinea()],
+    novedades: [createEmptyNovedad()],
   };
 }
 
@@ -586,6 +598,9 @@ export default function Recibo() {
   const [consultaQuery, setConsultaQuery] = useState("");
   const [modoCorreccion, setModoCorreccion] = useState(null);
   const [cargandoConsulta, setCargandoConsulta] = useState(false);
+  const [borradores, setBorradores] = useState([]);
+  const [borradorActivoId, setBorradorActivoId] = useState(null);
+  const hidratandoRef = useRef(false);
 
   const proveedorEsAmcor = useMemo(
     () => isAmcorProveedor(header.proveedor),
@@ -678,39 +693,130 @@ export default function Recibo() {
   }, [materiales]);
 
 
+  const hidratarForm = (b) => {
+    hidratandoRef.current = true;
+    setTipoRecibo(b?.tipoRecibo || "");
+    setHeader({ ...createInitialHeader(), ...(b?.header || {}) });
+    setLineas(
+      b?.lineas && b.lineas.length
+        ? b.lineas.map((ln) => ({ ...createEmptyLinea(), ...ln }))
+        : [createEmptyLinea()]
+    );
+    setNovedades(
+      b?.novedades && b.novedades.length ? b.novedades : [createEmptyNovedad()]
+    );
+    setModoCorreccion(null);
+    setTimeout(() => {
+      hidratandoRef.current = false;
+    }, 0);
+  };
+
+  // Al abrir Recibo: restaura las pestañas (borradores) guardadas.
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(DRAFT_KEY);
-      if (!raw) return;
-      const d = JSON.parse(raw);
-
-      if (d?.header) {
-        setHeader({
-          ...createInitialHeader(),
-          ...d.header,
-          remesa_transp: "",
-          documento: "",
-          orden_compra: "",
-        });
+      const raw = localStorage.getItem(BORRADORES_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        const lista = Array.isArray(data?.lista) ? data.lista : [];
+        if (lista.length) {
+          const activoId =
+            data.activo && lista.some((b) => b.id === data.activo)
+              ? data.activo
+              : lista[0].id;
+          const activo = lista.find((b) => b.id === activoId) || lista[0];
+          setBorradores(lista);
+          setBorradorActivoId(activoId);
+          hidratarForm(activo);
+          return;
+        }
       }
 
-      if (Array.isArray(d?.lineas) && d.lineas.length) {
-        setLineas(
-          d.lineas.map((ln) => ({
-            umb_bloqueado: false,
-            unidad_material: null,
-            fv_automatica: false,
-            vigencia_meses: null,
-            ...ln,
-          }))
-        );
+      // Compatibilidad: si había un borrador viejo (DRAFT_KEY), úsalo como pestaña 1.
+      const rawOld = localStorage.getItem(DRAFT_KEY);
+      const base = nuevoBorradorVacio("Recibo 1");
+      if (rawOld) {
+        const d = JSON.parse(rawOld);
+        if (d?.header)
+          base.header = {
+            ...createInitialHeader(),
+            ...d.header,
+            remesa_transp: "",
+            documento: "",
+            orden_compra: "",
+          };
+        if (Array.isArray(d?.lineas) && d.lineas.length)
+          base.lineas = d.lineas.map((ln) => ({ ...createEmptyLinea(), ...ln }));
       }
+      setBorradores([base]);
+      setBorradorActivoId(base.id);
+      hidratarForm(base);
     } catch {
-      // nada
+      const base = nuevoBorradorVacio("Recibo 1");
+      setBorradores([base]);
+      setBorradorActivoId(base.id);
     }
-
-    setTipoRecibo("");
   }, []);
+
+  // Persiste automáticamente la pestaña activa (sin necesidad de "guardar").
+  useEffect(() => {
+    if (hidratandoRef.current || !borradorActivoId) return;
+    setBorradores((prev) => {
+      if (!prev.length) return prev;
+      const next = prev.map((b) =>
+        b.id === borradorActivoId
+          ? { ...b, tipoRecibo, header, lineas, novedades }
+          : b
+      );
+      try {
+        localStorage.setItem(
+          BORRADORES_KEY,
+          JSON.stringify({ activo: borradorActivoId, lista: next })
+        );
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tipoRecibo, header, lineas, novedades, borradorActivoId]);
+
+  const cambiarBorrador = (id) => {
+    if (id === borradorActivoId) return;
+    const b = borradores.find((x) => x.id === id);
+    if (!b) return;
+    setBorradorActivoId(id);
+    hidratarForm(b);
+  };
+
+  const nuevoBorrador = () => {
+    const nb = nuevoBorradorVacio(`Recibo ${borradores.length + 1}`);
+    setBorradores((prev) => [...prev, nb]);
+    setBorradorActivoId(nb.id);
+    hidratarForm(nb);
+  };
+
+  const cerrarBorrador = async (id) => {
+    const ok = await showWmsConfirm(
+      "¿Cerrar esta pestaña? Se perderá la información no confirmada de ese recibo."
+    );
+    if (!ok) return;
+    let next = borradores.filter((b) => b.id !== id);
+    if (!next.length) next = [nuevoBorradorVacio("Recibo 1")];
+    const nuevoActivo = id === borradorActivoId ? next[0].id : borradorActivoId;
+    setBorradores(next);
+    try {
+      localStorage.setItem(
+        BORRADORES_KEY,
+        JSON.stringify({ activo: nuevoActivo, lista: next })
+      );
+    } catch {
+      /* ignore */
+    }
+    if (id === borradorActivoId) {
+      setBorradorActivoId(next[0].id);
+      hidratarForm(next[0]);
+    }
+  };
 
   useEffect(() => {
     if (tipoRecibo === "devolucion") {
@@ -2667,6 +2773,70 @@ export default function Recibo() {
         </div>
 
         <div style={panelBodyStyle}>
+          {/* Pestañas de recibos en curso (borradores) */}
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              flexWrap: "wrap",
+              alignItems: "center",
+              marginBottom: 12,
+              paddingBottom: 10,
+              borderBottom: `1px solid ${colors.border}`,
+            }}
+          >
+            {borradores.map((b, i) => {
+              const activo = b.id === borradorActivoId;
+              const label = b.header?.serial
+                ? `Recibo ${b.header.serial}`
+                : `Recibo ${i + 1}`;
+              return (
+                <div
+                  key={b.id}
+                  onClick={() => cambiarBorrador(b.id)}
+                  title="Clic para abrir esta pestaña"
+                  style={{
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "7px 12px",
+                    borderRadius: "10px 10px 0 0",
+                    border: `1px solid ${activo ? colors.blue : colors.border}`,
+                    borderBottom: activo ? "2px solid #fff" : `1px solid ${colors.border}`,
+                    background: activo ? "#eaf3ff" : "#fff",
+                    color: activo ? colors.blue : colors.text,
+                    fontWeight: 800,
+                    fontSize: 13,
+                    marginBottom: -1,
+                  }}
+                >
+                  {label}
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      cerrarBorrador(b.id);
+                    }}
+                    title="Cerrar pestaña"
+                    style={{ color: "#c62828", fontWeight: 900, cursor: "pointer" }}
+                  >
+                    ×
+                  </span>
+                </div>
+              );
+            })}
+            <button
+              type="button"
+              onClick={nuevoBorrador}
+              style={{
+                ...secondaryButtonStyle,
+                padding: "6px 12px",
+              }}
+            >
+              <Plus size={15} /> Nueva pestaña
+            </button>
+          </div>
+
           <div
             style={{
               display: "flex",
