@@ -1374,10 +1374,19 @@ export default function Recibo() {
         fecha_recepcion: res.header.fecha_recepcion || prev.fecha_recepcion,
       }));
       setLineas(
-        (res.lineas.length ? res.lineas : [{}]).map((ln) => ({
-          ...createEmptyLinea(),
-          ...ln,
-        }))
+        (res.lineas.length ? res.lineas : [{}]).map((ln) => {
+          const mat = (materiales || []).find(
+            (m) => String(m.codigo) === String(ln.codigo || "").trim()
+          );
+          return {
+            ...createEmptyLinea(),
+            ...ln,
+            // Traer el empaque/descripcion/UM desde el material para no re-escribir.
+            empaque: getEmpaqueMaterial(mat) || ln.empaque || "",
+            descripcion: ln.descripcion || (mat ? mat.descripcion : ""),
+            um: ln.um || (mat ? mat.unidad_medida : ""),
+          };
+        })
       );
       setModoCorreccion(res.serial);
       showWmsAlert(
