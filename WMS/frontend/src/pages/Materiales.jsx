@@ -321,6 +321,7 @@ export default function Materiales() {
     unidad: "",
     unidad_medida: "",
     familia: "",
+    vigencia_meses: "",
   });
 
   const cargar = async (search = "") => {
@@ -366,12 +367,14 @@ export default function Materiales() {
 
     setGuardando(true);
     try {
+      const vigencia = String(nuevoMaterial.vigencia_meses).trim();
       await crearMaterial({
         codigo: nuevoMaterial.codigo.trim(),
         descripcion: nuevoMaterial.descripcion.trim(),
         unidad: unidadNumerica,
         unidad_medida: nuevoMaterial.unidad_medida.trim(),
         familia: nuevoMaterial.familia.trim(),
+        vigencia_meses: vigencia === "" ? null : Number(vigencia),
       });
 
       setNuevoMaterial({
@@ -380,6 +383,7 @@ export default function Materiales() {
         unidad: "",
         unidad_medida: "",
         familia: "",
+        vigencia_meses: "",
       });
 
       await cargar(busqueda);
@@ -398,14 +402,20 @@ export default function Materiales() {
     const nuevaDescripcion = await showWmsPrompt("Nueva descripción:", mat.descripcion);
     if (nuevaDescripcion === null) return;
 
-    const nuevaUnidad = await showWmsPrompt("Nueva unidad:", mat.unidad  -  "");
+    const nuevaUnidad = await showWmsPrompt("Nueva unidad:", String(mat.unidad ?? ""));
     if (nuevaUnidad === null) return;
 
     const nuevaUnidadMedida = await showWmsPrompt("Nueva unidad de medida:", mat.unidad_medida);
     if (nuevaUnidadMedida === null) return;
 
-    const nuevaFamilia = await showWmsPrompt("Nueva familia:", mat.familia  -  "");
+    const nuevaFamilia = await showWmsPrompt("Nueva familia:", mat.familia ?? "");
     if (nuevaFamilia === null) return;
+
+    const nuevaVigencia = await showWmsPrompt(
+      "Vida útil (meses, deja vacío si no aplica):",
+      String(mat.vigencia_meses ?? "")
+    );
+    if (nuevaVigencia === null) return;
 
     if (
       !nuevoCodigo.trim() ||
@@ -426,12 +436,14 @@ export default function Materiales() {
     }
 
     try {
+      const vigTrim = String(nuevaVigencia).trim();
       await editarMaterial(mat.id, {
         codigo: nuevoCodigo.trim(),
         descripcion: nuevaDescripcion.trim(),
         unidad: unidadNumerica,
         unidad_medida: nuevaUnidadMedida.trim(),
         familia: nuevaFamilia.trim(),
+        vigencia_meses: vigTrim === "" ? null : Number(vigTrim),
       });
 
       await cargar(busqueda);
@@ -653,6 +665,20 @@ export default function Materiales() {
               />
             </div>
 
+            <div>
+              <div style={fieldLabelStyle}>Vida útil (meses)</div>
+              <input
+                type="number"
+                min="0"
+                value={nuevoMaterial.vigencia_meses}
+                onChange={(e) =>
+                  setNuevoMaterial({ ...nuevoMaterial, vigencia_meses: e.target.value })
+                }
+                placeholder="Ej: 24"
+                style={inputStyle}
+              />
+            </div>
+
             <button
               onClick={onCrear}
               disabled={guardando}
@@ -678,13 +704,14 @@ export default function Materiales() {
                 <th style={thStyle}>Unidad</th>
                 <th style={thStyle}>Unidad medida</th>
                 <th style={thStyle}>Familia</th>
+                <th style={thStyle}>Vida útil (meses)</th>
                 <th style={thStyle}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {!cargando && materiales.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={tdStyle}>
+                  <td colSpan={8} style={tdStyle}>
                     No hay materiales para mostrar.
                   </td>
                 </tr>
@@ -697,6 +724,11 @@ export default function Materiales() {
                     <td style={tdStyle}>{formatUnidad(mat.unidad)}</td>
                     <td style={tdStyle}>{mat.unidad_medida}</td>
                     <td style={tdStyle}>{mat.familia}</td>
+                    <td style={tdStyle}>
+                      {mat.vigencia_meses != null && mat.vigencia_meses !== ""
+                        ? mat.vigencia_meses
+                        : "-"}
+                    </td>
                     <td style={tdStyle}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <button onClick={() => onEditar(mat)} style={tinyButtonStyle}>
