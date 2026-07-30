@@ -262,6 +262,7 @@ export default function ConsultaPersonaView() {
         style={{
           padding: expandido ? "7vh 34px" : "28px 34px",
           minHeight: expandido ? "calc(100vh - 120px)" : 0,
+          flexGrow: expandido ? 1 : 0,
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
