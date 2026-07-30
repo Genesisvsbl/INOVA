@@ -149,7 +149,7 @@ export default function ConsultaPersonaView() {
     try {
       const html2canvas = (await import("html2canvas")).default;
       const canvas = await html2canvas(el, {
-        backgroundColor: "#0e1613",
+        backgroundColor: "#ffffff",
         scale: 2,
         useCORS: true,
       });
@@ -325,13 +325,13 @@ export default function ConsultaPersonaView() {
           (a, b) => (SEV[a.estado] ?? 3) - (SEV[b.estado] ?? 3)
         );
         const R = 32, CIRC = 2 * Math.PI * R;
-        const cumplColor = dp.cumplimiento >= 80 ? "#84cc16" : dp.cumplimiento >= 50 ? "#fbbf24" : "#f87171";
+        const cumplColor = dp.cumplimiento >= 80 ? "#16a34a" : dp.cumplimiento >= 50 ? "#d97706" : "#dc2626";
         return (
           <div
             key={p.entity_id}
             id={`c360-rep-${p.entity_id}`}
             className="c360-card"
-            style={{ marginTop: 18, background: "#0e1613", border: "1px solid #1c2b24", borderRadius: 16, overflow: "hidden", color: "#e8f5ee", animationDelay: `${pi * 0.08}s` }}
+            style={{ marginTop: 18, background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 16, overflow: "hidden", color: "#334155", boxShadow: "0 14px 34px rgba(15,23,42,.07)", animationDelay: `${pi * 0.08}s` }}
           >
             {/* Encabezado */}
             <div style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "18px 22px", background: "linear-gradient(120deg,#0c2b20,#0e3a2a 70%)" }}>
@@ -364,51 +364,51 @@ export default function ConsultaPersonaView() {
             </div>
 
             {/* Resumen */}
-            <div style={{ display: "flex", gap: 0, flexWrap: "wrap", padding: "16px 22px", borderBottom: "1px solid #1c2b24" }}>
+            <div style={{ display: "flex", gap: 0, flexWrap: "wrap", padding: "16px 22px", borderBottom: "1px solid #eef2f7", background: "#f8fafc" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14, paddingRight: 26 }}>
                 <div style={{ position: "relative", width: 76, height: 76 }}>
                   <svg width="76" height="76">
-                    <circle cx="38" cy="38" r={R} stroke="#26332c" strokeWidth="8" fill="none" />
+                    <circle cx="38" cy="38" r={R} stroke="#e5e7eb" strokeWidth="8" fill="none" />
                     <circle cx="38" cy="38" r={R} stroke={cumplColor} strokeWidth="8" fill="none" strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - dp.cumplimiento / 100)} transform="rotate(-90 38 38)" style={{ transition: "stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1)" }} />
                   </svg>
-                  <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontWeight: 950, fontSize: 18, color: "#f0fdf4" }}>{dp.cumplimiento}%</div>
+                  <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontWeight: 950, fontSize: 18, color: "#0f2744" }}>{dp.cumplimiento}%</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, letterSpacing: ".08em", color: "#7fb79b", fontWeight: 800 }}>CUMPLIMIENTO GLOBAL</div>
-                  <div style={{ fontSize: 13, color: "#cbe8db" }}>Meta {META_OBJETIVO}%</div>
+                  <div style={{ fontSize: 11, letterSpacing: ".08em", color: "#64748b", fontWeight: 800 }}>CUMPLIMIENTO GLOBAL</div>
+                  <div style={{ fontSize: 13, color: "#64748b" }}>Meta {META_OBJETIVO}%</div>
                   <div style={{ fontSize: 13, fontWeight: 800, color: cumplColor }}>Brecha {dp.cumplimiento - META_OBJETIVO} pts</div>
                 </div>
               </div>
 
-              <div style={{ borderLeft: "1px solid #1c2b24", padding: "0 26px" }}>
-                <div style={{ fontSize: 11, letterSpacing: ".08em", color: "#7fb79b", fontWeight: 800 }}>POSICIÓN GENERAL</div>
-                <div style={{ fontSize: 22, fontWeight: 950, color: "#f0fdf4" }}>{dp.posicion ?? "-"} <span style={{ fontSize: 13, color: "#9fc4b3", fontWeight: 700 }}>/ {dp.total || "-"}</span></div>
-                <div style={{ fontSize: 12, color: "#9fc4b3" }}>{dp.percentil != null ? `Percentil ${dp.percentil}` : ""}</div>
+              <div style={{ borderLeft: "1px solid #e2e8f0", padding: "0 26px" }}>
+                <div style={{ fontSize: 11, letterSpacing: ".08em", color: "#64748b", fontWeight: 800 }}>POSICIÓN GENERAL</div>
+                <div style={{ fontSize: 22, fontWeight: 950, color: "#0f2744" }}>{dp.posicion ?? "-"} <span style={{ fontSize: 13, color: "#64748b", fontWeight: 700 }}>/ {dp.total || "-"}</span></div>
+                <div style={{ fontSize: 12, color: "#64748b" }}>{dp.percentil != null ? `Percentil ${dp.percentil}` : ""}</div>
               </div>
 
-              <div style={{ borderLeft: "1px solid #1c2b24", padding: "0 26px" }}>
-                <div style={{ fontSize: 11, letterSpacing: ".08em", color: "#7fb79b", fontWeight: 800 }}>ESTADO</div>
-                <div style={{ fontSize: 22, fontWeight: 950, color: dp.criticos ? "#f87171" : "#84cc16" }}>{dp.criticos} <span style={{ fontSize: 13, fontWeight: 700 }}>crítico</span></div>
-                <div style={{ fontSize: 12, color: "#9fc4b3" }}>{dp.advertencias} en advertencia</div>
+              <div style={{ borderLeft: "1px solid #e2e8f0", padding: "0 26px" }}>
+                <div style={{ fontSize: 11, letterSpacing: ".08em", color: "#64748b", fontWeight: 800 }}>ESTADO</div>
+                <div style={{ fontSize: 22, fontWeight: 950, color: dp.criticos ? "#dc2626" : "#16a34a" }}>{dp.criticos} <span style={{ fontSize: 13, fontWeight: 700 }}>crítico</span></div>
+                <div style={{ fontSize: 12, color: "#64748b" }}>{dp.advertencias} en advertencia</div>
               </div>
 
-              <div style={{ borderLeft: "1px solid #1c2b24", padding: "0 26px" }}>
-                <div style={{ fontSize: 11, letterSpacing: ".08em", color: "#7fb79b", fontWeight: 800 }}>PENDIENTES</div>
-                <div style={{ fontSize: 22, fontWeight: 950, color: "#fbbf24" }}>{dp.pendientesTotal}</div>
-                <div style={{ fontSize: 12, color: "#9fc4b3" }}>unidades sin ejecutar</div>
+              <div style={{ borderLeft: "1px solid #e2e8f0", padding: "0 26px" }}>
+                <div style={{ fontSize: 11, letterSpacing: ".08em", color: "#64748b", fontWeight: 800 }}>PENDIENTES</div>
+                <div style={{ fontSize: 22, fontWeight: 950, color: "#d97706" }}>{dp.pendientesTotal}</div>
+                <div style={{ fontSize: 12, color: "#64748b" }}>unidades sin ejecutar</div>
               </div>
             </div>
 
-            <div style={{ padding: "12px 22px 4px", fontSize: 11, letterSpacing: ".1em", color: "#6f9385", fontWeight: 800 }}>
+            <div style={{ padding: "12px 22px 4px", fontSize: 11, letterSpacing: ".1em", color: "#94a3b8", fontWeight: 800 }}>
               INDICADORES ORDENADOS POR SEVERIDAD
             </div>
 
             {indsSort.length === 0 ? (
-              <div style={{ padding: "8px 22px 18px", color: "#7fb79b" }}>No está asociada a ningún indicador.</div>
+              <div style={{ padding: "8px 22px 18px", color: "#94a3b8" }}>No está asociada a ningún indicador.</div>
             ) : (
               indsSort.map((ind, ii) => {
                 const d = derivarIndicador(ind);
-                const acc = ind.estado === "critical" ? "#f87171" : ind.estado === "warning" ? "#fbbf24" : "#84cc16";
+                const acc = ind.estado === "critical" ? "#dc2626" : ind.estado === "warning" ? "#d97706" : "#16a34a";
                 const evaluadas = d.evaluadas;
                 const linea = evaluadas.length
                   ? `${d.completos} de ${evaluadas.length} componentes al 100%${d.faltan.length ? ` · falta ${String(d.faltan[0].name).toLowerCase()}` : ""}${ind.invalid ? ` · ${ind.invalid} reporte invalidado` : ""}`
@@ -419,46 +419,46 @@ export default function ConsultaPersonaView() {
                   ? [{ name: "Reportes", value: ind.accumulated, meta: ind.meta, estado: ind.estado }]
                   : [];
                 return (
-                  <div key={ind.indicator_id} className="c360-ind" style={{ borderLeft: `4px solid ${acc}`, padding: "14px 22px", borderBottom: ii < indsSort.length - 1 ? "1px solid #14201b" : "none", animationDelay: `${0.08 + ii * 0.08}s` }}>
+                  <div key={ind.indicator_id} className="c360-ind" style={{ borderLeft: `4px solid ${acc}`, padding: "14px 22px", borderBottom: ii < indsSort.length - 1 ? "1px solid #eef2f7" : "none", animationDelay: `${0.08 + ii * 0.08}s` }}>
                     <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
                       <div style={{ width: 76, flex: "0 0 auto" }}>
                         <div style={{ fontSize: 28, fontWeight: 950, color: acc, lineHeight: 1 }}>{d.pct}%</div>
-                        <div style={{ fontSize: 9, letterSpacing: ".1em", color: "#6f9385", fontWeight: 800 }}>CUMPLE</div>
+                        <div style={{ fontSize: 9, letterSpacing: ".1em", color: "#94a3b8", fontWeight: 800 }}>CUMPLE</div>
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-                          <span style={{ fontSize: 16, fontWeight: 900, color: "#f0fdf4" }}>{ind.indicator_name}</span>
-                          <span style={{ fontSize: 12, color: "#6f9385" }}>{ind.indicator_code} · {ind.proceso}</span>
+                          <span style={{ fontSize: 16, fontWeight: 900, color: "#0f2744" }}>{ind.indicator_name}</span>
+                          <span style={{ fontSize: 12, color: "#94a3b8" }}>{ind.indicator_code} · {ind.proceso}</span>
                           {ind.ranking && (
-                            <span style={{ marginLeft: "auto", textAlign: "right", color: "#9fc4b3" }}>
-                              <span style={{ fontSize: 18, fontWeight: 950, color: "#f0fdf4" }}>#{ind.ranking}</span>
+                            <span style={{ marginLeft: "auto", textAlign: "right", color: "#64748b" }}>
+                              <span style={{ fontSize: 18, fontWeight: 950, color: "#0f2744" }}>#{ind.ranking}</span>
                               <span style={{ fontSize: 11, display: "block", marginTop: -2 }}>de {ind.ranking_total}</span>
                             </span>
                           )}
                         </div>
-                        <div style={{ fontSize: 12, color: "#9fc4b3", margin: "3px 0 10px" }}>{linea}</div>
+                        <div style={{ fontSize: 12, color: "#64748b", margin: "3px 0 10px" }}>{linea}</div>
 
                         {filas.map((c) => {
                           const M = Number(c.meta) || 0, V = Number(c.value) || 0;
                           const filled = Math.min(V, M);
-                          const numCol = V >= M ? "#a3e635" : ind.estado === "critical" ? "#f87171" : "#fbbf24";
+                          const numCol = V >= M ? "#16a34a" : ind.estado === "critical" ? "#dc2626" : "#d97706";
                           const excede = Math.max(0, V - M);
                           return (
                             <div key={c.name} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 7 }}>
-                              <span style={{ width: 84, flex: "0 0 auto", fontSize: 13, color: "#cbe8db", fontWeight: 700 }}>{c.name}</span>
+                              <span style={{ width: 84, flex: "0 0 auto", fontSize: 13, color: "#334155", fontWeight: 700 }}>{c.name}</span>
                               <div style={{ display: "flex", gap: 3, flex: 1, maxWidth: 520 }}>
                                 {M > 0 && M <= 24 ? (
                                   Array.from({ length: M }).map((_, k) => (
-                                    <div key={k} style={{ flex: 1, minWidth: 5, height: 14, borderRadius: 3, background: k < filled ? "#84cc16" : "#26332c" }} />
+                                    <div key={k} style={{ flex: 1, minWidth: 5, height: 14, borderRadius: 3, background: k < filled ? "#16a34a" : "#e5e7eb" }} />
                                   ))
                                 ) : (
-                                  <div style={{ flex: 1, height: 14, borderRadius: 4, background: "#26332c", overflow: "hidden" }}>
-                                    <div style={{ width: `${M > 0 ? Math.min(100, (V / M) * 100) : 0}%`, height: "100%", background: "#84cc16" }} />
+                                  <div style={{ flex: 1, height: 14, borderRadius: 4, background: "#e5e7eb", overflow: "hidden" }}>
+                                    <div style={{ width: `${M > 0 ? Math.min(100, (V / M) * 100) : 0}%`, height: "100%", background: "#16a34a" }} />
                                   </div>
                                 )}
                               </div>
                               {excede > 0 && (
-                                <span style={{ fontSize: 11, color: "#1a2e05", background: "#a3e635", borderRadius: 6, padding: "2px 7px", fontWeight: 900 }}>+{excede} sobre meta</span>
+                                <span style={{ fontSize: 11, color: "#166534", background: "#dcfce7", borderRadius: 6, padding: "2px 7px", fontWeight: 900 }}>+{excede} sobre meta</span>
                               )}
                               <span style={{ width: 52, textAlign: "right", fontSize: 13, fontWeight: 900, color: numCol }}>{V} / {M}</span>
                             </div>
@@ -467,25 +467,25 @@ export default function ConsultaPersonaView() {
 
                         {ind.invalid > 0 && (
                           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 7 }}>
-                            <span style={{ width: 84, flex: "0 0 auto", fontSize: 13, color: "#c4b5fd", fontWeight: 700 }}>Invalidados</span>
+                            <span style={{ width: 84, flex: "0 0 auto", fontSize: 13, color: "#6d28d9", fontWeight: 700 }}>Invalidados</span>
                             <div style={{ display: "flex", gap: 3, flex: 1, maxWidth: 520 }}>
                               {Array.from({ length: Math.min(ind.invalid, 24) }).map((_, k) => (
                                 <div key={k} style={{ flex: 1, minWidth: 5, height: 14, borderRadius: 3, background: "#8b5cf6" }} />
                               ))}
                             </div>
-                            <span style={{ width: 52, textAlign: "right", fontSize: 13, fontWeight: 900, color: "#a78bfa" }}>{ind.invalid}</span>
+                            <span style={{ width: 52, textAlign: "right", fontSize: 13, fontWeight: 900, color: "#7c3aed" }}>{ind.invalid}</span>
                           </div>
                         )}
 
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
                           {d.pendientes > 0 && (
-                            <span style={{ fontSize: 12, fontWeight: 800, color: "#fca5a5", background: "rgba(239,68,68,.16)", borderRadius: 7, padding: "4px 10px" }}>{d.pendientes} unidad(es) pendiente(s)</span>
+                            <span style={{ fontSize: 12, fontWeight: 800, color: "#b91c1c", background: "#fee2e2", borderRadius: 7, padding: "4px 10px" }}>{d.pendientes} unidad(es) pendiente(s)</span>
                           )}
                           {evaluadas.length > 1 && d.completos > 0 && (
-                            <span style={{ fontSize: 12, fontWeight: 800, color: "#a3e635", background: "rgba(132,204,22,.16)", borderRadius: 7, padding: "4px 10px" }}>{d.completos} ítems completos</span>
+                            <span style={{ fontSize: 12, fontWeight: 800, color: "#166534", background: "#dcfce7", borderRadius: 7, padding: "4px 10px" }}>{d.completos} ítems completos</span>
                           )}
                           {ind.invalid > 0 && (
-                            <span style={{ fontSize: 12, fontWeight: 800, color: "#ddd6fe", background: "#4c1d95", borderRadius: 7, padding: "4px 10px" }}>Revisar invalidación</span>
+                            <span style={{ fontSize: 12, fontWeight: 800, color: "#6d28d9", background: "#ede9fe", borderRadius: 7, padding: "4px 10px" }}>Revisar invalidación</span>
                           )}
                         </div>
                       </div>
@@ -495,7 +495,7 @@ export default function ConsultaPersonaView() {
               })
             )}
 
-            <div style={{ padding: "12px 22px", borderTop: "1px solid #1c2b24", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8, fontSize: 11, color: "#6f9385" }}>
+            <div style={{ padding: "12px 22px", borderTop: "1px solid #eef2f7", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8, fontSize: 11, color: "#94a3b8" }}>
               <span>Reporte generado por INOVA · ETO Indicadores</span>
               <span>Generado {new Date().toLocaleDateString("es-CO")} · Periodo {String(month).padStart(2, "0")}/{year}</span>
             </div>
