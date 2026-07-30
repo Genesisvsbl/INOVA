@@ -173,7 +173,7 @@ export default function ConsultaPersonaView() {
   };
 
   return (
-    <section style={{ padding: 20, maxWidth: 1150, margin: "0 auto" }}>
+    <section style={{ padding: 16, width: "100%", boxSizing: "border-box" }}>
       <style>{css}</style>
 
       {loading && (
