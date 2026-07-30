@@ -460,7 +460,8 @@ export default function ConsultaPersonaView() {
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
-        minHeight: expandido ? "calc(100vh - 96px)" : "auto",
+        minHeight: expandido ? "100%" : "auto",
+        boxSizing: "border-box",
       }}
     >
       <style>{css}</style>
@@ -538,8 +539,8 @@ export default function ConsultaPersonaView() {
       <div
         className="c360-hero"
         style={{
-          padding: expandido ? "7vh 34px" : "28px 34px",
-          minHeight: expandido ? "calc(100vh - 120px)" : 0,
+          padding: expandido ? "48px 34px" : "28px 34px",
+          minHeight: expandido ? 420 : 0,
           flexGrow: expandido ? 1 : 0,
           display: "flex",
           flexDirection: "column",
