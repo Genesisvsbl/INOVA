@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Search, User } from "lucide-react";
+import { Search, User, Copy } from "lucide-react";
 import API from "../../api";
 
 const ahora = new Date();
@@ -12,6 +12,49 @@ const estadoColor = (e) =>
     : e === "critical"
     ? { bg: "#ef4444", fg: "#fff", label: "CRÍTICO", line: "#dc2626" }
     : { bg: "#e2e8f0", fg: "#64748b", label: "—", line: "#94a3b8" };
+
+const SEV = { critical: 0, warning: 1, ok: 2, none: 3 };
+const META_OBJETIVO = 90;
+
+function derivarIndicador(ind) {
+  const conds = ind.condiciones || [];
+  const evaluadas = conds.filter((c) => c.meta != null);
+  const completos = evaluadas.filter((c) => Number(c.value) >= Number(c.meta)).length;
+  const pendientes =
+    evaluadas.reduce((s, c) => s + Math.max(0, Number(c.meta) - Number(c.value)), 0) +
+    (evaluadas.length === 0 && ind.meta > 0 ? Math.max(0, ind.meta - ind.accumulated) : 0);
+  const sobreMeta = evaluadas.reduce((s, c) => s + Math.max(0, Number(c.value) - Number(c.meta)), 0);
+  const faltan = evaluadas.filter((c) => Number(c.value) < Number(c.meta));
+  const pct = evaluadas.length
+    ? Math.round((completos / evaluadas.length) * 100)
+    : ind.meta > 0
+    ? Math.min(100, Math.round((ind.accumulated / ind.meta) * 100))
+    : 0;
+  return { evaluadas, completos, pendientes, sobreMeta, faltan, pct };
+}
+
+function derivarPersona(p) {
+  const inds = p.indicadores || [];
+  const dv = inds.map(derivarIndicador);
+  const cumplimiento = dv.length ? Math.round(dv.reduce((s, d) => s + d.pct, 0) / dv.length) : 0;
+  const ranks = inds.map((i) => i.ranking).filter(Boolean);
+  const total = Math.max(0, ...inds.map((i) => i.ranking_total || 0));
+  const posicion = ranks.length ? Math.round(ranks.reduce((a, b) => a + b, 0) / ranks.length) : null;
+  const percentil = total > 0 && posicion ? Math.round(((total - posicion) / total) * 100) : null;
+  const criticos = inds.filter((i) => i.estado === "critical").length;
+  const advertencias = inds.filter((i) => i.estado === "warning").length;
+  const pendientesTotal = dv.reduce((s, d) => s + d.pendientes, 0);
+  return {
+    cumplimiento,
+    posicion,
+    percentil,
+    total,
+    criticos,
+    advertencias,
+    pendientesTotal,
+    requierePlan: criticos > 0,
+  };
+}
 
 const css = `
 @keyframes c360-fadeUp { from{opacity:0;transform:translateY(24px) scale(.98)} to{opacity:1;transform:translateY(0) scale(1)} }
@@ -97,6 +140,35 @@ export default function ConsultaPersonaView() {
       setPersonas([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const copiarReporte = async (entityId) => {
+    const el = document.getElementById(`c360-rep-${entityId}`);
+    if (!el) return;
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(el, {
+        backgroundColor: "#0e1613",
+        scale: 2,
+        useCORS: true,
+      });
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        try {
+          await navigator.clipboard.write([
+            new window.ClipboardItem({ "image/png": blob }),
+          ]);
+          window.alert("Reporte copiado. Pégalo donde quieras.");
+        } catch {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "reporte.png";
+          a.click();
+        }
+      }, "image/png");
+    } catch (e) {
+      setError("No se pudo copiar: " + (e?.message || e));
     }
   };
 
@@ -246,146 +318,190 @@ export default function ConsultaPersonaView() {
         <div style={{ marginTop: 20, color: "#64748b" }}>No se encontró ninguna persona con “{q}”.</div>
       )}
 
-      {personas.map((p, pi) => (
-        <div
-          key={p.entity_id}
-          className="c360-card"
-          style={{ marginTop: 18, background: "#fff", border: "1px solid #d9e2ec", borderRadius: 18, overflow: "hidden", boxShadow: "0 14px 34px rgba(15,23,42,.08)", animationDelay: `${pi * 0.08}s` }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "linear-gradient(110deg,#04211a,#0b3d2e 60%)", color: "#fff" }}>
-            <div style={{ width: 40, height: 40, borderRadius: 999, background: "rgba(110,231,183,.18)", display: "grid", placeItems: "center" }}>
-              <User size={22} color="#6ee7b7" />
+      {personas.map((p, pi) => {
+        const dp = derivarPersona(p);
+        const mesNombre = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][month] || month;
+        const indsSort = [...p.indicadores].sort(
+          (a, b) => (SEV[a.estado] ?? 3) - (SEV[b.estado] ?? 3)
+        );
+        const R = 32, CIRC = 2 * Math.PI * R;
+        const cumplColor = dp.cumplimiento >= 80 ? "#84cc16" : dp.cumplimiento >= 50 ? "#fbbf24" : "#f87171";
+        return (
+          <div
+            key={p.entity_id}
+            id={`c360-rep-${p.entity_id}`}
+            className="c360-card"
+            style={{ marginTop: 18, background: "#0e1613", border: "1px solid #1c2b24", borderRadius: 16, overflow: "hidden", color: "#e8f5ee", animationDelay: `${pi * 0.08}s` }}
+          >
+            {/* Encabezado */}
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "18px 22px", background: "linear-gradient(120deg,#0c2b20,#0e3a2a 70%)" }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, letterSpacing: ".14em", color: "#7fb79b", fontWeight: 800 }}>
+                  EVALUACIÓN INDIVIDUAL · {String(mesNombre).toUpperCase()} {year}
+                </div>
+                <div style={{ fontSize: 26, fontWeight: 950, color: "#f0fdf4", marginTop: 2 }}>
+                  {String(p.name || "").toUpperCase()}
+                </div>
+                <div style={{ fontSize: 13, color: "#9fc4b3", marginTop: 3 }}>
+                  C.C. {p.code} · {p.entity_type || "Persona"} · {p.indicadores.length} indicadores evaluados
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {dp.requierePlan && (
+                  <span style={{ background: "linear-gradient(135deg,#f59e0b,#b45309)", color: "#1a1206", fontWeight: 900, fontSize: 12, letterSpacing: ".04em", borderRadius: 8, padding: "8px 14px" }}>
+                    REQUIERE PLAN DE ACCIÓN
+                  </span>
+                )}
+                <button
+                  type="button"
+                  data-html2canvas-ignore="true"
+                  onClick={() => copiarReporte(p.entity_id)}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,.1)", color: "#d1fae5", border: "1px solid rgba(255,255,255,.2)", borderRadius: 8, padding: "8px 12px", fontWeight: 800, fontSize: 12, cursor: "pointer" }}
+                >
+                  <Copy size={15} /> Copiar
+                </button>
+              </div>
             </div>
-            <div>
-              <div style={{ fontWeight: 900, fontSize: 17 }}>{p.name}</div>
-              <div style={{ fontSize: 12, opacity: 0.85 }}>{p.entity_type || "Persona"} · {p.code}</div>
-            </div>
-            <div style={{ marginLeft: "auto", fontSize: 12, opacity: 0.85 }}>
-              {p.indicadores.length} indicador(es) · {String(month).padStart(2, "0")}/{year}
-            </div>
-          </div>
 
-          <div style={{ padding: 16 }}>
-            {p.indicadores.length === 0 ? (
-              <div style={{ color: "#94a3b8" }}>No está asociada a ningún indicador.</div>
+            {/* Resumen */}
+            <div style={{ display: "flex", gap: 0, flexWrap: "wrap", padding: "16px 22px", borderBottom: "1px solid #1c2b24" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, paddingRight: 26 }}>
+                <div style={{ position: "relative", width: 76, height: 76 }}>
+                  <svg width="76" height="76">
+                    <circle cx="38" cy="38" r={R} stroke="#26332c" strokeWidth="8" fill="none" />
+                    <circle cx="38" cy="38" r={R} stroke={cumplColor} strokeWidth="8" fill="none" strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - dp.cumplimiento / 100)} transform="rotate(-90 38 38)" style={{ transition: "stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1)" }} />
+                  </svg>
+                  <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontWeight: 950, fontSize: 18, color: "#f0fdf4" }}>{dp.cumplimiento}%</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, letterSpacing: ".08em", color: "#7fb79b", fontWeight: 800 }}>CUMPLIMIENTO GLOBAL</div>
+                  <div style={{ fontSize: 13, color: "#cbe8db" }}>Meta {META_OBJETIVO}%</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: cumplColor }}>Brecha {dp.cumplimiento - META_OBJETIVO} pts</div>
+                </div>
+              </div>
+
+              <div style={{ borderLeft: "1px solid #1c2b24", padding: "0 26px" }}>
+                <div style={{ fontSize: 11, letterSpacing: ".08em", color: "#7fb79b", fontWeight: 800 }}>POSICIÓN GENERAL</div>
+                <div style={{ fontSize: 22, fontWeight: 950, color: "#f0fdf4" }}>{dp.posicion ?? "-"} <span style={{ fontSize: 13, color: "#9fc4b3", fontWeight: 700 }}>/ {dp.total || "-"}</span></div>
+                <div style={{ fontSize: 12, color: "#9fc4b3" }}>{dp.percentil != null ? `Percentil ${dp.percentil}` : ""}</div>
+              </div>
+
+              <div style={{ borderLeft: "1px solid #1c2b24", padding: "0 26px" }}>
+                <div style={{ fontSize: 11, letterSpacing: ".08em", color: "#7fb79b", fontWeight: 800 }}>ESTADO</div>
+                <div style={{ fontSize: 22, fontWeight: 950, color: dp.criticos ? "#f87171" : "#84cc16" }}>{dp.criticos} <span style={{ fontSize: 13, fontWeight: 700 }}>crítico</span></div>
+                <div style={{ fontSize: 12, color: "#9fc4b3" }}>{dp.advertencias} en advertencia</div>
+              </div>
+
+              <div style={{ borderLeft: "1px solid #1c2b24", padding: "0 26px" }}>
+                <div style={{ fontSize: 11, letterSpacing: ".08em", color: "#7fb79b", fontWeight: 800 }}>PENDIENTES</div>
+                <div style={{ fontSize: 22, fontWeight: 950, color: "#fbbf24" }}>{dp.pendientesTotal}</div>
+                <div style={{ fontSize: 12, color: "#9fc4b3" }}>unidades sin ejecutar</div>
+              </div>
+            </div>
+
+            <div style={{ padding: "12px 22px 4px", fontSize: 11, letterSpacing: ".1em", color: "#6f9385", fontWeight: 800 }}>
+              INDICADORES ORDENADOS POR SEVERIDAD
+            </div>
+
+            {indsSort.length === 0 ? (
+              <div style={{ padding: "8px 22px 18px", color: "#7fb79b" }}>No está asociada a ningún indicador.</div>
             ) : (
-              p.indicadores.map((ind, ii) => {
-                const est = estadoColor(ind.estado);
+              indsSort.map((ind, ii) => {
+                const d = derivarIndicador(ind);
+                const acc = ind.estado === "critical" ? "#f87171" : ind.estado === "warning" ? "#fbbf24" : "#84cc16";
+                const evaluadas = d.evaluadas;
+                const linea = evaluadas.length
+                  ? `${d.completos} de ${evaluadas.length} componentes al 100%${d.faltan.length ? ` · falta ${String(d.faltan[0].name).toLowerCase()}` : ""}${ind.invalid ? ` · ${ind.invalid} reporte invalidado` : ""}`
+                  : `Acumulado ${ind.accumulated} de meta ${ind.meta}${ind.invalid ? ` · ${ind.invalid} reporte invalidado` : ""}`;
+                const filas = evaluadas.length
+                  ? evaluadas
+                  : ind.meta > 0
+                  ? [{ name: "Reportes", value: ind.accumulated, meta: ind.meta, estado: ind.estado }]
+                  : [];
                 return (
-                  <div
-                    key={ind.indicator_id}
-                    className="c360-ind"
-                    style={{ border: "1px solid #e2e8f0", borderRadius: 14, padding: 14, marginBottom: 14, background: "#fff", animationDelay: `${0.1 + ii * 0.08}s` }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-                      <strong style={{ color: "#0f2744" }}>{ind.indicator_code} · {ind.indicator_name}</strong>
-                      <span style={{ fontSize: 12, color: "#64748b" }}>{ind.proceso}</span>
-                      {ind.ranking && (
-                        <span
-                          className="c360-chip"
-                          style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5, background: ind.ranking <= 3 ? "#fef3c7" : "#eef2f7", color: ind.ranking <= 3 ? "#92400e" : "#475569", border: `1px solid ${ind.ranking <= 3 ? "#fcd34d" : "#e2e8f0"}`, borderRadius: 999, padding: "3px 10px", fontWeight: 900, fontSize: 12 }}
-                          title="Puesto entre todas las personas del indicador"
-                        >
-                          {ind.ranking <= 3 ? "🏆" : "#"} Puesto {ind.ranking} de {ind.ranking_total}
-                        </span>
-                      )}
-                      <span style={{ marginLeft: ind.ranking ? 0 : "auto", background: est.bg, color: est.fg, borderRadius: 999, padding: "3px 12px", fontWeight: 900, fontSize: 12 }}>
-                        {est.label}
-                      </span>
-                    </div>
+                  <div key={ind.indicator_id} className="c360-ind" style={{ borderLeft: `4px solid ${acc}`, padding: "14px 22px", borderBottom: ii < indsSort.length - 1 ? "1px solid #14201b" : "none", animationDelay: `${0.08 + ii * 0.08}s` }}>
+                    <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                      <div style={{ width: 76, flex: "0 0 auto" }}>
+                        <div style={{ fontSize: 28, fontWeight: 950, color: acc, lineHeight: 1 }}>{d.pct}%</div>
+                        <div style={{ fontSize: 9, letterSpacing: ".1em", color: "#6f9385", fontWeight: 800 }}>CUMPLE</div>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 16, fontWeight: 900, color: "#f0fdf4" }}>{ind.indicator_name}</span>
+                          <span style={{ fontSize: 12, color: "#6f9385" }}>{ind.indicator_code} · {ind.proceso}</span>
+                          {ind.ranking && (
+                            <span style={{ marginLeft: "auto", textAlign: "right", color: "#9fc4b3" }}>
+                              <span style={{ fontSize: 18, fontWeight: 950, color: "#f0fdf4" }}>#{ind.ranking}</span>
+                              <span style={{ fontSize: 11, display: "block", marginTop: -2 }}>de {ind.ranking_total}</span>
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#9fc4b3", margin: "3px 0 10px" }}>{linea}</div>
 
-                    {(() => {
-                      const evaluadas = ind.condiciones.filter((c) => c.meta != null);
-                      const okCount = evaluadas.filter((c) => c.estado === "ok").length;
-                      const pct = evaluadas.length
-                        ? Math.round((okCount / evaluadas.length) * 100)
-                        : ind.meta > 0
-                        ? Math.min(100, Math.round((ind.accumulated / ind.meta) * 100))
-                        : 0;
-                      const R = 34;
-                      const CIRC = 2 * Math.PI * R;
-                      return (
-                        <div style={{ display: "flex", gap: 18, alignItems: "center", flexWrap: "wrap" }}>
-                          {/* Anillo de cumplimiento */}
-                          <div style={{ position: "relative", width: 92, height: 92, flex: "0 0 auto" }}>
-                            <svg width="92" height="92">
-                              <circle cx="46" cy="46" r={R} stroke="#e5e7eb" strokeWidth="9" fill="none" />
-                              <circle
-                                cx="46"
-                                cy="46"
-                                r={R}
-                                stroke={est.line}
-                                strokeWidth="9"
-                                fill="none"
-                                strokeLinecap="round"
-                                strokeDasharray={CIRC}
-                                strokeDashoffset={CIRC * (1 - pct / 100)}
-                                transform="rotate(-90 46 46)"
-                                style={{ transition: "stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1)" }}
-                              />
-                            </svg>
-                            <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
-                              <div style={{ textAlign: "center", lineHeight: 1 }}>
-                                <div style={{ fontSize: 20, fontWeight: 950, color: est.line }}>{pct}%</div>
-                                <div style={{ fontSize: 9, color: "#94a3b8", fontWeight: 700 }}>cumple</div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Barras por condición (valor / meta) */}
-                          <div style={{ flex: "1 1 300px", minWidth: 260 }}>
-                            {evaluadas.length > 0 ? (
-                              evaluadas.map((c) => {
-                                const cc = estadoColor(c.estado);
-                                const fill = c.meta > 0 ? Math.min(100, (c.value / c.meta) * 100) : 0;
-                                return (
-                                  <div key={c.name} style={{ marginBottom: 9 }}>
-                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
-                                      <span style={{ fontWeight: 800, color: "#334155" }}>{c.name}</span>
-                                      <span style={{ fontWeight: 800, color: cc.line }}>
-                                        {c.value} / {c.meta}
-                                      </span>
-                                    </div>
-                                    <div style={{ height: 10, borderRadius: 6, background: "#eef2f7", overflow: "hidden" }}>
-                                      <div style={{ width: `${fill}%`, height: "100%", background: cc.bg, borderRadius: 6, transition: "width 1s cubic-bezier(.2,.8,.2,1)" }} />
-                                    </div>
+                        {filas.map((c) => {
+                          const M = Number(c.meta) || 0, V = Number(c.value) || 0;
+                          const filled = Math.min(V, M);
+                          const numCol = V >= M ? "#a3e635" : ind.estado === "critical" ? "#f87171" : "#fbbf24";
+                          const excede = Math.max(0, V - M);
+                          return (
+                            <div key={c.name} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 7 }}>
+                              <span style={{ width: 84, flex: "0 0 auto", fontSize: 13, color: "#cbe8db", fontWeight: 700 }}>{c.name}</span>
+                              <div style={{ display: "flex", gap: 3, flex: 1, maxWidth: 520 }}>
+                                {M > 0 && M <= 24 ? (
+                                  Array.from({ length: M }).map((_, k) => (
+                                    <div key={k} style={{ flex: 1, minWidth: 5, height: 14, borderRadius: 3, background: k < filled ? "#84cc16" : "#26332c" }} />
+                                  ))
+                                ) : (
+                                  <div style={{ flex: 1, height: 14, borderRadius: 4, background: "#26332c", overflow: "hidden" }}>
+                                    <div style={{ width: `${M > 0 ? Math.min(100, (V / M) * 100) : 0}%`, height: "100%", background: "#84cc16" }} />
                                   </div>
-                                );
-                              })
-                            ) : (
-                              <div style={{ fontSize: 13, color: "#334155" }}>
-                                Acumulado: <b>{ind.accumulated}</b>
-                                {ind.meta > 0 ? ` · Meta: ${ind.meta}` : ""}
-                              </div>
-                            )}
-                            {(ind.condiciones.some((c) => c.meta == null) ||
-                              ind.invalid > 0) && (
-                              <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                {ind.condiciones
-                                  .filter((c) => c.meta == null)
-                                  .map((c) => (
-                                    <span key={c.name} style={{ fontSize: 11, color: "#64748b", background: "#f1f5f9", borderRadius: 8, padding: "3px 8px", fontWeight: 700 }}>
-                                      {c.name}: {c.value} (sin meta)
-                                    </span>
-                                  ))}
-                                {ind.invalid > 0 && (
-                                  <span style={{ fontSize: 11, color: "#6d28d9", background: "#ede9fe", borderRadius: 8, padding: "3px 8px", fontWeight: 800 }}>
-                                    Invalidados: {ind.invalid}
-                                  </span>
                                 )}
                               </div>
-                            )}
+                              {excede > 0 && (
+                                <span style={{ fontSize: 11, color: "#1a2e05", background: "#a3e635", borderRadius: 6, padding: "2px 7px", fontWeight: 900 }}>+{excede} sobre meta</span>
+                              )}
+                              <span style={{ width: 52, textAlign: "right", fontSize: 13, fontWeight: 900, color: numCol }}>{V} / {M}</span>
+                            </div>
+                          );
+                        })}
+
+                        {ind.invalid > 0 && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 7 }}>
+                            <span style={{ width: 84, flex: "0 0 auto", fontSize: 13, color: "#c4b5fd", fontWeight: 700 }}>Invalidados</span>
+                            <div style={{ display: "flex", gap: 3, flex: 1, maxWidth: 520 }}>
+                              {Array.from({ length: Math.min(ind.invalid, 24) }).map((_, k) => (
+                                <div key={k} style={{ flex: 1, minWidth: 5, height: 14, borderRadius: 3, background: "#8b5cf6" }} />
+                              ))}
+                            </div>
+                            <span style={{ width: 52, textAlign: "right", fontSize: 13, fontWeight: 900, color: "#a78bfa" }}>{ind.invalid}</span>
                           </div>
+                        )}
+
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                          {d.pendientes > 0 && (
+                            <span style={{ fontSize: 12, fontWeight: 800, color: "#fca5a5", background: "rgba(239,68,68,.16)", borderRadius: 7, padding: "4px 10px" }}>{d.pendientes} unidad(es) pendiente(s)</span>
+                          )}
+                          {evaluadas.length > 1 && d.completos > 0 && (
+                            <span style={{ fontSize: 12, fontWeight: 800, color: "#a3e635", background: "rgba(132,204,22,.16)", borderRadius: 7, padding: "4px 10px" }}>{d.completos} ítems completos</span>
+                          )}
+                          {ind.invalid > 0 && (
+                            <span style={{ fontSize: 12, fontWeight: 800, color: "#ddd6fe", background: "#4c1d95", borderRadius: 7, padding: "4px 10px" }}>Revisar invalidación</span>
+                          )}
                         </div>
-                      );
-                    })()}
+                      </div>
+                    </div>
                   </div>
                 );
               })
             )}
+
+            <div style={{ padding: "12px 22px", borderTop: "1px solid #1c2b24", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8, fontSize: 11, color: "#6f9385" }}>
+              <span>Reporte generado por INOVA · ETO Indicadores</span>
+              <span>Generado {new Date().toLocaleDateString("es-CO")} · Periodo {String(month).padStart(2, "0")}/{year}</span>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </section>
   );
 }
