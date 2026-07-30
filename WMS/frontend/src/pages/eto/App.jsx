@@ -30,6 +30,7 @@ import IndicatorsView from "./modules/indicators/IndicatorsView";
 import DailyView from "./modules/daily/DailyView";
 import HistoryView from "./modules/history/HistoryView";
 import DashboardView from "./modules/dashboard/DashboardView";
+import ConsultaPersonaView from "./modules/consulta/ConsultaPersonaView";
 import AdminAccess from "../admin/AdminAccess";
 import { EtoDialogHost, showEtoConfirm } from "./etoDialog.jsx";
 
@@ -40,6 +41,7 @@ const TABS = [
   { key: "daily", label: "Captura diaria", permission: "eto.daily" },
   { key: "history", label: "Historico", permission: "eto.history" },
   { key: "dashboard", label: "Dashboard", permission: "eto.dashboard" },
+  { key: "consulta", label: "Consulta 360", permission: "eto.dashboard" },
 ];
 
 const ACCESS_CODES = {
@@ -1369,6 +1371,10 @@ export default function App() {
           indicators={indicators}
         />
       );
+    }
+
+    if (tab === "consulta") {
+      return <ConsultaPersonaView />;
     }
 
     if (tab === "config") {

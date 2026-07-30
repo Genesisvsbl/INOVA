@@ -629,6 +629,138 @@ function conditionStatus(value, cfg) {
   return "ok";
 }
 
+// Consulta 360 por persona: busca por cédula (code) o nombre y devuelve TODOS
+// los indicadores donde está asociada, con su valor/meta/estado por condición.
+async function consultaPersonaSupabase(params) {
+  const q = String(params.get("q") || "").trim();
+  if (!q) return { personas: [] };
+
+  const entidades = await supabaseRows("entities", {
+    select: "*",
+    or: `(code.ilike.*${q}*,name.ilike.*${q}*)`,
+    order: "name.asc",
+    limit: "25",
+  });
+  if (!entidades.length) return { personas: [] };
+
+  const indicatorMap = await getIndicatorMap();
+  const hasMeta = (x) =>
+    x !== "" && x !== null && x !== undefined && !Number.isNaN(Number(x));
+
+  const personas = [];
+  for (const ent of entidades) {
+    const targets = await supabaseRows("entity_indicator_targets", {
+      select: "*",
+      entity_id: `eq.${ent.id}`,
+    });
+
+    const indicadores = [];
+    for (const t of targets) {
+      const ind = indicatorMap.get(Number(t.indicator_id));
+      if (!ind) continue;
+
+      let cfgArr = [];
+      try {
+        const a = JSON.parse(ind.conditions_config || "[]");
+        if (Array.isArray(a)) cfgArr = a;
+      } catch {
+        /* ignore */
+      }
+      const dims = cfgArr.map((c) => String(c.name || "").trim()).filter(Boolean);
+      const cfgByName = new Map(
+        cfgArr.map((c) => [String(c.name || "").trim(), c])
+      );
+      let entCfg = [];
+      try {
+        const a = JSON.parse(t.conditions_config || "[]");
+        if (Array.isArray(a)) entCfg = a;
+      } catch {
+        /* ignore */
+      }
+      const entCfgByName = new Map(
+        entCfg.map((c) => [String(c.name || "").trim(), c])
+      );
+
+      const recs = await supabaseRows("entity_records", {
+        select: "*",
+        indicator_id: `eq.${t.indicator_id}`,
+        entity_id: `eq.${ent.id}`,
+        ...filterDateParams(params),
+      });
+
+      const byDim = {};
+      let invalid = 0;
+      for (const r of recs) {
+        const d = String(r.dimension || "");
+        const v = Number(r.value || 0);
+        if (d.startsWith("Invalido")) {
+          invalid += v;
+          continue;
+        }
+        byDim[d] = (byDim[d] || 0) + v;
+      }
+
+      const condiciones = dims.map((d) => {
+        const cfg = entCfgByName.get(d) || cfgByName.get(d);
+        const value = byDim[d] || 0;
+        const conMeta = cfg && hasMeta(cfg.meta);
+        return {
+          name: d,
+          value,
+          meta: conMeta ? Number(cfg.meta) : null,
+          estado: conMeta ? conditionStatus(value, cfg) : "none",
+        };
+      });
+
+      let worst = null;
+      condiciones.forEach((c) => {
+        if (c.estado === "none") return;
+        if (c.estado === "critical") worst = "critical";
+        else if (c.estado === "warning" && worst !== "critical") worst = "warning";
+        else if (worst === null) worst = "ok";
+      });
+
+      const metaSimple = Number(t.target_value ?? ind.target_value ?? 0);
+      const accumulated = dims.length
+        ? dims.reduce((s, d) => s + (byDim[d] || 0), 0)
+        : recs
+            .filter((r) => !String(r.dimension || "").startsWith("Invalido"))
+            .reduce((s, r) => s + Number(r.value || 0), 0);
+      const estado = dims.length
+        ? worst || "ok"
+        : accumulated === 0
+        ? "critical"
+        : metaSimple > 0 && accumulated < metaSimple
+        ? "warning"
+        : "ok";
+
+      indicadores.push({
+        indicator_id: ind.id,
+        indicator_code: ind.code,
+        indicator_name: ind.name,
+        proceso: ind.process_name || "",
+        meta: metaSimple,
+        accumulated,
+        invalid,
+        estado,
+        condiciones,
+      });
+    }
+
+    personas.push({
+      entity_id: ent.id,
+      code: ent.code,
+      name: ent.name,
+      entity_type: ent.entity_type,
+      indicadores: indicadores.sort((a, b) =>
+        String(a.indicator_code).localeCompare(String(b.indicator_code))
+      ),
+    });
+  }
+
+  return { personas };
+}
+
 async function entityDashboardSupabase(params) {
   const indicatorId = Number(params.get("indicator_id"));
   const records = await entityRecordsSupabase(params);
@@ -847,6 +979,10 @@ async function requestSupabase(path, options = {}) {
 
   if (method === "GET" && resource === "dashboard" && id === "entity") {
     return entityDashboardSupabase(parsed.searchParams);
+  }
+
+  if (method === "GET" && resource === "consulta" && id === "persona") {
+    return consultaPersonaSupabase(parsed.searchParams);
   }
 
   if (method === "GET" && resource === "daily-records" && id === "by-date") {
@@ -1480,6 +1616,12 @@ const API = {
     });
 
     return request(`/dashboard/entity?${q}`);
+  },
+
+  // Consulta 360 por persona (cédula o nombre)
+  consultaPersona: ({ q, year, month } = {}) => {
+    const qs = buildQuery({ q, year, month });
+    return request(`/consulta/persona${qs ? `?${qs}` : ""}`);
   },
 
   // =========================
