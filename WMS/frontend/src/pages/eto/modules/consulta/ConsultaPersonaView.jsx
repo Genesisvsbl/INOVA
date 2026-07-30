@@ -33,6 +33,267 @@ function derivarIndicador(ind) {
   return { evaluadas, completos, pendientes, sobreMeta, faltan, pct };
 }
 
+function rrect(ctx, x, y, w, h, r) {
+  const rr = Math.min(r, h / 2, w / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+// Dibuja el reporte de la persona a mano en un canvas (nítido, sin encimarse).
+function buildReporteCanvas(p, month, year) {
+  const MES = ["", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"][month] || month;
+  const dp = derivarPersona(p);
+  const inds = [...p.indicadores].sort((a, b) => (SEV[a.estado] ?? 3) - (SEV[b.estado] ?? 3));
+  const filasDe = (ind) => {
+    const d = derivarIndicador(ind);
+    return d.evaluadas.length
+      ? d.evaluadas
+      : ind.meta > 0
+      ? [{ name: "Reportes", value: ind.accumulated, meta: ind.meta }]
+      : [];
+  };
+  const W = 1000, pad = 26, scale = 2;
+  const indH = inds.map((ind) => {
+    const rows = filasDe(ind).length + (ind.invalid > 0 ? 1 : 0);
+    return 56 + rows * 26 + 34;
+  });
+  const H = 100 + 100 + 34 + indH.reduce((a, b) => a + b, 0) + 46;
+
+  const cv = document.createElement("canvas");
+  cv.width = W * scale;
+  cv.height = H * scale;
+  const ctx = cv.getContext("2d");
+  ctx.scale(scale, scale);
+  ctx.textBaseline = "top";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
+
+  // Encabezado
+  ctx.fillStyle = "#0e3a2a";
+  ctx.fillRect(0, 0, W, 100);
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#8fd3b8";
+  ctx.font = "bold 11px Arial";
+  ctx.fillText(`EVALUACIÓN INDIVIDUAL · ${MES} ${year}`, pad, 16);
+  ctx.fillStyle = "#f0fdf4";
+  ctx.font = "900 25px Arial";
+  ctx.fillText(String(p.name || "").toUpperCase(), pad, 34);
+  ctx.fillStyle = "#9fc4b3";
+  ctx.font = "13px Arial";
+  ctx.fillText(`C.C. ${p.code} · ${p.entity_type || "Persona"} · ${p.indicadores.length} indicadores evaluados`, pad, 70);
+  if (dp.requierePlan) {
+    ctx.font = "bold 12px Arial";
+    const t = "REQUIERE PLAN DE ACCIÓN";
+    const w = ctx.measureText(t).width + 24;
+    ctx.fillStyle = "#d97706";
+    rrect(ctx, W - pad - w, 26, w, 30, 8);
+    ctx.fill();
+    ctx.fillStyle = "#1a1206";
+    ctx.fillText(t, W - pad - w + 12, 35);
+  }
+
+  // Resumen
+  let y = 100;
+  ctx.fillStyle = "#f8fafc";
+  ctx.fillRect(0, y, W, 100);
+  ctx.strokeStyle = "#eef2f7";
+  ctx.beginPath();
+  ctx.moveTo(0, y + 100);
+  ctx.lineTo(W, y + 100);
+  ctx.stroke();
+
+  const cx = pad + 38, cy = y + 50, R = 30;
+  const cumplColor = dp.cumplimiento >= 80 ? "#16a34a" : dp.cumplimiento >= 50 ? "#d97706" : "#dc2626";
+  ctx.lineWidth = 7;
+  ctx.strokeStyle = "#e5e7eb";
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, 2 * Math.PI);
+  ctx.stroke();
+  ctx.strokeStyle = cumplColor;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + (2 * Math.PI * dp.cumplimiento) / 100);
+  ctx.stroke();
+  ctx.lineCap = "butt";
+  ctx.fillStyle = "#0f2744";
+  ctx.font = "900 16px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(`${dp.cumplimiento}%`, cx, cy - 8);
+  ctx.textAlign = "left";
+
+  const sx = cx + R + 18;
+  ctx.fillStyle = "#64748b";
+  ctx.font = "bold 11px Arial";
+  ctx.fillText("CUMPLIMIENTO GLOBAL", sx, y + 20);
+  ctx.fillStyle = "#64748b";
+  ctx.font = "13px Arial";
+  ctx.fillText(`Meta ${META_OBJETIVO}%`, sx, y + 40);
+  ctx.fillStyle = cumplColor;
+  ctx.font = "bold 13px Arial";
+  ctx.fillText(`Brecha ${dp.cumplimiento - META_OBJETIVO} pts`, sx, y + 60);
+
+  const col = (x, label, big, bigColor, sub) => {
+    ctx.strokeStyle = "#e2e8f0";
+    ctx.beginPath();
+    ctx.moveTo(x - 18, y + 18);
+    ctx.lineTo(x - 18, y + 82);
+    ctx.stroke();
+    ctx.fillStyle = "#64748b";
+    ctx.font = "bold 11px Arial";
+    ctx.fillText(label, x, y + 20);
+    ctx.fillStyle = bigColor;
+    ctx.font = "900 20px Arial";
+    ctx.fillText(big, x, y + 40);
+    ctx.fillStyle = "#64748b";
+    ctx.font = "12px Arial";
+    ctx.fillText(sub, x, y + 66);
+  };
+  col(360, "POSICIÓN GENERAL", `${dp.posicion ?? "-"} / ${dp.total || "-"}`, "#0f2744", dp.percentil != null ? `Percentil ${dp.percentil}` : "");
+  col(560, "ESTADO", `${dp.criticos} crítico`, dp.criticos ? "#dc2626" : "#16a34a", `${dp.advertencias} en advertencia`);
+  col(740, "PENDIENTES", `${dp.pendientesTotal}`, "#d97706", "reportes sin ejecutar");
+
+  y += 100;
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "bold 11px Arial";
+  ctx.fillText("INDICADORES ORDENADOS POR SEVERIDAD", pad, y + 12);
+  y += 34;
+
+  inds.forEach((ind, ii) => {
+    const d = derivarIndicador(ind);
+    const acc = ind.estado === "critical" ? "#dc2626" : ind.estado === "warning" ? "#d97706" : "#16a34a";
+    ctx.fillStyle = acc;
+    ctx.fillRect(0, y, 4, indH[ii]);
+    ctx.fillStyle = acc;
+    ctx.font = "900 26px Arial";
+    ctx.fillText(`${d.pct}%`, pad, y + 8);
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "bold 9px Arial";
+    ctx.fillText("CUMPLE", pad, y + 38);
+
+    const nx = pad + 78;
+    ctx.fillStyle = "#0f2744";
+    ctx.font = "900 16px Arial";
+    ctx.fillText(String(ind.indicator_name).toUpperCase(), nx, y + 8);
+    const nameW = ctx.measureText(String(ind.indicator_name).toUpperCase()).width;
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "12px Arial";
+    ctx.fillText(`  ${ind.indicator_code} · ${ind.proceso}`, nx + nameW + 6, y + 11);
+    if (ind.ranking) {
+      ctx.textAlign = "right";
+      ctx.fillStyle = "#0f2744";
+      ctx.font = "900 18px Arial";
+      ctx.fillText(`#${ind.ranking}`, W - pad, y + 6);
+      ctx.fillStyle = "#64748b";
+      ctx.font = "11px Arial";
+      ctx.fillText(`de ${ind.ranking_total}`, W - pad, y + 28);
+      ctx.textAlign = "left";
+    }
+    const linea = d.evaluadas.length
+      ? `${d.completos} de ${d.evaluadas.length} componentes al 100%${d.faltan.length ? ` · falta ${String(d.faltan[0].name).toLowerCase()}` : ""}${ind.invalid ? ` · ${ind.invalid} reporte invalidado` : ""}`
+      : `Acumulado ${ind.accumulated} de meta ${ind.meta}${ind.invalid ? ` · ${ind.invalid} reporte invalidado` : ""}`;
+    ctx.fillStyle = "#64748b";
+    ctx.font = "12px Arial";
+    ctx.fillText(linea, nx, y + 34);
+
+    let ry = y + 54;
+    const barX = nx + 92, barW = 400;
+    filasDe(ind).forEach((c) => {
+      const M = Number(c.meta) || 0, V = Number(c.value) || 0, filled = Math.min(V, M);
+      ctx.fillStyle = "#334155";
+      ctx.font = "bold 13px Arial";
+      ctx.fillText(c.name, nx, ry + 1);
+      if (M > 0 && M <= 24) {
+        const gap = 3, seg = (barW - (M - 1) * gap) / M;
+        for (let k = 0; k < M; k++) {
+          ctx.fillStyle = k < filled ? "#16a34a" : "#e5e7eb";
+          rrect(ctx, barX + k * (seg + gap), ry, seg, 14, 3);
+          ctx.fill();
+        }
+      } else {
+        ctx.fillStyle = "#e5e7eb";
+        rrect(ctx, barX, ry, barW, 14, 4);
+        ctx.fill();
+        ctx.fillStyle = "#16a34a";
+        rrect(ctx, barX, ry, barW * (M > 0 ? Math.min(1, V / M) : 0), 14, 4);
+        ctx.fill();
+      }
+      const excede = Math.max(0, V - M);
+      let numX = barX + barW + 70;
+      if (excede > 0) {
+        ctx.font = "bold 11px Arial";
+        const t = `+${excede} sobre meta`;
+        const w = ctx.measureText(t).width + 16;
+        ctx.fillStyle = "#dcfce7";
+        rrect(ctx, barX + barW + 10, ry - 1, w, 17, 6);
+        ctx.fill();
+        ctx.fillStyle = "#166534";
+        ctx.fillText(t, barX + barW + 18, ry + 1);
+        numX = barX + barW + 20 + w + 40;
+      }
+      ctx.fillStyle = V >= M ? "#16a34a" : acc;
+      ctx.font = "900 13px Arial";
+      ctx.textAlign = "right";
+      ctx.fillText(`${V} / ${M}`, numX, ry + 1);
+      ctx.textAlign = "left";
+      ry += 26;
+    });
+
+    if (ind.invalid > 0) {
+      ctx.fillStyle = "#6d28d9";
+      ctx.font = "bold 13px Arial";
+      ctx.fillText("Invalidados", nx, ry + 1);
+      const segN = Math.min(ind.invalid, 24), gap = 3, seg = (barW - (segN - 1) * gap) / segN;
+      for (let k = 0; k < segN; k++) {
+        ctx.fillStyle = "#8b5cf6";
+        rrect(ctx, barX + k * (seg + gap), ry, seg, 14, 3);
+        ctx.fill();
+      }
+      ctx.fillStyle = "#7c3aed";
+      ctx.font = "900 13px Arial";
+      ctx.textAlign = "right";
+      ctx.fillText(`${ind.invalid}`, barX + barW + 70, ry + 1);
+      ctx.textAlign = "left";
+      ry += 26;
+    }
+
+    let bx = nx;
+    const badge = (text, bg, fg) => {
+      ctx.font = "bold 12px Arial";
+      const w = ctx.measureText(text).width + 18;
+      ctx.fillStyle = bg;
+      rrect(ctx, bx, ry, w, 22, 7);
+      ctx.fill();
+      ctx.fillStyle = fg;
+      ctx.fillText(text, bx + 9, ry + 5);
+      bx += w + 8;
+    };
+    if (d.pendientes > 0) badge(`${d.pendientes} reporte(s) pendiente(s)`, "#fee2e2", "#b91c1c");
+    if (d.evaluadas.length > 1 && d.completos > 0) badge(`${d.completos} ítems completos`, "#dcfce7", "#166534");
+    if (ind.invalid > 0) badge("Revisar invalidación", "#ede9fe", "#6d28d9");
+
+    y += indH[ii];
+    ctx.strokeStyle = "#eef2f7";
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  });
+
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "11px Arial";
+  ctx.fillText("Reporte generado por INOVA · ETO Indicadores", pad, y + 16);
+  ctx.textAlign = "right";
+  ctx.fillText(`Generado ${new Date().toLocaleDateString("es-CO")} · Periodo ${String(month).padStart(2, "0")}/${year}`, W - pad, y + 16);
+  ctx.textAlign = "left";
+
+  return cv;
+}
+
 function derivarPersona(p) {
   const inds = p.indicadores || [];
   const dv = inds.map(derivarIndicador);
@@ -150,35 +411,27 @@ export default function ConsultaPersonaView() {
     flashCopy._t = window.setTimeout(() => setCopyMsg(""), 2600);
   };
 
-  // Genera la imagen del reporte como Blob.
-  const generarBlobReporte = async (entityId) => {
-    const el = document.getElementById(`c360-rep-${entityId}`);
-    if (!el) throw new Error("No se encontró el reporte.");
-    const html2canvas = (await import("html2canvas")).default;
-    const canvas = await html2canvas(el, {
-      backgroundColor: "#ffffff",
-      scale: 2,
-      useCORS: true,
-    });
-    return await new Promise((res) => canvas.toBlob((b) => res(b), "image/png"));
-  };
+  // Genera la imagen del reporte como Blob (dibujada a mano, nítida).
+  const generarBlobReporte = (p) =>
+    new Promise((res) =>
+      buildReporteCanvas(p, month, year).toBlob((b) => res(b), "image/png")
+    );
 
   // Copia la captura del reporte al portapapeles. Se pasa una PROMESA<Blob>
   // al ClipboardItem y se llama write DENTRO del clic (conserva el gesto),
   // que es la forma que funciona con imágenes generadas async en Chrome.
-  const copiarReporte = (entityId) => {
+  const copiarReporte = (p) => {
     setCopyMsg("Copiando…");
     try {
       const item = new window.ClipboardItem({
-        "image/png": generarBlobReporte(entityId),
+        "image/png": generarBlobReporte(p),
       });
       navigator.clipboard
         .write([item])
         .then(() => flashCopy("✓ Reporte copiado · pégalo con Ctrl+V"))
         .catch(async () => {
-          // Reintento con el blob ya resuelto.
           try {
-            const blob = await generarBlobReporte(entityId);
+            const blob = await generarBlobReporte(p);
             await navigator.clipboard.write([
               new window.ClipboardItem({ "image/png": blob }),
             ]);
@@ -188,8 +441,7 @@ export default function ConsultaPersonaView() {
           }
         });
     } catch {
-      // Navegadores sin ClipboardItem con promesa: intento directo.
-      generarBlobReporte(entityId)
+      generarBlobReporte(p)
         .then(async (blob) => {
           await navigator.clipboard.write([
             new window.ClipboardItem({ "image/png": blob }),
@@ -414,7 +666,7 @@ export default function ConsultaPersonaView() {
                 <button
                   type="button"
                   data-html2canvas-ignore="true"
-                  onClick={() => copiarReporte(p.entity_id)}
+                  onClick={() => copiarReporte(p)}
                   style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,.1)", color: "#d1fae5", border: "1px solid rgba(255,255,255,.2)", borderRadius: 8, padding: "8px 12px", fontWeight: 800, fontSize: 12, cursor: "pointer" }}
                 >
                   <Copy size={15} /> Copiar
