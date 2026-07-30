@@ -1,5 +1,6 @@
 import {
   deleteById,
+  deleteWhere,
   empresaId,
   insertRow,
   selectAllRows,
@@ -567,6 +568,22 @@ export function crearMovimientosBulk(payload) {
   }
 
   return Promise.reject(new Error("No se pudo guardar el movimiento."));
+}
+
+// Borra los movimientos y rótulos de un recibo (por su serial = codigo_cita).
+// Sirve para REESCRIBIR una corrección sin duplicar.
+export async function borrarRecetaPorSerial(serial) {
+  const s = String(serial || "").trim();
+  if (!supabaseEnabled || !s) return { ok: false };
+  await deleteWhere("wms", "movimientos", {
+    empresa_id: `eq.${empresaId}`,
+    codigo_cita: `eq.${s}`,
+  });
+  await deleteWhere("wms", "rotulos", {
+    empresa_id: `eq.${empresaId}`,
+    codigo_cita: `eq.${s}`,
+  });
+  return { ok: true };
 }
 
 export function getMovimientos() {

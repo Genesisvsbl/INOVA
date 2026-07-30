@@ -8,6 +8,7 @@ import {
   getUbicaciones,
   guardarCertificadosCalidad,
   sugerirUbicaciones,
+  borrarRecetaPorSerial,
 } from "../../api";
 import {
   ArrowLeft,
@@ -2116,6 +2117,13 @@ export default function DesdeRecibo() {
     setGuardando(true);
 
     try {
+      // Si el recibo (serial) ya existía, borramos sus movimientos y rótulos
+      // ANTES de reescribir, para que una corrección no duplique.
+      const serialActual = String(draft?.header?.serial || "").trim();
+      if (serialActual) {
+        await borrarRecetaPorSerial(serialActual);
+      }
+
       for (const nov of novedadesPNC) {
         await crearMovimientoPnc(nov);
       }
@@ -2207,6 +2215,13 @@ export default function DesdeRecibo() {
     setGuardando(true);
 
     try {
+      // Si el recibo (serial) ya existía, borramos sus movimientos y rótulos
+      // ANTES de reescribir, para que una corrección no duplique.
+      const serialActual = String(draft?.header?.serial || "").trim();
+      if (serialActual) {
+        await borrarRecetaPorSerial(serialActual);
+      }
+
       for (const nov of novedadesPNC) {
         await crearMovimientoPnc(nov);
       }
