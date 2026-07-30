@@ -760,6 +760,39 @@ async function consultaPersonaSupabase(params) {
         });
       }
 
+      // Ranking: puesto de la persona entre todas las entidades del indicador.
+      let ranking = null;
+      let rankingTotal = 0;
+      try {
+        const allRecs = await supabaseRows("entity_records", {
+          select: "entity_id,dimension,value",
+          indicator_id: `eq.${t.indicator_id}`,
+          ...filterDateParams(params),
+        });
+        const accPorEnt = {};
+        for (const r of allRecs) {
+          const eid = Number(r.entity_id);
+          const d = String(r.dimension || "");
+          if (d.startsWith("Invalido")) continue;
+          if (dims.length && !dims.includes(d)) continue;
+          accPorEnt[eid] = (accPorEnt[eid] || 0) + Number(r.value || 0);
+        }
+        const allTargets = await supabaseRows("entity_indicator_targets", {
+          select: "entity_id",
+          indicator_id: `eq.${t.indicator_id}`,
+        });
+        const lista = allTargets.map((tt) => ({
+          eid: Number(tt.entity_id),
+          acc: accPorEnt[Number(tt.entity_id)] || 0,
+        }));
+        lista.sort((a, b) => b.acc - a.acc);
+        rankingTotal = lista.length;
+        const pos = lista.findIndex((x) => x.eid === Number(ent.id));
+        ranking = pos >= 0 ? pos + 1 : null;
+      } catch {
+        /* ignore */
+      }
+
       indicadores.push({
         indicator_id: ind.id,
         indicator_code: ind.code,
@@ -772,6 +805,8 @@ async function consultaPersonaSupabase(params) {
         estado,
         condiciones,
         serie,
+        ranking,
+        ranking_total: rankingTotal,
       });
     }
 
