@@ -144,33 +144,59 @@ export default function ConsultaPersonaView() {
     }
   };
 
-  const copiarReporte = async (entityId) => {
+  const flashCopy = (t) => {
+    setCopyMsg(t);
+    window.clearTimeout(flashCopy._t);
+    flashCopy._t = window.setTimeout(() => setCopyMsg(""), 2600);
+  };
+
+  // Genera la imagen del reporte como Blob.
+  const generarBlobReporte = async (entityId) => {
     const el = document.getElementById(`c360-rep-${entityId}`);
-    if (!el) return;
+    if (!el) throw new Error("No se encontró el reporte.");
+    const html2canvas = (await import("html2canvas")).default;
+    const canvas = await html2canvas(el, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      useCORS: true,
+    });
+    return await new Promise((res) => canvas.toBlob((b) => res(b), "image/png"));
+  };
+
+  // Copia la captura del reporte al portapapeles. Se pasa una PROMESA<Blob>
+  // al ClipboardItem y se llama write DENTRO del clic (conserva el gesto),
+  // que es la forma que funciona con imágenes generadas async en Chrome.
+  const copiarReporte = (entityId) => {
+    setCopyMsg("Copiando…");
     try {
-      const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(el, {
-        backgroundColor: "#ffffff",
-        scale: 2,
-        useCORS: true,
+      const item = new window.ClipboardItem({
+        "image/png": generarBlobReporte(entityId),
       });
-      canvas.toBlob(async (blob) => {
-        if (!blob) return;
-        try {
-          if (window.focus) window.focus();
+      navigator.clipboard
+        .write([item])
+        .then(() => flashCopy("✓ Reporte copiado · pégalo con Ctrl+V"))
+        .catch(async () => {
+          // Reintento con el blob ya resuelto.
+          try {
+            const blob = await generarBlobReporte(entityId);
+            await navigator.clipboard.write([
+              new window.ClipboardItem({ "image/png": blob }),
+            ]);
+            flashCopy("✓ Reporte copiado · pégalo con Ctrl+V");
+          } catch {
+            flashCopy("No se pudo copiar. Haz clic en Copiar de nuevo.");
+          }
+        });
+    } catch {
+      // Navegadores sin ClipboardItem con promesa: intento directo.
+      generarBlobReporte(entityId)
+        .then(async (blob) => {
           await navigator.clipboard.write([
             new window.ClipboardItem({ "image/png": blob }),
           ]);
-        } catch {
-          // El portapapeles a veces reporta error aunque SÍ copió; no molestamos
-          // con un diálogo. Mostramos un aviso suave.
-        }
-        setCopyMsg("✓ Reporte copiado · pégalo con Ctrl+V");
-        window.clearTimeout(copiarReporte._t);
-        copiarReporte._t = window.setTimeout(() => setCopyMsg(""), 2500);
-      }, "image/png");
-    } catch (e) {
-      setError("No se pudo copiar: " + (e?.message || e));
+          flashCopy("✓ Reporte copiado · pégalo con Ctrl+V");
+        })
+        .catch(() => flashCopy("No se pudo copiar. Intenta de nuevo."));
     }
   };
 
