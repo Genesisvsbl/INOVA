@@ -1615,11 +1615,50 @@ export default function Recibo() {
   };
 
   const buildReciboRowsHtml = () => {
-    return lineas
-      .map((ln, idx) => {
-        const serial = serialItem(header.serial, idx);
+    // ¿Hay códigos distintos? Solo entonces mostramos subtotales por código.
+    const codigosDistintos = new Set(
+      lineas.map((l) => String(l.codigo || "").trim()).filter(Boolean)
+    ).size;
+    const conSubtotal = codigosDistintos > 1;
 
-        return `
+    let html = "";
+    let grpCodigo = null;
+    let grpCant = 0;
+    let grpTotal = 0;
+    let grpCount = 0;
+
+    const flush = () => {
+      if (conSubtotal && grpCount > 0) {
+        html += `
+          <tr class="subtotal-row">
+            <td colspan="8" style="text-align:right; font-weight:900; border-top:2px solid #0f2744; background:#eef2f7;">
+              Subtotal ${escapeHtml(grpCodigo || "")}:
+            </td>
+            <td style="text-align:right; font-weight:900; border-top:2px solid #0f2744; background:#eef2f7;">${escapeHtml(
+              formatMoney(grpCant)
+            )}</td>
+            <td style="text-align:right; font-weight:900; border-top:2px solid #0f2744; background:#eef2f7;">${escapeHtml(
+              formatMoney(grpTotal)
+            )}</td>
+            <td colspan="3" style="border-top:2px solid #0f2744; background:#eef2f7;"></td>
+          </tr>
+        `;
+      }
+      grpCant = 0;
+      grpTotal = 0;
+      grpCount = 0;
+    };
+
+    lineas.forEach((ln, idx) => {
+      const cod = String(ln.codigo || "").trim();
+      if (grpCodigo !== null && cod !== grpCodigo) flush();
+      grpCodigo = cod;
+      grpCant += Number(ln.cantidad) || 0;
+      grpTotal += Number(ln.total) || 0;
+      grpCount += 1;
+
+      const serial = serialItem(header.serial, idx);
+      html += `
           <tr>
             <td>${idx + 1}</td>
             <td>${escapeHtml(serial)}</td>
@@ -1630,16 +1669,15 @@ export default function Recibo() {
             <td style="text-align:right;">${escapeHtml(ln.umb)}</td>
             <td>${escapeHtml(ln.um)}</td>
             <td style="text-align:right;">${escapeHtml(ln.cantidad)}</td>
-            <td style="text-align:right;">${escapeHtml(
-              formatMoney(ln.total || 0)
-            )}</td>
+            <td style="text-align:right;">${escapeHtml(formatMoney(ln.total || 0))}</td>
             <td>${escapeHtml(ln.lote_proveedor)}</td>
             <td>${escapeHtml(formatDateDisplay(ln.fecha_fabricacion))}</td>
             <td>${escapeHtml(formatDateDisplay(ln.fecha_vencimiento))}</td>
           </tr>
         `;
-      })
-      .join("");
+    });
+    flush();
+    return html;
   };
 
   const buildRangosVencimiento = () => {
