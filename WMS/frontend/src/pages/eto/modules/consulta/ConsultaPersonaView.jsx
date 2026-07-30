@@ -355,6 +355,14 @@ const css = `
 .c360-pulse{ position:absolute; inset:0; margin:auto; width:20px; height:20px; border:2px solid #34d399; border-radius:50%; animation:c360-pulse 3s ease-out infinite; opacity:0; }
 .c360-sweep{ position:absolute; inset:0; border-radius:50%; background:conic-gradient(from 0deg,rgba(52,211,153,.6),rgba(52,211,153,0) 60deg,transparent); animation:c360-spin 3s linear infinite; }
 .c360-blip{ position:absolute; width:8px; height:8px; border-radius:50%; background:#6ee7b7; box-shadow:0 0 12px #34d399; animation:c360-blip 3s linear infinite; opacity:0; }
+@keyframes c360-flow { to { stroke-dashoffset:-620; } }
+.c360-flow{ fill:none; stroke-width:2.6; stroke-linecap:round; stroke-dasharray:80 540; animation:c360-flow 3.8s linear infinite; }
+@keyframes c360-halo { 0%{transform:scale(1);opacity:.7} 70%{opacity:0} 100%{transform:scale(2.4);opacity:0} }
+.c360-lupa{ position:relative; display:grid; place-items:center; width:34px; height:34px; border-radius:50%;
+  background:rgba(52,211,153,.15); box-shadow:0 0 16px rgba(52,211,153,.5); }
+.c360-lupa::before, .c360-lupa::after{ content:""; position:absolute; border-radius:50%; border:2px solid #34d399; }
+.c360-lupa::before{ inset:-4px; animation:c360-halo 2.4s ease-out infinite; }
+.c360-lupa::after{ inset:-4px; animation:c360-halo 2.4s ease-out infinite 1.2s; }
 .c360-grain{ position:absolute; inset:0; opacity:.07; mix-blend-mode:overlay;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"); }
 .c360-vig{ position:absolute; inset:0; box-shadow:inset 0 0 180px 50px rgba(0,0,0,.5); }
@@ -374,7 +382,7 @@ export default function ConsultaPersonaView() {
 
   const stars = useMemo(
     () =>
-      Array.from({ length: 70 }, () => ({
+      Array.from({ length: 18 }, () => ({
         size: Math.random() < 0.8 ? 1.4 : 2.4,
         left: Math.random() * 100,
         top: Math.random() * 100,
@@ -563,6 +571,32 @@ export default function ConsultaPersonaView() {
 
         <div className="c360-shoot" style={{ left: "-10%" }} />
 
+        {/* Línea de energía: sale del buscador (izq) y llega al radar (der) */}
+        {expandido && (
+          <svg
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 2, pointerEvents: "none" }}
+            viewBox="0 0 1600 600"
+            preserveAspectRatio="none"
+          >
+            <defs>
+              <filter id="c360glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="5" result="b" />
+                <feMerge>
+                  <feMergeNode in="b" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <linearGradient id="c360ga" x1="0" x2="1">
+                <stop offset="0" stopColor="#10b981" stopOpacity="0" />
+                <stop offset="0.5" stopColor="#34d399" />
+                <stop offset="1" stopColor="#a7f3d0" />
+              </linearGradient>
+            </defs>
+            <path className="c360-flow" style={{ stroke: "url(#c360ga)", filter: "url(#c360glow)" }} d="M250,430 C650,330 950,470 1350,300" />
+            <path className="c360-flow" style={{ stroke: "url(#c360ga)", filter: "url(#c360glow)", animationDuration: "5.2s", opacity: 0.6 }} d="M250,470 C680,380 980,520 1350,300" />
+          </svg>
+        )}
+
         <div
           className="c360-radar"
           style={{
@@ -599,8 +633,10 @@ export default function ConsultaPersonaView() {
           </p>
 
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "1 1 300px", background: "rgba(255,255,255,.08)", border: "1px solid rgba(110,231,183,.32)", borderRadius: 14, padding: "12px 15px", backdropFilter: "blur(10px)" }}>
-              <Search size={20} color="#6ee7b7" />
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "1 1 300px", background: "rgba(255,255,255,.08)", border: "1px solid rgba(110,231,183,.4)", borderRadius: 14, padding: "10px 15px", backdropFilter: "blur(10px)", boxShadow: "0 0 0 1px rgba(52,211,153,.15), 0 0 30px rgba(16,185,129,.25)" }}>
+              <span className="c360-lupa">
+                <Search size={18} color="#6ee7b7" />
+              </span>
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
