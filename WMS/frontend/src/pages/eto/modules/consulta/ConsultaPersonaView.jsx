@@ -25,6 +25,9 @@ const css = `
 @keyframes c360-spin { to{transform:rotate(360deg)} }
 @keyframes c360-pulse { 0%{width:20px;height:20px;opacity:.9} 100%{width:260px;height:260px;opacity:0} }
 @keyframes c360-blip { 0%,100%{opacity:0;transform:scale(.6)} 8%{opacity:1;transform:scale(1)} 45%{opacity:.15} }
+@keyframes c360-bounce { 0%,100%{transform:translateY(0);opacity:.35} 50%{transform:translateY(-7px);opacity:1} }
+@keyframes c360-scanline { 0%{top:0} 100%{top:100%} }
+.c360-overlay{ position:fixed; inset:0; z-index:9999; background:rgba(2,18,14,.80); backdrop-filter:blur(6px); display:grid; place-items:center; animation:c360-fadeUp .3s ease both; }
 
 .c360-card { animation: c360-fadeUp .55s cubic-bezier(.2,.8,.2,1) both; }
 .c360-ind  { animation: c360-fadeUp .5s cubic-bezier(.2,.8,.2,1) both; }
@@ -62,6 +65,7 @@ export default function ConsultaPersonaView() {
   const [personas, setPersonas] = useState([]);
   const [buscado, setBuscado] = useState(false);
   const [error, setError] = useState("");
+  const [expandido, setExpandido] = useState(true);
 
   const stars = useMemo(
     () =>
@@ -83,6 +87,7 @@ export default function ConsultaPersonaView() {
     }
     setLoading(true);
     setError("");
+    setExpandido(false);
     try {
       const res = await API.consultaPersona({ q: query, year, month });
       setPersonas(res?.personas || []);
@@ -99,8 +104,67 @@ export default function ConsultaPersonaView() {
     <section style={{ padding: 20, maxWidth: 1150, margin: "0 auto" }}>
       <style>{css}</style>
 
+      {loading && (
+        <div className="c360-overlay">
+          <div style={{ textAlign: "center" }}>
+            <div
+              style={{
+                position: "relative",
+                width: 170,
+                height: 170,
+                margin: "0 auto 22px",
+                borderRadius: "50%",
+                overflow: "hidden",
+                background: "radial-gradient(circle,rgba(16,185,129,.16),transparent 70%)",
+                boxShadow: "0 0 70px rgba(16,185,129,.4),inset 0 0 44px rgba(16,185,129,.22)",
+              }}
+            >
+              <div className="c360-ring" style={{ width: 54, height: 54 }} />
+              <div className="c360-ring" style={{ width: 108, height: 108 }} />
+              <div className="c360-ring" style={{ width: 162, height: 162 }} />
+              <div className="c360-sweep" />
+              <div className="c360-pulse" />
+              <div className="c360-pulse" style={{ animationDelay: "1.5s" }} />
+            </div>
+            <div style={{ color: "#ecfdf5", fontWeight: 950, fontSize: 22, textShadow: "0 0 18px rgba(16,185,129,.5)" }}>
+              Escaneando indicadores…
+            </div>
+            <div style={{ color: "#a7f3d0", marginTop: 8, fontSize: 14 }}>
+              Cargando tu información, espera un momento
+            </div>
+            <div style={{ marginTop: 16, display: "flex", gap: 7, justifyContent: "center" }}>
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  style={{
+                    width: 9,
+                    height: 9,
+                    borderRadius: "50%",
+                    background: "#34d399",
+                    boxShadow: "0 0 10px #34d399",
+                    animation: "c360-bounce 1s ease-in-out infinite",
+                    animationDelay: `${i * 0.15}s`,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* HERO galáctico + radar */}
-      <div className="c360-hero" style={{ padding: "32px 34px" }}>
+      <div
+        className="c360-hero"
+        style={{
+          padding: expandido ? "9vh 34px" : "28px 34px",
+          minHeight: expandido ? "76vh" : 0,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          transition:
+            "min-height .75s cubic-bezier(.2,.85,.2,1), padding .75s cubic-bezier(.2,.85,.2,1)",
+        }}
+      >
         <div className="c360-neb" style={{ width: 600, height: 520, top: -160, left: -120, background: "radial-gradient(circle,#16a34a,transparent 65%)", opacity: 0.55, animation: "c360-drift1 34s ease-in-out infinite" }} />
         <div className="c360-neb" style={{ width: 560, height: 520, bottom: -200, right: -140, background: "radial-gradient(circle,#0d9488,transparent 65%)", opacity: 0.45, animation: "c360-drift2 42s ease-in-out infinite" }} />
         <div className="c360-neb" style={{ width: 360, height: 340, top: 120, left: "38%", background: "radial-gradient(circle,#4ade80,transparent 62%)", opacity: 0.3, animation: "c360-drift3 30s ease-in-out infinite" }} />
@@ -115,7 +179,14 @@ export default function ConsultaPersonaView() {
 
         <div className="c360-shoot" style={{ left: "-10%" }} />
 
-        <div className="c360-radar">
+        <div
+          className="c360-radar"
+          style={{
+            transform: expandido ? "translateY(-50%) scale(1.55)" : "translateY(-50%) scale(1)",
+            right: expandido ? 120 : 70,
+            transition: "transform .75s cubic-bezier(.2,.85,.2,1), right .75s ease",
+          }}
+        >
           <div className="c360-ring" style={{ width: 64, height: 64 }} />
           <div className="c360-ring" style={{ width: 140, height: 140 }} />
           <div className="c360-ring" style={{ width: 216, height: 216 }} />
@@ -136,7 +207,7 @@ export default function ConsultaPersonaView() {
           <div style={{ color: "#6ee7b7", fontWeight: 900, letterSpacing: ".15em", fontSize: 11, textShadow: "0 0 12px rgba(110,231,183,.5)" }}>
             CONSULTA 360
           </div>
-          <h2 style={{ margin: "6px 0 12px", color: "#ecfdf5", fontSize: 31, fontWeight: 950, textShadow: "0 2px 30px rgba(0,0,0,.6)" }}>
+          <h2 style={{ margin: "6px 0 12px", color: "#ecfdf5", fontSize: expandido ? 48 : 31, fontWeight: 950, textShadow: "0 2px 30px rgba(0,0,0,.6)", transition: "font-size .6s ease" }}>
             ¿Cómo va una persona?
           </h2>
           <p style={{ margin: "0 0 16px", color: "#a7f3d0", fontSize: 13, opacity: 0.88 }}>
