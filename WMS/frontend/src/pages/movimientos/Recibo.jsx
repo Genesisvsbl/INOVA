@@ -6,6 +6,7 @@ import {
   getProveedores,
   buscarReciboGuardado,
   corregirTrazabilidadPorSerial,
+  crearMaterial,
 } from "../../api";
 import {
   Inbox,
@@ -613,6 +614,8 @@ export default function Recibo() {
   const hidratandoRef = useRef(false);
   const [facturadoOpen, setFacturadoOpen] = useState(false);
   const [facturado, setFacturado] = useState([{ codigo: "", expr: "" }]);
+  const [skuNuevo, setSkuNuevo] = useState(null); // { idx, form } | null
+  const [skuGuardando, setSkuGuardando] = useState(false);
 
   const proveedorEsAmcor = useMemo(
     () => isAmcorProveedor(header.proveedor),
@@ -1176,6 +1179,101 @@ export default function Recibo() {
       fecha_vencimiento: fechaVencimiento,
       total: recomputeTotal(umbFinal, lineas[idx]?.cantidad),
     });
+  };
+
+  // Si el código no existe en materiales, abre el toolbox para crearlo.
+  const onCodigoBlur = (idx, codigo) => {
+    const code = String(codigo || "").trim();
+    if (!code) return;
+    const existe = materiales.some((m) => String(m.codigo) === code);
+    if (existe) return;
+    if (skuNuevo) return;
+    setSkuNuevo({
+      idx,
+      form: {
+        codigo: code,
+        descripcion: "",
+        unidad: "1",
+        unidad_medida: "",
+        familia: "",
+        empaque: "",
+        vigencia_meses: "",
+      },
+    });
+  };
+
+  const setSkuForm = (campo, valor) =>
+    setSkuNuevo((prev) =>
+      prev ? { ...prev, form: { ...prev.form, [campo]: valor } } : prev
+    );
+
+  const guardarSkuNuevo = async () => {
+    if (!skuNuevo) return;
+    const f = skuNuevo.form;
+    if (!f.codigo.trim() || !f.descripcion.trim() || !f.unidad_medida.trim()) {
+      showWmsAlert("Código, descripción y unidad de medida son obligatorios.");
+      return;
+    }
+    const unidadNum = parseFloat(String(f.unidad).replace(",", "."));
+    if (Number.isNaN(unidadNum)) {
+      showWmsAlert("La unidad debe ser numérica.");
+      return;
+    }
+    setSkuGuardando(true);
+    try {
+      const vig = String(f.vigencia_meses).trim();
+      const nuevo = await crearMaterial({
+        codigo: f.codigo.trim(),
+        descripcion: f.descripcion.trim(),
+        unidad: unidadNum,
+        unidad_medida: f.unidad_medida.trim(),
+        familia: f.familia.trim(),
+        empaque: f.empaque.trim() || null,
+        vigencia_meses: vig === "" ? null : Number(vig),
+      });
+      // Refresca el catálogo en memoria y auto-completa la línea.
+      const creado = Array.isArray(nuevo) ? nuevo[0] : nuevo;
+      const matNuevo = creado || {
+        codigo: f.codigo.trim(),
+        descripcion: f.descripcion.trim(),
+        unidad: unidadNum,
+        unidad_medida: f.unidad_medida.trim(),
+        familia: f.familia.trim(),
+        empaque: f.empaque.trim() || "",
+        vigencia_meses: vig === "" ? null : Number(vig),
+      };
+      setMateriales((prev) => [...prev, matNuevo]);
+      const targetIdx = skuNuevo.idx;
+      setSkuNuevo(null);
+      // Autocompleta la línea directamente con el material recién creado.
+      const unidadMat = matNuevo.unidad ?? unidadNum;
+      const bloquear = Number.isFinite(Number(unidadMat)) && Number(unidadMat) > 1;
+      const umbFinal = bloquear ? String(Number(unidadMat)) : "";
+      const vigMeses = getVigenciaMeses(matNuevo);
+      const tieneVig = Number.isFinite(Number(vigMeses)) && Number(vigMeses) > 0;
+      const lact = lineas[targetIdx] || {};
+      const fv = tieneVig
+        ? calcularFVPorVigencia(lact.fecha_fabricacion, lact.fecha_recepcion, vigMeses)
+        : "";
+      setLinea(targetIdx, {
+        codigo: f.codigo.trim(),
+        descripcion: matNuevo.descripcion || "",
+        empaque: getEmpaqueMaterial(matNuevo),
+        unidad_material: unidadMat,
+        umb: umbFinal,
+        umb_bloqueado: bloquear,
+        um: matNuevo.unidad_medida || "",
+        vigencia_meses: tieneVig ? Number(vigMeses) : null,
+        fv_automatica: tieneVig && !!fv,
+        fecha_vencimiento: fv,
+        total: recomputeTotal(umbFinal, lact.cantidad),
+      });
+      showWmsAlert("Material creado y agregado al recibo.");
+    } catch (e) {
+      showWmsAlert("No se pudo crear el material: " + (e?.message || e));
+    } finally {
+      setSkuGuardando(false);
+    }
   };
 
   const onUmbChange = (idx, value) => {
@@ -3774,6 +3872,7 @@ export default function Recibo() {
                           list="materialesList"
                           value={ln.codigo}
                           onChange={(e) => onCodigoChange(idx, e.target.value)}
+                          onBlur={(e) => onCodigoBlur(idx, e.target.value)}
                           placeholder="Código"
                           style={detailInputStyle}
                         />
@@ -4146,6 +4245,135 @@ export default function Recibo() {
                   </option>
                 ))}
               </datalist>
+
+              {skuNuevo && (
+                <div
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    zIndex: 90,
+                    background: "rgba(15,23,42,.45)",
+                    display: "grid",
+                    placeItems: "center",
+                    padding: 20,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "min(560px, calc(100vw - 32px))",
+                      borderRadius: 16,
+                      background: "#fff",
+                      border: `1px solid ${colors.border}`,
+                      boxShadow: "0 28px 70px rgba(15,23,42,.28)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: "16px 18px",
+                        borderBottom: `1px solid ${colors.border}`,
+                      }}
+                    >
+                      <div style={{ fontWeight: 900, color: colors.navy, fontSize: 16 }}>
+                        SKU nuevo — no está en materiales
+                      </div>
+                      <div style={{ color: colors.muted, fontSize: 12 }}>
+                        Completa la info y se guarda en la base de materiales de una.
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        padding: 18,
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: 12,
+                      }}
+                    >
+                      {[
+                        { k: "codigo", label: "Código", ph: "" },
+                        { k: "descripcion", label: "Descripción *", ph: "Nombre del material" },
+                        { k: "unidad", label: "Unidad (número)", ph: "Ej: 1", type: "number" },
+                        { k: "unidad_medida", label: "Unidad de medida *", ph: "Ej: UN, KG" },
+                        { k: "familia", label: "Familia", ph: "Familia" },
+                        { k: "vigencia_meses", label: "Vida útil (meses)", ph: "Ej: 24", type: "number" },
+                      ].map((f) => (
+                        <div key={f.k} style={{ gridColumn: f.k === "descripcion" ? "1 / -1" : "auto" }}>
+                          <div style={{ fontSize: 11, fontWeight: 800, color: colors.muted, marginBottom: 4 }}>
+                            {f.label}
+                          </div>
+                          <input
+                            type={f.type || "text"}
+                            value={skuNuevo.form[f.k]}
+                            onChange={(e) => setSkuForm(f.k, e.target.value)}
+                            placeholder={f.ph}
+                            style={{
+                              width: "100%",
+                              padding: "8px 10px",
+                              borderRadius: 8,
+                              border: `1px solid ${colors.border}`,
+                              fontSize: 13,
+                            }}
+                          />
+                        </div>
+                      ))}
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 800, color: colors.muted, marginBottom: 4 }}>
+                          Empaque
+                        </div>
+                        <select
+                          value={skuNuevo.form.empaque}
+                          onChange={(e) => setSkuForm("empaque", e.target.value)}
+                          style={{
+                            width: "100%",
+                            padding: "8px 10px",
+                            borderRadius: 8,
+                            border: `1px solid ${colors.border}`,
+                            fontSize: 13,
+                          }}
+                        >
+                          <option value="">Seleccione…</option>
+                          {["GAYLORD", ...EMPAQUES].map((op) => (
+                            <option key={op} value={op}>
+                              {op}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        padding: "12px 18px",
+                        borderTop: `1px solid ${colors.border}`,
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        gap: 10,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setSkuNuevo(null)}
+                        style={secondaryButtonStyle}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={guardarSkuNuevo}
+                        disabled={skuGuardando}
+                        style={{
+                          ...secondaryButtonStyle,
+                          background: colors.green || "#16a34a",
+                          color: "#fff",
+                          borderColor: colors.green || "#16a34a",
+                        }}
+                      >
+                        <Save size={15} />
+                        {skuGuardando ? "Guardando…" : "Crear y agregar"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {tipoRecibo === "recibo" && facturadoOpen && (
                 <div
