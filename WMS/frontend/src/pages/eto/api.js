@@ -734,16 +734,44 @@ async function consultaPersonaSupabase(params) {
         ? "warning"
         : "ok";
 
+      // Serie diaria acumulada (% del mes) para las gráficas de línea.
+      const yNum = Number(params.get("year")) || new Date().getFullYear();
+      const mNum = Number(params.get("month")) || new Date().getMonth() + 1;
+      const diasMes = new Date(yNum, mNum, 0).getDate();
+      const porDia = {};
+      for (const r of recs) {
+        if (String(r.dimension || "").startsWith("Invalido")) continue;
+        const day = Number(String(r.record_date).slice(8, 10)) || 1;
+        porDia[day] = (porDia[day] || 0) + Number(r.value || 0);
+      }
+      const metaTotal = dims.length
+        ? condiciones
+            .filter((c) => c.meta != null)
+            .reduce((s, c) => s + Number(c.meta || 0), 0)
+        : metaSimple;
+      let acc = 0;
+      const serie = [];
+      for (let day = 1; day <= diasMes; day += 1) {
+        acc += porDia[day] || 0;
+        serie.push({
+          dia: day,
+          valor: acc,
+          pct: metaTotal > 0 ? Math.round((acc / metaTotal) * 1000) / 10 : 0,
+        });
+      }
+
       indicadores.push({
         indicator_id: ind.id,
         indicator_code: ind.code,
         indicator_name: ind.name,
         proceso: ind.process_name || "",
         meta: metaSimple,
+        meta_total: metaTotal,
         accumulated,
         invalid,
         estado,
         condiciones,
+        serie,
       });
     }
 
