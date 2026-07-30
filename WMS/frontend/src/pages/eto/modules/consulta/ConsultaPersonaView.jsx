@@ -159,12 +159,12 @@ export default function ConsultaPersonaView() {
           await navigator.clipboard.write([
             new window.ClipboardItem({ "image/png": blob }),
           ]);
-          window.alert("Reporte copiado. Pégalo donde quieras.");
+          window.alert("Reporte copiado. Pégalo donde quieras (Ctrl+V).");
         } catch {
-          const a = document.createElement("a");
-          a.href = URL.createObjectURL(blob);
-          a.download = "reporte.png";
-          a.click();
+          // Solo copia; NO descarga.
+          window.alert(
+            "No se pudo copiar al portapapeles en este navegador. Intenta de nuevo o usa una captura manual."
+          );
         }
       }, "image/png");
     } catch (e) {
