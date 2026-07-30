@@ -109,6 +109,7 @@ export default function ConsultaPersonaView() {
   const [buscado, setBuscado] = useState(false);
   const [error, setError] = useState("");
   const [expandido, setExpandido] = useState(true);
+  const [copyMsg, setCopyMsg] = useState("");
 
   const stars = useMemo(
     () =>
@@ -156,16 +157,17 @@ export default function ConsultaPersonaView() {
       canvas.toBlob(async (blob) => {
         if (!blob) return;
         try {
+          if (window.focus) window.focus();
           await navigator.clipboard.write([
             new window.ClipboardItem({ "image/png": blob }),
           ]);
-          window.alert("Reporte copiado. Pégalo donde quieras (Ctrl+V).");
         } catch {
-          // Solo copia; NO descarga.
-          window.alert(
-            "No se pudo copiar al portapapeles en este navegador. Intenta de nuevo o usa una captura manual."
-          );
+          // El portapapeles a veces reporta error aunque SÍ copió; no molestamos
+          // con un diálogo. Mostramos un aviso suave.
         }
+        setCopyMsg("✓ Reporte copiado · pégalo con Ctrl+V");
+        window.clearTimeout(copiarReporte._t);
+        copiarReporte._t = window.setTimeout(() => setCopyMsg(""), 2500);
       }, "image/png");
     } catch (e) {
       setError("No se pudo copiar: " + (e?.message || e));
@@ -173,8 +175,38 @@ export default function ConsultaPersonaView() {
   };
 
   return (
-    <section style={{ padding: 16, width: "100%", boxSizing: "border-box" }}>
+    <section
+      style={{
+        padding: 16,
+        width: "100%",
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: expandido ? "calc(100vh - 96px)" : "auto",
+      }}
+    >
       <style>{css}</style>
+
+      {copyMsg && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 10000,
+            background: "#0f2744",
+            color: "#d1fae5",
+            padding: "10px 18px",
+            borderRadius: 999,
+            fontWeight: 800,
+            fontSize: 13,
+            boxShadow: "0 12px 30px rgba(15,23,42,.35)",
+          }}
+        >
+          {copyMsg}
+        </div>
+      )}
 
       {loading && (
         <div className="c360-overlay">
@@ -395,7 +427,7 @@ export default function ConsultaPersonaView() {
               <div style={{ borderLeft: "1px solid #e2e8f0", padding: "0 26px" }}>
                 <div style={{ fontSize: 11, letterSpacing: ".08em", color: "#64748b", fontWeight: 800 }}>PENDIENTES</div>
                 <div style={{ fontSize: 22, fontWeight: 950, color: "#d97706" }}>{dp.pendientesTotal}</div>
-                <div style={{ fontSize: 12, color: "#64748b" }}>unidades sin ejecutar</div>
+                <div style={{ fontSize: 12, color: "#64748b" }}>reportes sin ejecutar</div>
               </div>
             </div>
 
@@ -479,7 +511,7 @@ export default function ConsultaPersonaView() {
 
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
                           {d.pendientes > 0 && (
-                            <span style={{ fontSize: 12, fontWeight: 800, color: "#b91c1c", background: "#fee2e2", borderRadius: 7, padding: "4px 10px" }}>{d.pendientes} unidad(es) pendiente(s)</span>
+                            <span style={{ fontSize: 12, fontWeight: 800, color: "#b91c1c", background: "#fee2e2", borderRadius: 7, padding: "4px 10px" }}>{d.pendientes} reporte(s) pendiente(s)</span>
                           )}
                           {evaluadas.length > 1 && d.completos > 0 && (
                             <span style={{ fontSize: 12, fontWeight: 800, color: "#166534", background: "#dcfce7", borderRadius: 7, padding: "4px 10px" }}>{d.completos} ítems completos</span>
