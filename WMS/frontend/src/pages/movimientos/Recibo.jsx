@@ -1730,6 +1730,7 @@ export default function Recibo() {
     });
 
     let html = "";
+    let pos = 0; // numeración de ítems en el ORDEN ya reorganizado (1,2,3,...)
 
     orden.forEach((cod) => {
       const filas = grupos.get(cod);
@@ -1739,11 +1740,12 @@ export default function Recibo() {
       filas.forEach(({ ln, idx }) => {
         grpCant += Number(ln.cantidad) || 0;
         grpTotal += Number(ln.total) || 0;
+        pos += 1;
 
         const serial = serialItem(header.serial, idx);
         html += `
           <tr>
-            <td>${idx + 1}</td>
+            <td>${pos}</td>
             <td>${escapeHtml(serial)}</td>
             <td>${escapeHtml(formatDateDisplay(ln.fecha_recepcion))}</td>
             <td>${escapeHtml(ln.codigo)}</td>
@@ -1761,11 +1763,12 @@ export default function Recibo() {
       });
 
       // Subtotal SOLO si el código está repetido (más de una línea).
+      // "Subtotal" va a la IZQUIERDA; cantidad y total en su propia columna.
       if (filas.length > 1) {
         html += `
           <tr class="subtotal-row">
-            <td colspan="8" style="text-align:right; font-weight:900; border-top:2px solid #0f2744; background:#eef2f7;">
-              Subtotal ${escapeHtml(cod)} (${filas.length} líneas):
+            <td colspan="8" style="text-align:left; font-weight:900; border-top:2px solid #0f2744; background:#eef2f7;">
+              Subtotal ${escapeHtml(cod)} (${filas.length} líneas)
             </td>
             <td style="text-align:right; font-weight:900; border-top:2px solid #0f2744; background:#eef2f7;">${escapeHtml(
               formatMoney(grpCant)
