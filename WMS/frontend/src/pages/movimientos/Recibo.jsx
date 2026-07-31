@@ -1778,6 +1778,9 @@ export default function Recibo() {
             )}</td>
             <td colspan="3" style="border-top:2px solid #0f2744; background:#eef2f7;"></td>
           </tr>
+          <tr class="sep-row">
+            <td colspan="13" style="height:12px; border:none; background:#ffffff;"></td>
+          </tr>
         `;
       }
     });
