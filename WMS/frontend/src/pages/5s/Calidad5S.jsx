@@ -356,112 +356,59 @@ function preloadImages(sources) {
 }
 
 async function openPrintable5SDocument({ title, reportElement }) {
-  const win = window.open("", "_blank", "width=1100,height=800");
-  if (!win) {
-    show5SAlert("No se pudo abrir la ventana de impresión. Revisa si el navegador bloqueó ventanas emergentes.");
-    return;
-  }
+  // Impresión RÁPIDA: sin abrir ventana nueva ni volver a descargar el CSS.
+  // Clonamos el informe en un "portal" oculto del mismo documento y usamos
+  // las reglas @media print (ya cargadas) para que solo salga el informe.
+  const anterior = document.getElementById("s5-print-portal");
+  if (anterior) anterior.remove();
 
-  // Llevamos TODOS los estilos de la app (incluye @media print del informe).
-  // Los <link> se copian por href para que la ventana los cargue sola.
-  const styleTags = Array.from(
-    document.querySelectorAll('style, link[rel="stylesheet"]')
-  )
-    .map((node) => node.outerHTML)
-    .join("\n");
+  const clon = reportElement.cloneNode(true);
+  clon.removeAttribute("id"); // evita id duplicado y la regla absolute de la app
+  clon.classList.add("s5-print-clone");
 
-  // Clonamos el informe tal cual está en pantalla (HTML real, sin rasterizar).
-  const reportHtml = reportElement.outerHTML;
+  const portal = document.createElement("div");
+  portal.id = "s5-print-portal";
+  portal.appendChild(clon);
+  document.body.appendChild(portal);
 
-  win.document.open();
-  win.document.write(`<!doctype html>
-    <html>
-      <head>
-        <meta charset="utf-8" />
-        <title>${title}</title>
-        ${styleTags}
-        <style>
-          @page { size: Letter; margin: 0; }
-          html, body {
-            margin: 0 !important;
-            padding: 0 !important;
-            background: #ffffff !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          /* En esta ventana SOLO está el informe. Anulamos la regla de la app
-             (body * { visibility:hidden }) para que se vea siempre, sea cual
-             sea el id del informe (inspección, histórico o dashboard). */
-          body, body *, #print-root, #print-root * { visibility: visible !important; }
-          #print-root {
-            background: #ffffff !important;
-            margin: 0 auto !important;
-          }
-          /* Cada informe a tamaño real, sin escalas ni recortes de la vista previa.
-             OJO: forzamos position:static porque la app pone el informe en
-             position:absolute al imprimir, y eso hace que solo salga una parte
-             de las páginas (se recorta el contenido que pasa a la 2ª hoja). */
-          #print-root,
-          #print-root .letter-report-page,
-          #print-root .report-book {
-            position: static !important;
-            transform: none !important;
-            margin: 0 auto !important;
-            box-shadow: none !important;
-            border: 0 !important;
-            overflow: visible !important;
-            height: auto !important;
-            max-height: none !important;
-            min-height: 0 !important;
-          }
-          #print-root .report-sheet {
-            position: relative !important;
-            width: 8.5in !important;
-            height: 11in !important;
-            min-height: 11in !important;
-            margin: 0 auto !important;
-            box-shadow: none !important;
-            border: 0 !important;
-            overflow: hidden !important;
-            page-break-after: always;
-            break-after: page;
-            page-break-inside: avoid;
-            break-inside: avoid;
-          }
-          #print-root .report-sheet:last-child {
-            page-break-after: auto;
-            break-after: auto;
-          }
-          #print-root .table-tools-bar,
-          #print-root .report-mobile-close,
-          #print-root .report-mobile-eye-btn { display: none !important; }
-        </style>
-      </head>
-      <body>
-        <div id="print-root">${reportHtml}</div>
-        <script>
-          (function () {
-            function goPrint() {
-              requestAnimationFrame(function () {
-                requestAnimationFrame(function () {
-                  window.focus();
-                  window.print();
-                });
-              });
-            }
-            // Esperamos imágenes (logo, evidencias) y un respiro para el CSS.
-            var imgs = Array.from(document.images);
-            Promise.all(imgs.map(function (img) {
-              if (img.complete) return Promise.resolve();
-              return new Promise(function (res) { img.onload = res; img.onerror = res; });
-            })).then(function () {
-              setTimeout(goPrint, 400);
-            });
-          })();
-        </script>
-      </body>
-    </html>`);
-  win.document.close();
+  const prevTitle = document.title;
+  if (title) document.title = title;
+  document.body.classList.add("s5-printing");
+
+  let limpiado = false;
+  const cleanup = () => {
+    if (limpiado) return;
+    limpiado = true;
+    document.body.classList.remove("s5-printing");
+    document.title = prevTitle;
+    portal.remove();
+    window.removeEventListener("afterprint", cleanup);
+  };
+  window.addEventListener("afterprint", cleanup);
+
+  // Solo esperamos a las imágenes del informe (logo/evidencias). El CSS ya está.
+  const imgs = Array.from(portal.querySelectorAll("img"));
+  await Promise.all(
+    imgs.map((img) =>
+      img.complete
+        ? Promise.resolve()
+        : new Promise((res) => {
+            img.onload = res;
+            img.onerror = res;
+          })
+    )
+  );
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      try {
+        window.print();
+      } finally {
+        // Respaldo por si el navegador no dispara "afterprint".
+        setTimeout(cleanup, 1500);
+      }
+    });
+  });
 }
 
 function useViewport() {
