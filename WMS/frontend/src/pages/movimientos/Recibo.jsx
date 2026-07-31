@@ -1713,50 +1713,35 @@ export default function Recibo() {
   };
 
   const buildReciboRowsHtml = () => {
-    // ¿Hay códigos distintos? Solo entonces mostramos subtotales por código.
-    const codigosDistintos = new Set(
-      lineas.map((l) => String(l.codigo || "").trim()).filter(Boolean)
-    ).size;
-    const conSubtotal = codigosDistintos > 1;
-
-    let html = "";
-    let grpCodigo = null;
-    let grpCant = 0;
-    let grpTotal = 0;
-    let grpCount = 0;
-
-    const flush = () => {
-      if (conSubtotal && grpCount > 0) {
-        html += `
-          <tr class="subtotal-row">
-            <td colspan="8" style="text-align:right; font-weight:900; border-top:2px solid #0f2744; background:#eef2f7;">
-              Subtotal ${escapeHtml(grpCodigo || "")}:
-            </td>
-            <td style="text-align:right; font-weight:900; border-top:2px solid #0f2744; background:#eef2f7;">${escapeHtml(
-              formatMoney(grpCant)
-            )}</td>
-            <td style="text-align:right; font-weight:900; border-top:2px solid #0f2744; background:#eef2f7;">${escapeHtml(
-              formatMoney(grpTotal)
-            )}</td>
-            <td colspan="3" style="border-top:2px solid #0f2744; background:#eef2f7;"></td>
-          </tr>
-        `;
-      }
-      grpCant = 0;
-      grpTotal = 0;
-      grpCount = 0;
-    };
-
+    // Agrupamos las líneas por código (conservando su ítem/serial original),
+    // de modo que los códigos repetidos queden JUNTOS en el recibo.
+    // El orden de aparición del primer código manda; los repetidos se
+    // "arriman" a su primer avistamiento. El subtotal solo se muestra
+    // cuando un código aparece más de una vez.
+    const grupos = new Map();
+    const orden = [];
     lineas.forEach((ln, idx) => {
       const cod = String(ln.codigo || "").trim();
-      if (grpCodigo !== null && cod !== grpCodigo) flush();
-      grpCodigo = cod;
-      grpCant += Number(ln.cantidad) || 0;
-      grpTotal += Number(ln.total) || 0;
-      grpCount += 1;
+      if (!grupos.has(cod)) {
+        grupos.set(cod, []);
+        orden.push(cod);
+      }
+      grupos.get(cod).push({ ln, idx });
+    });
 
-      const serial = serialItem(header.serial, idx);
-      html += `
+    let html = "";
+
+    orden.forEach((cod) => {
+      const filas = grupos.get(cod);
+      let grpCant = 0;
+      let grpTotal = 0;
+
+      filas.forEach(({ ln, idx }) => {
+        grpCant += Number(ln.cantidad) || 0;
+        grpTotal += Number(ln.total) || 0;
+
+        const serial = serialItem(header.serial, idx);
+        html += `
           <tr>
             <td>${idx + 1}</td>
             <td>${escapeHtml(serial)}</td>
@@ -1773,8 +1758,27 @@ export default function Recibo() {
             <td>${escapeHtml(formatDateDisplay(ln.fecha_vencimiento))}</td>
           </tr>
         `;
+      });
+
+      // Subtotal SOLO si el código está repetido (más de una línea).
+      if (filas.length > 1) {
+        html += `
+          <tr class="subtotal-row">
+            <td colspan="8" style="text-align:right; font-weight:900; border-top:2px solid #0f2744; background:#eef2f7;">
+              Subtotal ${escapeHtml(cod)} (${filas.length} líneas):
+            </td>
+            <td style="text-align:right; font-weight:900; border-top:2px solid #0f2744; background:#eef2f7;">${escapeHtml(
+              formatMoney(grpCant)
+            )}</td>
+            <td style="text-align:right; font-weight:900; border-top:2px solid #0f2744; background:#eef2f7;">${escapeHtml(
+              formatMoney(grpTotal)
+            )}</td>
+            <td colspan="3" style="border-top:2px solid #0f2744; background:#eef2f7;"></td>
+          </tr>
+        `;
+      }
     });
-    flush();
+
     return html;
   };
 
