@@ -397,23 +397,36 @@ async function openPrintable5SDocument({ title, reportElement }) {
             background: #ffffff !important;
             margin: 0 auto !important;
           }
-          /* Cada informe a tamaño real, sin escalas ni recortes de la vista previa. */
+          /* Cada informe a tamaño real, sin escalas ni recortes de la vista previa.
+             OJO: forzamos position:static porque la app pone el informe en
+             position:absolute al imprimir, y eso hace que solo salga una parte
+             de las páginas (se recorta el contenido que pasa a la 2ª hoja). */
+          #print-root,
           #print-root .letter-report-page,
           #print-root .report-book {
+            position: static !important;
             transform: none !important;
             margin: 0 auto !important;
             box-shadow: none !important;
             border: 0 !important;
             overflow: visible !important;
+            height: auto !important;
+            max-height: none !important;
+            min-height: 0 !important;
           }
           #print-root .report-sheet {
+            position: relative !important;
             width: 8.5in !important;
+            height: 11in !important;
             min-height: 11in !important;
             margin: 0 auto !important;
             box-shadow: none !important;
             border: 0 !important;
+            overflow: hidden !important;
             page-break-after: always;
             break-after: page;
+            page-break-inside: avoid;
+            break-inside: avoid;
           }
           #print-root .report-sheet:last-child {
             page-break-after: auto;
