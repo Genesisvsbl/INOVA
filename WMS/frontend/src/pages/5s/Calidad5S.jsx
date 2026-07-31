@@ -355,12 +355,31 @@ function preloadImages(sources) {
   );
 }
 
+// Espera a que el informe termine de cargar (matriz/datos asíncronos) antes
+// de clonarlo, para que no salga con "Cargando..." ni con contadores en 0.
+async function waitForReport5SReady(el, timeout = 9000) {
+  if (!el) return;
+  const start = Date.now();
+  const sigueCargando = () =>
+    Array.from(el.querySelectorAll(".dashboard-empty")).some((n) =>
+      /cargando/i.test(n.textContent || "")
+    );
+  while (sigueCargando() && Date.now() - start < timeout) {
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  // Un frame extra para que React pinte la tabla ya cargada.
+  await new Promise((r) => requestAnimationFrame(() => r()));
+}
+
 async function openPrintable5SDocument({ title, reportElement }) {
   // Impresión RÁPIDA: sin abrir ventana nueva ni volver a descargar el CSS.
   // Clonamos el informe en un "portal" oculto del mismo documento y usamos
   // las reglas @media print (ya cargadas) para que solo salga el informe.
   const anterior = document.getElementById("s5-print-portal");
   if (anterior) anterior.remove();
+
+  // Esperamos a que la matriz/datos del informe estén cargados.
+  await waitForReport5SReady(reportElement);
 
   const clon = reportElement.cloneNode(true);
   clon.removeAttribute("id"); // evita id duplicado y la regla absolute de la app
