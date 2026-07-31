@@ -387,12 +387,13 @@ async function openPrintable5SDocument({ title, reportElement }) {
 
   const portal = document.createElement("div");
   portal.id = "s5-print-portal";
+  // El portal MISMO lleva la clase s5-layout: así conserva las variables y los
+  // estilos scoped del informe, PERO cuelga directo del <body> (fuera de los
+  // contenedores flex/grid/scroll de la app) para que los saltos de página
+  // NO se colapsen en una sola hoja.
+  portal.className = "s5-layout s5-print-host";
   portal.appendChild(clon);
-  // IMPORTANTE: colgar el portal DENTRO de .s5-layout para que herede todos
-  // los estilos del informe (muchos están scoped bajo .s5-layout). Si va al
-  // body pelado, sale sin formato.
-  const host = document.querySelector(".s5-layout") || document.body;
-  host.appendChild(portal);
+  document.body.appendChild(portal);
 
   const prevTitle = document.title;
   if (title) document.title = title;
@@ -424,12 +425,10 @@ async function openPrintable5SDocument({ title, reportElement }) {
 
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      try {
-        window.print();
-      } finally {
-        // Respaldo por si el navegador no dispara "afterprint".
-        setTimeout(cleanup, 1500);
-      }
+      window.print();
+      // Respaldo MUY tardío por si el navegador nunca dispara "afterprint".
+      // (No usar un timeout corto: borraría el informe con el diálogo abierto.)
+      setTimeout(cleanup, 120000);
     });
   });
 }

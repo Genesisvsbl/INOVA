@@ -6496,22 +6496,23 @@ button {
 
 /* ===== Impresión rápida del informe 5S vía portal (misma ventana) ===== */
 #s5-print-portal { display: none; }
+#s5-print-portal.s5-layout { background: #ffffff !important; }
 
 @media print {
+  /* Ocultamos TODA la app (incluidos sus contenedores flex/grid/scroll que
+     colapsan la paginación) y dejamos únicamente el portal del informe. */
+  body.s5-printing > *:not(#s5-print-portal) { display: none !important; }
+
   /* Cuando imprimimos por portal, SOLO se ve el clon del informe. */
   body.s5-printing #s5-print-portal { display: block !important; }
   body.s5-printing #s5-print-portal,
   body.s5-printing #s5-print-portal * { visibility: visible !important; }
-
-  /* Ocultamos los informes reales y su vista previa para no duplicar/estorbar. */
-  body.s5-printing #informe5s-preview,
-  body.s5-printing #inspection-history-report,
-  body.s5-printing #dashboard-inspection-report,
-  body.s5-printing .report-preview-shell,
-  body.s5-printing .inspection-history-report-card,
-  body.s5-printing .dashboard-print-report {
-    display: none !important;
-    visibility: hidden !important;
+  body.s5-printing #s5-print-portal.s5-layout {
+    position: static !important;
+    transform: none !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 
   /* El clon a tamaño real, sin escalas, sin recortes y en flujo normal
