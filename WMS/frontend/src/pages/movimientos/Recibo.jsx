@@ -1762,13 +1762,13 @@ export default function Recibo() {
         `;
       });
 
-      // Subtotal SOLO si el código está repetido (más de una línea).
-      // "Subtotal" va a la IZQUIERDA; cantidad y total en su propia columna.
-      if (filas.length > 1) {
+      // Subtotal por código (siempre). "Subtotal" a la IZQUIERDA;
+      // cantidad y total en su propia columna.
+      {
         html += `
           <tr class="subtotal-row">
             <td colspan="8" style="text-align:left; font-weight:900; border-top:2px solid #0f2744; background:#eef2f7;">
-              Subtotal ${escapeHtml(cod)} (${filas.length} líneas)
+              Subtotal ${escapeHtml(cod)}
             </td>
             <td style="text-align:right; font-weight:900; border-top:2px solid #0f2744; background:#eef2f7;">${escapeHtml(
               formatMoney(grpCant)
