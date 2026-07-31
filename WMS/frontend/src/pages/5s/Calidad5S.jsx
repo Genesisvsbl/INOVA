@@ -410,18 +410,28 @@ async function openPrintable5SDocument({ title, reportElement }) {
   };
   window.addEventListener("afterprint", cleanup);
 
-  // Solo esperamos a las imágenes del informe (logo/evidencias). El CSS ya está.
+  // Esperamos a que las imágenes (logo/evidencias) estén cargadas Y decodificadas,
+  // y a que las fuentes estén listas, para que la vista previa pinte de una y no
+  // se quede en blanco con el spinner.
   const imgs = Array.from(portal.querySelectorAll("img"));
   await Promise.all(
-    imgs.map((img) =>
-      img.complete
-        ? Promise.resolve()
-        : new Promise((res) => {
+    imgs.map(async (img) => {
+      try {
+        if (!img.complete) {
+          await new Promise((res) => {
             img.onload = res;
             img.onerror = res;
-          })
-    )
+          });
+        }
+        if (img.decode) await img.decode().catch(() => {});
+      } catch {
+        /* ignorar imágenes que fallen */
+      }
+    })
   );
+  if (document.fonts && document.fonts.ready) {
+    await document.fonts.ready.catch(() => {});
+  }
 
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
