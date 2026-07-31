@@ -369,7 +369,11 @@ async function openPrintable5SDocument({ title, reportElement }) {
   const portal = document.createElement("div");
   portal.id = "s5-print-portal";
   portal.appendChild(clon);
-  document.body.appendChild(portal);
+  // IMPORTANTE: colgar el portal DENTRO de .s5-layout para que herede todos
+  // los estilos del informe (muchos están scoped bajo .s5-layout). Si va al
+  // body pelado, sale sin formato.
+  const host = document.querySelector(".s5-layout") || document.body;
+  host.appendChild(portal);
 
   const prevTitle = document.title;
   if (title) document.title = title;
