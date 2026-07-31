@@ -362,29 +362,16 @@ async function openPrintable5SDocument({ title, reportElement }) {
     return;
   }
 
-  win.document.write(`<!doctype html><html><head><title>${title}</title></head><body style="font-family:Arial,sans-serif;padding:24px;">Preparando PDF 5S...</body></html>`);
-  win.document.close();
+  // Llevamos TODOS los estilos de la app (incluye @media print del informe).
+  // Los <link> se copian por href para que la ventana los cargue sola.
+  const styleTags = Array.from(
+    document.querySelectorAll('style, link[rel="stylesheet"]')
+  )
+    .map((node) => node.outerHTML)
+    .join("\n");
 
-  const pages = Array.from(reportElement.querySelectorAll(".report-sheet"));
-  const captureTargets = pages.length ? pages : [reportElement];
-  const imagePages = [];
-
-  for (const page of captureTargets) {
-    const canvas = await html2canvas(page, {
-      backgroundColor: "#ffffff",
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-      windowWidth: page.scrollWidth,
-      windowHeight: page.scrollHeight,
-    });
-    imagePages.push(canvas.toDataURL("image/jpeg", 0.95));
-  }
-
-  const imagesHtml = imagePages
-    .map((src, index) => `<section class="pdf-page"><img src="${src}" alt="Página ${index + 1}" /></section>`)
-    .join("");
+  // Clonamos el informe tal cual está en pantalla (HTML real, sin rasterizar).
+  const reportHtml = reportElement.outerHTML;
 
   win.document.open();
   win.document.write(`<!doctype html>
@@ -392,56 +379,72 @@ async function openPrintable5SDocument({ title, reportElement }) {
       <head>
         <meta charset="utf-8" />
         <title>${title}</title>
+        ${styleTags}
         <style>
           @page { size: Letter; margin: 0; }
           html, body {
-            margin: 0;
-            padding: 0;
-            background: #fff;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          .pdf-page {
-            width: 8.5in;
-            height: 11in;
-            margin: 0;
-            padding: 0;
-            display: grid;
-            place-items: stretch;
-            overflow: hidden;
+          /* En esta ventana SOLO está el informe. Anulamos la regla de la app
+             (body * { visibility:hidden }) para que se vea siempre, sea cual
+             sea el id del informe (inspección, histórico o dashboard). */
+          body, body *, #print-root, #print-root * { visibility: visible !important; }
+          #print-root {
+            background: #ffffff !important;
+            margin: 0 auto !important;
+          }
+          /* Cada informe a tamaño real, sin escalas ni recortes de la vista previa. */
+          #print-root .letter-report-page,
+          #print-root .report-book {
+            transform: none !important;
+            margin: 0 auto !important;
+            box-shadow: none !important;
+            border: 0 !important;
+            overflow: visible !important;
+          }
+          #print-root .report-sheet {
+            width: 8.5in !important;
+            min-height: 11in !important;
+            margin: 0 auto !important;
+            box-shadow: none !important;
+            border: 0 !important;
             page-break-after: always;
             break-after: page;
-            background: #fff;
           }
-          .pdf-page:last-child {
+          #print-root .report-sheet:last-child {
             page-break-after: auto;
             break-after: auto;
           }
-          .pdf-page img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            display: block;
-          }
+          #print-root .table-tools-bar,
+          #print-root .report-mobile-close,
+          #print-root .report-mobile-eye-btn { display: none !important; }
         </style>
       </head>
       <body>
-        ${imagesHtml}
+        <div id="print-root">${reportHtml}</div>
         <script>
-          Promise.all(Array.from(document.images).map(function (img) {
-            if (img.complete) return Promise.resolve();
-            return new Promise(function (resolve) {
-              img.onload = resolve;
-              img.onerror = resolve;
-            });
-          })).then(function () {
-            requestAnimationFrame(function () {
+          (function () {
+            function goPrint() {
               requestAnimationFrame(function () {
-                window.focus();
-                window.print();
+                requestAnimationFrame(function () {
+                  window.focus();
+                  window.print();
+                });
               });
+            }
+            // Esperamos imágenes (logo, evidencias) y un respiro para el CSS.
+            var imgs = Array.from(document.images);
+            Promise.all(imgs.map(function (img) {
+              if (img.complete) return Promise.resolve();
+              return new Promise(function (res) { img.onload = res; img.onerror = res; });
+            })).then(function () {
+              setTimeout(goPrint, 400);
             });
-          });
+          })();
         </script>
       </body>
     </html>`);
