@@ -432,6 +432,7 @@ function mapMovimientoRow(row) {
     lote_proveedor: row.lote_proveedor,
     fecha_fabricacion: row.fecha_fabricacion,
     fecha_vencimiento: row.fecha_vencimiento,
+    observacion: row.observacion || "",
     cantidad,
     cantidad_r: cantidad,
   };

@@ -433,6 +433,7 @@ export default function EnTransito() {
         r.lote_proveedor,
         r.fecha_fabricacion,
         r.fecha_vencimiento,
+        r.observacion,
       ]
         .map((x) => (x ?? "").toString().toLowerCase())
         .join(" | ");
@@ -843,6 +844,7 @@ export default function EnTransito() {
           <td>${r.lote_almacen || ""}</td>
           <td>${r.lote_proveedor || ""}</td>
           <td>${r.fecha_vencimiento || ""}</td>
+          <td>${r.observacion || ""}</td>
           <td style="text-align:right;">${fmtNumberCO(r.cantidad)}</td>
         </tr>
       `
@@ -920,6 +922,7 @@ export default function EnTransito() {
                   <th>Lote Almacén</th>
                   <th>Lote Proveedor</th>
                   <th>F. Vencimiento</th>
+                  <th>Observación</th>
                   <th>Cantidad</th>
                 </tr>
               </thead>
@@ -1104,6 +1107,7 @@ export default function EnTransito() {
                 <th style={{ ...thStyle, width: "6.2%" }}>Lote proveedor</th>
                 <th style={{ ...thStyle, width: "5.4%" }}>F. fabricación</th>
                 <th style={{ ...thStyle, width: "5.4%" }}>F. vencimiento</th>
+                <th style={{ ...thStyle, width: "9%" }}>Observación (dónde queda)</th>
                 <th style={{ ...thStyle, width: "4.8%", textAlign: "right" }}>Cantidad</th>
                 <th style={{ ...thStyle, width: "8.4%" }}>Asignar ubicación</th>
                 <th style={{ ...thStyle, width: "3.8%", textAlign: "center" }}>Valid.</th>
@@ -1142,6 +1146,19 @@ export default function EnTransito() {
                     <td style={{ ...tdStyle, fontSize: 8.6 }}>{r.lote_proveedor || ""}</td>
                     <td style={{ ...tdStyle, fontSize: 8.6 }}>{r.fecha_fabricacion || ""}</td>
                     <td style={{ ...tdStyle, fontSize: 8.6 }}>{r.fecha_vencimiento || ""}</td>
+                    <td
+                      style={{
+                        ...tdStyle,
+                        fontSize: 8.6,
+                        fontWeight: 700,
+                        color: r.observacion ? "#9a6700" : colors.muted,
+                        whiteSpace: "normal",
+                        lineHeight: 1.1,
+                      }}
+                      title={r.observacion || ""}
+                    >
+                      {r.observacion || "—"}
+                    </td>
                     <td
                       style={{
                         ...tdStyle,
