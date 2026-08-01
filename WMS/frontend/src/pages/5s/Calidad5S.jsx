@@ -681,17 +681,19 @@ async function openPrintable5SDocument({ title, reportElement }) {
   };
   window.addEventListener("afterprint", cleanup);
 
-  // Esperamos imágenes (logo/evidencias) con un tope para no quedarnos colgados.
+  // Incrustamos las imágenes (logo/evidencias) como datos dentro del clon para
+  // que la vista previa de impresión pinte de una, sin esperar la red.
   const conTope = (p, ms) => Promise.race([p, new Promise((r) => setTimeout(r, ms))]);
-  const imgs = Array.from(portal.querySelectorAll("img")).filter((i) => !i.complete);
-  if (imgs.length) {
+  const imgsPend = Array.from(portal.querySelectorAll("img")).filter((i) => !i.complete);
+  if (imgsPend.length) {
     await conTope(
       Promise.all(
-        imgs.map((i) => new Promise((res) => { i.onload = res; i.onerror = res; }))
+        imgsPend.map((i) => new Promise((res) => { i.onload = res; i.onerror = res; }))
       ),
       3000
     );
   }
+  await conTope(inlineImagesToDataUrl(portal), 5000);
 
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
