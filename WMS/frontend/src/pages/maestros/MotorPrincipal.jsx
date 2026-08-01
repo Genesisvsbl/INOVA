@@ -1,11 +1,39 @@
-import { useEffect, useMemo, useState } from "react";
-import { getMotor } from "../../api";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  getMotor,
+  importarInventarioInicial,
+  borrarDatosWms,
+  WMS_DATA_GROUPS,
+} from "../../api";
+import { verificarClaveUsuarioActual } from "../../adminApi";
 import {
   Cpu,
   Search,
   Download,
   FilterX,
+  ShieldAlert,
+  Upload,
+  Trash2,
+  Lock,
+  X,
 } from "lucide-react";
+
+function esAdminWms() {
+  const role = String(sessionStorage.getItem("rol") || "").toUpperCase();
+  let permisos = [];
+  try {
+    permisos = JSON.parse(sessionStorage.getItem("permisos") || "[]");
+  } catch {
+    permisos = [];
+  }
+  return (
+    ["SUPER_ADMIN", "ADMIN_INOVA", "INOVA_ADMIN", "ADMIN_PLATAFORMA", "PLATFORM_ADMIN"].includes(role) ||
+    role.includes("ADMIN") ||
+    sessionStorage.getItem("esSuperAdmin") === "true" ||
+    sessionStorage.getItem("esPlatformAdmin") === "true" ||
+    (Array.isArray(permisos) && (permisos.includes("admin.usuarios.gestionar") || permisos.includes("admin.roles.gestionar")))
+  );
+}
 
 const colors = {
   navy: "#0f2744",
@@ -423,6 +451,109 @@ export default function MotorPrincipal() {
     };
   }, []);
 
+  // ----- Toolbox administrador (importar / borrar) -----
+  const isAdmin = useMemo(() => esAdminWms(), []);
+  const fileInputRef = useRef(null);
+  const [delModal, setDelModal] = useState(false);
+  const [delSel, setDelSel] = useState({});
+  const [pwModal, setPwModal] = useState(null); // { titulo, detalle, ejecutar }
+  const [pwValue, setPwValue] = useState("");
+  const [pwError, setPwError] = useState("");
+  const [working, setWorking] = useState(false);
+  const [adminMsg, setAdminMsg] = useState(null); // { tone, text }
+
+  const recargarMotor = async () => {
+    try {
+      const data = await getMotor(2000);
+      setRows(Array.isArray(data) ? data : []);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const pedirClave = (config) => {
+    setPwValue("");
+    setPwError("");
+    setPwModal(config);
+  };
+
+  const confirmarClave = async () => {
+    if (working) return;
+    const clave = pwValue.trim();
+    if (!clave) {
+      setPwError("Escribe tu contraseña.");
+      return;
+    }
+    setWorking(true);
+    setPwError("");
+    try {
+      const ok = await verificarClaveUsuarioActual(clave);
+      if (!ok) {
+        setPwError("Contraseña incorrecta.");
+        setWorking(false);
+        return;
+      }
+      const accion = pwModal?.ejecutar;
+      setPwModal(null);
+      if (typeof accion === "function") await accion();
+    } catch (e) {
+      setAdminMsg({ tone: "bad", text: String(e?.message || e) });
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const onSeleccionArchivo = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    pedirClave({
+      titulo: "Importar inventario inicial",
+      detalle: `Se cargará el inventario del archivo "${file.name}" como movimientos ALMACENADO. Confirma con tu contraseña.`,
+      ejecutar: async () => {
+        setAdminMsg({ tone: "info", text: "Importando inventario…" });
+        try {
+          const res = await importarInventarioInicial(file);
+          setAdminMsg({ tone: "good", text: res?.mensaje || `Inventario importado: ${res?.inserted ?? 0} registro(s).` });
+          await recargarMotor();
+        } catch (e) {
+          setAdminMsg({ tone: "bad", text: `No se pudo importar: ${e?.message || e}` });
+        }
+      },
+    });
+  };
+
+  const abrirBorrar = () => {
+    setDelSel({});
+    setAdminMsg(null);
+    setDelModal(true);
+  };
+
+  const continuarBorrar = () => {
+    const seleccion = { ...delSel };
+    const algo = WMS_DATA_GROUPS.some((g) => seleccion[g.key]);
+    if (!algo) {
+      setAdminMsg({ tone: "bad", text: "Marca al menos una categoría para borrar." });
+      return;
+    }
+    const nombres = WMS_DATA_GROUPS.filter((g) => seleccion[g.key]).map((g) => g.label);
+    setDelModal(false);
+    pedirClave({
+      titulo: "Borrar datos del WMS",
+      detalle: `Vas a BORRAR de forma permanente: ${nombres.join("; ")}. Los maestros (materiales, proveedores, ubicaciones) NO se tocan. Confirma con tu contraseña.`,
+      ejecutar: async () => {
+        setAdminMsg({ tone: "info", text: "Borrando datos…" });
+        try {
+          const res = await borrarDatosWms(seleccion);
+          setAdminMsg({ tone: "good", text: `Datos borrados correctamente (${res?.tablas?.length || 0} tabla(s)). El WMS quedó limpio en lo seleccionado.` });
+          await recargarMotor();
+        } catch (e) {
+          setAdminMsg({ tone: "bad", text: `No se pudo borrar: ${e?.message || e}` });
+        }
+      },
+    });
+  };
+
   const bodegas = useMemo(() => {
     const set = new Set();
     rows.forEach((r) => {
@@ -618,6 +749,76 @@ export default function MotorPrincipal() {
         subtitle="Base consolidada de movimientos de recibo, despacho y material en tránsito."
         helper="Vista consolidada"
       />
+
+      {isAdmin && (
+        <div style={{ ...panelStyle, borderColor: "#f1ddb0" }}>
+          <div
+            style={{
+              ...panelHeaderStyle,
+              background: "#fff8ea",
+              color: "#8a5b00",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <ShieldAlert size={16} color="#b3761a" />
+            Herramientas de administrador
+          </div>
+          <div style={panelBodyStyle}>
+            <div style={{ fontSize: 12.5, color: colors.muted, marginBottom: 12 }}>
+              Acciones sensibles: cada una pide tu contraseña para confirmar. No afectan los maestros
+              (materiales, proveedores, ubicaciones).
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                style={{ ...secondaryButtonStyle, borderColor: "#bcd7f5", color: "#0b57d0" }}
+              >
+                <Upload size={15} />
+                Importar inventario inicial
+              </button>
+              <button
+                onClick={abrirBorrar}
+                style={{
+                  ...secondaryButtonStyle,
+                  borderColor: colors.badBd,
+                  color: colors.bad,
+                  background: colors.badBg,
+                }}
+              >
+                <Trash2 size={15} />
+                Borrar datos (dejar limpio)
+              </button>
+            </div>
+
+            {adminMsg && (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  border: `1px solid ${adminMsg.tone === "bad" ? colors.badBd : adminMsg.tone === "good" ? colors.goodBd : colors.infoBd}`,
+                  background: adminMsg.tone === "bad" ? colors.badBg : adminMsg.tone === "good" ? colors.goodBg : colors.infoBg,
+                  color: adminMsg.tone === "bad" ? colors.bad : adminMsg.tone === "good" ? colors.good : colors.blue,
+                }}
+              >
+                {adminMsg.text}
+              </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={onSeleccionArchivo}
+              style={{ display: "none" }}
+            />
+          </div>
+        </div>
+      )}
 
       <div style={panelStyle}>
         <div style={panelBodyStyle}>
@@ -1045,6 +1246,153 @@ export default function MotorPrincipal() {
       <div style={{ color: colors.muted, fontSize: 12, fontWeight: 600 }}>
         Recibo guarda cantidades positivas, Despacho negativas y el material sin ubicación queda en <b>EN TRANSITO</b>.
       </div>
+
+      {delModal && (
+        <div style={overlayStyle} onClick={() => setDelModal(false)}>
+          <div style={{ ...modalCardStyle, width: "min(560px, 96vw)" }} onClick={(e) => e.stopPropagation()}>
+            <div style={modalHeadStyle}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Trash2 size={16} color={colors.bad} />
+                <span style={{ fontWeight: 900, color: "#17324d", fontSize: 16 }}>Borrar datos del WMS</span>
+              </div>
+              <button onClick={() => setDelModal(false)} style={iconBtnStyle}>
+                <X size={16} />
+              </button>
+            </div>
+            <div style={{ padding: 18 }}>
+              <div style={{ fontSize: 12.5, color: colors.muted, marginBottom: 12 }}>
+                Marca qué quieres eliminar para arrancar de cero. Los maestros no se borran.
+              </div>
+
+              {["movimientos", "bases"].map((grupo) => {
+                const items = WMS_DATA_GROUPS.filter((g) => g.grupo === grupo);
+                return (
+                  <div key={grupo} style={{ marginBottom: 14 }}>
+                    <div style={{ ...fieldLabelStyle, marginBottom: 8 }}>
+                      {grupo === "movimientos" ? "Movimientos" : "Bases"}
+                    </div>
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {items.map((g) => (
+                        <label
+                          key={g.key}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            padding: "9px 12px",
+                            border: `1px solid ${delSel[g.key] ? colors.badBd : colors.border}`,
+                            background: delSel[g.key] ? colors.badBg : "#fff",
+                            borderRadius: 8,
+                            cursor: "pointer",
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: colors.text,
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={Boolean(delSel[g.key])}
+                            onChange={(e) => setDelSel((prev) => ({ ...prev, [g.key]: e.target.checked }))}
+                          />
+                          {g.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
+                <button onClick={() => setDelModal(false)} style={secondaryButtonStyle}>
+                  Cancelar
+                </button>
+                <button
+                  onClick={continuarBorrar}
+                  style={{ ...primaryButtonStyle, borderColor: "#b42318", background: "#b42318" }}
+                >
+                  <Trash2 size={15} />
+                  Continuar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pwModal && (
+        <div style={overlayStyle} onClick={() => !working && setPwModal(null)}>
+          <div style={{ ...modalCardStyle, width: "min(460px, 96vw)" }} onClick={(e) => e.stopPropagation()}>
+            <div style={modalHeadStyle}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Lock size={16} color="#8a5b00" />
+                <span style={{ fontWeight: 900, color: "#17324d", fontSize: 16 }}>{pwModal.titulo}</span>
+              </div>
+            </div>
+            <div style={{ padding: 18 }}>
+              <div style={{ fontSize: 12.5, color: colors.muted, marginBottom: 14 }}>{pwModal.detalle}</div>
+              <div style={fieldLabelStyle}>Tu contraseña</div>
+              <input
+                type="password"
+                value={pwValue}
+                autoFocus
+                onChange={(e) => setPwValue(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && confirmarClave()}
+                placeholder="••••••••"
+                style={inputStyle}
+              />
+              {pwError && (
+                <div style={{ marginTop: 8, color: colors.bad, fontSize: 12.5, fontWeight: 800 }}>{pwError}</div>
+              )}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
+                <button onClick={() => setPwModal(null)} disabled={working} style={secondaryButtonStyle}>
+                  Cancelar
+                </button>
+                <button onClick={confirmarClave} disabled={working} style={primaryButtonStyle}>
+                  {working ? "Verificando…" : "Confirmar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const overlayStyle = {
+  position: "fixed",
+  inset: 0,
+  zIndex: 10001,
+  display: "grid",
+  placeItems: "center",
+  background: "rgba(8,17,31,.55)",
+  padding: 16,
+};
+
+const modalCardStyle = {
+  background: "#fff",
+  borderRadius: 14,
+  border: "1px solid #d9e2ec",
+  boxShadow: "0 24px 60px rgba(8,17,31,.35)",
+  overflow: "hidden",
+};
+
+const modalHeadStyle = {
+  padding: "14px 18px",
+  borderBottom: "1px solid #eef2f7",
+  background: "#f8fafc",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+};
+
+const iconBtnStyle = {
+  width: 30,
+  height: 30,
+  borderRadius: 8,
+  border: "1px solid #d9e2ec",
+  background: "#fff",
+  cursor: "pointer",
+  display: "grid",
+  placeItems: "center",
+};

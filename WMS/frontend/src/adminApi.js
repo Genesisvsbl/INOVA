@@ -63,6 +63,30 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+// Valida la contraseña del usuario que está logueado (sin efectos de bloqueo).
+// Se usa para confirmar acciones sensibles (importar / borrar datos).
+export async function verificarClaveUsuarioActual(password) {
+  const clave = clean(password);
+  if (!clave) return false;
+  const login =
+    clean(sessionStorage.getItem("usuario")) ||
+    clean(sessionStorage.getItem("nombre"));
+  if (!login) return false;
+  try {
+    const usuarios = await safeSelect("public", "usuarios", {
+      select: "id,usuario,email,clave_acceso,estado",
+      or: `(usuario.ilike.${login},email.ilike.${login})`,
+      limit: "1",
+    });
+    const user = usuarios?.[0];
+    if (!user) return false;
+    return clean(user.clave_acceso) === clave;
+  } catch (error) {
+    console.error("No se pudo verificar la contraseña:", error);
+    return false;
+  }
+}
+
 function slugIdentity(value) {
   return clean(value)
     .toLowerCase()

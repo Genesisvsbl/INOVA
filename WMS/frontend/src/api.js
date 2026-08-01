@@ -460,6 +460,9 @@ async function buildMovimientoInsert(payload) {
     fecha_fabricacion: payload.fecha_fabricacion || null,
     fecha_vencimiento: payload.fecha_vencimiento || null,
     cantidad_r: toNumber(payload.cantidad_r ?? payload.cantidad ?? 0),
+    // Solo se incluye si viene con valor (tránsito). compactObject NO quita null,
+    // por eso usamos undefined para no exigir la columna en recibos normales.
+    observacion: payload.observacion ? String(payload.observacion).trim() : undefined,
   });
 }
 
@@ -1121,6 +1124,58 @@ export function importarInventarioInicial(file) {
     await crearMovimientosBulk({ items });
     return importResult(items.length, rows.length - items.length);
   });
+}
+
+// Categorías de datos transaccionales que el administrador puede borrar.
+// NO incluye maestros (materiales, proveedores, ubicaciones).
+export const WMS_DATA_GROUPS = [
+  {
+    key: "movimientos",
+    grupo: "movimientos",
+    label: "Movimientos (entradas, salidas, tránsito y stock)",
+    tablas: ["movimientos"],
+  },
+  {
+    key: "rotulos",
+    grupo: "bases",
+    label: "Rótulos",
+    tablas: ["rotulos"],
+  },
+  {
+    key: "despachos",
+    grupo: "bases",
+    label: "Despachos y picking",
+    tablas: ["despacho_detalles", "picking_detalle", "despacho_cargas"],
+  },
+  {
+    key: "inventarios",
+    grupo: "bases",
+    label: "Inventarios / conteos físicos",
+    tablas: ["inventario_tarea_detalles", "inventario_tareas"],
+  },
+  {
+    key: "certificados",
+    grupo: "bases",
+    label: "Certificados de calidad",
+    tablas: ["certificados_calidad"],
+  },
+];
+
+// Borra por empresa las categorías seleccionadas. `seleccion` es un objeto
+// { movimientos:true, rotulos:false, ... }. Devuelve el detalle de lo borrado.
+export async function borrarDatosWms(seleccion = {}) {
+  if (!supabaseEnabled) throw new Error("Servicio operativo no configurado.");
+  const grupos = WMS_DATA_GROUPS.filter((g) => seleccion[g.key]);
+  if (!grupos.length) throw new Error("No seleccionaste ninguna categoría para borrar.");
+
+  const borradas = [];
+  for (const grupo of grupos) {
+    for (const tabla of grupo.tablas) {
+      await deleteWhere("wms", tabla, { empresa_id: `eq.${empresaId}` });
+      borradas.push(tabla);
+    }
+  }
+  return { grupos: grupos.map((g) => g.key), tablas: borradas };
 }
 
 export function importarDespachos(file) {

@@ -508,6 +508,8 @@ export default function DesdeRecibo() {
   const [scannerError, setScannerError] = useState("");
   const [scannerBusy, setScannerBusy] = useState(false);
   const [notice, setNotice] = useState(null);
+  const [transitoModal, setTransitoModal] = useState(false);
+  const [transitoObs, setTransitoObs] = useState("");
 
   const showNotice = (payload) => {
     setNotice({
@@ -1701,6 +1703,7 @@ export default function DesdeRecibo() {
       fecha_vencimiento: fv || null,
       cantidad_r: Number(opts.cantidad_r ?? linea.total ?? 0),
       cantidad_rl: Number(opts.cantidad_rl ?? opts.cantidad_r ?? linea.total ?? 0),
+      observacion: opts.observacion || null,
     };
   };
 
@@ -2205,13 +2208,28 @@ export default function DesdeRecibo() {
     }
   };
 
-  const guardarEnTransito = async () => {
+  // El botón "En tránsito" primero valida y luego pide la observación (obligatoria)
+  // de dónde/en qué área queda el material, antes de guardar.
+  const guardarEnTransito = () => {
     const err = validarDatosBase() || validarPNC();
     if (err) {
       showNotice({ tone: "warn", title: "Datos incompletos", message: String(err) });
       return;
     }
+    setTransitoModal(true);
+  };
 
+  const confirmarTransito = async () => {
+    const obs = String(transitoObs || "").trim();
+    if (!obs) {
+      showNotice({ tone: "warn", title: "Observación requerida", message: "Escribe dónde queda el material (área/ubicación) antes de mandarlo a tránsito." });
+      return;
+    }
+    setTransitoModal(false);
+    await ejecutarTransito(obs);
+  };
+
+  const ejecutarTransito = async (obs) => {
     setGuardando(true);
 
     try {
@@ -2246,6 +2264,7 @@ export default function DesdeRecibo() {
                 codigo_ubicacion: null,
                 estado: "EN_TRANSITO",
                 cantidad_r: cantidadMovimiento,
+                observacion: obs,
               })
             );
           }
@@ -2255,6 +2274,7 @@ export default function DesdeRecibo() {
               codigo_ubicacion: null,
               estado: "EN_TRANSITO",
               cantidad_r: normalTotal,
+              observacion: obs,
             })
           );
         }
@@ -2264,6 +2284,7 @@ export default function DesdeRecibo() {
       await guardarTrazabilidadCertificados();
 
       localStorage.removeItem(DRAFT_KEY);
+      setTransitoObs("");
       showNotice({ tone: "success", title: "Material en transito", message: "Se guardo el material en EN TRANSITO por pallet y el historial de rotulos correctamente.", confirmText: "Ir a rotulos", onConfirm: () => navigate("/datos-maestros/rotulos") });
 
     } catch (e) {
@@ -2353,6 +2374,98 @@ export default function DesdeRecibo() {
       `}</style>
 
       <ProcessNoticeModal notice={notice} onClose={closeNotice} />
+
+      {transitoModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10001,
+            display: "grid",
+            placeItems: "center",
+            background: "rgba(8,17,31,.55)",
+            padding: 16,
+          }}
+          onClick={() => setTransitoModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(520px, 96vw)",
+              background: "#fff",
+              borderRadius: 14,
+              border: "1px solid #d9e2ec",
+              boxShadow: "0 24px 60px rgba(8,17,31,.35)",
+              overflow: "hidden",
+            }}
+          >
+            <div style={{ padding: "16px 18px", borderBottom: "1px solid #eef2f7", background: "#f8fafc" }}>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".08em", color: "#94794f", textTransform: "uppercase" }}>
+                Enviar a tránsito
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: "#17324d", marginTop: 2 }}>
+                ¿Dónde queda el material?
+              </div>
+              <div style={{ fontSize: 12.5, color: "#5b6b7c", marginTop: 4 }}>
+                Indica el área o ubicación física donde queda el material en tránsito. Es obligatorio.
+              </div>
+            </div>
+            <div style={{ padding: 18 }}>
+              <textarea
+                value={transitoObs}
+                onChange={(e) => setTransitoObs(e.target.value)}
+                autoFocus
+                placeholder="Ej: Queda en el andén 2, costado norte, junto a la reja..."
+                rows={4}
+                style={{
+                  width: "100%",
+                  borderRadius: 10,
+                  border: "1px solid #d9e2ec",
+                  padding: "10px 12px",
+                  fontSize: 14,
+                  color: "#1f2d3d",
+                  outline: "none",
+                  resize: "vertical",
+                  boxSizing: "border-box",
+                }}
+              />
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
+                <button
+                  onClick={() => setTransitoModal(false)}
+                  style={{
+                    height: 40,
+                    padding: "0 16px",
+                    borderRadius: 10,
+                    border: "1px solid #d9e2ec",
+                    background: "#fff",
+                    color: "#1f2d3d",
+                    fontWeight: 800,
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmarTransito}
+                  disabled={!String(transitoObs).trim()}
+                  style={{
+                    height: 40,
+                    padding: "0 18px",
+                    borderRadius: 10,
+                    border: "1px solid #b3761a",
+                    background: String(transitoObs).trim() ? "#e08a1e" : "#e6c79a",
+                    color: "#fff",
+                    fontWeight: 900,
+                    cursor: String(transitoObs).trim() ? "pointer" : "not-allowed",
+                  }}
+                >
+                  Confirmar y guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {guardando && (
         <div
