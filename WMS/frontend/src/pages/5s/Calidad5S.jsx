@@ -666,6 +666,20 @@ async function openPrintable5SDocument({ title, reportElement }) {
   portal.appendChild(clon);
   document.body.appendChild(portal);
 
+  // La PRIMERA hoja (portada) sale en blanco al imprimir (bug de render de esa
+  // hoja). La dibujamos nosotros y la pegamos como imagen dentro del informe;
+  // el resto de hojas se imprimen nativas (texto nítido).
+  try {
+    const primeraHoja = clon.querySelector(".report-sheet");
+    if (primeraHoja) {
+      const portadaUrl = buildPortada5SCanvas(primeraHoja);
+      primeraHoja.innerHTML =
+        `<img src="${portadaUrl}" alt="Portada" style="display:block;width:8.5in;height:11in;object-fit:contain;" />`;
+    }
+  } catch (e) {
+    console.error("No se pudo dibujar la portada:", e);
+  }
+
   const prevTitle = document.title;
   if (title) document.title = title;
   document.body.classList.add("s5-printing");
