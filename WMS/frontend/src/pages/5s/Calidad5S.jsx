@@ -423,51 +423,293 @@ function esCanvasBlanco(canvas) {
   }
 }
 
+// ---- Dibujo manual de la PORTADA (html2canvas no la digiere, así que la
+// pintamos nosotros leyendo los valores del propio informe). ----
+function q1Text(el, sel) {
+  const n = el && el.querySelector(sel);
+  return n ? n.textContent.trim() : "";
+}
+function wrapCanvasText(ctx, text, x, y, maxW, lh) {
+  const words = String(text || "").split(/\s+/);
+  let line = "";
+  let yy = y;
+  for (const w of words) {
+    const test = line ? line + " " + w : w;
+    if (ctx.measureText(test).width > maxW && line) {
+      ctx.fillText(line, x, yy);
+      line = w;
+      yy += lh;
+    } else {
+      line = test;
+    }
+  }
+  if (line) {
+    ctx.fillText(line, x, yy);
+    yy += lh;
+  }
+  return yy;
+}
+function roundRectPath(ctx, x, y, w, h, r) {
+  r = Math.min(r, h / 2, w / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function buildPortada5SCanvas(sheet) {
+  const W = 816, H = 1056, scale = 2;
+  const cv = document.createElement("canvas");
+  cv.width = W * scale;
+  cv.height = H * scale;
+  const ctx = cv.getContext("2d");
+  ctx.scale(scale, scale);
+  ctx.textBaseline = "top";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
+
+  const name = q1Text(sheet, ".report-reference-title h2").toUpperCase();
+  const kicker = (q1Text(sheet, ".report-reference-title span") || "INFORME DE INSPECCIÓN 5S").toUpperCase();
+  const sub = q1Text(sheet, ".report-reference-title p");
+  const cumpl = q1Text(sheet, ".report-reference-score strong");
+  const estado = q1Text(sheet, ".report-reference-score b").toUpperCase();
+  const scoreEl = sheet.querySelector(".report-reference-score");
+  const accent = scoreEl && scoreEl.classList.contains("status-critical")
+    ? "#dc2626"
+    : scoreEl && scoreEl.classList.contains("status-warning")
+    ? "#f59e0b"
+    : "#0f6fbd";
+
+  // Encabezado
+  const headH = 120;
+  ctx.fillStyle = "#071d36";
+  ctx.fillRect(0, 0, 150, headH);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "900 24px Arial";
+  ctx.fillText("INOVA", 24, 46);
+  ctx.fillStyle = "#9fb6cf";
+  ctx.font = "800 10px Arial";
+  ctx.fillText("CALIDAD 5S", 24, 76);
+  ctx.fillStyle = "#42556f";
+  ctx.font = "900 10px Arial";
+  ctx.fillText(kicker, 172, 26);
+  ctx.fillStyle = "#071c39";
+  ctx.font = "900 30px Arial";
+  ctx.fillText(name, 170, 42);
+  ctx.fillStyle = "#223655";
+  ctx.font = "11px Arial";
+  wrapCanvasText(ctx, sub, 172, 84, 360, 14);
+
+  // Tarjeta de cumplimiento
+  const bw = 176, bh = 100, bx = W - bw - 24, by = 10;
+  ctx.fillStyle = "#ffffff";
+  roundRectPath(ctx, bx, by, bw, bh, 8);
+  ctx.fill();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.stroke();
+  ctx.fillStyle = accent;
+  roundRectPath(ctx, bx, by, bw, 5, 2);
+  ctx.fill();
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#071c39";
+  ctx.font = "900 9px Arial";
+  ctx.fillText("CUMPLIMIENTO GENERAL", bx + bw / 2, by + 14);
+  ctx.fillStyle = accent;
+  ctx.font = "900 36px Arial";
+  ctx.fillText(cumpl, bx + bw / 2, by + 28);
+  ctx.font = "900 11px Arial";
+  const pw = ctx.measureText(estado).width + 26;
+  ctx.fillStyle = accent;
+  roundRectPath(ctx, bx + bw / 2 - pw / 2, by + bh - 30, pw, 22, 5);
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(estado, bx + bw / 2, by + bh - 25);
+  ctx.textAlign = "left";
+
+  const drawRow = (divs, y, cardH) => {
+    const x0 = 24, totalW = W - 48, gap = 10, count = divs.length || 1;
+    const cw = (totalW - gap * (count - 1)) / count;
+    divs.forEach((d, i) => {
+      const x = x0 + i * (cw + gap);
+      ctx.fillStyle = "#ffffff";
+      roundRectPath(ctx, x, y, cw, cardH, 7);
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "#dbe3ee";
+      ctx.stroke();
+      const label = q1Text(d, "small").toUpperCase();
+      const value = q1Text(d, "strong");
+      const cls = d.className || "";
+      const vcolor = /\bok\b/.test(cls)
+        ? "#16a34a"
+        : /\bbad\b/.test(cls)
+        ? "#dc2626"
+        : /\bwarn\b/.test(cls)
+        ? "#d97706"
+        : /\bneutral\b/.test(cls)
+        ? "#64748b"
+        : "#071c39";
+      ctx.fillStyle = "#52637d";
+      ctx.font = "900 9px Arial";
+      wrapCanvasText(ctx, label, x + 12, y + 12, cw - 24, 11);
+      ctx.fillStyle = vcolor;
+      ctx.font = "900 19px Arial";
+      wrapCanvasText(ctx, value, x + 12, y + cardH - 34, cw - 20, 16);
+    });
+  };
+
+  const metas = Array.from(sheet.querySelectorAll(".report-reference-meta > div"));
+  const kpis = Array.from(sheet.querySelectorAll(".report-reference-kpis > div"));
+  let y = headH + 16;
+  drawRow(metas, y, 68);
+  y += 68 + 12;
+  drawRow(kpis, y, 80);
+  y += 80 + 16;
+
+  // Resultado general
+  const rpH = 116;
+  ctx.fillStyle = "#ffffff";
+  roundRectPath(ctx, 24, y, W - 48, rpH, 8);
+  ctx.fill();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "#dbe3ee";
+  ctx.stroke();
+  ctx.fillStyle = "#071c39";
+  ctx.font = "900 14px Arial";
+  ctx.fillText("RESULTADO GENERAL", 40, y + 16);
+  ctx.fillStyle = "#223655";
+  ctx.font = "11px Arial";
+  wrapCanvasText(ctx, q1Text(sheet, ".report-result-panel p"), 40, y + 38, W - 240, 15);
+  const cumplNum = parseFloat(String(cumpl).replace("%", "")) || 0;
+  const py = y + rpH - 30, px = 40;
+  ctx.fillStyle = "#dc2626";
+  ctx.font = "900 15px Arial";
+  ctx.fillText(cumpl, px, py - 4);
+  const barX = px + 58, barW = W - 240 - barX;
+  ctx.fillStyle = "#dce3ec";
+  roundRectPath(ctx, barX, py, barW, 8, 4);
+  ctx.fill();
+  ctx.fillStyle = "#dc2626";
+  roundRectPath(ctx, barX, py, Math.max(8, (barW * Math.min(100, cumplNum)) / 100), 8, 4);
+  ctx.fill();
+  ctx.fillStyle = "#071c39";
+  ctx.font = "900 13px Arial";
+  ctx.fillText("90%", barX + barW + 10, py - 4);
+  y += rpH + 18;
+
+  // Matriz técnica (resumen)
+  ctx.fillStyle = "#071c39";
+  ctx.font = "900 14px Arial";
+  ctx.fillText("1. MATRIZ TÉCNICA DE VERIFICACIÓN", 24, y);
+  ctx.fillStyle = "#52637d";
+  ctx.font = "11px Arial";
+  ctx.fillText("Resumen de cumplimiento por punto evaluado.", 24, y + 18);
+  y += 38;
+
+  ctx.fillStyle = "#eef2f7";
+  ctx.fillRect(24, y, W - 48, 22);
+  ctx.fillStyle = "#52637d";
+  ctx.font = "900 8.5px Arial";
+  ctx.fillText("#", 30, y + 7);
+  ctx.fillText("PUNTO EVALUADO", 62, y + 7);
+  ctx.fillText("ESTADO", 430, y + 7);
+  ctx.fillText("SEVERIDAD", 520, y + 7);
+  ctx.fillText("OBSERVACIONES", 614, y + 7);
+  y += 22;
+
+  const rows = Array.from(sheet.querySelectorAll(".report-reference-table tbody tr"));
+  ctx.font = "10px Arial";
+  for (const tr of rows) {
+    if (y > H - 34) break;
+    const tds = tr.querySelectorAll("td");
+    const rowY = y;
+    ctx.fillStyle = "#334155";
+    ctx.fillText(tds[0] ? tds[0].textContent.trim() : "", 30, rowY + 4);
+    const e1 = wrapCanvasText(ctx, tds[1] ? tds[1].textContent.trim() : "", 62, rowY + 4, 358, 12);
+    ctx.fillStyle = "#0f6fbd";
+    ctx.fillText(tds[2] ? tds[2].textContent.trim() : "", 430, rowY + 4);
+    ctx.fillStyle = "#334155";
+    ctx.fillText(tds[3] ? tds[3].textContent.trim() : "", 520, rowY + 4);
+    const e2 = wrapCanvasText(ctx, tds[4] ? tds[4].textContent.trim() : "", 614, rowY + 4, 176, 12);
+    const rowH = Math.max(24, e1 - rowY, e2 - rowY);
+    ctx.strokeStyle = "#eef2f7";
+    ctx.beginPath();
+    ctx.moveTo(24, rowY + rowH);
+    ctx.lineTo(W - 24, rowY + rowH);
+    ctx.stroke();
+    y = rowY + rowH;
+  }
+
+  return cv.toDataURL("image/jpeg", 0.95);
+}
+
 async function openPrintable5SDocument({ title, reportElement }) {
-  // Le tomamos foto a CADA hoja REAL que se ve en pantalla (no a un clon) y
-  // armamos el PDF pegando una imagen por página. Es lo más directo y fiable.
+  // La portada la DIBUJAMOS nosotros (html2canvas la deja en blanco); el resto
+  // de hojas se capturan de un clon fuera de la app. No tocamos el informe vivo.
   const anterior = document.getElementById("s5-print-portal");
   if (anterior) anterior.remove();
+  const hostAnt = document.getElementById("s5-capture-host");
+  if (hostAnt) hostAnt.remove();
 
   await waitForReport5SReady(reportElement);
 
-  const hojas = Array.from(reportElement.querySelectorAll(".report-sheet"));
-  const objetivos = hojas.length ? hojas : [reportElement];
+  const host = document.createElement("div");
+  host.id = "s5-capture-host";
+  host.className = "s5-layout";
+  host.style.cssText =
+    "position:fixed; left:0; top:0; width:8.5in; background:#ffffff; z-index:2147483647;";
+  const clon = reportElement.cloneNode(true);
+  clon.removeAttribute("id");
+  host.appendChild(clon);
+  document.body.appendChild(host);
+  document.body.classList.add("s5-capturing");
+  window.scrollTo(0, 0);
 
-  // 1) Pasamos las imágenes (logo/evidencias) a datos locales para que el
-  //    lienzo no se "contamine". Guardamos el src original para restaurarlo.
-  const restaurar = [];
-  await Promise.all(
-    Array.from(reportElement.querySelectorAll("img")).map(async (img) => {
-      const src = img.getAttribute("src") || "";
-      if (!src || src.startsWith("data:")) return;
-      try {
-        const resp = await fetch(src, { mode: "cors", cache: "force-cache" });
-        const blob = await resp.blob();
-        const dataUrl = await new Promise((res) => {
-          const fr = new FileReader();
-          fr.onload = () => res(fr.result);
-          fr.onerror = () => res(null);
-          fr.readAsDataURL(blob);
-        });
-        if (dataUrl) {
-          restaurar.push([img, src]);
-          img.setAttribute("src", dataUrl);
-        }
-      } catch {
-        /* si falla dejamos el src original */
-      }
-    })
+  clon.querySelectorAll(".letter-report-page, .report-book").forEach((el) => {
+    el.style.height = "auto";
+    el.style.minHeight = "0";
+    el.style.overflow = "visible";
+    el.style.transform = "none";
+    el.style.boxShadow = "none";
+  });
+  clon.querySelectorAll(".report-sheet").forEach((el) => {
+    el.style.width = "8.5in";
+    el.style.height = "11in";
+    el.style.minHeight = "11in";
+    el.style.margin = "0 auto";
+    el.style.boxShadow = "none";
+    el.style.border = "0";
+    el.style.borderRadius = "0";
+    el.style.overflow = "hidden";
+  });
+
+  const conTope = (p, ms) => Promise.race([p, new Promise((r) => setTimeout(r, ms))]);
+  const cargar = Array.from(host.querySelectorAll("img")).map((img) =>
+    img.complete ? Promise.resolve() : new Promise((res) => { img.onload = res; img.onerror = res; })
   );
+  await conTope(Promise.all(cargar), 4000);
+  await inlineImagesToDataUrl(host);
   await new Promise((r) => requestAnimationFrame(() => r()));
 
-  // 2) Foto de cada hoja tal como se ve en pantalla.
   const SCALE = 2;
   const paginas = [];
-  const anchoVentana = Math.max(1200, document.documentElement.clientWidth || 1440);
-  for (const hoja of objetivos) {
+  const hojas = Array.from(clon.querySelectorAll(".report-sheet"));
+  for (let i = 0; i < hojas.length; i++) {
+    const hoja = hojas[i];
+    // Página 1 (portada): la dibujamos a mano -> nunca sale en blanco.
+    if (i === 0) {
+      try {
+        paginas.push(buildPortada5SCanvas(hoja));
+        continue;
+      } catch (e) {
+        console.error("No se pudo dibujar la portada:", e);
+      }
+    }
     try {
-      hoja.scrollIntoView({ block: "center" });
+      hoja.scrollIntoView({ block: "start" });
       await new Promise((r) => setTimeout(r, 60));
       const canvas = await html2canvas(hoja, {
         backgroundColor: "#ffffff",
@@ -477,8 +719,8 @@ async function openPrintable5SDocument({ title, reportElement }) {
         imageTimeout: 0,
         width: hoja.offsetWidth,
         height: hoja.offsetHeight,
-        windowWidth: anchoVentana,
-        windowHeight: document.documentElement.clientHeight || 900,
+        windowWidth: 1440,
+        windowHeight: Math.max(1024, hoja.offsetHeight),
       });
       paginas.push(canvas.toDataURL("image/jpeg", 0.95));
     } catch (e) {
@@ -486,8 +728,9 @@ async function openPrintable5SDocument({ title, reportElement }) {
     }
   }
 
-  // 3) Restauramos las imágenes originales.
-  restaurar.forEach(([img, src]) => img.setAttribute("src", src));
+  host.remove();
+  document.body.classList.remove("s5-capturing");
+  window.scrollTo(0, 0);
 
   if (!paginas.length) {
     show5SAlert("No se pudo generar el informe para imprimir. Intenta de nuevo.");
