@@ -647,74 +647,101 @@ function buildPortada5SCanvas(sheet) {
 }
 
 async function openPrintable5SDocument({ title, reportElement }) {
-  // IMPRESIÓN NATIVA: clonamos el informe tal cual se ve y dejamos que el
-  // navegador lo imprima directamente (nítido, sin html2canvas). El clon
-  // cuelga del <body> con la clase s5-layout para conservar estilos, y cada
-  // hoja ocupa una página.
-  const anterior = document.getElementById("s5-print-portal");
-  if (anterior) anterior.remove();
+  // VERSIÓN QUE FUNCIONABA (restaurada): captura cada hoja del informe en
+  // pantalla con html2canvas y arma un PDF en una ventana nueva, una imagen
+  // por página.
+  const win = window.open("", "_blank", "width=1100,height=800");
+  if (!win) {
+    show5SAlert("No se pudo abrir la ventana de impresión. Revisa si el navegador bloqueó ventanas emergentes.");
+    return;
+  }
+
+  win.document.write(`<!doctype html><html><head><title>${title}</title></head><body style="font-family:Arial,sans-serif;padding:24px;">Preparando PDF 5S...</body></html>`);
+  win.document.close();
 
   await waitForReport5SReady(reportElement);
 
-  const clon = reportElement.cloneNode(true);
-  clon.removeAttribute("id");
-  clon.classList.add("s5-print-clone");
+  const pages = Array.from(reportElement.querySelectorAll(".report-sheet"));
+  const captureTargets = pages.length ? pages : [reportElement];
+  const imagePages = [];
 
-  const portal = document.createElement("div");
-  portal.id = "s5-print-portal";
-  portal.className = "s5-layout";
-  portal.appendChild(clon);
-  document.body.appendChild(portal);
-
-  // La PRIMERA hoja (portada) sale en blanco al imprimir (bug de render de esa
-  // hoja). La dibujamos nosotros y la pegamos como imagen dentro del informe;
-  // el resto de hojas se imprimen nativas (texto nítido).
-  try {
-    const primeraHoja = clon.querySelector(".report-sheet");
-    if (primeraHoja) {
-      const portadaUrl = buildPortada5SCanvas(primeraHoja);
-      primeraHoja.innerHTML =
-        `<img src="${portadaUrl}" alt="Portada" style="display:block;width:8.5in;height:11in;object-fit:contain;" />`;
-    }
-  } catch (e) {
-    console.error("No se pudo dibujar la portada:", e);
-  }
-
-  const prevTitle = document.title;
-  if (title) document.title = title;
-  document.body.classList.add("s5-printing");
-
-  let limpiado = false;
-  const cleanup = () => {
-    if (limpiado) return;
-    limpiado = true;
-    document.body.classList.remove("s5-printing");
-    document.title = prevTitle;
-    portal.remove();
-    window.removeEventListener("afterprint", cleanup);
-  };
-  window.addEventListener("afterprint", cleanup);
-
-  // Incrustamos las imágenes (logo/evidencias) como datos dentro del clon para
-  // que la vista previa de impresión pinte de una, sin esperar la red.
-  const conTope = (p, ms) => Promise.race([p, new Promise((r) => setTimeout(r, ms))]);
-  const imgsPend = Array.from(portal.querySelectorAll("img")).filter((i) => !i.complete);
-  if (imgsPend.length) {
-    await conTope(
-      Promise.all(
-        imgsPend.map((i) => new Promise((res) => { i.onload = res; i.onerror = res; }))
-      ),
-      3000
-    );
-  }
-  await conTope(inlineImagesToDataUrl(portal), 5000);
-
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      window.print();
-      setTimeout(cleanup, 120000);
+  for (const page of captureTargets) {
+    const canvas = await html2canvas(page, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      windowWidth: page.scrollWidth,
+      windowHeight: page.scrollHeight,
     });
-  });
+    imagePages.push(canvas.toDataURL("image/jpeg", 0.95));
+  }
+
+  const imagesHtml = imagePages
+    .map((src, index) => `<section class="pdf-page"><img src="${src}" alt="Página ${index + 1}" /></section>`)
+    .join("");
+
+  win.document.open();
+  win.document.write(`<!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>${title}</title>
+        <style>
+          @page { size: Letter; margin: 0; }
+          html, body {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .pdf-page {
+            width: 8.5in;
+            height: 11in;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            place-items: stretch;
+            overflow: hidden;
+            page-break-after: always;
+            break-after: page;
+            background: #fff;
+          }
+          .pdf-page:last-child {
+            page-break-after: auto;
+            break-after: auto;
+          }
+          .pdf-page img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+          }
+        </style>
+      </head>
+      <body>
+        ${imagesHtml}
+        <script>
+          Promise.all(Array.from(document.images).map(function (img) {
+            if (img.complete) return Promise.resolve();
+            return new Promise(function (resolve) {
+              img.onload = resolve;
+              img.onerror = resolve;
+            });
+          })).then(function () {
+            requestAnimationFrame(function () {
+              requestAnimationFrame(function () {
+                window.focus();
+                window.print();
+              });
+            });
+          });
+        </script>
+      </body>
+    </html>`);
+  win.document.close();
 }
 
 function useViewport() {
