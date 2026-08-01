@@ -1159,6 +1159,26 @@ export const WMS_DATA_GROUPS = [
     label: "Certificados de calidad",
     tablas: ["certificados_calidad"],
   },
+  // Maestros: van al FINAL para que, si se borra todo junto, primero se
+  // eliminen los movimientos/bases que los referencian (llaves foráneas).
+  {
+    key: "materiales",
+    grupo: "maestros",
+    label: "Materiales",
+    tablas: ["materiales"],
+  },
+  {
+    key: "proveedores",
+    grupo: "maestros",
+    label: "Proveedores",
+    tablas: ["proveedores"],
+  },
+  {
+    key: "ubicaciones",
+    grupo: "maestros",
+    label: "Ubicaciones",
+    tablas: ["ubicaciones"],
+  },
 ];
 
 // Borra por empresa las categorías seleccionadas. `seleccion` es un objeto

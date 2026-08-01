@@ -537,10 +537,11 @@ export default function MotorPrincipal() {
       return;
     }
     const nombres = WMS_DATA_GROUPS.filter((g) => seleccion[g.key]).map((g) => g.label);
+    const tocaMaestros = WMS_DATA_GROUPS.some((g) => g.grupo === "maestros" && seleccion[g.key]);
     setDelModal(false);
     pedirClave({
       titulo: "Borrar datos del WMS",
-      detalle: `Vas a BORRAR de forma permanente: ${nombres.join("; ")}. Los maestros (materiales, proveedores, ubicaciones) NO se tocan. Confirma con tu contraseña.`,
+      detalle: `Vas a BORRAR de forma permanente: ${nombres.join("; ")}.${tocaMaestros ? " OJO: incluye MAESTROS." : ""} Confirma con tu contraseña.`,
       ejecutar: async () => {
         setAdminMsg({ tone: "info", text: "Borrando datos…" });
         try {
@@ -767,8 +768,8 @@ export default function MotorPrincipal() {
           </div>
           <div style={panelBodyStyle}>
             <div style={{ fontSize: 12.5, color: colors.muted, marginBottom: 12 }}>
-              Acciones sensibles: cada una pide tu contraseña para confirmar. No afectan los maestros
-              (materiales, proveedores, ubicaciones).
+              Acciones sensibles: cada una pide tu contraseña para confirmar. En "Borrar datos" eliges con
+              checks qué borrar; puedes incluir también los maestros (materiales, proveedores, ubicaciones).
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button
@@ -1264,12 +1265,21 @@ export default function MotorPrincipal() {
                 Marca qué quieres eliminar para arrancar de cero. Los maestros no se borran.
               </div>
 
-              {["movimientos", "bases"].map((grupo) => {
+              {["movimientos", "bases", "maestros"].map((grupo) => {
                 const items = WMS_DATA_GROUPS.filter((g) => g.grupo === grupo);
+                if (!items.length) return null;
+                const grupoLabel =
+                  grupo === "movimientos" ? "Movimientos" : grupo === "bases" ? "Bases" : "Maestros (¡cuidado!)";
                 return (
                   <div key={grupo} style={{ marginBottom: 14 }}>
-                    <div style={{ ...fieldLabelStyle, marginBottom: 8 }}>
-                      {grupo === "movimientos" ? "Movimientos" : "Bases"}
+                    <div
+                      style={{
+                        ...fieldLabelStyle,
+                        marginBottom: 8,
+                        color: grupo === "maestros" ? colors.bad : fieldLabelStyle.color,
+                      }}
+                    >
+                      {grupoLabel}
                     </div>
                     <div style={{ display: "grid", gap: 8 }}>
                       {items.map((g) => (
