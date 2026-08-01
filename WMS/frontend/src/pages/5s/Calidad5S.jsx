@@ -487,8 +487,10 @@ async function openPrintable5SDocument({ title, reportElement }) {
       scrollY: 0,
       width: clon.offsetWidth,
       height: clon.offsetHeight,
-      windowWidth: clon.scrollWidth,
-      windowHeight: clon.scrollHeight,
+      // Ancho de ESCRITORIO para que NO se activen las reglas @media móviles
+      // que rompían/ocultaban la portada al renderizar a 8.5in.
+      windowWidth: 1440,
+      windowHeight: Math.max(1024, clon.scrollHeight),
     });
   } catch (e) {
     console.error("No se pudo capturar el informe 5S:", e);
