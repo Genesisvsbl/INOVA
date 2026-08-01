@@ -424,157 +424,70 @@ function esCanvasBlanco(canvas) {
 }
 
 async function openPrintable5SDocument({ title, reportElement }) {
-  // Enfoque imagen-por-página: capturamos cada hoja del informe como imagen y
-  // armamos el PDF con una imagen por página. Así la portada SIEMPRE sale
-  // (es un pixelazo de lo que se ve) y como son imágenes livianas, imprime
-  // rápido. Funciona en PC y móvil porque renderizamos un clon fuera de pantalla.
+  // Le tomamos foto a CADA hoja REAL que se ve en pantalla (no a un clon) y
+  // armamos el PDF pegando una imagen por página. Es lo más directo y fiable.
   const anterior = document.getElementById("s5-print-portal");
   if (anterior) anterior.remove();
-  const hostAnterior = document.getElementById("s5-capture-host");
-  if (hostAnterior) hostAnterior.remove();
 
   await waitForReport5SReady(reportElement);
 
-  // 1) Clon DENTRO de la pantalla (tapando la app un instante) para que
-  //    html2canvas lo lea bien. Fuera de pantalla (left:-10000) fallaba en la
-  //    portada. Lo ponemos arriba-izquierda con z-index máximo; se quita al
-  //    terminar la captura.
-  const host = document.createElement("div");
-  host.id = "s5-capture-host";
-  host.className = "s5-layout";
-  host.style.cssText =
-    "position:absolute; left:0; top:0; width:8.5in; background:#ffffff; z-index:2147483647;";
-  const clon = reportElement.cloneNode(true);
-  clon.removeAttribute("id");
-  host.appendChild(clon);
-  document.body.appendChild(host);
-  // Ocultamos la app mientras capturamos: si no, html2canvas (que no respeta
-  // bien el z-index) toma el encabezado de la app en la hoja 1 en vez del
-  // informe, y por eso la portada salía en blanco.
-  document.body.classList.add("s5-capturing");
-  window.scrollTo(0, 0);
+  const hojas = Array.from(reportElement.querySelectorAll(".report-sheet"));
+  const objetivos = hojas.length ? hojas : [reportElement];
 
-  // Mantenemos cada hoja a su TAMAÑO DE PÁGINA (8.5x11) — así cada imagen llena
-  // la hoja exacta (sin márgenes en blanco) y no se recorta nada (el contenido
-  // está diseñado para caber en la hoja).
-  clon.style.width = "8.5in";
-  clon.style.margin = "0";
-  clon.querySelectorAll(".letter-report-page, .report-book").forEach((el) => {
-    el.style.height = "auto";
-    el.style.minHeight = "0";
-    el.style.overflow = "visible";
-    el.style.transform = "none";
-    el.style.boxShadow = "none";
-  });
-  clon.querySelectorAll(".report-sheet").forEach((el) => {
-    el.style.width = "8.5in";
-    el.style.height = "11in";
-    el.style.minHeight = "11in";
-    el.style.margin = "0 auto";
-    el.style.boxShadow = "none";
-    el.style.borderRadius = "0";
-    el.style.border = "0";
-    el.style.overflow = "hidden";
-  });
-
-  // 2) Esperar imágenes cargadas y pasarlas a dataURL (evita lienzo contaminado).
-  const conTope = (p, ms) => Promise.race([p, new Promise((r) => setTimeout(r, ms))]);
-  const cargar = Array.from(host.querySelectorAll("img")).map((img) =>
-    img.complete
-      ? Promise.resolve()
-      : new Promise((res) => {
-          img.onload = res;
-          img.onerror = res;
-        })
+  // 1) Pasamos las imágenes (logo/evidencias) a datos locales para que el
+  //    lienzo no se "contamine". Guardamos el src original para restaurarlo.
+  const restaurar = [];
+  await Promise.all(
+    Array.from(reportElement.querySelectorAll("img")).map(async (img) => {
+      const src = img.getAttribute("src") || "";
+      if (!src || src.startsWith("data:")) return;
+      try {
+        const resp = await fetch(src, { mode: "cors", cache: "force-cache" });
+        const blob = await resp.blob();
+        const dataUrl = await new Promise((res) => {
+          const fr = new FileReader();
+          fr.onload = () => res(fr.result);
+          fr.onerror = () => res(null);
+          fr.readAsDataURL(blob);
+        });
+        if (dataUrl) {
+          restaurar.push([img, src]);
+          img.setAttribute("src", dataUrl);
+        }
+      } catch {
+        /* si falla dejamos el src original */
+      }
+    })
   );
-  await conTope(Promise.all(cargar), 4000);
-  await inlineImagesToDataUrl(host);
   await new Promise((r) => requestAnimationFrame(() => r()));
 
-  // 3) UNA sola captura de TODO el informe y luego lo cortamos en páginas de
-  //    11" exactas. Capturando todo de una pasada, la portada entra igual que
-  //    el resto (capturar hoja por hoja fallaba justo en la primera).
+  // 2) Foto de cada hoja tal como se ve en pantalla.
   const SCALE = 2;
   const paginas = [];
-  const hojas = Array.from(clon.querySelectorAll(".report-sheet"));
-  const n = hojas.length || 1;
-
-  window.scrollTo(0, 0);
-  await new Promise((r) => setTimeout(r, 120));
-
-  let big = null;
-  try {
-    big = await html2canvas(clon, {
-      backgroundColor: "#ffffff",
-      scale: SCALE,
-      useCORS: true,
-      logging: false,
-      imageTimeout: 0,
-      scrollX: 0,
-      scrollY: 0,
-      width: clon.offsetWidth,
-      height: clon.offsetHeight,
-      // Ancho de ESCRITORIO para que NO se activen las reglas @media móviles
-      // que rompían/ocultaban la portada al renderizar a 8.5in.
-      windowWidth: 1440,
-      windowHeight: Math.max(1024, clon.scrollHeight),
-    });
-  } catch (e) {
-    console.error("No se pudo capturar el informe 5S:", e);
-  }
-
-  // Captura APARTE de la portada con foreignObject (motor real del navegador),
-  // por si la captura normal la deja en blanco. Se hace ANTES de quitar el host.
-  let portadaFO = null;
-  if (hojas[0]) {
+  const anchoVentana = Math.max(1200, document.documentElement.clientWidth || 1440);
+  for (const hoja of objetivos) {
     try {
-      const c0 = await html2canvas(hojas[0], {
+      hoja.scrollIntoView({ block: "center" });
+      await new Promise((r) => setTimeout(r, 60));
+      const canvas = await html2canvas(hoja, {
         backgroundColor: "#ffffff",
         scale: SCALE,
         useCORS: true,
         logging: false,
         imageTimeout: 0,
-        foreignObjectRendering: true,
-        windowWidth: 1440,
-        windowHeight: Math.max(1024, clon.scrollHeight),
-        width: hojas[0].offsetWidth,
-        height: hojas[0].offsetHeight,
+        width: hoja.offsetWidth,
+        height: hoja.offsetHeight,
+        windowWidth: anchoVentana,
+        windowHeight: document.documentElement.clientHeight || 900,
       });
-      if (!esCanvasBlanco(c0)) portadaFO = c0;
+      paginas.push(canvas.toDataURL("image/jpeg", 0.95));
     } catch (e) {
-      console.error("Fallo captura foreignObject de la portada:", e);
+      console.error("No se pudo capturar una hoja del informe 5S:", e);
     }
   }
 
-  host.remove();
-  document.body.classList.remove("s5-capturing");
-  window.scrollTo(0, 0);
-
-  if (!big) {
-    show5SAlert("No se pudo generar el informe para imprimir. Intenta de nuevo.");
-    return;
-  }
-
-  // Cortamos en n páginas iguales (cada hoja es 11" -> alto uniforme).
-  const pageH = Math.floor(big.height / n);
-  for (let i = 0; i < n; i++) {
-    const sy = i * pageH;
-    const sh = i === n - 1 ? big.height - sy : pageH;
-    if (sh <= 2) continue;
-    const pageCanvas = document.createElement("canvas");
-    pageCanvas.width = big.width;
-    pageCanvas.height = sh;
-    const ctx = pageCanvas.getContext("2d");
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-    ctx.drawImage(big, 0, sy, big.width, sh, 0, 0, big.width, sh);
-    // Si la portada (página 1) del corte quedó en blanco, usamos la de foreignObject.
-    if (i === 0 && portadaFO && esCanvasBlanco(pageCanvas)) {
-      paginas.push(portadaFO.toDataURL("image/jpeg", 0.92));
-    } else {
-      paginas.push(pageCanvas.toDataURL("image/jpeg", 0.92));
-    }
-  }
+  // 3) Restauramos las imágenes originales.
+  restaurar.forEach(([img, src]) => img.setAttribute("src", src));
 
   if (!paginas.length) {
     show5SAlert("No se pudo generar el informe para imprimir. Intenta de nuevo.");
