@@ -63,6 +63,39 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+// Lista de usuarios activos con acceso al WMS (para asignar inspectores).
+export async function listarUsuariosWms() {
+  try {
+    const [usuarios, pilares] = await Promise.all([
+      safeSelect("public", "usuarios", {
+        select: "id,usuario,nombre,email,estado,rol",
+        estado: eq("ACTIVO"),
+        order: "nombre.asc",
+      }),
+      safeSelect("public", "usuario_pilares", {
+        select: "usuario_id,pilar,estado",
+        pilar: eq("wms"),
+      }).catch(() => []),
+    ]);
+    const conWms = new Set(
+      (pilares || [])
+        .filter((p) => String(p.estado || "ACTIVO").toUpperCase() === "ACTIVO")
+        .map((p) => p.usuario_id)
+    );
+    const lista = (usuarios || []).filter((u) => (conWms.size ? conWms.has(u.id) : true));
+    return lista.map((u) => ({
+      id: u.id,
+      usuario: u.usuario,
+      nombre: clean(u.nombre) || u.usuario,
+      email: u.email || "",
+      rol: u.rol || "",
+    }));
+  } catch (error) {
+    console.error("listarUsuariosWms:", error);
+    return [];
+  }
+}
+
 // Valida la contraseña del usuario que está logueado (sin efectos de bloqueo).
 // Se usa para confirmar acciones sensibles (importar / borrar datos).
 export async function verificarClaveUsuarioActual(password) {

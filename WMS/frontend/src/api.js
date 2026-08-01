@@ -1627,6 +1627,9 @@ export function registrarAjusteInterno(payload) {
 function buildInventarioCriterio(payload) {
   if (payload.tipo_conteo === "zona") return `ZONA:${payload.zona || ""}`;
   if (payload.tipo_conteo === "familia") return `FAMILIA:${payload.familia || ""}`;
+  if (payload.tipo_conteo === "bodega_familia") {
+    return `BODEGA:${payload.bodega || ""}${payload.familia ? ` · FAMILIA:${payload.familia}` : " · TODAS"}`;
+  }
   return `MATERIAL:${payload.codigo_material || ""}`;
 }
 
@@ -1636,6 +1639,13 @@ function filterInventarioStock(stockRows, payload) {
   }
   if (payload.tipo_conteo === "familia") {
     return stockRows.filter((row) => normalizeText(row.familia) === normalizeText(payload.familia));
+  }
+  if (payload.tipo_conteo === "bodega_familia") {
+    return stockRows.filter(
+      (row) =>
+        normalizeText(row.bodega) === normalizeText(payload.bodega) &&
+        (!payload.familia || normalizeText(row.familia) === normalizeText(payload.familia))
+    );
   }
   return stockRows.filter(
     (row) => normalizeText(row.codigo_material || row.sku) === normalizeText(payload.codigo_material)

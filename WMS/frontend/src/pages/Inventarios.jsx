@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Warehouse,
   AlertTriangle,
+  Users,
 } from "lucide-react";
 import { getInventarioTareas } from "../api";
 
@@ -34,9 +35,29 @@ function taskCode(id) {
   return `INV-${String(id || 0).padStart(6, "0")}`;
 }
 
+function usePermisosInventario() {
+  return useMemo(() => {
+    const role = String(sessionStorage.getItem("rol") || "").toUpperCase();
+    let permisos = [];
+    try {
+      permisos = JSON.parse(sessionStorage.getItem("permisos") || "[]");
+    } catch {
+      permisos = [];
+    }
+    const esAdmin =
+      ["SUPER_ADMIN", "ADMIN_INOVA", "INOVA_ADMIN", "ADMIN_PLATAFORMA", "PLATFORM_ADMIN"].includes(role) ||
+      role.includes("ADMIN") ||
+      sessionStorage.getItem("esSuperAdmin") === "true" ||
+      sessionStorage.getItem("esPlatformAdmin") === "true";
+    const puede = (perm) => esAdmin || !perm || (Array.isArray(permisos) && permisos.includes(perm));
+    return { esAdmin, puede };
+  }, []);
+}
+
 export default function Inventarios() {
   const location = useLocation();
   const isRoot = location.pathname === "/inventarios";
+  const { puede } = usePermisosInventario();
   const [tasks, setTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [tasksError, setTasksError] = useState("");
@@ -70,44 +91,59 @@ export default function Inventarios() {
     ];
   }, [tasks]);
 
-  const operations = [
+  const allOperations = [
     {
       title: "Crear tarea",
       desc: "Genera una nueva tarea de inventario fisico o ciclico.",
       to: "/inventarios/crear-tarea",
       icon: Plus,
+      perm: "inventarios.crear",
+    },
+    {
+      title: "Cuadro de inspectores",
+      desc: "Asigna a cada inspector una bodega y familia; crea sus conteos.",
+      to: "/inventarios/inspectores",
+      icon: Users,
+      perm: "inventarios.crear",
     },
     {
       title: "Conteo fisico",
       desc: "Registra cantidades contadas por ubicacion, material o lote.",
       to: "/inventarios/conteo-fisico",
       icon: Boxes,
+      perm: "inventarios.contar",
     },
     {
       title: "Conciliacion",
       desc: "Compara el stock del sistema contra el stock fisico registrado.",
       to: "/inventarios/conciliacion",
       icon: CheckCircle2,
+      perm: "inventarios.conciliar",
     },
     {
       title: "Reconteos",
       desc: "Gestiona segundas validaciones sobre diferencias detectadas.",
       to: "/inventarios/reconteos",
       icon: RefreshCcw,
+      perm: "inventarios.conciliar",
     },
     {
       title: "Mis conteos",
       desc: "Consulta y ejecuta tareas asignadas al usuario actual.",
       to: "/inventarios/mis-conteos",
       icon: ClipboardList,
+      perm: "inventarios.contar",
     },
     {
       title: "Informe inventario",
       desc: "Consulta historicos, productividad, diferencias y cierres.",
       to: "/inventarios/informe",
       icon: FileBarChart2,
+      perm: "inventarios.ver",
     },
   ];
+
+  const operations = allOperations.filter((op) => puede(op.perm));
 
   const recentTasks = useMemo(
     () =>
