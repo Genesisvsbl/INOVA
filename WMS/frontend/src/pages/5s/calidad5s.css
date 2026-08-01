@@ -6494,71 +6494,39 @@ button {
   }
 }
 
-/* ===== Impresión rápida del informe 5S vía portal (misma ventana) ===== */
+/* ===== Impresión del informe 5S: una imagen por página ===== */
 #s5-print-portal { display: none; }
-#s5-print-portal.s5-layout { background: #ffffff !important; }
 
 @media print {
-  /* Ocultamos TODA la app (incluidos sus contenedores flex/grid/scroll que
-     colapsan la paginación) y dejamos únicamente el portal del informe. */
+  @page { size: Letter; margin: 0; }
+
+  /* Ocultamos TODA la app y dejamos únicamente el portal de imágenes. */
   body.s5-printing > *:not(#s5-print-portal) { display: none !important; }
 
-  /* Cuando imprimimos por portal, SOLO se ve el clon del informe. */
   body.s5-printing #s5-print-portal { display: block !important; }
   body.s5-printing #s5-print-portal,
   body.s5-printing #s5-print-portal * { visibility: visible !important; }
-  body.s5-printing #s5-print-portal.s5-layout {
-    position: static !important;
-    transform: none !important;
-    background: #ffffff !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
 
-  /* El clon a tamaño real, sin escalas, sin recortes y en flujo normal
-     (position:static) para que salgan TODAS las páginas. */
-  body.s5-printing .s5-print-clone,
-  body.s5-printing .s5-print-clone.letter-report-page,
-  body.s5-printing .s5-print-clone.report-book,
-  body.s5-printing .s5-print-clone .letter-report-page,
-  body.s5-printing .s5-print-clone .report-book {
-    position: static !important;
-    transform: none !important;
-    width: 8.5in !important;
-    margin: 0 auto !important;
-    box-shadow: none !important;
-    border: 0 !important;
-    overflow: visible !important;
-    height: auto !important;
-    max-height: none !important;
-    min-height: 0 !important;
-  }
-  /* Flujo NATURAL: cada hoja crece según su contenido y hace salto de página
-     después. NO usamos height fija + overflow:hidden + break-inside:avoid
-     porque eso dejaba la PRIMERA hoja (portada/KPIs) en blanco. */
-  body.s5-printing .s5-print-clone .report-sheet {
-    position: relative !important;
-    width: 8.5in !important;
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    margin: 0 auto !important;
-    box-shadow: none !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    overflow: visible !important;
-    box-sizing: border-box !important;
+  /* Cada imagen ocupa exactamente una hoja Carta. */
+  .s5-print-page {
+    width: 8.5in;
+    height: 11in;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #ffffff;
     page-break-after: always;
     break-after: page;
   }
-  body.s5-printing .s5-print-clone .report-sheet:last-child {
+  .s5-print-page:last-child {
     page-break-after: auto;
     break-after: auto;
   }
-  body.s5-printing .s5-print-clone .table-tools-bar,
-  body.s5-printing .s5-print-clone .report-mobile-close,
-  body.s5-printing .s5-print-clone .report-mobile-eye-btn {
-    display: none !important;
+  .s5-print-page img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
   }
 }
 

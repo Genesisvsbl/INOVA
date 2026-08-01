@@ -371,28 +371,103 @@ async function waitForReport5SReady(el, timeout = 9000) {
   await new Promise((r) => requestAnimationFrame(() => r()));
 }
 
+// Convierte imágenes remotas (evidencias en Storage) a dataURL para que
+// html2canvas NO contamine el lienzo (esa era la causa de las hojas en blanco).
+async function inlineImagesToDataUrl(root) {
+  const imgs = Array.from(root.querySelectorAll("img"));
+  await Promise.all(
+    imgs.map(async (img) => {
+      const src = img.getAttribute("src") || "";
+      if (!src || src.startsWith("data:")) return;
+      try {
+        const resp = await fetch(src, { mode: "cors", cache: "force-cache" });
+        const blob = await resp.blob();
+        const dataUrl = await new Promise((res) => {
+          const fr = new FileReader();
+          fr.onload = () => res(fr.result);
+          fr.onerror = () => res(null);
+          fr.readAsDataURL(blob);
+        });
+        if (dataUrl) img.setAttribute("src", dataUrl);
+      } catch {
+        /* si falla el fetch dejamos el src original */
+      }
+    })
+  );
+}
+
 async function openPrintable5SDocument({ title, reportElement }) {
-  // Impresión RÁPIDA: sin abrir ventana nueva ni volver a descargar el CSS.
-  // Clonamos el informe en un "portal" oculto del mismo documento y usamos
-  // las reglas @media print (ya cargadas) para que solo salga el informe.
+  // Enfoque imagen-por-página: capturamos cada hoja del informe como imagen y
+  // armamos el PDF con una imagen por página. Así la portada SIEMPRE sale
+  // (es un pixelazo de lo que se ve) y como son imágenes livianas, imprime
+  // rápido. Funciona en PC y móvil porque renderizamos un clon fuera de pantalla.
   const anterior = document.getElementById("s5-print-portal");
   if (anterior) anterior.remove();
+  const hostAnterior = document.getElementById("s5-capture-host");
+  if (hostAnterior) hostAnterior.remove();
 
-  // Esperamos a que la matriz/datos del informe estén cargados.
   await waitForReport5SReady(reportElement);
 
+  // 1) Clon fuera de pantalla (renderizado, no display:none) con estilos de la app.
+  const host = document.createElement("div");
+  host.id = "s5-capture-host";
+  host.className = "s5-layout";
+  host.style.cssText =
+    "position:fixed; left:-10000px; top:0; width:8.5in; background:#ffffff; z-index:-1;";
   const clon = reportElement.cloneNode(true);
-  clon.removeAttribute("id"); // evita id duplicado y la regla absolute de la app
-  clon.classList.add("s5-print-clone");
+  clon.removeAttribute("id");
+  host.appendChild(clon);
+  document.body.appendChild(host);
 
+  // 2) Esperar imágenes cargadas y pasarlas a dataURL (evita lienzo contaminado).
+  const conTope = (p, ms) => Promise.race([p, new Promise((r) => setTimeout(r, ms))]);
+  const cargar = Array.from(host.querySelectorAll("img")).map((img) =>
+    img.complete
+      ? Promise.resolve()
+      : new Promise((res) => {
+          img.onload = res;
+          img.onerror = res;
+        })
+  );
+  await conTope(Promise.all(cargar), 4000);
+  await inlineImagesToDataUrl(host);
+
+  // 3) Capturar cada hoja a imagen.
+  const hojas = Array.from(clon.querySelectorAll(".report-sheet"));
+  const objetivos = hojas.length ? hojas : [clon];
+  const paginas = [];
+  for (const hoja of objetivos) {
+    try {
+      const canvas = await html2canvas(hoja, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        imageTimeout: 0,
+        windowWidth: hoja.scrollWidth,
+        windowHeight: hoja.scrollHeight,
+      });
+      paginas.push(canvas.toDataURL("image/jpeg", 0.92));
+    } catch (e) {
+      console.error("No se pudo capturar una hoja del informe 5S:", e);
+    }
+  }
+  host.remove();
+
+  if (!paginas.length) {
+    show5SAlert("No se pudo generar el informe para imprimir. Intenta de nuevo.");
+    return;
+  }
+
+  // 4) Portal con una imagen por página + imprimir.
   const portal = document.createElement("div");
   portal.id = "s5-print-portal";
-  // El portal MISMO lleva la clase s5-layout: así conserva las variables y los
-  // estilos scoped del informe, PERO cuelga directo del <body> (fuera de los
-  // contenedores flex/grid/scroll de la app) para que los saltos de página
-  // NO se colapsen en una sola hoja.
-  portal.className = "s5-layout s5-print-host";
-  portal.appendChild(clon);
+  portal.innerHTML = paginas
+    .map(
+      (src) =>
+        `<div class="s5-print-page"><img src="${src}" alt="Página del informe 5S" /></div>`
+    )
+    .join("");
   document.body.appendChild(portal);
 
   const prevTitle = document.title;
@@ -410,33 +485,9 @@ async function openPrintable5SDocument({ title, reportElement }) {
   };
   window.addEventListener("afterprint", cleanup);
 
-  // Esperamos a que las imágenes (logo/evidencias) carguen, PERO con un tope de
-  // tiempo para que la impresión SIEMPRE salga de una y no se quede "cargando".
-  const conTope = (promesa, ms) =>
-    Promise.race([promesa, new Promise((r) => setTimeout(r, ms))]);
-
-  const imgs = Array.from(portal.querySelectorAll("img"));
-  const pendientes = imgs.filter((img) => !img.complete);
-  if (pendientes.length) {
-    await conTope(
-      Promise.all(
-        pendientes.map(
-          (img) =>
-            new Promise((res) => {
-              img.onload = res;
-              img.onerror = res;
-            })
-        )
-      ),
-      2500 // nunca esperamos más de 2.5s por imágenes lentas
-    );
-  }
-
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       window.print();
-      // Respaldo MUY tardío por si el navegador nunca dispara "afterprint".
-      // (No usar un timeout corto: borraría el informe con el diálogo abierto.)
       setTimeout(cleanup, 120000);
     });
   });
