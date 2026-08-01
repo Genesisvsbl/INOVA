@@ -408,16 +408,22 @@ async function openPrintable5SDocument({ title, reportElement }) {
 
   await waitForReport5SReady(reportElement);
 
-  // 1) Clon fuera de pantalla (renderizado, no display:none) con estilos de la app.
+  // 1) Clon DENTRO de la pantalla (tapando la app un instante) para que
+  //    html2canvas lo lea bien. Fuera de pantalla (left:-10000) fallaba en la
+  //    portada. Lo ponemos arriba-izquierda con z-index máximo; se quita al
+  //    terminar la captura.
   const host = document.createElement("div");
   host.id = "s5-capture-host";
   host.className = "s5-layout";
   host.style.cssText =
-    "position:fixed; left:-10000px; top:0; width:8.5in; background:#ffffff; z-index:-1;";
+    "position:absolute; left:0; top:0; width:8.5in; background:#ffffff; z-index:2147483647;";
   const clon = reportElement.cloneNode(true);
   clon.removeAttribute("id");
   host.appendChild(clon);
   document.body.appendChild(host);
+  // Subimos la página al tope para que el clon quede en el área que html2canvas
+  // lee bien (evita que la primera hoja salga en blanco).
+  window.scrollTo(0, 0);
 
   // Mantenemos cada hoja a su TAMAÑO DE PÁGINA (8.5x11) — así cada imagen llena
   // la hoja exacta (sin márgenes en blanco) y no se recorta nada (el contenido
@@ -463,16 +469,18 @@ async function openPrintable5SDocument({ title, reportElement }) {
   const objetivos = hojas.length ? hojas : [clon];
   for (const hoja of objetivos) {
     try {
+      hoja.scrollIntoView({ block: "start" });
+      await new Promise((r) => setTimeout(r, 70));
       const canvas = await html2canvas(hoja, {
         backgroundColor: "#ffffff",
         scale: SCALE,
         useCORS: true,
         logging: false,
         imageTimeout: 0,
+        scrollX: 0,
+        scrollY: -window.scrollY,
         width: hoja.offsetWidth,
         height: hoja.offsetHeight,
-        windowWidth: hoja.offsetWidth,
-        windowHeight: hoja.offsetHeight,
       });
       paginas.push(canvas.toDataURL("image/jpeg", 0.92));
     } catch (e) {
@@ -480,6 +488,7 @@ async function openPrintable5SDocument({ title, reportElement }) {
     }
   }
   host.remove();
+  window.scrollTo(0, 0);
 
   if (!paginas.length) {
     show5SAlert("No se pudo generar el informe para imprimir. Intenta de nuevo.");
