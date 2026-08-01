@@ -396,6 +396,33 @@ async function inlineImagesToDataUrl(root) {
   );
 }
 
+// ¿El canvas está prácticamente en blanco? (muestreo de píxeles)
+function esCanvasBlanco(canvas) {
+  try {
+    const ctx = canvas.getContext("2d");
+    const w = canvas.width;
+    const h = canvas.height;
+    if (!w || !h) return true;
+    // Muestreamos una rejilla; si casi todo es blanco/transparente -> blanco.
+    const pasos = 40;
+    let noBlancos = 0;
+    let total = 0;
+    for (let yi = 0; yi < pasos; yi++) {
+      for (let xi = 0; xi < pasos; xi++) {
+        const x = Math.floor((xi / pasos) * w);
+        const y = Math.floor((yi / pasos) * h);
+        const d = ctx.getImageData(x, y, 1, 1).data;
+        total++;
+        const casiBlanco = d[3] < 8 || (d[0] > 247 && d[1] > 247 && d[2] > 247);
+        if (!casiBlanco) noBlancos++;
+      }
+    }
+    return noBlancos / total < 0.01; // <1% de píxeles con color => en blanco
+  } catch {
+    return false;
+  }
+}
+
 async function openPrintable5SDocument({ title, reportElement }) {
   // Enfoque imagen-por-página: capturamos cada hoja del informe como imagen y
   // armamos el PDF con una imagen por página. Así la portada SIEMPRE sale
@@ -496,6 +523,29 @@ async function openPrintable5SDocument({ title, reportElement }) {
     console.error("No se pudo capturar el informe 5S:", e);
   }
 
+  // Captura APARTE de la portada con foreignObject (motor real del navegador),
+  // por si la captura normal la deja en blanco. Se hace ANTES de quitar el host.
+  let portadaFO = null;
+  if (hojas[0]) {
+    try {
+      const c0 = await html2canvas(hojas[0], {
+        backgroundColor: "#ffffff",
+        scale: SCALE,
+        useCORS: true,
+        logging: false,
+        imageTimeout: 0,
+        foreignObjectRendering: true,
+        windowWidth: 1440,
+        windowHeight: Math.max(1024, clon.scrollHeight),
+        width: hojas[0].offsetWidth,
+        height: hojas[0].offsetHeight,
+      });
+      if (!esCanvasBlanco(c0)) portadaFO = c0;
+    } catch (e) {
+      console.error("Fallo captura foreignObject de la portada:", e);
+    }
+  }
+
   host.remove();
   document.body.classList.remove("s5-capturing");
   window.scrollTo(0, 0);
@@ -518,7 +568,12 @@ async function openPrintable5SDocument({ title, reportElement }) {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
     ctx.drawImage(big, 0, sy, big.width, sh, 0, 0, big.width, sh);
-    paginas.push(pageCanvas.toDataURL("image/jpeg", 0.92));
+    // Si la portada (página 1) del corte quedó en blanco, usamos la de foreignObject.
+    if (i === 0 && portadaFO && esCanvasBlanco(pageCanvas)) {
+      paginas.push(portadaFO.toDataURL("image/jpeg", 0.92));
+    } else {
+      paginas.push(pageCanvas.toDataURL("image/jpeg", 0.92));
+    }
   }
 
   if (!paginas.length) {
