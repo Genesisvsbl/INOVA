@@ -419,6 +419,28 @@ async function openPrintable5SDocument({ title, reportElement }) {
   host.appendChild(clon);
   document.body.appendChild(host);
 
+  // Cada hoja a su ALTO NATURAL (sin recortar a 11") para no perder contenido.
+  clon.style.width = "8.5in";
+  clon.style.margin = "0";
+  clon.querySelectorAll(".letter-report-page, .report-book").forEach((el) => {
+    el.style.height = "auto";
+    el.style.minHeight = "0";
+    el.style.maxHeight = "none";
+    el.style.overflow = "visible";
+    el.style.transform = "none";
+    el.style.boxShadow = "none";
+  });
+  clon.querySelectorAll(".report-sheet").forEach((el) => {
+    el.style.height = "auto";
+    el.style.minHeight = "0";
+    el.style.maxHeight = "none";
+    el.style.overflow = "visible";
+    el.style.margin = "0 auto";
+    el.style.boxShadow = "none";
+    el.style.borderRadius = "0";
+    el.style.border = "0";
+  });
+
   // 2) Esperar imágenes cargadas y pasarlas a dataURL (evita lienzo contaminado).
   const conTope = (p, ms) => Promise.race([p, new Promise((r) => setTimeout(r, ms))]);
   const cargar = Array.from(host.querySelectorAll("img")).map((img) =>
@@ -431,26 +453,47 @@ async function openPrintable5SDocument({ title, reportElement }) {
   );
   await conTope(Promise.all(cargar), 4000);
   await inlineImagesToDataUrl(host);
+  await new Promise((r) => requestAnimationFrame(() => r()));
 
-  // 3) Capturar cada hoja a imagen.
-  const hojas = Array.from(clon.querySelectorAll(".report-sheet"));
-  const objetivos = hojas.length ? hojas : [clon];
+  // 3) UNA sola captura de TODO el informe y luego lo cortamos por hojas.
+  //    Así nunca se pierde una página aunque una captura individual fallara.
+  const SCALE = 2;
   const paginas = [];
-  for (const hoja of objetivos) {
-    try {
-      const canvas = await html2canvas(hoja, {
-        backgroundColor: "#ffffff",
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        imageTimeout: 0,
-        windowWidth: hoja.scrollWidth,
-        windowHeight: hoja.scrollHeight,
-      });
-      paginas.push(canvas.toDataURL("image/jpeg", 0.92));
-    } catch (e) {
-      console.error("No se pudo capturar una hoja del informe 5S:", e);
+  try {
+    const big = await html2canvas(clon, {
+      backgroundColor: "#ffffff",
+      scale: SCALE,
+      useCORS: true,
+      logging: false,
+      imageTimeout: 0,
+      windowWidth: clon.scrollWidth,
+      windowHeight: clon.scrollHeight,
+    });
+
+    const hojas = Array.from(clon.querySelectorAll(".report-sheet"));
+    const base = clon.getBoundingClientRect();
+    const cortes = hojas.length
+      ? hojas.map((h) => {
+          const r = h.getBoundingClientRect();
+          return { top: r.top - base.top, height: r.height };
+        })
+      : [{ top: 0, height: clon.getBoundingClientRect().height }];
+
+    for (const c of cortes) {
+      const sy = Math.max(0, Math.round(c.top * SCALE));
+      const sh = Math.min(big.height - sy, Math.round(c.height * SCALE));
+      if (sh <= 2) continue;
+      const pageCanvas = document.createElement("canvas");
+      pageCanvas.width = big.width;
+      pageCanvas.height = sh;
+      const ctx = pageCanvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+      ctx.drawImage(big, 0, sy, big.width, sh, 0, 0, big.width, sh);
+      paginas.push(pageCanvas.toDataURL("image/jpeg", 0.92));
     }
+  } catch (e) {
+    console.error("No se pudo capturar el informe 5S:", e);
   }
   host.remove();
 
