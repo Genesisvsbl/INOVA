@@ -467,6 +467,30 @@ async function openPrintable5SDocument({ title, reportElement }) {
   const paginas = [];
   const hojas = Array.from(clon.querySelectorAll(".report-sheet"));
   const objetivos = hojas.length ? hojas : [clon];
+
+  // Captura de CALENTAMIENTO (descartable): la primera invocación de html2canvas
+  // suele salir en blanco porque aún no tiene listas las fuentes/estilos. Al
+  // "primar" el motor aquí, la primera hoja REAL (la portada) ya sale bien.
+  if (objetivos[0]) {
+    try {
+      objetivos[0].scrollIntoView({ block: "start" });
+      await new Promise((r) => setTimeout(r, 120));
+      await html2canvas(objetivos[0], {
+        backgroundColor: "#ffffff",
+        scale: 1,
+        useCORS: true,
+        logging: false,
+        imageTimeout: 0,
+        scrollX: 0,
+        scrollY: -window.scrollY,
+        width: objetivos[0].offsetWidth,
+        height: objetivos[0].offsetHeight,
+      });
+    } catch {
+      /* la de calentamiento se descarta pase lo que pase */
+    }
+  }
+
   for (const hoja of objetivos) {
     try {
       hoja.scrollIntoView({ block: "start" });
