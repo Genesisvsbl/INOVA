@@ -647,105 +647,23 @@ function buildPortada5SCanvas(sheet) {
 }
 
 async function openPrintable5SDocument({ title, reportElement }) {
-  // La portada la DIBUJAMOS nosotros (html2canvas la deja en blanco); el resto
-  // de hojas se capturan de un clon fuera de la app. No tocamos el informe vivo.
+  // IMPRESIÓN NATIVA: clonamos el informe tal cual se ve y dejamos que el
+  // navegador lo imprima directamente (nítido, sin html2canvas). El clon
+  // cuelga del <body> con la clase s5-layout para conservar estilos, y cada
+  // hoja ocupa una página.
   const anterior = document.getElementById("s5-print-portal");
   if (anterior) anterior.remove();
-  const hostAnt = document.getElementById("s5-capture-host");
-  if (hostAnt) hostAnt.remove();
 
   await waitForReport5SReady(reportElement);
 
-  const host = document.createElement("div");
-  host.id = "s5-capture-host";
-  host.className = "s5-layout";
-  host.style.cssText =
-    "position:fixed; left:0; top:0; width:8.5in; background:#ffffff; z-index:2147483647;";
   const clon = reportElement.cloneNode(true);
   clon.removeAttribute("id");
-  host.appendChild(clon);
-  document.body.appendChild(host);
-  document.body.classList.add("s5-capturing");
-  window.scrollTo(0, 0);
+  clon.classList.add("s5-print-clone");
 
-  clon.querySelectorAll(".letter-report-page, .report-book").forEach((el) => {
-    el.style.height = "auto";
-    el.style.minHeight = "0";
-    el.style.overflow = "visible";
-    el.style.transform = "none";
-    el.style.boxShadow = "none";
-  });
-  clon.querySelectorAll(".report-sheet").forEach((el) => {
-    el.style.width = "8.5in";
-    el.style.height = "11in";
-    el.style.minHeight = "11in";
-    el.style.margin = "0 auto";
-    el.style.boxShadow = "none";
-    el.style.border = "0";
-    el.style.borderRadius = "0";
-    el.style.overflow = "hidden";
-  });
-
-  const conTope = (p, ms) => Promise.race([p, new Promise((r) => setTimeout(r, ms))]);
-  const cargar = Array.from(host.querySelectorAll("img")).map((img) =>
-    img.complete ? Promise.resolve() : new Promise((res) => { img.onload = res; img.onerror = res; })
-  );
-  await conTope(Promise.all(cargar), 4000);
-  await inlineImagesToDataUrl(host);
-  await new Promise((r) => requestAnimationFrame(() => r()));
-
-  const SCALE = 2;
-  const paginas = [];
-  const hojas = Array.from(clon.querySelectorAll(".report-sheet"));
-  for (let i = 0; i < hojas.length; i++) {
-    const hoja = hojas[i];
-    // Página 1 (portada): la dibujamos a mano -> nunca sale en blanco.
-    if (i === 0) {
-      try {
-        paginas.push(buildPortada5SCanvas(hoja));
-        continue;
-      } catch (e) {
-        console.error("No se pudo dibujar la portada:", e);
-      }
-    }
-    try {
-      hoja.scrollIntoView({ block: "start" });
-      await new Promise((r) => setTimeout(r, 60));
-      const canvas = await html2canvas(hoja, {
-        backgroundColor: "#ffffff",
-        scale: SCALE,
-        useCORS: true,
-        logging: false,
-        imageTimeout: 0,
-        width: hoja.offsetWidth,
-        height: hoja.offsetHeight,
-        windowWidth: 1440,
-        windowHeight: Math.max(1024, hoja.offsetHeight),
-      });
-      paginas.push(canvas.toDataURL("image/jpeg", 0.95));
-    } catch (e) {
-      console.error("No se pudo capturar una hoja del informe 5S:", e);
-    }
-  }
-
-  host.remove();
-  document.body.classList.remove("s5-capturing");
-  window.scrollTo(0, 0);
-
-  if (!paginas.length) {
-    show5SAlert("No se pudo generar el informe para imprimir. Intenta de nuevo.");
-    return;
-  }
-
-  // 4) Portal con una imagen por página + imprimir.
   const portal = document.createElement("div");
   portal.id = "s5-print-portal";
-  portal.innerHTML = paginas
-    .map(
-      (src) =>
-        `<div class="s5-print-page"><img src="${src}" alt="Página del informe 5S" /></div>`
-    )
-    .join("");
+  portal.className = "s5-layout";
+  portal.appendChild(clon);
   document.body.appendChild(portal);
 
   const prevTitle = document.title;
@@ -762,6 +680,18 @@ async function openPrintable5SDocument({ title, reportElement }) {
     window.removeEventListener("afterprint", cleanup);
   };
   window.addEventListener("afterprint", cleanup);
+
+  // Esperamos imágenes (logo/evidencias) con un tope para no quedarnos colgados.
+  const conTope = (p, ms) => Promise.race([p, new Promise((r) => setTimeout(r, ms))]);
+  const imgs = Array.from(portal.querySelectorAll("img")).filter((i) => !i.complete);
+  if (imgs.length) {
+    await conTope(
+      Promise.all(
+        imgs.map((i) => new Promise((res) => { i.onload = res; i.onerror = res; }))
+      ),
+      3000
+    );
+  }
 
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {

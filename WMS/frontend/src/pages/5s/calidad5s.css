@@ -6494,43 +6494,77 @@ button {
   }
 }
 
-/* Mientras se capturan las hojas, ocultamos la app (queda solo el contenedor
-   de captura) para que html2canvas no tome contenido de la app por detrás. */
-body.s5-capturing > #root { visibility: hidden !important; }
-
-/* ===== Impresión del informe 5S: una imagen por página ===== */
+/* ===== Impresión NATIVA del informe 5S (clon del informe, 1 hoja = 1 página) ===== */
 #s5-print-portal { display: none; }
+#s5-print-portal.s5-layout { background: #ffffff !important; }
 
 @media print {
   @page { size: Letter; margin: 0; }
 
-  /* Ocultamos TODA la app y dejamos únicamente el portal de imágenes. */
+  html, body {
+    background: #ffffff !important;
+    margin: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ocultamos TODA la app; dejamos solo el clon del informe. */
   body.s5-printing > *:not(#s5-print-portal) { display: none !important; }
 
   body.s5-printing #s5-print-portal { display: block !important; }
   body.s5-printing #s5-print-portal,
   body.s5-printing #s5-print-portal * { visibility: visible !important; }
+  body.s5-printing #s5-print-portal.s5-layout {
+    position: static !important;
+    transform: none !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
 
-  /* Cada imagen ocupa exactamente una hoja Carta. */
-  .s5-print-page {
-    width: 8.5in;
-    height: 11in;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    background: #ffffff;
+  /* El informe a tamaño real, sin escalas ni recortes, en flujo normal. */
+  body.s5-printing .s5-print-clone,
+  body.s5-printing .s5-print-clone.letter-report-page,
+  body.s5-printing .s5-print-clone.report-book,
+  body.s5-printing .s5-print-clone .letter-report-page,
+  body.s5-printing .s5-print-clone .report-book {
+    position: static !important;
+    transform: none !important;
+    width: 8.5in !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+
+  /* Cada hoja del informe ocupa exactamente una página Carta. */
+  body.s5-printing .s5-print-clone .report-sheet {
+    position: relative !important;
+    width: 8.5in !important;
+    height: 11in !important;
+    min-height: 11in !important;
+    max-height: 11in !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
     page-break-after: always;
     break-after: page;
   }
-  .s5-print-page:last-child {
+  body.s5-printing .s5-print-clone .report-sheet:last-child {
     page-break-after: auto;
     break-after: auto;
   }
-  .s5-print-page img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    display: block;
+
+  body.s5-printing .s5-print-clone .table-tools-bar,
+  body.s5-printing .s5-print-clone .report-mobile-close,
+  body.s5-printing .s5-print-clone .report-mobile-eye-btn {
+    display: none !important;
   }
 }
 
