@@ -464,58 +464,60 @@ async function openPrintable5SDocument({ title, reportElement }) {
   await inlineImagesToDataUrl(host);
   await new Promise((r) => requestAnimationFrame(() => r()));
 
-  // 3) Capturar CADA hoja por separado a su tamaño de página (8.5x11).
+  // 3) UNA sola captura de TODO el informe y luego lo cortamos en páginas de
+  //    11" exactas. Capturando todo de una pasada, la portada entra igual que
+  //    el resto (capturar hoja por hoja fallaba justo en la primera).
   const SCALE = 2;
   const paginas = [];
   const hojas = Array.from(clon.querySelectorAll(".report-sheet"));
-  const objetivos = hojas.length ? hojas : [clon];
+  const n = hojas.length || 1;
 
-  // Captura de CALENTAMIENTO (descartable): la primera invocación de html2canvas
-  // suele salir en blanco porque aún no tiene listas las fuentes/estilos. Al
-  // "primar" el motor aquí, la primera hoja REAL (la portada) ya sale bien.
-  if (objetivos[0]) {
-    try {
-      objetivos[0].scrollIntoView({ block: "start" });
-      await new Promise((r) => setTimeout(r, 120));
-      await html2canvas(objetivos[0], {
-        backgroundColor: "#ffffff",
-        scale: 1,
-        useCORS: true,
-        logging: false,
-        imageTimeout: 0,
-        scrollX: 0,
-        scrollY: -window.scrollY,
-        width: objetivos[0].offsetWidth,
-        height: objetivos[0].offsetHeight,
-      });
-    } catch {
-      /* la de calentamiento se descarta pase lo que pase */
-    }
+  window.scrollTo(0, 0);
+  await new Promise((r) => setTimeout(r, 120));
+
+  let big = null;
+  try {
+    big = await html2canvas(clon, {
+      backgroundColor: "#ffffff",
+      scale: SCALE,
+      useCORS: true,
+      logging: false,
+      imageTimeout: 0,
+      scrollX: 0,
+      scrollY: 0,
+      width: clon.offsetWidth,
+      height: clon.offsetHeight,
+      windowWidth: clon.scrollWidth,
+      windowHeight: clon.scrollHeight,
+    });
+  } catch (e) {
+    console.error("No se pudo capturar el informe 5S:", e);
   }
 
-  for (const hoja of objetivos) {
-    try {
-      hoja.scrollIntoView({ block: "start" });
-      await new Promise((r) => setTimeout(r, 70));
-      const canvas = await html2canvas(hoja, {
-        backgroundColor: "#ffffff",
-        scale: SCALE,
-        useCORS: true,
-        logging: false,
-        imageTimeout: 0,
-        scrollX: 0,
-        scrollY: -window.scrollY,
-        width: hoja.offsetWidth,
-        height: hoja.offsetHeight,
-      });
-      paginas.push(canvas.toDataURL("image/jpeg", 0.92));
-    } catch (e) {
-      console.error("No se pudo capturar una hoja del informe 5S:", e);
-    }
-  }
   host.remove();
   document.body.classList.remove("s5-capturing");
   window.scrollTo(0, 0);
+
+  if (!big) {
+    show5SAlert("No se pudo generar el informe para imprimir. Intenta de nuevo.");
+    return;
+  }
+
+  // Cortamos en n páginas iguales (cada hoja es 11" -> alto uniforme).
+  const pageH = Math.floor(big.height / n);
+  for (let i = 0; i < n; i++) {
+    const sy = i * pageH;
+    const sh = i === n - 1 ? big.height - sy : pageH;
+    if (sh <= 2) continue;
+    const pageCanvas = document.createElement("canvas");
+    pageCanvas.width = big.width;
+    pageCanvas.height = sh;
+    const ctx = pageCanvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+    ctx.drawImage(big, 0, sy, big.width, sh, 0, 0, big.width, sh);
+    paginas.push(pageCanvas.toDataURL("image/jpeg", 0.92));
+  }
 
   if (!paginas.length) {
     show5SAlert("No se pudo generar el informe para imprimir. Intenta de nuevo.");
