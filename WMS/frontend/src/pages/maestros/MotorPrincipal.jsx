@@ -11,10 +11,12 @@ import {
   Search,
   Download,
   FilterX,
+  ShieldCheck,
   ShieldAlert,
   Upload,
   Trash2,
   Lock,
+  ChevronDown,
   X,
 } from "lucide-react";
 
@@ -454,6 +456,7 @@ export default function MotorPrincipal() {
   // ----- Toolbox administrador (importar / borrar) -----
   const isAdmin = useMemo(() => esAdminWms(), []);
   const fileInputRef = useRef(null);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [delModal, setDelModal] = useState(false);
   const [delSel, setDelSel] = useState({});
   const [pwModal, setPwModal] = useState(null); // { titulo, detalle, ejecutar }
@@ -752,72 +755,168 @@ export default function MotorPrincipal() {
       />
 
       {isAdmin && (
-        <div style={{ ...panelStyle, borderColor: "#f1ddb0" }}>
-          <div
+        <div style={{ display: "flex", justifyContent: "flex-end", position: "relative", zIndex: 30 }}>
+          <button
+            onClick={() => setPanelOpen((o) => !o)}
             style={{
-              ...panelHeaderStyle,
-              background: "#fff8ea",
-              color: "#8a5b00",
-              display: "flex",
+              height: 44,
+              padding: "0 16px 0 12px",
+              borderRadius: 12,
+              border: "1px solid #1f3d6b",
+              background: panelOpen
+                ? "linear-gradient(135deg,#0b2c5e,#123f83)"
+                : "linear-gradient(135deg,#0f2f61,#1a4a92)",
+              color: "#eaf2ff",
+              fontWeight: 800,
+              fontSize: 13,
+              display: "inline-flex",
               alignItems: "center",
-              gap: 8,
+              gap: 10,
+              cursor: "pointer",
+              boxShadow: "0 10px 24px rgba(15,47,97,.28)",
             }}
           >
-            <ShieldAlert size={16} color="#b3761a" />
-            Herramientas de administrador
-          </div>
-          <div style={panelBodyStyle}>
-            <div style={{ fontSize: 12.5, color: colors.muted, marginBottom: 12 }}>
-              Acciones sensibles: cada una pide tu contraseña para confirmar. En "Borrar datos" eliges con
-              checks qué borrar; puedes incluir también los maestros (materiales, proveedores, ubicaciones).
-            </div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                style={{ ...secondaryButtonStyle, borderColor: "#bcd7f5", color: "#0b57d0" }}
-              >
-                <Upload size={15} />
-                Importar inventario inicial
-              </button>
-              <button
-                onClick={abrirBorrar}
-                style={{
-                  ...secondaryButtonStyle,
-                  borderColor: colors.badBd,
-                  color: colors.bad,
-                  background: colors.badBg,
-                }}
-              >
-                <Trash2 size={15} />
-                Borrar datos (dejar limpio)
-              </button>
-            </div>
+            <span
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 8,
+                display: "grid",
+                placeItems: "center",
+                background: "rgba(255,255,255,.14)",
+                boxShadow: "inset 0 0 0 1px rgba(255,255,255,.18)",
+              }}
+            >
+              <ShieldCheck size={17} color="#8fe3b0" />
+            </span>
+            Zona segura
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 900,
+                letterSpacing: ".06em",
+                padding: "2px 7px",
+                borderRadius: 999,
+                background: "rgba(143,227,176,.16)",
+                color: "#8fe3b0",
+                border: "1px solid rgba(143,227,176,.35)",
+              }}
+            >
+              ADMIN
+            </span>
+            <ChevronDown
+              size={16}
+              color="#cfe0ff"
+              style={{ transform: panelOpen ? "rotate(180deg)" : "none", transition: "transform .15s ease" }}
+            />
+          </button>
 
-            {adminMsg && (
+          {panelOpen && (
+            <>
+              <div
+                onClick={() => setPanelOpen(false)}
+                style={{ position: "fixed", inset: 0, zIndex: 20 }}
+              />
               <div
                 style={{
-                  marginTop: 12,
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  border: `1px solid ${adminMsg.tone === "bad" ? colors.badBd : adminMsg.tone === "good" ? colors.goodBd : colors.infoBd}`,
-                  background: adminMsg.tone === "bad" ? colors.badBg : adminMsg.tone === "good" ? colors.goodBg : colors.infoBg,
-                  color: adminMsg.tone === "bad" ? colors.bad : adminMsg.tone === "good" ? colors.good : colors.blue,
+                  position: "absolute",
+                  top: 52,
+                  right: 0,
+                  width: "min(380px, 94vw)",
+                  background: "#fff",
+                  borderRadius: 14,
+                  border: "1px solid #dbe6f2",
+                  boxShadow: "0 26px 60px rgba(10,26,52,.22)",
+                  overflow: "hidden",
+                  zIndex: 30,
                 }}
               >
-                {adminMsg.text}
-              </div>
-            )}
+                <div
+                  style={{
+                    padding: "14px 16px",
+                    background: "linear-gradient(135deg,#0f2f61,#1a4a92)",
+                    color: "#eaf2ff",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                  }}
+                >
+                  <ShieldCheck size={20} color="#8fe3b0" />
+                  <div>
+                    <div style={{ fontWeight: 900, fontSize: 14 }}>Herramientas de administrador</div>
+                    <div style={{ fontSize: 11.5, color: "#bcd4f7" }}>Cada acción se confirma con tu contraseña</div>
+                  </div>
+                </div>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              onChange={onSeleccionArchivo}
-              style={{ display: "none" }}
-            />
-          </div>
+                <div style={{ padding: 12, display: "grid", gap: 10 }}>
+                  <button
+                    onClick={() => {
+                      setPanelOpen(false);
+                      fileInputRef.current?.click();
+                    }}
+                    style={toolItemStyle("#bcd7f5", "#eaf3ff")}
+                  >
+                    <span style={toolIconStyle("#0b57d0", "#eaf3ff")}>
+                      <Upload size={17} />
+                    </span>
+                    <span>
+                      <span style={{ display: "block", fontWeight: 800, color: "#17324d" }}>Importar inventario inicial</span>
+                      <span style={{ display: "block", fontSize: 11.5, color: colors.muted }}>Carga el stock de arranque desde un archivo</span>
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setPanelOpen(false);
+                      abrirBorrar();
+                    }}
+                    style={toolItemStyle(colors.badBd, colors.badBg)}
+                  >
+                    <span style={toolIconStyle(colors.bad, "#fdecec")}>
+                      <Trash2 size={17} />
+                    </span>
+                    <span>
+                      <span style={{ display: "block", fontWeight: 800, color: "#8a1a12" }}>Borrar datos (dejar limpio)</span>
+                      <span style={{ display: "block", fontSize: 11.5, color: "#a5564e" }}>Elige con checks qué eliminar, incluidos maestros</span>
+                    </span>
+                  </button>
+                </div>
+
+              </div>
+            </>
+          )}
+
+          {adminMsg && (
+            <div
+              onClick={() => setAdminMsg(null)}
+              style={{
+                position: "absolute",
+                top: 52,
+                right: 0,
+                width: "min(380px, 94vw)",
+                padding: "11px 13px",
+                borderRadius: 12,
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: "pointer",
+                zIndex: 25,
+                boxShadow: "0 16px 40px rgba(10,26,52,.18)",
+                border: `1px solid ${adminMsg.tone === "bad" ? colors.badBd : adminMsg.tone === "good" ? colors.goodBd : colors.infoBd}`,
+                background: adminMsg.tone === "bad" ? colors.badBg : adminMsg.tone === "good" ? colors.goodBg : colors.infoBg,
+                color: adminMsg.tone === "bad" ? colors.bad : adminMsg.tone === "good" ? colors.good : colors.blue,
+              }}
+            >
+              {adminMsg.text}
+            </div>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={onSeleccionArchivo}
+            style={{ display: "none" }}
+          />
         </div>
       )}
 
@@ -1406,3 +1505,32 @@ const iconBtnStyle = {
   display: "grid",
   placeItems: "center",
 };
+
+function toolItemStyle(borderColor, hoverBg) {
+  return {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    textAlign: "left",
+    width: "100%",
+    padding: "11px 12px",
+    borderRadius: 12,
+    border: `1px solid ${borderColor}`,
+    background: hoverBg,
+    cursor: "pointer",
+  };
+}
+
+function toolIconStyle(color, bg) {
+  return {
+    flexShrink: 0,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    display: "grid",
+    placeItems: "center",
+    background: bg,
+    color,
+    border: `1px solid ${color}22`,
+  };
+}
