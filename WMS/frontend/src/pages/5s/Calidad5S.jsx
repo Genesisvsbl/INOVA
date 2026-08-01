@@ -421,8 +421,10 @@ async function openPrintable5SDocument({ title, reportElement }) {
   clon.removeAttribute("id");
   host.appendChild(clon);
   document.body.appendChild(host);
-  // Subimos la página al tope para que el clon quede en el área que html2canvas
-  // lee bien (evita que la primera hoja salga en blanco).
+  // Ocultamos la app mientras capturamos: si no, html2canvas (que no respeta
+  // bien el z-index) toma el encabezado de la app en la hoja 1 en vez del
+  // informe, y por eso la portada salía en blanco.
+  document.body.classList.add("s5-capturing");
   window.scrollTo(0, 0);
 
   // Mantenemos cada hoja a su TAMAÑO DE PÁGINA (8.5x11) — así cada imagen llena
@@ -512,6 +514,7 @@ async function openPrintable5SDocument({ title, reportElement }) {
     }
   }
   host.remove();
+  document.body.classList.remove("s5-capturing");
   window.scrollTo(0, 0);
 
   if (!paginas.length) {

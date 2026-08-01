@@ -6494,6 +6494,10 @@ button {
   }
 }
 
+/* Mientras se capturan las hojas, ocultamos la app (queda solo el contenedor
+   de captura) para que html2canvas no tome contenido de la app por detrás. */
+body.s5-capturing > #root { visibility: hidden !important; }
+
 /* ===== Impresión del informe 5S: una imagen por página ===== */
 #s5-print-portal { display: none; }
 
