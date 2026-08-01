@@ -6533,19 +6533,23 @@ button {
     max-height: none !important;
     min-height: 0 !important;
   }
+  /* Flujo NATURAL: cada hoja crece según su contenido y hace salto de página
+     después. NO usamos height fija + overflow:hidden + break-inside:avoid
+     porque eso dejaba la PRIMERA hoja (portada/KPIs) en blanco. */
   body.s5-printing .s5-print-clone .report-sheet {
     position: relative !important;
     width: 8.5in !important;
-    height: 11in !important;
-    min-height: 11in !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
     margin: 0 auto !important;
     box-shadow: none !important;
     border: 0 !important;
-    overflow: hidden !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
     page-break-after: always;
     break-after: page;
-    page-break-inside: avoid;
-    break-inside: avoid;
   }
   body.s5-printing .s5-print-clone .report-sheet:last-child {
     page-break-after: auto;
