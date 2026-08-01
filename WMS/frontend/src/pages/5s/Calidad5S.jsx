@@ -410,27 +410,26 @@ async function openPrintable5SDocument({ title, reportElement }) {
   };
   window.addEventListener("afterprint", cleanup);
 
-  // Esperamos a que las imágenes (logo/evidencias) estén cargadas Y decodificadas,
-  // y a que las fuentes estén listas, para que la vista previa pinte de una y no
-  // se quede en blanco con el spinner.
+  // Esperamos a que las imágenes (logo/evidencias) carguen, PERO con un tope de
+  // tiempo para que la impresión SIEMPRE salga de una y no se quede "cargando".
+  const conTope = (promesa, ms) =>
+    Promise.race([promesa, new Promise((r) => setTimeout(r, ms))]);
+
   const imgs = Array.from(portal.querySelectorAll("img"));
-  await Promise.all(
-    imgs.map(async (img) => {
-      try {
-        if (!img.complete) {
-          await new Promise((res) => {
-            img.onload = res;
-            img.onerror = res;
-          });
-        }
-        if (img.decode) await img.decode().catch(() => {});
-      } catch {
-        /* ignorar imágenes que fallen */
-      }
-    })
-  );
-  if (document.fonts && document.fonts.ready) {
-    await document.fonts.ready.catch(() => {});
+  const pendientes = imgs.filter((img) => !img.complete);
+  if (pendientes.length) {
+    await conTope(
+      Promise.all(
+        pendientes.map(
+          (img) =>
+            new Promise((res) => {
+              img.onload = res;
+              img.onerror = res;
+            })
+        )
+      ),
+      2500 // nunca esperamos más de 2.5s por imágenes lentas
+    );
   }
 
   requestAnimationFrame(() => {
