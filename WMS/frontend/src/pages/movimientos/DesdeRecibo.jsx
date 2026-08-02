@@ -1387,7 +1387,14 @@ export default function DesdeRecibo() {
 
   // ---- Toolbox de ubicaciones vacías ----
   const abrirToolboxVacias = (r) => {
-    setTbLinea({ idx: r.idxLineaOriginal, codigo: r.sku, texto: r.texto });
+    setTbLinea({
+      idx: r.idxLineaOriginal,
+      codigo: r.sku,
+      texto: r.texto,
+      loteAlm: r.loteAlm || "",
+      loteProv: r.loteProv || "",
+      fv: r.fv || "",
+    });
     setTbBase(r.base || "");
     setTbZona("");
     setTbList([]);
@@ -1438,6 +1445,10 @@ export default function DesdeRecibo() {
       `<div style="font-size:13px;color:#475569">Código</div>` +
       `<div style="font-size:20px;font-weight:800;color:#0b3d91">${escapeHtml(tbLinea.codigo || "")}</div>` +
       `<div style="font-size:13px;color:#334155;margin:6px 0 12px">${escapeHtml(tbLinea.texto || "")}</div>` +
+      `<div style="display:flex;gap:24px;margin:0 0 12px">` +
+      `<div><div style="font-size:13px;color:#475569">Lote</div><div style="font-size:16px;font-weight:800;color:#0f172a">${escapeHtml(tbLinea.loteAlm || tbLinea.loteProv || "-")}</div></div>` +
+      `<div><div style="font-size:13px;color:#475569">Vencimiento</div><div style="font-size:16px;font-weight:800;color:#0f172a">${escapeHtml(tbLinea.fv || "-")}</div></div>` +
+      `</div>` +
       `<div style="font-size:13px;color:#475569">Ubicación asignada</div>` +
       `<div style="font-size:30px;font-weight:900;letter-spacing:1px;color:#0a1f52">${escapeHtml(code)}</div>` +
       `<div style="font-size:12px;color:#64748b;margin-top:12px">Base ${escapeHtml(tbBase || "-")} · Zona ${escapeHtml(tbZona || "-")} · ${new Date().toLocaleString("es-CO")}</div>` +
@@ -3501,6 +3512,10 @@ export default function DesdeRecibo() {
               <div style={{ fontSize: 13, color: colors.muted }}>Material</div>
               <div style={{ fontSize: 15, fontWeight: 800, color: colors.navy }}>
                 {tbLinea.codigo} — {tbLinea.texto}
+              </div>
+              <div style={{ fontSize: 12.5, color: colors.text, marginTop: 4 }}>
+                Lote: <b>{tbLinea.loteAlm || tbLinea.loteProv || "-"}</b> &nbsp;·&nbsp; Vencimiento:{" "}
+                <b>{tbLinea.fv || "-"}</b>
               </div>
 
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 14 }}>
