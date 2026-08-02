@@ -4405,12 +4405,28 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
       };
     }
 
+    // Recalcular por ACTIVIDAD (igual que el ranking de abajo):
+    //   OK = cumple meta; WARNING = hizo algún reporte pero no cumple;
+    //   CRITICAL = no hizo nada (acumulado 0).
+    const rk = dashboardData?.ranking || [];
+    const hasConds = (dashboardData?.dimensions || []).length > 0;
+    const metaOf = (it) => Number(it.target_value || 0);
+    const accOf = (it) => Number(it.accumulated || 0);
+    const esOk = (it) =>
+      hasConds ? it.estado === "ok" : metaOf(it) > 0 && accOf(it) >= metaOf(it);
+    let okC = 0, warnC = 0, critC = 0;
+    rk.forEach((it) => {
+      if (esOk(it)) okC += 1;
+      else if (accOf(it) > 0) warnC += 1;
+      else critC += 1;
+    });
+
     return {
       average_compliance: source.average_compliance,
       total_entities: source.total_entities,
-      ok_count: source.ok_count,
-      warning_count: source.warning_count,
-      critical_count: source.critical_count,
+      ok_count: rk.length ? okC : source.ok_count,
+      warning_count: rk.length ? warnC : source.warning_count,
+      critical_count: rk.length ? critC : source.critical_count,
     };
   }, [dashboardData, entityDashboardBarData, dashboardFilter.status_filter]);
 
