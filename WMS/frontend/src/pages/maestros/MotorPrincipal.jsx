@@ -759,6 +759,22 @@ export default function MotorPrincipal() {
 
   const showingRows = tipo === "STOCK" ? stockRows : filtered;
 
+  // Paginación en pantalla: solo se pintan PAGE_SIZE filas a la vez para que el
+  // DOM quede liviano y la navegación (menú, paneles) no se ponga lenta.
+  const PAGE_SIZE = 150;
+  const [page, setPage] = useState(0);
+  const totalPages = Math.max(1, Math.ceil(showingRows.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  useEffect(() => {
+    setPage(0);
+  }, [tipo, q, estado, bodega, zona, fechaDesde, fechaHasta, rows]);
+  const pagedRows = useMemo(
+    () => showingRows.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE),
+    [showingRows, safePage]
+  );
+  const desde = showingRows.length === 0 ? 0 : safePage * PAGE_SIZE + 1;
+  const hasta = Math.min(showingRows.length, (safePage + 1) * PAGE_SIZE);
+
   return (
     <div style={pageStyle}>
       <ModuleHeader
@@ -1182,7 +1198,7 @@ export default function MotorPrincipal() {
                   </tr>
                 )}
 
-                {showingRows.map((r) => (
+                {pagedRows.map((r) => (
                   <tr key={r.id}>
                     <td style={{ ...tdStyle, fontWeight: 700, color: colors.navy }}>
                       {r.codigo_material || ""}
@@ -1252,7 +1268,7 @@ export default function MotorPrincipal() {
                   </tr>
                 )}
 
-                {showingRows.map((r) => {
+                {pagedRows.map((r) => {
                   const qty = Number(r.cantidad || 0);
                   const isIn = qty >= 0;
                   const estadoUp = String(r.estado || "").toUpperCase();
@@ -1339,6 +1355,61 @@ export default function MotorPrincipal() {
             </table>
           )}
         </div>
+
+        {!loading && !err && showingRows.length > PAGE_SIZE && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              padding: "10px 14px",
+              borderTop: `1px solid ${colors.border}`,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ color: colors.muted, fontWeight: 600, fontSize: 13 }}>
+              Mostrando {fmtNumberCO(desde)}–{fmtNumberCO(hasta)} de {fmtNumberCO(showingRows.length)}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setPage(0)}
+                disabled={safePage === 0}
+                style={pagerBtnStyle(safePage === 0)}
+              >
+                « Primera
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={safePage === 0}
+                style={pagerBtnStyle(safePage === 0)}
+              >
+                ‹ Anterior
+              </button>
+              <span style={{ fontWeight: 700, color: colors.navy, fontSize: 13 }}>
+                Página {safePage + 1} de {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={safePage >= totalPages - 1}
+                style={pagerBtnStyle(safePage >= totalPages - 1)}
+              >
+                Siguiente ›
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage(totalPages - 1)}
+                disabled={safePage >= totalPages - 1}
+                style={pagerBtnStyle(safePage >= totalPages - 1)}
+              >
+                Última »
+              </button>
+            </div>
+          </div>
+        )}
 
         {err && (
           <div
@@ -1520,6 +1591,19 @@ const iconBtnStyle = {
   display: "grid",
   placeItems: "center",
 };
+
+function pagerBtnStyle(disabled) {
+  return {
+    padding: "7px 12px",
+    borderRadius: 8,
+    border: "1px solid #d9e2ec",
+    background: disabled ? "#f1f5f9" : "#fff",
+    color: disabled ? "#9aa5b1" : "#0b3d91",
+    fontWeight: 700,
+    fontSize: 13,
+    cursor: disabled ? "default" : "pointer",
+  };
+}
 
 function toolItemStyle(borderColor, hoverBg) {
   return {
