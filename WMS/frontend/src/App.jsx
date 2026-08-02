@@ -32,6 +32,7 @@ import EnTransito from "./pages/maestros/EnTransito";
 /* ================= INVENTARIOS ================= */
 import CrearTarea from "./pages/inventarios/CrearTarea";
 import InspectoresCuadro from "./pages/inventarios/InspectoresCuadro";
+import AnalisisInventario from "./pages/inventarios/AnalisisInventario";
 import MisConteos from "./pages/inventarios/MisConteos";
 import ConteoFisico from "./pages/inventarios/ConteoFisico";
 import Conciliacion from "./pages/inventarios/Conciliacion";
@@ -361,6 +362,7 @@ function AppRoutes() {
           <Route path="inventarios" element={<OperationalRoute><Inventarios /></OperationalRoute>}>
             <Route path="crear-tarea" element={<CrearTarea />} />
             <Route path="inspectores" element={<InspectoresCuadro />} />
+            <Route path="analisis" element={<AnalisisInventario />} />
             <Route path="mis-conteos" element={<MisConteos />} />
             <Route path="conteo-fisico" element={<ConteoFisico />} />
             <Route path="conciliacion" element={<Conciliacion />} />

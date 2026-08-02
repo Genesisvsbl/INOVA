@@ -11,6 +11,7 @@ import {
   Warehouse,
   AlertTriangle,
   Users,
+  BarChart3,
 } from "lucide-react";
 import { getInventarioTareas } from "../api";
 
@@ -104,6 +105,13 @@ export default function Inventarios() {
       desc: "Asigna a cada inspector una bodega y familia; crea sus conteos.",
       to: "/inventarios/inspectores",
       icon: Users,
+      perm: "inventarios.crear",
+    },
+    {
+      title: "Análisis",
+      desc: "Sube existencias de SAP y compara contra el físico del WMS.",
+      to: "/inventarios/analisis",
+      icon: BarChart3,
       perm: "inventarios.crear",
     },
     {

@@ -1199,6 +1199,51 @@ export async function borrarDatosWms(seleccion = {}) {
   return { grupos: grupos.map((g) => g.key), tablas: borradas };
 }
 
+// Genera el análisis de inventario: sube el LX02 de SAP (teórico) y lo cruza
+// contra el físico real del WMS (stock por material). El teórico se agrupa por
+// material (sumando lotes) y la "familia" sale de la Ubicación de SAP.
+export async function generarAnalisisInventario(file) {
+  if (!supabaseEnabled) throw new Error("Servicio operativo no configurado.");
+  const rows = await readSpreadsheetRows(file);
+
+  const sap = new Map();
+  for (const r of rows) {
+    const material = String(getImportValue(r, "codigo") || r["material"] || "").trim();
+    if (!material) continue;
+    const teorico = toNumber(
+      r["stock disponible"] ?? r["stock"] ?? r["teorico"] ?? getImportValue(r, "cantidad")
+    );
+    const texto = String(
+      r["texto breve de material"] || r["texto breve del material"] || r["descripcion"] || ""
+    ).trim();
+    const familia = String(r["ubicacion"] || r["familia"] || r["tipo almacen"] || "").trim();
+    if (!sap.has(material)) sap.set(material, { material, familia, texto, teorico: 0 });
+    const it = sap.get(material);
+    it.teorico += teorico;
+    if (!it.familia && familia) it.familia = familia;
+    if (!it.texto && texto) it.texto = texto;
+  }
+
+  if (!sap.size) throw new Error("El archivo no tiene datos válidos. Requiere Material y Stock disponible.");
+
+  // Físico real del WMS: stock neto por material.
+  const movs = await getMotor();
+  const fisico = new Map();
+  for (const m of Array.isArray(movs) ? movs : []) {
+    const cod = String(m.codigo_material || m.sku || "").trim();
+    if (!cod) continue;
+    fisico.set(cod, (fisico.get(cod) || 0) + Number(m.cantidad ?? m.cantidad_r ?? 0));
+  }
+
+  return Array.from(sap.values())
+    .map((s) => ({ ...s, fisico: fisico.get(s.material) || 0 }))
+    .sort(
+      (a, b) =>
+        String(a.familia).localeCompare(String(b.familia)) ||
+        String(a.material).localeCompare(String(b.material))
+    );
+}
+
 export function importarDespachos(file) {
   if (!supabaseEnabled) return Promise.reject(new Error("Servicio operativo no configurado."));
   return readSpreadsheetRows(file).then(async (rows) => {
