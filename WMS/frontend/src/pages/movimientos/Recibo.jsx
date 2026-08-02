@@ -761,69 +761,34 @@ export default function Recibo() {
       document.body.removeChild(cont);
 
       const dataUrl = canvas.toDataURL("image/png");
-      const b64img = dataUrl.split(",")[1] || "";
-      const b64imgWrapped = b64img.replace(/(.{76})/g, "$1\r\n");
 
-      // Cuerpo HTML con la imagen incrustada por Content-ID.
-      const htmlBody =
-        `<html><body style="font-family:Arial,sans-serif;font-size:13px;color:#111827">` +
-        `<p>Buen día,</p>` +
-        `<p>Durante la recepción del <b>${hoy}</b>${doc ? ` (documento ${esc(doc)})` : ""} se identificó un ` +
-        `<b>incumplimiento de rotación (FEFO)</b> por parte del proveedor${proveedor ? ` <b>${esc(proveedor)}</b>` : ""}` +
-        `${oc ? ` (OC ${esc(oc)})` : ""}. A continuación la evidencia:</p>` +
-        `<img src="cid:evidenciafefo" alt="Evidencia FEFO" style="max-width:100%;border:1px solid #e2e8f0"/>` +
-        `<p>Agradecemos su gestión y seguimiento para corregir la rotación en las próximas entregas.</p>` +
-        `<p>Cordialmente,<br/>Equipo de Recepción</p>` +
-        `</body></html>`;
-
-      const b64 = (s) => {
-        try {
-          return btoa(unescape(encodeURIComponent(s)));
-        } catch {
-          return btoa(s);
-        }
-      };
-      const asuntoEnc = `=?UTF-8?B?${b64(asunto)}?=`;
-      const boundary = "INOVA_FEFO_BOUNDARY_2026";
-      const eml =
-        `To: \r\n` +
-        `Subject: ${asuntoEnc}\r\n` +
-        `X-Unsent: 1\r\n` +
-        `MIME-Version: 1.0\r\n` +
-        `Content-Type: multipart/related; boundary="${boundary}"\r\n` +
-        `\r\n` +
-        `--${boundary}\r\n` +
-        `Content-Type: text/html; charset=utf-8\r\n` +
-        `Content-Transfer-Encoding: base64\r\n\r\n` +
-        b64(htmlBody).replace(/(.{76})/g, "$1\r\n") +
-        `\r\n--${boundary}\r\n` +
-        `Content-Type: image/png\r\n` +
-        `Content-Transfer-Encoding: base64\r\n` +
-        `Content-ID: <evidenciafefo>\r\n` +
-        `Content-Disposition: inline; filename="evidencia_fefo.png"\r\n\r\n` +
-        b64imgWrapped +
-        `\r\n--${boundary}--\r\n`;
-
-      // Imagen también al portapapeles (por si la quieren pegar en otro lado).
+      // Copia la IMAGEN de evidencia (con logo) al portapapeles.
+      let copiada = false;
       try {
         if (navigator.clipboard && window.ClipboardItem) {
           const blobImg = await (await fetch(dataUrl)).blob();
           await navigator.clipboard.write([new window.ClipboardItem({ "image/png": blobImg })]);
+          copiada = true;
         }
       } catch {
-        /* opcional */
+        copiada = false;
       }
 
-      const blob = new Blob([eml], { type: "message/rfc822" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const slug = (proveedor || "proveedor").replace(/[^a-z0-9]+/gi, "_").slice(0, 40);
-      a.download = `Novedad_FEFO_${slug}.eml`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      // Cuerpo del correo (texto). Outlook se abre al instante, sin descargas.
+      const cuerpo =
+        `Buen dia,\n\n` +
+        `Durante la recepcion del ${hoy}${doc ? ` (documento ${doc})` : ""} se identifico un INCUMPLIMIENTO DE ROTACION (FEFO) ` +
+        `por parte del proveedor${proveedor ? ` ${proveedor}` : ""}${oc ? ` (OC ${oc})` : ""}. Se entrego producto con fecha de ` +
+        `vencimiento ANTERIOR a las existencias del mismo material ya recibidas, lo que no respeta el principio ` +
+        `"primero en vencer, primero en salir".\n\n` +
+        (copiada
+          ? `>>> La imagen de evidencia (con el logo INOVA) esta COPIADA: haga clic aqui y presione Ctrl+V para insertarla. <<<\n\n`
+          : ``) +
+        `Agradecemos su gestion y seguimiento para corregir la rotacion en las proximas entregas.\n\n` +
+        `Cordialmente,\nEquipo de Recepcion`;
+
+      // Abre Outlook directo (sin descargas ni advertencias).
+      window.location.href = `mailto:?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
     } catch (e) {
       window.alert("No se pudo generar el correo de novedad: " + (e?.message || e));
     } finally {
