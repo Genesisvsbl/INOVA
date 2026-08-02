@@ -1206,7 +1206,7 @@ export default function HistoryView({
           "descripción",
           "description",
         ]);
-        const MIN_DESC = 200;
+        const MIN_DESC = 100;
         const INVALID_DIM = "Invalido";
         // Se agrega por MES (una fila al 01), sumando todos los días, igual que
         // el import de inspecciones. Así el dashboard (que suma) y la matriz
@@ -1235,7 +1235,7 @@ export default function HistoryView({
           }
           const impact = strip(raw[impactKey]);
           let dim = impact === "si" || impact.startsWith("si") ? dimAmb : dimSeg;
-          // Validacion de calidad: la descripcion debe tener >= 200 caracteres.
+          // Validacion de calidad: la descripcion debe tener >= 100 caracteres.
           const desc = descKey ? String(raw[descKey] ?? "").trim() : "";
           if (descKey && desc.length < MIN_DESC) {
             // Conserva la condicion (ej. "Invalido Ambiental").
@@ -1289,13 +1289,13 @@ export default function HistoryView({
         return;
       }
 
-      // Validaci\u00f3n de calidad: la descripci\u00f3n debe tener >= 200 caracteres.
+      // Validaci\u00f3n de calidad: la descripci\u00f3n debe tener >= 100 caracteres.
       const descKeyN = findColumnKey(rows[0], [
         "descripcion",
         "descripci\u00f3n",
         "description",
       ]);
-      const MIN_DESC_N = 200;
+      const MIN_DESC_N = 100;
 
       const counts = {};
       const invalidByEntity = {};
@@ -1330,7 +1330,7 @@ export default function HistoryView({
           outOfMonth += 1;
           continue;
         }
-        // Si trae descripci\u00f3n y es menor a 200 caracteres, se invalida (no cuenta,
+        // Si trae descripci\u00f3n y es menor a 100 caracteres, se invalida (no cuenta,
         // pero se registra aparte como "Invalido" para verlo en el dashboard).
         if (descKeyN) {
           const desc = String(raw[descKeyN] ?? "").trim();
