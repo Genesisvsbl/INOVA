@@ -670,18 +670,39 @@ export default function Recibo() {
       return m ? `${m[3]}/${m[2]}/${m[1]}` : formatDateDisplay(v);
     };
 
-    const evid = items.map(([i, r]) => {
-      const ln = lineas[i] || {};
-      return {
-        item: i + 1,
-        codigo: r.codigo,
-        descripcion: String(ln.descripcion || "").trim(),
-        lote: String(ln.lote_proveedor || ln.lote || "").trim(),
-        cantidad: String(ln.cantidad || "").trim(),
-        venc: fmtDMY(r.venc),
-        prev: fmtDMY(r.prev),
-      };
-    });
+    // Estado por línea (comparando el vencimiento entregado vs el stock previo).
+    const estadoInfo = (vencIso, prevIso) => {
+      if (!vencIso) return { label: "SIN FV", bg: "#f1f5f9", color: "#64748b" };
+      if (!prevIso) return { label: "CUMPLE", bg: "#dbe9ff", color: "#0b3d91" };
+      if (vencIso < prevIso) return { label: "INCUMPLE", bg: "#f8d7da", color: "#b42318" };
+      if (vencIso > prevIso) return { label: "CUMPLE", bg: "#dbe9ff", color: "#0b3d91" };
+      return { label: "IGUAL", bg: "#d1f0dd", color: "#157347" };
+    };
+
+    // TODAS las líneas recibidas, en orden de recepción, con su estado.
+    const evid = lineas
+      .map((ln, idx) => {
+        const cod = String(ln.codigo || "").trim();
+        if (!cod) return null;
+        const vencIso = String(ln.fecha_vencimiento || "").slice(0, 10);
+        const prevIso = vencPrevio[cod] ? String(vencPrevio[cod]).slice(0, 10) : "";
+        const est = estadoInfo(vencIso, prevIso);
+        return {
+          item: idx + 1,
+          fechaRec: fmtDMY(ln.fecha_recepcion),
+          codigo: cod,
+          descripcion: String(ln.descripcion || "").trim(),
+          lote: String(ln.lote_proveedor || ln.lote || "").trim(),
+          cantidad: String(ln.cantidad || "").trim(),
+          venc: vencIso ? fmtDMY(vencIso) : "-",
+          prev: prevIso ? fmtDMY(prevIso) : "-",
+          estado: est.label,
+          estBg: est.bg,
+          estColor: est.color,
+        };
+      })
+      .filter(Boolean);
+    if (!evid.length) return;
 
     const proveedor = String(header.proveedor || "").trim();
     const oc = String(header.orden_compra || "").replace(/\*/g, "").trim();
@@ -696,45 +717,49 @@ export default function Recibo() {
       (oc ? ` - OC ${oc}` : "");
 
     // ---- Tarjeta de evidencia (se renderiza a imagen con html2canvas) ----
-    const th = "border:1px solid #0b3d91;padding:8px 10px;color:#fff;background:#0b3d91;font-family:Arial,sans-serif;font-size:13px;text-align:left;white-space:nowrap";
-    const td = "border:1px solid #cbd5e1;padding:7px 10px;font-family:Arial,sans-serif;font-size:13px;color:#111827";
+    const th = "border:1px solid #0b3d91;padding:8px 9px;color:#fff;background:#0b3d91;font-family:Arial,sans-serif;font-size:12.5px;text-align:left;white-space:nowrap";
+    const td = "border:1px solid #cbd5e1;padding:6px 9px;font-family:Arial,sans-serif;font-size:12.5px;color:#111827";
     const tdR = td + ";text-align:right";
-    const tdInc = "border:1px solid #cbd5e1;padding:7px 10px;font-family:Arial,sans-serif;font-size:13px;background:#f8d7da;color:#b42318;font-weight:bold;text-align:center";
-    const logo = `${window.location.origin}/INOVA2026.png`;
+    const logo = `${window.location.origin}/INOVA-dark.png`;
+    const totalInc = evid.filter((e) => e.estado === "INCUMPLE").length;
     const filasHtml = evid
       .map(
         (e, k) =>
           `<tr style="background:${k % 2 ? "#f5f8ff" : "#ffffff"}">` +
-          `<td style="${td};text-align:center">#${e.item}</td>` +
+          `<td style="${td};text-align:center">${e.item}</td>` +
+          `<td style="${td};text-align:center">${e.fechaRec}</td>` +
           `<td style="${td};font-weight:700;color:#0b3d91">${esc(e.codigo)}</td>` +
           `<td style="${td}">${esc(e.descripcion)}</td>` +
           `<td style="${td}">${esc(e.lote) || "-"}</td>` +
           `<td style="${tdR}">${esc(e.cantidad) || "-"}</td>` +
           `<td style="${td};text-align:center">${e.venc}</td>` +
           `<td style="${td};text-align:center">${e.prev}</td>` +
-          `<td style="${tdInc}">INCUMPLE</td></tr>`
+          `<td style="border:1px solid #cbd5e1;padding:6px 9px;font-family:Arial,sans-serif;font-size:12.5px;font-weight:bold;text-align:center;background:${e.estBg};color:${e.estColor}">${e.estado}</td>` +
+          `</tr>`
       )
       .join("");
     const tarjetaHtml =
-      `<div style="width:1040px;background:#fff;padding:26px 28px;box-sizing:border-box">` +
+      `<div style="width:1120px;background:#fff;padding:26px 28px;box-sizing:border-box">` +
       `<div style="display:flex;align-items:center;gap:16px;border-bottom:3px solid #0b3d91;padding-bottom:14px;margin-bottom:16px">` +
-      `<img src="${logo}" crossorigin="anonymous" style="height:52px" onerror="this.style.display='none'"/>` +
+      `<img src="${logo}" crossorigin="anonymous" style="height:50px" onerror="this.style.display='none'"/>` +
       `<div>` +
-      `<div style="font-family:Arial,sans-serif;font-size:19px;font-weight:800;color:#0b3d91">EVIDENCIA DE INCUMPLIMIENTO DE ROTACIÓN (FEFO)</div>` +
+      `<div style="font-family:Arial,sans-serif;font-size:19px;font-weight:800;color:#0b3d91">EVIDENCIA DE RECEPCIÓN Y ROTACIÓN (FEFO)</div>` +
       `<div style="font-family:Arial,sans-serif;font-size:13px;color:#475569;margin-top:3px">` +
       `Proveedor: <b>${esc(proveedor) || "-"}</b>${oc ? ` &nbsp;|&nbsp; OC: <b>${esc(oc)}</b>` : ""}` +
       `${doc ? ` &nbsp;|&nbsp; Documento: <b>${esc(doc)}</b>` : ""} &nbsp;|&nbsp; Fecha: <b>${hoy}</b></div>` +
       `</div></div>` +
       `<table style="border-collapse:collapse;width:100%">` +
       `<thead><tr>` +
-      `<th style="${th};text-align:center">Ítem</th><th style="${th}">Código</th><th style="${th}">Descripción</th>` +
+      `<th style="${th};text-align:center">Ítem</th><th style="${th};text-align:center">Fecha recep.</th>` +
+      `<th style="${th}">Código</th><th style="${th}">Descripción</th>` +
       `<th style="${th}">Lote prov.</th><th style="${th};text-align:right">Cantidad</th>` +
       `<th style="${th};text-align:center">Vence entregado</th><th style="${th};text-align:center">Vence en stock</th>` +
       `<th style="${th};text-align:center">Estado</th>` +
       `</tr></thead><tbody>${filasHtml}</tbody></table>` +
       `<div style="font-family:Arial,sans-serif;font-size:12px;color:#64748b;margin-top:14px">` +
-      `El proveedor entregó producto que vence ANTES que las existencias del mismo material ya recibidas, ` +
-      `incumpliendo el principio “primero en vencer, primero en salir”.</div>` +
+      `<b>CUMPLE</b>: vence después del stock existente &nbsp;·&nbsp; <b>IGUAL</b>: misma fecha &nbsp;·&nbsp; ` +
+      `<b>INCUMPLE</b>: vence antes que el stock existente (no respeta “primero en vencer, primero en salir”). ` +
+      `Total líneas: <b>${evid.length}</b> &nbsp;|&nbsp; Incumplimientos: <b style="color:#b42318">${totalInc}</b>.</div>` +
       `</div>`;
 
     setEnviandoNovedad(true);
@@ -785,7 +810,7 @@ export default function Recibo() {
           ? `>>> La imagen de evidencia (con el logo INOVA) esta COPIADA: haga clic aqui y presione Ctrl+V para insertarla. <<<\n\n`
           : ``) +
         `Agradecemos su gestion y seguimiento para corregir la rotacion en las proximas entregas.\n\n` +
-        `Cordialmente,\nEquipo de Recepcion`;
+        `Cordialmente,\nEquipo de Recibo`;
 
       // Abre Outlook directo (sin descargas ni advertencias).
       window.location.href = `mailto:?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
