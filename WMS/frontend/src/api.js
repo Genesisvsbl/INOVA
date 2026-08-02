@@ -1186,6 +1186,40 @@ export function importarInventarioInicial(file) {
       (ubActual || []).forEach((u) => ubByCod.set(normalizeText(u.ubicacion), u.id));
     }
 
+    // Detectar materiales que no existen y crearlos con la info del archivo.
+    const nuevosMat = new Map(); // normCod -> payload
+    for (const row of rows) {
+      const codigo = String(getImportValue(row, "codigo") || val(row, "codigo material", "material")).trim();
+      if (!codigo) continue;
+      const norm = normalizeText(codigo);
+      if (matByCod.has(norm) || nuevosMat.has(norm)) continue;
+      const descripcion = String(val(row, "descripcion material", "descripcion")).trim();
+      if (!descripcion) continue; // sin descripción no se puede crear
+      nuevosMat.set(
+        norm,
+        compactObject({
+          empresa_id: empresaId,
+          codigo,
+          descripcion,
+          unidad: 1,
+          unidad_medida: String(val(row, "unidad medida", "um")).trim() || "UN",
+          familia: String(val(row, "familia")).trim(),
+        })
+      );
+    }
+
+    let materialesCreados = 0;
+    if (nuevosMat.size) {
+      const nuevos = Array.from(nuevosMat.values());
+      for (let i = 0; i < nuevos.length; i += 200) {
+        await insertRow("wms", "materiales", nuevos.slice(i, i + 200));
+      }
+      materialesCreados = nuevos.length;
+      const matActual = await getMateriales();
+      matByCod.clear();
+      (matActual || []).forEach((m) => matByCod.set(normalizeText(m.codigo), m.id));
+    }
+
     const items = [];
     let omit = 0;
     let sinMaterial = 0;
@@ -1246,11 +1280,13 @@ export function importarInventarioInicial(file) {
       inserted: items.length,
       pnc,
       ubicacionesCreadas,
+      materialesCreados,
       mensaje:
         `Inventario importado: ${items.length} registro(s)` +
         (pnc ? `, ${pnc} en PNC bloqueado` : "") +
+        (materialesCreados ? `; ${materialesCreados} material(es) nuevo(s) creado(s)` : "") +
         (ubicacionesCreadas ? `; ${ubicacionesCreadas} ubicación(es) nueva(s) creada(s)` : "") +
-        (sinMaterial ? `; ${sinMaterial} omitido(s) por material inexistente` : "") +
+        (sinMaterial ? `; ${sinMaterial} fila(s) sin material (falta descripción en el Excel)` : "") +
         (omit ? `; ${omit} fila(s) sin código/cantidad` : "") +
         ".",
     };
