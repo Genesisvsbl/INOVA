@@ -7,6 +7,7 @@ import {
   buscarReciboGuardado,
   corregirTrazabilidadPorSerial,
   crearMaterial,
+  getMaxVencimientoPorCodigos,
 } from "../../api";
 import {
   Inbox,
@@ -616,6 +617,44 @@ export default function Recibo() {
   const [facturado, setFacturado] = useState([{ codigo: "", expr: "" }]);
   const [skuNuevo, setSkuNuevo] = useState(null); // { idx, form } | null
   const [skuGuardando, setSkuGuardando] = useState(false);
+
+  // Control de rotación (FEFO): vencimiento más lejano ya recibido por código.
+  const [vencPrevio, setVencPrevio] = useState({});
+
+  const codigosKey = useMemo(
+    () => lineas.map((l) => String(l.codigo || "").trim()).filter(Boolean).sort().join("|"),
+    [lineas]
+  );
+
+  useEffect(() => {
+    const codigos = codigosKey ? codigosKey.split("|") : [];
+    if (!codigos.length) {
+      setVencPrevio({});
+      return;
+    }
+    let alive = true;
+    getMaxVencimientoPorCodigos(codigos)
+      .then((m) => alive && setVencPrevio(m || {}))
+      .catch(() => alive && setVencPrevio({}));
+    return () => {
+      alive = false;
+    };
+  }, [codigosKey]);
+
+  // Líneas donde el proveedor incumple rotación: lo que llega vence ANTES que
+  // stock del mismo código ya recibido antes.
+  const rotacionByIdx = useMemo(() => {
+    const map = new Map();
+    lineas.forEach((ln, idx) => {
+      const cod = String(ln.codigo || "").trim();
+      const venc = String(ln.fecha_vencimiento || "").slice(0, 10);
+      const prev = vencPrevio[cod];
+      if (cod && venc && prev && venc < prev) {
+        map.set(idx, { codigo: cod, venc, prev });
+      }
+    });
+    return map;
+  }, [lineas, vencPrevio]);
 
   const proveedorEsAmcor = useMemo(
     () => isAmcorProveedor(header.proveedor),
@@ -1883,6 +1922,20 @@ export default function Recibo() {
         };
       })
       .filter((row) => row.item || row.hallazgo || row.empaque || row.cantidad);
+
+    // Novedad automática: incumplimiento de rotación del proveedor (FEFO).
+    Array.from(rotacionByIdx.entries()).forEach(([i, r]) => {
+      rows.push({
+        item: i + 1,
+        hallazgo: `INCUMPLIMIENTO DE ROTACIÓN: el material vence ${formatDateDisplay(
+          r.venc
+        )}, pero ya se recibió stock que vence ${formatDateDisplay(
+          r.prev
+        )}. El proveedor está enviando producto que vence antes.`,
+        empaque: lineas[i]?.empaque || "",
+        cantidad: lineas[i]?.cantidad || "",
+      });
+    });
 
     if (!rows.length) return "";
     rows.push({ item: "", hallazgo: "", empaque: "", cantidad: "" });
@@ -3824,6 +3877,33 @@ export default function Recibo() {
               </div>
             )}
 
+            {rotacionByIdx.size > 0 && (
+              <div
+                style={{
+                  margin: "0 0 12px",
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  border: "1px solid #f3c7c7",
+                  background: "#fdf0f0",
+                  color: "#b42318",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "flex-start",
+                }}
+              >
+                <span style={{ fontSize: 18, lineHeight: 1 }}>⚠</span>
+                <span>
+                  Incumplimiento de rotación del proveedor en {rotacionByIdx.size} línea(s):{" "}
+                  {Array.from(rotacionByIdx.entries())
+                    .map(([i, r]) => `#${i + 1} (${r.codigo}) vence ${formatDateDisplay(r.venc)} vs stock que vence ${formatDateDisplay(r.prev)}`)
+                    .join("; ")}
+                  . Esta novedad quedará registrada en el recibo impreso.
+                </span>
+              </div>
+            )}
+
             <div style={{ width: "100%", overflowX: "hidden" }}>
               <table style={detailTableStyle}>
                 <colgroup>
@@ -4073,6 +4153,27 @@ export default function Recibo() {
                             }}
                           >
                             {errores[`fv_${idx}`]}
+                          </div>
+                        )}
+                        {rotacionByIdx.has(idx) && (
+                          <div
+                            title={`Ya se recibió stock del código ${rotacionByIdx.get(idx).codigo} que vence ${formatDateDisplay(rotacionByIdx.get(idx).prev)}. El proveedor está enviando producto que vence antes.`}
+                            style={{
+                              marginTop: 4,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 5,
+                              background: "#fdecec",
+                              border: "1px solid #f3c7c7",
+                              color: "#b42318",
+                              borderRadius: 6,
+                              padding: "3px 6px",
+                              fontSize: 10,
+                              fontWeight: 800,
+                              lineHeight: 1.15,
+                            }}
+                          >
+                            ⚠ Incumple rotación · ya hay stock que vence {formatDateDisplay(rotacionByIdx.get(idx).prev)}
                           </div>
                         )}
                       </td>

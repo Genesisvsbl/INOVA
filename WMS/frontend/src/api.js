@@ -1286,6 +1286,37 @@ export function eliminarAnalisisInventario(id) {
   return deleteById("wms", "analisis_inventario", id);
 }
 
+// Para control de rotación (FEFO): por cada código, el vencimiento MÁS LEJANO
+// que ya se recibió antes (stock/entradas). Si lo que llega ahora vence antes,
+// el proveedor está incumpliendo la rotación.
+export async function getMaxVencimientoPorCodigos(codigos) {
+  const list = [...new Set((codigos || []).map((c) => String(c || "").trim()).filter(Boolean))];
+  if (!supabaseEnabled || !list.length) return {};
+  const materiales = await selectRows("wms", "materiales", {
+    empresa_id: `eq.${empresaId}`,
+    codigo: `in.(${list.join(",")})`,
+    select: "id,codigo",
+  });
+  const idToCodigo = new Map((materiales || []).map((m) => [m.id, String(m.codigo)]));
+  const ids = (materiales || []).map((m) => m.id);
+  if (!ids.length) return {};
+  const movs = await selectRows("wms", "movimientos", {
+    empresa_id: `eq.${empresaId}`,
+    material_id: `in.(${ids.join(",")})`,
+    select: "material_id,fecha_vencimiento,cantidad_r",
+    limit: "8000",
+  });
+  const maxByCodigo = {};
+  for (const m of movs || []) {
+    if (Number(m.cantidad_r || 0) <= 0) continue; // solo entradas/stock
+    const cod = idToCodigo.get(m.material_id);
+    const fv = String(m.fecha_vencimiento || "").slice(0, 10);
+    if (!cod || !fv) continue;
+    if (!maxByCodigo[cod] || fv > maxByCodigo[cod]) maxByCodigo[cod] = fv;
+  }
+  return maxByCodigo;
+}
+
 export function importarDespachos(file) {
   if (!supabaseEnabled) return Promise.reject(new Error("Servicio operativo no configurado."));
   return readSpreadsheetRows(file).then(async (rows) => {
