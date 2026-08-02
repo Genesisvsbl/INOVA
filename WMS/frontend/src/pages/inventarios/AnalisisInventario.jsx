@@ -4,6 +4,7 @@ import {
   Upload,
   Search,
   Download,
+  FileText,
   AlertTriangle,
   Loader2,
 } from "lucide-react";
@@ -12,16 +13,18 @@ import { generarAnalisisInventario } from "../../api";
 const colors = {
   navy: "#0f2744",
   blue: "#1f4e9c",
-  blueBg: "#1f4e9c",
   red: "#c0201a",
+  green: "#1f7a3d",
   text: "#1f2d3d",
   muted: "#6b7a90",
   border: "#d9e2ec",
   soft: "#f8fafc",
 };
 
-const nf = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmt = (v) => nf.format(Number(v || 0));
+const nf2 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const nf0 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
+const fmt = (v) => nf2.format(Number(v || 0));
+const fmtInt = (v) => (v || v === 0 ? nf0.format(Number(v || 0)) : "");
 
 // DIFERENCIA = (FISICO - TEORICO) - P.INGRESO + P.DESCARGAR - DEVOLUCION
 function calcDiferencia(r) {
@@ -55,7 +58,7 @@ const td = {
 };
 const tdL = { ...td, textAlign: "left" };
 const editInput = {
-  width: 90,
+  width: 96,
   height: 26,
   textAlign: "right",
   border: "1px solid #d9e2ec",
@@ -65,13 +68,33 @@ const editInput = {
   outline: "none",
 };
 
+// Input numérico que muestra puntos de mil mientras se escribe.
+function NumInput({ value, onChange }) {
+  const display = value || value === 0 ? nf0.format(Number(value || 0)) : "";
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={value ? display : ""}
+      onChange={(e) => {
+        const digits = e.target.value.replace(/[^\d]/g, "");
+        onChange(digits ? parseInt(digits, 10) : 0);
+      }}
+      style={editInput}
+    />
+  );
+}
+
 export default function AnalisisInventario() {
   const fileRef = useRef(null);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [fileName, setFileName] = useState("");
-  const [q, setQ] = useState("");
+
+  const [fFamilia, setFFamilia] = useState("TODAS");
+  const [fMaterial, setFMaterial] = useState("");
+  const [fTexto, setFTexto] = useState("");
 
   const onFile = async (e) => {
     const file = e.target.files?.[0];
@@ -81,9 +104,7 @@ export default function AnalisisInventario() {
     setError("");
     try {
       const data = await generarAnalisisInventario(file);
-      setRows(
-        data.map((r) => ({ ...r, p_ingreso: 0, p_descargar: 0, devolucion: 0 }))
-      );
+      setRows(data.map((r) => ({ ...r, p_ingreso: 0, p_descargar: 0, devolucion: 0 })));
       setFileName(file.name);
     } catch (err) {
       setError(err?.message || "No se pudo procesar el archivo.");
@@ -93,18 +114,25 @@ export default function AnalisisInventario() {
     }
   };
 
-  const setVal = (idx, key, value) => {
-    const num = value === "" ? 0 : Number(value);
+  const setVal = (idx, key, num) => {
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, [key]: Number.isFinite(num) ? num : 0 } : r)));
   };
 
+  const familias = useMemo(() => {
+    const set = new Set(rows.map((r) => String(r.familia || "").trim()).filter(Boolean));
+    return ["TODAS", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+  }, [rows]);
+
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return rows;
-    return rows.filter((r) =>
-      [r.familia, r.material, r.texto].map((x) => String(x || "").toLowerCase()).join(" ").includes(needle)
-    );
-  }, [rows, q]);
+    const mat = fMaterial.trim().toLowerCase();
+    const txt = fTexto.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (fFamilia !== "TODAS" && String(r.familia || "") !== fFamilia) return false;
+      if (mat && !String(r.material || "").toLowerCase().includes(mat)) return false;
+      if (txt && !String(r.texto || "").toLowerCase().includes(txt)) return false;
+      return true;
+    });
+  }, [rows, fFamilia, fMaterial, fTexto]);
 
   const totales = useMemo(() => {
     return filtered.reduce(
@@ -144,7 +172,26 @@ export default function AnalisisInventario() {
     XLSX.writeFile(wb, `analisis_inventario_${hoy}.xlsx`);
   };
 
-  const difColor = (v) => (v < 0 ? colors.red : v > 0 ? colors.blue : "#64748b");
+  // Color condicional: 0 => normal, negativo => rojo, sobrante => azul.
+  const difStyle = (v) => {
+    if (v < 0) return { background: colors.red, color: "#fff" };
+    if (v > 0) return { background: colors.blue, color: "#fff" };
+    return { background: "transparent", color: "#334155" };
+  };
+
+  const generarInforme = () => {
+    const base = filtered.map((r) => ({ ...r, diferencia: calcDiferencia(r) }));
+    const faltantes = base.filter((r) => r.diferencia < 0);
+    const sobrantes = base.filter((r) => r.diferencia > 0);
+    const cuadrados = base.filter((r) => r.diferencia === 0);
+    const win = window.open("", "_blank", "width=1100,height=800");
+    if (!win) {
+      setError("El navegador bloqueó la ventana del informe. Permite ventanas emergentes.");
+      return;
+    }
+    win.document.write(buildInformeHtml({ faltantes, sobrantes, cuadrados, fileName }));
+    win.document.close();
+  };
 
   return (
     <div style={{ padding: 24, display: "grid", gap: 16, color: colors.text }}>
@@ -178,42 +225,20 @@ export default function AnalisisInventario() {
             <button
               onClick={() => fileRef.current?.click()}
               disabled={loading}
-              style={{
-                height: 40,
-                padding: "0 16px",
-                borderRadius: 8,
-                border: "1px solid #0b57d0",
-                background: loading ? "#9dc0f0" : "#0b57d0",
-                color: "#fff",
-                fontWeight: 800,
-                cursor: loading ? "default" : "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-              }}
+              style={btnPrimary(loading)}
             >
               {loading ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
               {loading ? "Procesando…" : "Subir existencias SAP"}
             </button>
             {rows.length > 0 && (
-              <button
-                onClick={exportar}
-                style={{
-                  height: 40,
-                  padding: "0 14px",
-                  borderRadius: 8,
-                  border: `1px solid ${colors.border}`,
-                  background: "#fff",
-                  color: colors.text,
-                  fontWeight: 800,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                <Download size={15} /> Exportar Excel
-              </button>
+              <>
+                <button onClick={generarInforme} style={btnDark}>
+                  <FileText size={15} /> Generar informe
+                </button>
+                <button onClick={exportar} style={btnGhost}>
+                  <Download size={15} /> Exportar Excel
+                </button>
+              </>
             )}
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={onFile} style={{ display: "none" }} />
           </div>
@@ -235,13 +260,31 @@ export default function AnalisisInventario() {
 
           {rows.length > 0 && (
             <>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, border: `1px solid ${colors.border}`, borderRadius: 8, background: "#fff", height: 36, padding: "0 10px", minWidth: 280 }}>
-                  <Search size={15} color={colors.muted} />
-                  <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtrar por familia, material o texto…" style={{ border: "none", outline: "none", width: "100%", fontSize: 13 }} />
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(180px,1fr) minmax(160px,1fr) minmax(220px,1.4fr) auto", gap: 10, marginBottom: 12, alignItems: "end" }}>
+                <div>
+                  <div style={lbl}>Familia</div>
+                  <select value={fFamilia} onChange={(e) => setFFamilia(e.target.value)} style={selectStyle}>
+                    {familias.map((f) => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </select>
                 </div>
-                <div style={{ fontSize: 12, color: colors.muted, fontWeight: 700 }}>
-                  {fileName} · {filtered.length} materiales
+                <div>
+                  <div style={lbl}>Material</div>
+                  <div style={searchBox}>
+                    <Search size={14} color={colors.muted} />
+                    <input value={fMaterial} onChange={(e) => setFMaterial(e.target.value)} placeholder="Código…" style={searchInput} />
+                  </div>
+                </div>
+                <div>
+                  <div style={lbl}>Texto</div>
+                  <div style={searchBox}>
+                    <Search size={14} color={colors.muted} />
+                    <input value={fTexto} onChange={(e) => setFTexto(e.target.value)} placeholder="Descripción…" style={searchInput} />
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: colors.muted, fontWeight: 700, paddingBottom: 8, textAlign: "right" }}>
+                  {fileName}<br />{filtered.length} de {rows.length} materiales
                 </div>
               </div>
 
@@ -270,17 +313,11 @@ export default function AnalisisInventario() {
                           <td style={{ ...tdL, fontWeight: 700 }}>{r.material}</td>
                           <td style={tdL}>{r.texto}</td>
                           <td style={td}>{fmt(r.teorico)}</td>
-                          <td style={td}>
-                            <input type="number" value={r.p_ingreso} onChange={(e) => setVal(realIdx, "p_ingreso", e.target.value)} style={editInput} />
-                          </td>
-                          <td style={td}>
-                            <input type="number" value={r.p_descargar} onChange={(e) => setVal(realIdx, "p_descargar", e.target.value)} style={editInput} />
-                          </td>
-                          <td style={td}>
-                            <input type="number" value={r.devolucion} onChange={(e) => setVal(realIdx, "devolucion", e.target.value)} style={editInput} />
-                          </td>
+                          <td style={td}><NumInput value={r.p_ingreso} onChange={(v) => setVal(realIdx, "p_ingreso", v)} /></td>
+                          <td style={td}><NumInput value={r.p_descargar} onChange={(v) => setVal(realIdx, "p_descargar", v)} /></td>
+                          <td style={td}><NumInput value={r.devolucion} onChange={(v) => setVal(realIdx, "devolucion", v)} /></td>
                           <td style={{ ...td, fontWeight: 700 }}>{fmt(r.fisico)}</td>
-                          <td style={{ ...td, borderRight: "none", fontWeight: 800, color: "#fff", background: difColor(dif) }}>{fmt(dif)}</td>
+                          <td style={{ ...td, borderRight: "none", fontWeight: 800, ...difStyle(dif) }}>{fmt(dif)}</td>
                         </tr>
                       );
                     })}
@@ -289,18 +326,18 @@ export default function AnalisisInventario() {
                     <tr style={{ background: "#eef2f7", fontWeight: 800 }}>
                       <td style={tdL} colSpan={3}>TOTALES ({filtered.length})</td>
                       <td style={td}>{fmt(totales.teorico)}</td>
-                      <td style={td}>{fmt(totales.p_ingreso)}</td>
-                      <td style={td}>{fmt(totales.p_descargar)}</td>
-                      <td style={td}>{fmt(totales.devolucion)}</td>
+                      <td style={td}>{fmtInt(totales.p_ingreso)}</td>
+                      <td style={td}>{fmtInt(totales.p_descargar)}</td>
+                      <td style={td}>{fmtInt(totales.devolucion)}</td>
                       <td style={td}>{fmt(totales.fisico)}</td>
-                      <td style={{ ...td, borderRight: "none", color: difColor(totales.diferencia) }}>{fmt(totales.diferencia)}</td>
+                      <td style={{ ...td, borderRight: "none", color: totales.diferencia < 0 ? colors.red : totales.diferencia > 0 ? colors.blue : "#334155" }}>{fmt(totales.diferencia)}</td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
 
               <div style={{ marginTop: 10, fontSize: 11.5, color: colors.muted }}>
-                Fórmula de la diferencia: (FÍSICO − TEÓRICO) − P. Ingreso + P. Descargar − Devolución. Rojo = faltante, azul = sobrante.
+                Fórmula de la diferencia: (FÍSICO − TEÓRICO) − P. Ingreso + P. Descargar − Devolución. Rojo = faltante, azul = sobrante, sin color = cuadrado.
               </div>
             </>
           )}
@@ -310,4 +347,131 @@ export default function AnalisisInventario() {
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} .spin{animation:spin 1s linear infinite}`}</style>
     </div>
   );
+}
+
+const lbl = { fontSize: 11, fontWeight: 800, color: "#7a8797", letterSpacing: ".04em", marginBottom: 6, textTransform: "uppercase" };
+const selectStyle = { width: "100%", height: 38, padding: "0 10px", borderRadius: 8, border: "1px solid #d9e2ec", background: "#fff", color: "#1f2d3d", fontSize: 13, fontWeight: 600, boxSizing: "border-box" };
+const searchBox = { display: "flex", alignItems: "center", gap: 8, border: "1px solid #d9e2ec", borderRadius: 8, background: "#fff", height: 38, padding: "0 10px" };
+const searchInput = { border: "none", outline: "none", width: "100%", fontSize: 13, background: "transparent" };
+const btnGhost = { height: 40, padding: "0 14px", borderRadius: 8, border: "1px solid #d9e2ec", background: "#fff", color: "#1f2d3d", fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
+const btnDark = { height: 40, padding: "0 14px", borderRadius: 8, border: "1px solid #0f2744", background: "#0f2744", color: "#fff", fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
+function btnPrimary(loading) {
+  return { height: 40, padding: "0 16px", borderRadius: 8, border: "1px solid #0b57d0", background: loading ? "#9dc0f0" : "#0b57d0", color: "#fff", fontWeight: 800, cursor: loading ? "default" : "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
+}
+
+// ---------- Informe corporativo (HTML imprimible con logo INOVA) ----------
+function buildInformeHtml({ faltantes, sobrantes, cuadrados, fileName }) {
+  const logo = `${window.location.origin}/INOVA2026.png`;
+  const nf = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money = (v) => nf.format(Number(v || 0));
+  const hoy = new Date().toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" });
+
+  const groupByFamilia = (list) => {
+    const m = new Map();
+    list.forEach((r) => {
+      const f = String(r.familia || "(sin familia)");
+      if (!m.has(f)) m.set(f, []);
+      m.get(f).push(r);
+    });
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  };
+
+  const seccion = (titulo, list, color) => {
+    if (!list.length) {
+      return `<div class="sec"><div class="sec-head" style="border-left-color:${color}"><span class="dot" style="background:${color}"></span>${titulo} <span class="badge">0</span></div><div class="empty">Sin registros en esta categoría.</div></div>`;
+    }
+    const grupos = groupByFamilia(list);
+    const totalSec = list.reduce((a, r) => a + Number(r.diferencia || 0), 0);
+    let html = `<div class="sec"><div class="sec-head" style="border-left-color:${color}"><span class="dot" style="background:${color}"></span>${titulo} <span class="badge">${list.length}</span><span class="sec-total" style="color:${color}">${money(totalSec)}</span></div>`;
+    for (const [fam, items] of grupos) {
+      const sub = items.reduce((a, r) => a + Number(r.diferencia || 0), 0);
+      html += `
+        <table class="t">
+          <thead>
+            <tr><th class="fam" colspan="5">${fam} <span>· ${items.length} material(es)</span></th></tr>
+            <tr><th>Material</th><th>Descripción</th><th class="r">Teórico</th><th class="r">Físico</th><th class="r">Diferencia</th></tr>
+          </thead>
+          <tbody>
+            ${items
+              .map(
+                (r) => `<tr>
+                  <td class="mono">${r.material}</td>
+                  <td>${String(r.texto || "")}</td>
+                  <td class="r">${money(r.teorico)}</td>
+                  <td class="r">${money(r.fisico)}</td>
+                  <td class="r b" style="color:${color}">${money(r.diferencia)}</td>
+                </tr>`
+              )
+              .join("")}
+            <tr class="sub"><td colspan="4" class="r">Subtotal ${fam}</td><td class="r" style="color:${color}">${money(sub)}</td></tr>
+          </tbody>
+        </table>`;
+    }
+    html += `</div>`;
+    return html;
+  };
+
+  const kpi = (label, value, color) =>
+    `<div class="kpi"><div class="kpi-l">${label}</div><div class="kpi-v" style="color:${color}">${value}</div></div>`;
+
+  const totalFalt = faltantes.reduce((a, r) => a + Number(r.diferencia || 0), 0);
+  const totalSob = sobrantes.reduce((a, r) => a + Number(r.diferencia || 0), 0);
+
+  return `<!doctype html><html><head><meta charset="utf-8"/>
+  <title>Informe de análisis de inventario</title>
+  <style>
+    @page { size: Letter; margin: 14mm 12mm; }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; color:#17324d; margin:0; }
+    .cover { display:flex; align-items:center; gap:16px; background:linear-gradient(120deg,#0b2c5e,#123f83); color:#fff; padding:20px 22px; border-radius:12px; }
+    .cover img { height:44px; background:#fff; padding:6px 10px; border-radius:8px; }
+    .cover h1 { margin:0; font-size:22px; letter-spacing:.02em; }
+    .cover p { margin:2px 0 0; font-size:12px; color:#cfe0ff; }
+    .meta { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+    .kpi { flex:1; min-width:150px; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; background:#f8fafc; }
+    .kpi-l { font-size:10px; font-weight:800; letter-spacing:.06em; color:#64748b; text-transform:uppercase; }
+    .kpi-v { font-size:20px; font-weight:900; margin-top:3px; }
+    .sec { margin:16px 0; }
+    .sec-head { display:flex; align-items:center; gap:10px; font-size:15px; font-weight:900; padding:8px 12px; background:#f1f5f9; border-left:5px solid #999; border-radius:6px; }
+    .sec-head .badge { background:#0f2744; color:#fff; border-radius:999px; font-size:11px; padding:2px 9px; }
+    .sec-head .sec-total { margin-left:auto; font-size:15px; font-weight:900; }
+    .dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
+    table.t { width:100%; border-collapse:collapse; margin:8px 0 4px; font-size:11px; }
+    table.t th, table.t td { border:1px solid #e2e8f0; padding:5px 7px; }
+    table.t thead th { background:#eef2f7; color:#334155; font-size:10px; text-transform:uppercase; }
+    table.t th.fam { text-align:left; background:#0f2744; color:#fff; font-size:11px; }
+    table.t th.fam span { color:#9fb6cf; font-weight:600; }
+    .r { text-align:right; } .b { font-weight:800; } .mono { font-weight:700; }
+    tr.sub td { background:#f8fafc; font-weight:800; }
+    .empty { padding:10px 12px; color:#64748b; font-size:12px; }
+    .foot { margin-top:18px; text-align:center; color:#94a3b8; font-size:10px; border-top:1px solid #e2e8f0; padding-top:8px; }
+    @media print { .noprint { display:none; } }
+    .noprint { text-align:center; margin:16px 0; }
+    .noprint button { background:#0b57d0; color:#fff; border:0; padding:10px 18px; border-radius:8px; font-weight:800; cursor:pointer; }
+  </style></head>
+  <body>
+    <div class="cover">
+      <img src="${logo}" alt="INOVA" onerror="this.style.display='none'"/>
+      <div>
+        <h1>Informe de análisis de inventario</h1>
+        <p>SAP (teórico) vs físico WMS · ${hoy}${fileName ? ` · Archivo: ${fileName}` : ""}</p>
+      </div>
+    </div>
+
+    <div class="meta">
+      ${kpi("Faltantes", `${faltantes.length} · ${money(totalFalt)}`, "#c0201a")}
+      ${kpi("Sobrantes", `${sobrantes.length} · ${money(totalSob)}`, "#1f4e9c")}
+      ${kpi("Cuadrados", `${cuadrados.length}`, "#1f7a3d")}
+      ${kpi("Total analizado", `${faltantes.length + sobrantes.length + cuadrados.length} materiales`, "#0f2744")}
+    </div>
+
+    ${seccion("Faltantes", faltantes, "#c0201a")}
+    ${seccion("Sobrantes", sobrantes, "#1f4e9c")}
+    ${seccion("Cuadrados", cuadrados, "#1f7a3d")}
+
+    <div class="foot">Fórmula: (Físico − Teórico) − P. Ingreso + P. Descargar − Devolución · Generado por INOVA WMS</div>
+
+    <div class="noprint"><button onclick="window.print()">Imprimir / Guardar PDF</button></div>
+    <script>window.onload=function(){setTimeout(function(){window.focus();window.print();},400);};</script>
+  </body></html>`;
 }
