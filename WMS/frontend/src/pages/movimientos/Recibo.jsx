@@ -656,11 +656,13 @@ export default function Recibo() {
     return map;
   }, [lineas, vencPrevio]);
 
-  // Arma el correo de novedad al proveedor por incumplimiento de rotación (FEFO),
-  // copia la tabla de evidencia con formato al portapapeles y abre Outlook.
+  const [enviandoNovedad, setEnviandoNovedad] = useState(false);
+
+  // Genera la IMAGEN de evidencia (con logo INOVA) y arma un correo .eml con esa
+  // imagen ya incrustada, que Outlook abre como mensaje nuevo. Solo falta el "Para".
   const enviarNovedadProveedor = async () => {
     const items = Array.from(rotacionByIdx.entries());
-    if (!items.length) return;
+    if (!items.length || enviandoNovedad) return;
 
     const fmtDMY = (v) => {
       const s = String(v || "").slice(0, 10);
@@ -685,76 +687,148 @@ export default function Recibo() {
     const oc = String(header.orden_compra || "").replace(/\*/g, "").trim();
     const doc = String(header.documento || "").replace(/\*/g, "").trim();
     const hoy = fmtDMY(new Date().toISOString());
+    const esc = (s) =>
+      String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
     const asunto =
       `Novedad de recepcion - Incumplimiento de rotacion (FEFO)` +
       (proveedor ? ` - ${proveedor}` : "") +
       (oc ? ` - OC ${oc}` : "");
 
-    // Tabla de evidencia con formato/colores (queda incrustada en el correo).
-    const th = 'style="border:1px solid #0b3d91;padding:6px 8px;color:#ffffff;background:#0b3d91;font-family:Arial,sans-serif;font-size:12px;text-align:left"';
-    const td = 'style="border:1px solid #cbd5e1;padding:6px 8px;font-family:Arial,sans-serif;font-size:12px"';
-    const tdInc = 'style="border:1px solid #cbd5e1;padding:6px 8px;font-family:Arial,sans-serif;font-size:12px;background:#f8d7da;color:#b42318;font-weight:bold;text-align:center"';
-    const htmlTabla =
-      `<table style="border-collapse:collapse;margin:10px 0">` +
-      `<thead><tr>` +
-      `<th ${th}>&Iacute;tem</th><th ${th}>C&oacute;digo</th><th ${th}>Descripci&oacute;n</th><th ${th}>Lote prov.</th>` +
-      `<th ${th}>Cantidad</th><th ${th}>Vence entregado</th><th ${th}>Vence en stock</th><th ${th}>Estado</th>` +
-      `</tr></thead><tbody>` +
-      evid
-        .map(
-          (e) =>
-            `<tr><td ${td}>#${e.item}</td><td ${td}>${e.codigo}</td><td ${td}>${e.descripcion}</td>` +
-            `<td ${td}>${e.lote || "-"}</td><td ${td}>${e.cantidad || "-"}</td>` +
-            `<td ${td}>${e.venc}</td><td ${td}>${e.prev}</td><td ${tdInc}>INCUMPLE</td></tr>`
-        )
-        .join("") +
-      `</tbody></table>`;
-
-    // Tabla de evidencia en texto (va dentro del cuerpo del correo).
-    const pad = (s, n) => {
-      const t = String(s ?? "");
-      return t.length >= n ? t.slice(0, n) : t + " ".repeat(n - t.length);
-    };
-    const encabezado =
-      `${pad("Item", 5)} ${pad("Codigo", 9)} ${pad("Descripcion", 30)} ${pad("Lote", 12)} ${pad("Cantidad", 12)} ${pad("Vence entreg.", 13)} ${pad("Vence stock", 13)} Estado`;
-    const separador = "-".repeat(encabezado.length);
-    const filasTxt = evid
+    // ---- Tarjeta de evidencia (se renderiza a imagen con html2canvas) ----
+    const th = "border:1px solid #0b3d91;padding:8px 10px;color:#fff;background:#0b3d91;font-family:Arial,sans-serif;font-size:13px;text-align:left;white-space:nowrap";
+    const td = "border:1px solid #cbd5e1;padding:7px 10px;font-family:Arial,sans-serif;font-size:13px;color:#111827";
+    const tdR = td + ";text-align:right";
+    const tdInc = "border:1px solid #cbd5e1;padding:7px 10px;font-family:Arial,sans-serif;font-size:13px;background:#f8d7da;color:#b42318;font-weight:bold;text-align:center";
+    const logo = `${window.location.origin}/INOVA2026.png`;
+    const filasHtml = evid
       .map(
-        (e) =>
-          `${pad("#" + e.item, 5)} ${pad(e.codigo, 9)} ${pad(e.descripcion, 30)} ${pad(e.lote || "-", 12)} ` +
-          `${pad(e.cantidad || "-", 12)} ${pad(e.venc, 13)} ${pad(e.prev, 13)} INCUMPLE`
+        (e, k) =>
+          `<tr style="background:${k % 2 ? "#f5f8ff" : "#ffffff"}">` +
+          `<td style="${td};text-align:center">#${e.item}</td>` +
+          `<td style="${td};font-weight:700;color:#0b3d91">${esc(e.codigo)}</td>` +
+          `<td style="${td}">${esc(e.descripcion)}</td>` +
+          `<td style="${td}">${esc(e.lote) || "-"}</td>` +
+          `<td style="${tdR}">${esc(e.cantidad) || "-"}</td>` +
+          `<td style="${td};text-align:center">${e.venc}</td>` +
+          `<td style="${td};text-align:center">${e.prev}</td>` +
+          `<td style="${tdInc}">INCUMPLE</td></tr>`
       )
-      .join("\n");
+      .join("");
+    const tarjetaHtml =
+      `<div style="width:1040px;background:#fff;padding:26px 28px;box-sizing:border-box">` +
+      `<div style="display:flex;align-items:center;gap:16px;border-bottom:3px solid #0b3d91;padding-bottom:14px;margin-bottom:16px">` +
+      `<img src="${logo}" crossorigin="anonymous" style="height:52px" onerror="this.style.display='none'"/>` +
+      `<div>` +
+      `<div style="font-family:Arial,sans-serif;font-size:19px;font-weight:800;color:#0b3d91">EVIDENCIA DE INCUMPLIMIENTO DE ROTACIÓN (FEFO)</div>` +
+      `<div style="font-family:Arial,sans-serif;font-size:13px;color:#475569;margin-top:3px">` +
+      `Proveedor: <b>${esc(proveedor) || "-"}</b>${oc ? ` &nbsp;|&nbsp; OC: <b>${esc(oc)}</b>` : ""}` +
+      `${doc ? ` &nbsp;|&nbsp; Documento: <b>${esc(doc)}</b>` : ""} &nbsp;|&nbsp; Fecha: <b>${hoy}</b></div>` +
+      `</div></div>` +
+      `<table style="border-collapse:collapse;width:100%">` +
+      `<thead><tr>` +
+      `<th style="${th};text-align:center">Ítem</th><th style="${th}">Código</th><th style="${th}">Descripción</th>` +
+      `<th style="${th}">Lote prov.</th><th style="${th};text-align:right">Cantidad</th>` +
+      `<th style="${th};text-align:center">Vence entregado</th><th style="${th};text-align:center">Vence en stock</th>` +
+      `<th style="${th};text-align:center">Estado</th>` +
+      `</tr></thead><tbody>${filasHtml}</tbody></table>` +
+      `<div style="font-family:Arial,sans-serif;font-size:12px;color:#64748b;margin-top:14px">` +
+      `El proveedor entregó producto que vence ANTES que las existencias del mismo material ya recibidas, ` +
+      `incumpliendo el principio “primero en vencer, primero en salir”.</div>` +
+      `</div>`;
 
-    const cuerpoTxt =
-      `Buen dia,\n\n` +
-      `Durante la recepcion del ${hoy}${doc ? ` (documento ${doc})` : ""} se identifico un INCUMPLIMIENTO DE ROTACION (FEFO) ` +
-      `por parte del proveedor${proveedor ? ` ${proveedor}` : ""}${oc ? ` (OC ${oc})` : ""}. Se entrego producto con fecha de ` +
-      `vencimiento ANTERIOR a las existencias del mismo material ya recibidas, lo que no respeta el principio ` +
-      `"primero en vencer, primero en salir" e incrementa el riesgo de obsolescencia del inventario mas antiguo.\n\n` +
-      `EVIDENCIA DEL INCUMPLIMIENTO:\n` +
-      `${separador}\n${encabezado}\n${separador}\n${filasTxt}\n${separador}\n\n` +
-      `Agradecemos su gestion y seguimiento para corregir la rotacion en las proximas entregas.\n\n` +
-      `Cordialmente,\nEquipo de Recepcion`;
-
-    // Copia la tabla con formato/colores al portapapeles (opcional: si la quieren
-    // pegar con Ctrl+V queda a color; el correo ya se abre con la tabla en texto).
+    setEnviandoNovedad(true);
     try {
-      if (navigator.clipboard && window.ClipboardItem) {
-        await navigator.clipboard.write([
-          new window.ClipboardItem({
-            "text/html": new Blob([htmlTabla], { type: "text/html" }),
-            "text/plain": new Blob([filasTxt], { type: "text/plain" }),
-          }),
-        ]);
+      // Renderiza la tarjeta a imagen PNG.
+      const cont = document.createElement("div");
+      cont.style.cssText = "position:fixed;left:-11000px;top:0;background:#fff";
+      cont.innerHTML = tarjetaHtml;
+      document.body.appendChild(cont);
+      const imgEl = cont.querySelector("img");
+      if (imgEl && !imgEl.complete) {
+        await new Promise((res) => {
+          imgEl.onload = res;
+          imgEl.onerror = res;
+        });
       }
-    } catch {
-      /* si el navegador no permite copiar, no pasa nada */
-    }
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(cont.firstChild, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        logging: false,
+      });
+      document.body.removeChild(cont);
 
-    // Abre Outlook al instante (sin descargas ni advertencias).
-    window.location.href = `mailto:?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpoTxt)}`;
+      const dataUrl = canvas.toDataURL("image/png");
+      const b64img = dataUrl.split(",")[1] || "";
+      const b64imgWrapped = b64img.replace(/(.{76})/g, "$1\r\n");
+
+      // Cuerpo HTML con la imagen incrustada por Content-ID.
+      const htmlBody =
+        `<html><body style="font-family:Arial,sans-serif;font-size:13px;color:#111827">` +
+        `<p>Buen día,</p>` +
+        `<p>Durante la recepción del <b>${hoy}</b>${doc ? ` (documento ${esc(doc)})` : ""} se identificó un ` +
+        `<b>incumplimiento de rotación (FEFO)</b> por parte del proveedor${proveedor ? ` <b>${esc(proveedor)}</b>` : ""}` +
+        `${oc ? ` (OC ${esc(oc)})` : ""}. A continuación la evidencia:</p>` +
+        `<img src="cid:evidenciafefo" alt="Evidencia FEFO" style="max-width:100%;border:1px solid #e2e8f0"/>` +
+        `<p>Agradecemos su gestión y seguimiento para corregir la rotación en las próximas entregas.</p>` +
+        `<p>Cordialmente,<br/>Equipo de Recepción</p>` +
+        `</body></html>`;
+
+      const b64 = (s) => {
+        try {
+          return btoa(unescape(encodeURIComponent(s)));
+        } catch {
+          return btoa(s);
+        }
+      };
+      const asuntoEnc = `=?UTF-8?B?${b64(asunto)}?=`;
+      const boundary = "INOVA_FEFO_BOUNDARY_2026";
+      const eml =
+        `To: \r\n` +
+        `Subject: ${asuntoEnc}\r\n` +
+        `X-Unsent: 1\r\n` +
+        `MIME-Version: 1.0\r\n` +
+        `Content-Type: multipart/related; boundary="${boundary}"\r\n` +
+        `\r\n` +
+        `--${boundary}\r\n` +
+        `Content-Type: text/html; charset=utf-8\r\n` +
+        `Content-Transfer-Encoding: base64\r\n\r\n` +
+        b64(htmlBody).replace(/(.{76})/g, "$1\r\n") +
+        `\r\n--${boundary}\r\n` +
+        `Content-Type: image/png\r\n` +
+        `Content-Transfer-Encoding: base64\r\n` +
+        `Content-ID: <evidenciafefo>\r\n` +
+        `Content-Disposition: inline; filename="evidencia_fefo.png"\r\n\r\n` +
+        b64imgWrapped +
+        `\r\n--${boundary}--\r\n`;
+
+      // Imagen también al portapapeles (por si la quieren pegar en otro lado).
+      try {
+        if (navigator.clipboard && window.ClipboardItem) {
+          const blobImg = await (await fetch(dataUrl)).blob();
+          await navigator.clipboard.write([new window.ClipboardItem({ "image/png": blobImg })]);
+        }
+      } catch {
+        /* opcional */
+      }
+
+      const blob = new Blob([eml], { type: "message/rfc822" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const slug = (proveedor || "proveedor").replace(/[^a-z0-9]+/gi, "_").slice(0, 40);
+      a.download = `Novedad_FEFO_${slug}.eml`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (e) {
+      window.alert("No se pudo generar el correo de novedad: " + (e?.message || e));
+    } finally {
+      setEnviandoNovedad(false);
+    }
   };
 
   const proveedorEsAmcor = useMemo(
@@ -4013,7 +4087,8 @@ export default function Recibo() {
                 <button
                   type="button"
                   onClick={enviarNovedadProveedor}
-                  title="Abrir Outlook con la novedad y la tabla de evidencia lista para el proveedor"
+                  disabled={enviandoNovedad}
+                  title="Genera la imagen de evidencia (con logo INOVA) y abre Outlook con el correo listo. Solo pones el destinatario."
                   style={{
                     flexShrink: 0,
                     display: "inline-flex",
@@ -4022,15 +4097,15 @@ export default function Recibo() {
                     padding: "8px 12px",
                     borderRadius: 8,
                     border: "1px solid #b42318",
-                    background: "#b42318",
+                    background: enviandoNovedad ? "#e2b4ae" : "#b42318",
                     color: "#fff",
                     fontWeight: 800,
                     fontSize: 12.5,
-                    cursor: "pointer",
+                    cursor: enviandoNovedad ? "default" : "pointer",
                     whiteSpace: "nowrap",
                   }}
                 >
-                  ✉ Enviar al proveedor
+                  {enviandoNovedad ? "Generando…" : "✉ Enviar al proveedor"}
                 </button>
               </div>
             )}
