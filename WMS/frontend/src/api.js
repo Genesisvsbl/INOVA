@@ -1192,13 +1192,30 @@ export async function borrarDatosWms(seleccion = {}) {
   if (!grupos.length) throw new Error("No seleccionaste ninguna categoría para borrar.");
 
   const borradas = [];
+  const omitidas = [];
   for (const grupo of grupos) {
     for (const tabla of grupo.tablas) {
-      await deleteWhere("wms", tabla, { empresa_id: `eq.${empresaId}` });
-      borradas.push(tabla);
+      try {
+        await deleteWhere("wms", tabla, { empresa_id: `eq.${empresaId}` });
+        borradas.push(tabla);
+      } catch (e) {
+        const msg = String(e?.message || e);
+        // Si la tabla no existe en la base (migración no aplicada), la
+        // omitimos y seguimos con el resto.
+        if (
+          msg.includes("PGRST205") ||
+          /Could not find the table/i.test(msg) ||
+          /does not exist/i.test(msg) ||
+          /schema cache/i.test(msg)
+        ) {
+          omitidas.push(tabla);
+          continue;
+        }
+        throw e; // otros errores (ej. llave foránea) sí se reportan
+      }
     }
   }
-  return { grupos: grupos.map((g) => g.key), tablas: borradas };
+  return { grupos: grupos.map((g) => g.key), tablas: borradas, omitidas };
 }
 
 // Genera el análisis de inventario: sube el LX02 de SAP (teórico) y lo cruza

@@ -549,7 +549,8 @@ export default function MotorPrincipal() {
         setAdminMsg({ tone: "info", text: "Borrando datos…" });
         try {
           const res = await borrarDatosWms(seleccion);
-          setAdminMsg({ tone: "good", text: `Datos borrados correctamente (${res?.tablas?.length || 0} tabla(s)). El WMS quedó limpio en lo seleccionado.` });
+          const omit = res?.omitidas?.length ? ` (se omitieron ${res.omitidas.length} tabla(s) inexistente(s): ${res.omitidas.join(", ")})` : "";
+          setAdminMsg({ tone: "good", text: `Datos borrados correctamente (${res?.tablas?.length || 0} tabla(s))${omit}. El WMS quedó limpio en lo seleccionado.` });
           await recargarMotor();
         } catch (e) {
           setAdminMsg({ tone: "bad", text: `No se pudo borrar: ${e?.message || e}` });
