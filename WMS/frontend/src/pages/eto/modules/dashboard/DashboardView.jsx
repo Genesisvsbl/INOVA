@@ -5290,22 +5290,17 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                     const accOf = (it) => Number(it.accumulated || 0);
                     // Con condiciones usamos el estado (que ya excluye el Diario).
                     const hasConds = (dashboardData.dimensions || []).length > 0;
-                    const cumplieron = hasConds
-                      ? rk.filter((it) => it.estado === "ok")
-                      : rk.filter(
-                          (it) => metaOf(it) > 0 && accOf(it) >= metaOf(it)
-                        );
-                    const faltan = hasConds
-                      ? rk.filter((it) => it.estado === "warning")
-                      : rk.filter(
-                          (it) =>
-                            accOf(it) > 0 &&
-                            metaOf(it) > 0 &&
-                            accOf(it) < metaOf(it)
-                        );
-                    const enCero = hasConds
-                      ? rk.filter((it) => it.estado === "critical")
-                      : rk.filter((it) => accOf(it) === 0);
+                    // "Ya cumplieron": estado ok (con condiciones) o llegó a la meta.
+                    // "No han hecho nada": SOLO quien no hizo ningún reporte (acumulado 0).
+                    // "Les falta (van atrasados)": hizo algo pero aún no cumple,
+                    //    aunque su peor condición sea crítica.
+                    const esOk = (it) =>
+                      hasConds
+                        ? it.estado === "ok"
+                        : metaOf(it) > 0 && accOf(it) >= metaOf(it);
+                    const cumplieron = rk.filter(esOk);
+                    const enCero = rk.filter((it) => !esOk(it) && accOf(it) === 0);
+                    const faltan = rk.filter((it) => !esOk(it) && accOf(it) > 0);
                     const invalidos = rk.filter(
                       (it) => Number(it.invalid || 0) > 0
                     );
