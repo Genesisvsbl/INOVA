@@ -295,7 +295,7 @@ export default function AnalisisInventario() {
                 Aún no hay análisis guardados. Dale a <b>Nuevo análisis</b>, sube el LX02 de SAP, revisa la diferencia y guárdalo.
               </div>
             ) : (
-              <div style={{ overflowX: "auto", border: `1px solid ${colors.border}`, borderRadius: 10 }}>
+              <div className="table-tools-skip" style={{ overflowX: "auto", border: `1px solid ${colors.border}`, borderRadius: 10 }}>
                 <table style={{ width: "100%", minWidth: 760, borderCollapse: "collapse" }}>
                   <thead>
                     <tr>
@@ -401,7 +401,7 @@ export default function AnalisisInventario() {
                 </div>
               </div>
 
-              <div style={{ overflowX: "auto", border: `1px solid ${colors.border}`, borderRadius: 10 }}>
+              <div className="table-tools-skip" style={{ overflowX: "auto", border: `1px solid ${colors.border}`, borderRadius: 10 }}>
                 <table style={{ width: "100%", minWidth: 1050, borderCollapse: "collapse" }}>
                   <thead>
                     <tr>
