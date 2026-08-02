@@ -1568,6 +1568,50 @@ export async function getMaxVencimientoPorCodigos(codigos) {
   return maxByCodigo;
 }
 
+// Para la evidencia de rotación: por cada código, TODOS los lotes/vencimientos
+// que ya se RECIBIERON antes (entradas históricas, cantidad > 0), agrupados por
+// lote+vencimiento y ordenados por vencimiento ascendente. Sirve para mostrar el
+// histórico recibido vs la fecha que llega ahora.
+export async function getLotesRecibidosPorCodigos(codigos) {
+  const list = [...new Set((codigos || []).map((c) => String(c || "").trim()).filter(Boolean))];
+  if (!supabaseEnabled || !list.length) return {};
+  const materiales = await selectRows("wms", "materiales", {
+    empresa_id: `eq.${empresaId}`,
+    codigo: `in.(${list.join(",")})`,
+    select: "id,codigo",
+  });
+  const idToCodigo = new Map((materiales || []).map((m) => [m.id, String(m.codigo)]));
+  const ids = (materiales || []).map((m) => m.id);
+  if (!ids.length) return {};
+  const movs = await selectAllRows("wms", "movimientos", {
+    empresa_id: `eq.${empresaId}`,
+    material_id: `in.(${ids.join(",")})`,
+    select: "material_id,fecha,fecha_vencimiento,lote_almacen,lote_proveedor,cantidad_r",
+  });
+  const byCod = {};
+  for (const m of movs || []) {
+    if (Number(m.cantidad_r || 0) <= 0) continue; // solo entradas (recibido)
+    const cod = idToCodigo.get(m.material_id);
+    if (!cod) continue;
+    const fv = String(m.fecha_vencimiento || "").slice(0, 10);
+    if (!fv) continue;
+    const lote = String(m.lote_almacen || m.lote_proveedor || "").trim();
+    const key = `${lote}|${fv}`;
+    if (!byCod[cod]) byCod[cod] = new Map();
+    const cur = byCod[cod].get(key) || { lote, fv, cantidad: 0, fechaRec: String(m.fecha || "").slice(0, 10) };
+    cur.cantidad += Number(m.cantidad_r || 0);
+    if (String(m.fecha || "").slice(0, 10) < cur.fechaRec || !cur.fechaRec) cur.fechaRec = String(m.fecha || "").slice(0, 10);
+    byCod[cod].set(key, cur);
+  }
+  const out = {};
+  for (const cod of Object.keys(byCod)) {
+    out[cod] = Array.from(byCod[cod].values())
+      .filter((x) => x.cantidad > 0)
+      .sort((a, b) => String(a.fv).localeCompare(String(b.fv)));
+  }
+  return out;
+}
+
 export function importarDespachos(file) {
   if (!supabaseEnabled) return Promise.reject(new Error("Servicio operativo no configurado."));
   return readSpreadsheetRows(file).then(async (rows) => {

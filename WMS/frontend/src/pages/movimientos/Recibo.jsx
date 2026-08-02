@@ -8,6 +8,7 @@ import {
   corregirTrazabilidadPorSerial,
   crearMaterial,
   getMaxVencimientoPorCodigos,
+  getLotesRecibidosPorCodigos,
 } from "../../api";
 import {
   Inbox,
@@ -620,6 +621,8 @@ export default function Recibo() {
 
   // Control de rotación (FEFO): vencimiento más lejano ya recibido por código.
   const [vencPrevio, setVencPrevio] = useState({});
+  // Histórico de lotes/vencimientos ya recibidos por código (para la evidencia).
+  const [lotesRecibidos, setLotesRecibidos] = useState({});
 
   const codigosKey = useMemo(
     () => lineas.map((l) => String(l.codigo || "").trim()).filter(Boolean).sort().join("|"),
@@ -630,12 +633,16 @@ export default function Recibo() {
     const codigos = codigosKey ? codigosKey.split("|") : [];
     if (!codigos.length) {
       setVencPrevio({});
+      setLotesRecibidos({});
       return;
     }
     let alive = true;
     getMaxVencimientoPorCodigos(codigos)
       .then((m) => alive && setVencPrevio(m || {}))
       .catch(() => alive && setVencPrevio({}));
+    getLotesRecibidosPorCodigos(codigos)
+      .then((m) => alive && setLotesRecibidos(m || {}))
+      .catch(() => alive && setLotesRecibidos({}));
     return () => {
       alive = false;
     };
@@ -679,30 +686,34 @@ export default function Recibo() {
       return { label: "IGUAL", bg: "#d1f0dd", color: "#157347" };
     };
 
-    // TODAS las líneas recibidas, en orden de recepción, con su estado.
-    const evid = lineas
-      .map((ln, idx) => {
+    const nf = (n) => Number(n || 0).toLocaleString("es-CO");
+
+    // Un grupo por línea recibida (con código): histórico de lo ya recibido + la
+    // fila que llega ahora (última), con su estado de rotación.
+    const grupos = lineas
+      .map((ln) => {
         const cod = String(ln.codigo || "").trim();
         if (!cod) return null;
         const vencIso = String(ln.fecha_vencimiento || "").slice(0, 10);
         const prevIso = vencPrevio[cod] ? String(vencPrevio[cod]).slice(0, 10) : "";
         const est = estadoInfo(vencIso, prevIso);
+        // Vencimientos ya recibidos antes (excluye exactamente el que llega).
+        const previos = (lotesRecibidos[cod] || []).filter((p) => p.fv);
         return {
-          item: idx + 1,
-          fechaRec: fmtDMY(ln.fecha_recepcion),
           codigo: cod,
           descripcion: String(ln.descripcion || "").trim(),
+          fechaRec: fmtDMY(ln.fecha_recepcion),
           lote: String(ln.lote_proveedor || ln.lote || "").trim(),
           cantidad: String(ln.cantidad || "").trim(),
           venc: vencIso ? fmtDMY(vencIso) : "-",
-          prev: prevIso ? fmtDMY(prevIso) : "-",
+          previos,
           estado: est.label,
           estBg: est.bg,
           estColor: est.color,
         };
       })
       .filter(Boolean);
-    if (!evid.length) return;
+    if (!grupos.length) return;
 
     const proveedor = String(header.proveedor || "").trim();
     const oc = String(header.orden_compra || "").replace(/\*/g, "").trim();
@@ -721,23 +732,40 @@ export default function Recibo() {
     const td = "border:1px solid #cbd5e1;padding:6px 9px;font-family:Arial,sans-serif;font-size:12.5px;color:#111827";
     const tdR = td + ";text-align:right";
     const logo = `${window.location.origin}/INOVA-dark.png`;
-    const totalInc = evid.filter((e) => e.estado === "INCUMPLE").length;
-    const filasHtml = evid
-      .map(
-        (e, k) =>
-          `<tr style="background:${k % 2 ? "#f5f8ff" : "#ffffff"}">` +
-          `<td style="${td};text-align:center">${e.item}</td>` +
-          `<td style="${td};text-align:center">${e.fechaRec}</td>` +
-          `<td style="${td};font-weight:700;color:#0b3d91">${esc(e.codigo)}</td>` +
-          `<td style="${td}">${esc(e.descripcion)}</td>` +
-          `<td style="${td}">${esc(e.lote) || "-"}</td>` +
-          `<td style="${tdR}">${esc(e.cantidad) || "-"}</td>` +
-          `<td style="${td};text-align:center">${e.venc}</td>` +
-          `<td style="${td};text-align:center">${e.prev}</td>` +
-          `<td style="border:1px solid #cbd5e1;padding:6px 9px;font-family:Arial,sans-serif;font-size:12.5px;font-weight:bold;text-align:center;background:${e.estBg};color:${e.estColor}">${e.estado}</td>` +
-          `</tr>`
-      )
+    const totalInc = grupos.filter((g) => g.estado === "INCUMPLE").length;
+
+    const filasHtml = grupos
+      .map((g) => {
+        // Filas del histórico ya recibido (más antiguo a más nuevo por vencimiento).
+        const previasHtml = g.previos
+          .map(
+            (p, k) =>
+              `<tr style="background:${k % 2 ? "#f5f8ff" : "#ffffff"}">` +
+              `<td style="${td};font-weight:700;color:#0b3d91">${esc(g.codigo)}</td>` +
+              `<td style="${td}">${esc(g.descripcion)}</td>` +
+              `<td style="${td}">${esc(p.lote) || "-"}</td>` +
+              `<td style="${td};text-align:center">${fmtDMY(p.fv)}</td>` +
+              `<td style="${tdR}">${nf(p.cantidad)}</td>` +
+              `<td style="border:1px solid #cbd5e1;padding:6px 9px;font-family:Arial,sans-serif;font-size:12.5px;text-align:center;background:#eef2f7;color:#475569">RECIBIDO ANTES</td>` +
+              `</tr>`
+          )
+          .join("");
+        // Fila que estamos recibiendo (última), resaltada, con su estado.
+        const recibiendoHtml =
+          `<tr style="background:#fff7e6">` +
+          `<td style="${td};font-weight:700;color:#0b3d91">${esc(g.codigo)}</td>` +
+          `<td style="${td};font-weight:700">${esc(g.descripcion)} <span style="color:#b45309">◄ RECIBIENDO</span></td>` +
+          `<td style="${td}">${esc(g.lote) || "-"}</td>` +
+          `<td style="${td};text-align:center;font-weight:700">${g.venc}</td>` +
+          `<td style="${tdR};font-weight:700">${esc(g.cantidad) || "-"}</td>` +
+          `<td style="border:1px solid #cbd5e1;padding:6px 9px;font-family:Arial,sans-serif;font-size:12.5px;font-weight:bold;text-align:center;background:${g.estBg};color:${g.estColor}">${g.estado}</td>` +
+          `</tr>`;
+        // Separador entre materiales.
+        const sep = `<tr><td colspan="6" style="height:6px;background:#ffffff;border:none"></td></tr>`;
+        return previasHtml + recibiendoHtml + sep;
+      })
       .join("");
+
     const tarjetaHtml =
       `<div style="width:1120px;background:#fff;padding:26px 28px;box-sizing:border-box">` +
       `<div style="display:flex;align-items:center;gap:16px;border-bottom:3px solid #0b3d91;padding-bottom:14px;margin-bottom:16px">` +
@@ -750,16 +778,15 @@ export default function Recibo() {
       `</div></div>` +
       `<table style="border-collapse:collapse;width:100%">` +
       `<thead><tr>` +
-      `<th style="${th};text-align:center">Ítem</th><th style="${th};text-align:center">Fecha recep.</th>` +
       `<th style="${th}">Código</th><th style="${th}">Descripción</th>` +
-      `<th style="${th}">Lote prov.</th><th style="${th};text-align:right">Cantidad</th>` +
-      `<th style="${th};text-align:center">Vence entregado</th><th style="${th};text-align:center">Vence en stock</th>` +
+      `<th style="${th}">Lote</th><th style="${th};text-align:center">Fecha vencimiento</th>` +
+      `<th style="${th};text-align:right">Cantidad</th>` +
       `<th style="${th};text-align:center">Estado</th>` +
       `</tr></thead><tbody>${filasHtml}</tbody></table>` +
       `<div style="font-family:Arial,sans-serif;font-size:12px;color:#64748b;margin-top:14px">` +
-      `<b>CUMPLE</b>: vence después del stock existente &nbsp;·&nbsp; <b>IGUAL</b>: misma fecha &nbsp;·&nbsp; ` +
-      `<b>INCUMPLE</b>: vence antes que el stock existente (no respeta “primero en vencer, primero en salir”). ` +
-      `Total líneas: <b>${evid.length}</b> &nbsp;|&nbsp; Incumplimientos: <b style="color:#b42318">${totalInc}</b>.</div>` +
+      `Se listan por material los vencimientos <b>ya recibidos</b> y, resaltada (◄ RECIBIENDO), la fecha que llega ahora. ` +
+      `<b>INCUMPLE</b> = el proveedor entrega producto que vence antes que lo ya recibido (no respeta “primero en vencer, primero en salir”). ` +
+      `Materiales: <b>${grupos.length}</b> &nbsp;|&nbsp; Incumplimientos: <b style="color:#b42318">${totalInc}</b>.</div>` +
       `</div>`;
 
     setEnviandoNovedad(true);
