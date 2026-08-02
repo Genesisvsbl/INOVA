@@ -296,7 +296,7 @@ export default function AnalisisInventario() {
               </div>
             ) : (
               <div className="table-tools-skip" style={{ overflowX: "auto", border: `1px solid ${colors.border}`, borderRadius: 10 }}>
-                <table style={{ width: "100%", minWidth: 760, borderCollapse: "collapse" }}>
+                <table className="table-tools-skip print-table" style={{ width: "100%", minWidth: 760, borderCollapse: "collapse" }}>
                   <thead>
                     <tr>
                       <th style={thL}>Fecha y hora</th>
@@ -402,7 +402,7 @@ export default function AnalisisInventario() {
               </div>
 
               <div className="table-tools-skip" style={{ overflowX: "auto", border: `1px solid ${colors.border}`, borderRadius: 10 }}>
-                <table style={{ width: "100%", minWidth: 1050, borderCollapse: "collapse" }}>
+                <table className="table-tools-skip print-table" style={{ width: "100%", minWidth: 1050, borderCollapse: "collapse" }}>
                   <thead>
                     <tr>
                       <th style={thL}>FAMILIA</th>
