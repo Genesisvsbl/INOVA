@@ -109,6 +109,13 @@ function moduloDeUbicacion(u) {
   const ap = code.indexOf("'");
   return ap > 1 ? code[ap - 2] : "";
 }
+// Pasillo = dígito TRES posiciones antes del apóstrofe (justo después de la base).
+// Ej: 300111'02 -> pasillo 1.
+function pasilloDeUbicacion(u) {
+  const code = codeUbic(u);
+  const ap = code.indexOf("'");
+  return ap > 2 ? code[ap - 3] : "";
+}
 
 function todayISODate() {
   const d = new Date();
@@ -582,7 +589,8 @@ export default function DesdeRecibo() {
   const [tbSel, setTbSel] = useState(null); // objeto ubicacion seleccionado
   const [tbBuscado, setTbBuscado] = useState(false);
   const [tbNivel, setTbNivel] = useState(""); // filtro de nivel
-  const [tbRack, setTbRack] = useState(""); // filtro de rack
+  const [tbRack, setTbRack] = useState(""); // filtro de módulo
+  const [tbPasillo, setTbPasillo] = useState(""); // filtro de pasillo
 
   const tbBases = useMemo(() => {
     const s = new Set();
@@ -612,6 +620,10 @@ export default function DesdeRecibo() {
           (!tbZona || String(u.zona || "").trim() === tbZona)
       ),
     [ubicaciones, tbBase, tbZona]
+  );
+  const tbPasillos = useMemo(
+    () => [...new Set(tbUbicScope.map((u) => pasilloDeUbicacion(u)).filter(Boolean))].sort((a, b) => Number(a) - Number(b)),
+    [tbUbicScope]
   );
   const tbModulos = useMemo(
     () => [...new Set(tbUbicScope.map((u) => moduloDeUbicacion(u)).filter(Boolean))].sort((a, b) => Number(a) - Number(b)),
@@ -1476,6 +1488,7 @@ export default function DesdeRecibo() {
     setTbZona("");
     setTbNivel("");
     setTbRack("");
+    setTbPasillo("");
     setTbList([]);
     setTbSel(null);
     setTbBuscado(false);
@@ -1488,6 +1501,7 @@ export default function DesdeRecibo() {
     setTbBuscado(false);
     setTbNivel("");
     setTbRack("");
+    setTbPasillo("");
   };
 
   const consultarVacias = async () => {
@@ -1497,7 +1511,10 @@ export default function DesdeRecibo() {
       const list = await getUbicacionesVacias(tbBase || null, tbZona || null);
       setTbList(list || []);
       const filtr = (list || []).filter(
-        (u) => (!tbNivel || nivelDeUbicacion(u) === tbNivel) && (!tbRack || moduloDeUbicacion(u) === tbRack)
+        (u) =>
+          (!tbPasillo || pasilloDeUbicacion(u) === tbPasillo) &&
+          (!tbRack || moduloDeUbicacion(u) === tbRack) &&
+          (!tbNivel || nivelDeUbicacion(u) === tbNivel)
       );
       setTbSel(filtr.length ? filtr[0] : null);
     } catch (e) {
@@ -3625,7 +3642,30 @@ export default function DesdeRecibo() {
                     ))}
                   </select>
                 </div>
-                <div style={{ flex: "1 1 120px" }}>
+                <div style={{ flex: "1 1 110px" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: colors.muted, marginBottom: 4 }}>PASILLO</div>
+                  <select
+                    value={tbPasillo}
+                    onChange={(e) => {
+                      const ps = e.target.value;
+                      setTbPasillo(ps);
+                      const view = tbList.filter(
+                        (u) =>
+                          (!ps || pasilloDeUbicacion(u) === ps) &&
+                          (!tbRack || moduloDeUbicacion(u) === tbRack) &&
+                          (!tbNivel || nivelDeUbicacion(u) === tbNivel)
+                      );
+                      setTbSel(view.length ? view[0] : null);
+                    }}
+                    style={tbSelectStyle}
+                  >
+                    <option value="">Todos</option>
+                    {tbPasillos.map((ps) => (
+                      <option key={ps} value={ps}>Pasillo {ps}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ flex: "1 1 110px" }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: colors.muted, marginBottom: 4 }}>MÓDULO</div>
                   <select
                     value={tbRack}
@@ -3633,7 +3673,10 @@ export default function DesdeRecibo() {
                       const rk = e.target.value;
                       setTbRack(rk);
                       const view = tbList.filter(
-                        (u) => (!tbNivel || nivelDeUbicacion(u) === tbNivel) && (!rk || moduloDeUbicacion(u) === rk)
+                        (u) =>
+                          (!tbPasillo || pasilloDeUbicacion(u) === tbPasillo) &&
+                          (!rk || moduloDeUbicacion(u) === rk) &&
+                          (!tbNivel || nivelDeUbicacion(u) === tbNivel)
                       );
                       setTbSel(view.length ? view[0] : null);
                     }}
@@ -3645,7 +3688,7 @@ export default function DesdeRecibo() {
                     ))}
                   </select>
                 </div>
-                <div style={{ flex: "1 1 120px" }}>
+                <div style={{ flex: "1 1 110px" }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: colors.muted, marginBottom: 4 }}>NIVEL</div>
                   <select
                     value={tbNivel}
@@ -3653,7 +3696,10 @@ export default function DesdeRecibo() {
                       const nv = e.target.value;
                       setTbNivel(nv);
                       const view = tbList.filter(
-                        (u) => (!nv || nivelDeUbicacion(u) === nv) && (!tbRack || moduloDeUbicacion(u) === tbRack)
+                        (u) =>
+                          (!tbPasillo || pasilloDeUbicacion(u) === tbPasillo) &&
+                          (!tbRack || moduloDeUbicacion(u) === tbRack) &&
+                          (!nv || nivelDeUbicacion(u) === nv)
                       );
                       setTbSel(view.length ? view[0] : null);
                     }}
@@ -3692,9 +3738,12 @@ export default function DesdeRecibo() {
 
               {tbBuscado && !tbLoading && (() => {
                 const tbView = tbList.filter(
-                  (u) => (!tbNivel || nivelDeUbicacion(u) === tbNivel) && (!tbRack || moduloDeUbicacion(u) === tbRack)
+                  (u) =>
+                    (!tbPasillo || pasilloDeUbicacion(u) === tbPasillo) &&
+                    (!tbRack || moduloDeUbicacion(u) === tbRack) &&
+                    (!tbNivel || nivelDeUbicacion(u) === tbNivel)
                 );
-                const filtroTxt = `${tbRack ? ` / módulo ${tbRack}` : ""}${tbNivel ? ` / nivel ${tbNivel}` : ""}`;
+                const filtroTxt = `${tbPasillo ? ` / pasillo ${tbPasillo}` : ""}${tbRack ? ` / módulo ${tbRack}` : ""}${tbNivel ? ` / nivel ${tbNivel}` : ""}`;
                 return (
                 <div style={{ marginTop: 16 }}>
                   {tbView.length === 0 ? (

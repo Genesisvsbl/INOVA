@@ -148,6 +148,11 @@ function moduloDeUbicacion(u) {
   const ap = code.indexOf("'");
   return ap > 1 ? code[ap - 2] : "";
 }
+function pasilloDeUbicacion(u) {
+  const code = codeUbic(u);
+  const ap = code.indexOf("'");
+  return ap > 2 ? code[ap - 3] : "";
+}
 
 // Rótulo de ubicación en tamaño de etiqueta (10.16 x 5.08 cm), como el historial.
 function buildRotuloUbicacionHtml({ logo, codigo, descripcion, lote, vencimiento, ubicacion, base, zona }) {
@@ -442,6 +447,7 @@ export default function EnTransito() {
   const [tbBuscado, setTbBuscado] = useState(false);
   const [tbNivel, setTbNivel] = useState("");
   const [tbRack, setTbRack] = useState("");
+  const [tbPasillo, setTbPasillo] = useState("");
 
   const basesUbic = useMemo(() => {
     const s = new Set();
@@ -471,6 +477,10 @@ export default function EnTransito() {
           (!tbZona || String(u.zona || "").trim() === tbZona)
       ),
     [ubicaciones, tbBase, tbZona]
+  );
+  const pasillosUbic = useMemo(
+    () => [...new Set(tbUbicScope.map((u) => pasilloDeUbicacion(u)).filter(Boolean))].sort((a, b) => Number(a) - Number(b)),
+    [tbUbicScope]
   );
   const modulosUbic = useMemo(
     () => [...new Set(tbUbicScope.map((u) => moduloDeUbicacion(u)).filter(Boolean))].sort((a, b) => Number(a) - Number(b)),
@@ -1085,6 +1095,7 @@ export default function EnTransito() {
     setTbZona("");
     setTbNivel("");
     setTbRack("");
+    setTbPasillo("");
     setTbList([]);
     setTbSel("");
     setTbBuscado(false);
@@ -1097,6 +1108,7 @@ export default function EnTransito() {
     setTbBuscado(false);
     setTbNivel("");
     setTbRack("");
+    setTbPasillo("");
   };
 
   const consultarVacias = async () => {
@@ -1106,7 +1118,10 @@ export default function EnTransito() {
       const list = await getUbicacionesVacias(tbBase || null, tbZona || null);
       setTbList(list || []);
       const filtr = (list || []).filter(
-        (u) => (!tbNivel || nivelDeUbicacion(u) === tbNivel) && (!tbRack || moduloDeUbicacion(u) === tbRack)
+        (u) =>
+          (!tbPasillo || pasilloDeUbicacion(u) === tbPasillo) &&
+          (!tbRack || moduloDeUbicacion(u) === tbRack) &&
+          (!tbNivel || nivelDeUbicacion(u) === tbNivel)
       );
       setTbSel(filtr.length ? normalizeUbicacion(filtr[0].ubicacion) : "");
     } catch (e) {
@@ -1630,14 +1645,32 @@ export default function EnTransito() {
                       ))}
                     </select>
                   </div>
-                  <div style={{ flex: "1 1 110px" }}>
+                  <div style={{ flex: "1 1 100px" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: colors.muted, marginBottom: 4 }}>PASILLO</div>
+                    <select
+                      value={tbPasillo}
+                      onChange={(e) => {
+                        const ps = e.target.value;
+                        setTbPasillo(ps);
+                        const view = tbList.filter((u) => (!ps || pasilloDeUbicacion(u) === ps) && (!tbRack || moduloDeUbicacion(u) === tbRack) && (!tbNivel || nivelDeUbicacion(u) === tbNivel));
+                        setTbSel(view.length ? normalizeUbicacion(view[0].ubicacion) : "");
+                      }}
+                      style={tbInputStyle}
+                    >
+                      <option value="">Todos</option>
+                      {pasillosUbic.map((ps) => (
+                        <option key={ps} value={ps}>Pasillo {ps}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ flex: "1 1 100px" }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: colors.muted, marginBottom: 4 }}>MÓDULO</div>
                     <select
                       value={tbRack}
                       onChange={(e) => {
                         const rk = e.target.value;
                         setTbRack(rk);
-                        const view = tbList.filter((u) => (!tbNivel || nivelDeUbicacion(u) === tbNivel) && (!rk || moduloDeUbicacion(u) === rk));
+                        const view = tbList.filter((u) => (!tbPasillo || pasilloDeUbicacion(u) === tbPasillo) && (!rk || moduloDeUbicacion(u) === rk) && (!tbNivel || nivelDeUbicacion(u) === tbNivel));
                         setTbSel(view.length ? normalizeUbicacion(view[0].ubicacion) : "");
                       }}
                       style={tbInputStyle}
@@ -1648,14 +1681,14 @@ export default function EnTransito() {
                       ))}
                     </select>
                   </div>
-                  <div style={{ flex: "1 1 110px" }}>
+                  <div style={{ flex: "1 1 100px" }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: colors.muted, marginBottom: 4 }}>NIVEL</div>
                     <select
                       value={tbNivel}
                       onChange={(e) => {
                         const nv = e.target.value;
                         setTbNivel(nv);
-                        const view = tbList.filter((u) => (!nv || nivelDeUbicacion(u) === nv) && (!tbRack || moduloDeUbicacion(u) === tbRack));
+                        const view = tbList.filter((u) => (!tbPasillo || pasilloDeUbicacion(u) === tbPasillo) && (!tbRack || moduloDeUbicacion(u) === tbRack) && (!nv || nivelDeUbicacion(u) === nv));
                         setTbSel(view.length ? normalizeUbicacion(view[0].ubicacion) : "");
                       }}
                       style={tbInputStyle}
@@ -1685,8 +1718,8 @@ export default function EnTransito() {
                 </div>
 
                 {tbBuscado && !tbLoading && (() => {
-                  const tbView = tbList.filter((u) => (!tbNivel || nivelDeUbicacion(u) === tbNivel) && (!tbRack || moduloDeUbicacion(u) === tbRack));
-                  const filtroTxt = `${tbRack ? ` / módulo ${tbRack}` : ""}${tbNivel ? ` / nivel ${tbNivel}` : ""}`;
+                  const tbView = tbList.filter((u) => (!tbPasillo || pasilloDeUbicacion(u) === tbPasillo) && (!tbRack || moduloDeUbicacion(u) === tbRack) && (!tbNivel || nivelDeUbicacion(u) === tbNivel));
+                  const filtroTxt = `${tbPasillo ? ` / pasillo ${tbPasillo}` : ""}${tbRack ? ` / módulo ${tbRack}` : ""}${tbNivel ? ` / nivel ${tbNivel}` : ""}`;
                   return (
                   <div style={{ marginTop: 16 }}>
                     {tbView.length === 0 ? (
