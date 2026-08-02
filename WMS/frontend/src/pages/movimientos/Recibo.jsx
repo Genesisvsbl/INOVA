@@ -2274,8 +2274,11 @@ export default function Recibo() {
 
             .receipt-novelty-wrap {
               width: 100%;
-              margin: 18px 0 0;
-              position: static;
+              position: absolute;
+              left: 0;
+              right: 0;
+              bottom: 16mm;
+              margin: 0;
               border: 1px solid #d9e2ec;
               border-radius: 8px;
               overflow: hidden;
