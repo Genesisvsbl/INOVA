@@ -711,49 +711,50 @@ export default function Recibo() {
         .join("") +
       `</tbody></table>`;
 
-    const htmlBody =
-      `<html><body style="font-family:Arial,sans-serif;font-size:13px;color:#111827">` +
-      `<p>Buen d&iacute;a,</p>` +
-      `<p>Durante la recepci&oacute;n del <b>${hoy}</b>${doc ? ` (documento ${doc})` : ""} se identific&oacute; un ` +
-      `<b>INCUMPLIMIENTO DE ROTACI&Oacute;N (FEFO)</b> por parte del proveedor${proveedor ? ` <b>${proveedor}</b>` : ""}` +
-      `${oc ? ` (OC ${oc})` : ""}. Se entreg&oacute; producto con fecha de vencimiento <b>anterior</b> a las existencias del ` +
-      `mismo material ya recibidas, lo que no respeta el principio &ldquo;primero en vencer, primero en salir&rdquo; e ` +
-      `incrementa el riesgo de obsolescencia del inventario m&aacute;s antiguo.</p>` +
-      `<p><b>Evidencia del incumplimiento:</b></p>` +
-      htmlTabla +
-      `<p>Agradecemos su gesti&oacute;n y seguimiento para corregir la rotaci&oacute;n en las pr&oacute;ximas entregas.</p>` +
-      `<p>Cordialmente,<br/>Equipo de Recepci&oacute;n</p>` +
-      `</body></html>`;
-
-    // Asunto codificado (UTF-8) y archivo .eml con X-Unsent:1 para que Outlook lo
-    // abra como CORREO NUEVO editable, con la tabla ya incrustada. Solo falta el "Para".
-    const b64 = (s) => {
-      try {
-        return btoa(unescape(encodeURIComponent(s)));
-      } catch {
-        return btoa(s);
-      }
+    // Tabla de evidencia en texto (va dentro del cuerpo del correo).
+    const pad = (s, n) => {
+      const t = String(s ?? "");
+      return t.length >= n ? t.slice(0, n) : t + " ".repeat(n - t.length);
     };
-    const asuntoEnc = `=?UTF-8?B?${b64(asunto)}?=`;
-    const eml =
-      `To: \r\n` +
-      `Subject: ${asuntoEnc}\r\n` +
-      `X-Unsent: 1\r\n` +
-      `MIME-Version: 1.0\r\n` +
-      `Content-Type: text/html; charset=utf-8\r\n` +
-      `\r\n` +
-      htmlBody;
+    const encabezado =
+      `${pad("Item", 5)} ${pad("Codigo", 9)} ${pad("Descripcion", 30)} ${pad("Lote", 12)} ${pad("Cantidad", 12)} ${pad("Vence entreg.", 13)} ${pad("Vence stock", 13)} Estado`;
+    const separador = "-".repeat(encabezado.length);
+    const filasTxt = evid
+      .map(
+        (e) =>
+          `${pad("#" + e.item, 5)} ${pad(e.codigo, 9)} ${pad(e.descripcion, 30)} ${pad(e.lote || "-", 12)} ` +
+          `${pad(e.cantidad || "-", 12)} ${pad(e.venc, 13)} ${pad(e.prev, 13)} INCUMPLE`
+      )
+      .join("\n");
 
-    const blob = new Blob([eml], { type: "message/rfc822" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const slug = (proveedor || "proveedor").replace(/[^a-z0-9]+/gi, "_").slice(0, 40);
-    a.download = `Novedad_FEFO_${slug}.eml`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    const cuerpoTxt =
+      `Buen dia,\n\n` +
+      `Durante la recepcion del ${hoy}${doc ? ` (documento ${doc})` : ""} se identifico un INCUMPLIMIENTO DE ROTACION (FEFO) ` +
+      `por parte del proveedor${proveedor ? ` ${proveedor}` : ""}${oc ? ` (OC ${oc})` : ""}. Se entrego producto con fecha de ` +
+      `vencimiento ANTERIOR a las existencias del mismo material ya recibidas, lo que no respeta el principio ` +
+      `"primero en vencer, primero en salir" e incrementa el riesgo de obsolescencia del inventario mas antiguo.\n\n` +
+      `EVIDENCIA DEL INCUMPLIMIENTO:\n` +
+      `${separador}\n${encabezado}\n${separador}\n${filasTxt}\n${separador}\n\n` +
+      `Agradecemos su gestion y seguimiento para corregir la rotacion en las proximas entregas.\n\n` +
+      `Cordialmente,\nEquipo de Recepcion`;
+
+    // Copia la tabla con formato/colores al portapapeles (opcional: si la quieren
+    // pegar con Ctrl+V queda a color; el correo ya se abre con la tabla en texto).
+    try {
+      if (navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([
+          new window.ClipboardItem({
+            "text/html": new Blob([htmlTabla], { type: "text/html" }),
+            "text/plain": new Blob([filasTxt], { type: "text/plain" }),
+          }),
+        ]);
+      }
+    } catch {
+      /* si el navegador no permite copiar, no pasa nada */
+    }
+
+    // Abre Outlook al instante (sin descargas ni advertencias).
+    window.location.href = `mailto:?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpoTxt)}`;
   };
 
   const proveedorEsAmcor = useMemo(
