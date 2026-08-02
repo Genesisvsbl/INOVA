@@ -656,6 +656,102 @@ export default function Recibo() {
     return map;
   }, [lineas, vencPrevio]);
 
+  // Arma el correo de novedad al proveedor por incumplimiento de rotación (FEFO),
+  // copia la tabla de evidencia con formato al portapapeles y abre Outlook.
+  const enviarNovedadProveedor = async () => {
+    const items = Array.from(rotacionByIdx.entries());
+    if (!items.length) return;
+
+    const fmtDMY = (v) => {
+      const s = String(v || "").slice(0, 10);
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+      return m ? `${m[3]}/${m[2]}/${m[1]}` : formatDateDisplay(v);
+    };
+
+    const evid = items.map(([i, r]) => {
+      const ln = lineas[i] || {};
+      return {
+        item: i + 1,
+        codigo: r.codigo,
+        descripcion: String(ln.descripcion || "").trim(),
+        lote: String(ln.lote_proveedor || ln.lote || "").trim(),
+        cantidad: String(ln.cantidad || "").trim(),
+        venc: fmtDMY(r.venc),
+        prev: fmtDMY(r.prev),
+      };
+    });
+
+    const proveedor = String(header.proveedor || "").trim();
+    const oc = String(header.orden_compra || "").replace(/\*/g, "").trim();
+    const doc = String(header.documento || "").replace(/\*/g, "").trim();
+    const hoy = fmtDMY(new Date().toISOString());
+
+    const asunto =
+      `Novedad de recepción - Incumplimiento de rotación (FEFO)` +
+      (proveedor ? ` - ${proveedor}` : "") +
+      (oc ? ` - OC ${oc}` : "");
+
+    // Cuerpo en texto plano (para que Outlook lo abra ya redactado).
+    const filasTxt = evid
+      .map(
+        (e) =>
+          `#${e.item} | ${e.codigo} | ${e.descripcion} | Lote ${e.lote || "-"} | Cant. ${e.cantidad || "-"} | ` +
+          `Vence entregado ${e.venc} | Vence en stock ${e.prev} | INCUMPLE`
+      )
+      .join("\n");
+
+    const cuerpoTxt =
+      `Buen día,\n\n` +
+      `Durante la recepción del ${hoy}${doc ? ` (documento ${doc})` : ""} se identificó un INCUMPLIMIENTO DE ROTACIÓN (FEFO) ` +
+      `por parte del proveedor${proveedor ? ` ${proveedor}` : ""}. Se entregó producto con fecha de vencimiento ANTERIOR ` +
+      `a las existencias del mismo material ya recibidas, lo que no respeta el principio "primero en vencer, primero en salir" ` +
+      `e incrementa el riesgo de obsolescencia del inventario más antiguo.\n\n` +
+      `Evidencia del incumplimiento:\n${filasTxt}\n\n` +
+      `Nota: la tabla de evidencia con formato quedó copiada; puede pegarla en este correo con Ctrl+V.\n\n` +
+      `Agradecemos su gestión y seguimiento para corregir la rotación en las próximas entregas.\n\n` +
+      `Cordialmente,\nEquipo de Recepción`;
+
+    // Tabla de evidencia con formato/colores (para pegar en el correo).
+    const th = 'style="border:1px solid #0b3d91;padding:6px 8px;color:#fff;background:#0b3d91;font-family:Arial,sans-serif;font-size:12px;text-align:left"';
+    const td = 'style="border:1px solid #cbd5e1;padding:6px 8px;font-family:Arial,sans-serif;font-size:12px"';
+    const tdInc = 'style="border:1px solid #cbd5e1;padding:6px 8px;font-family:Arial,sans-serif;font-size:12px;background:#f8d7da;color:#b42318;font-weight:bold;text-align:center"';
+    const htmlTabla =
+      `<p style="font-family:Arial,sans-serif;font-size:13px">Evidencia de incumplimiento de rotación (FEFO)` +
+      `${proveedor ? ` - Proveedor: <b>${proveedor}</b>` : ""}${oc ? ` - OC: <b>${oc}</b>` : ""} - Fecha: <b>${hoy}</b></p>` +
+      `<table style="border-collapse:collapse">` +
+      `<thead><tr>` +
+      `<th ${th}>Ítem</th><th ${th}>Código</th><th ${th}>Descripción</th><th ${th}>Lote prov.</th>` +
+      `<th ${th}>Cantidad</th><th ${th}>Vence entregado</th><th ${th}>Vence en stock</th><th ${th}>Estado</th>` +
+      `</tr></thead><tbody>` +
+      evid
+        .map(
+          (e) =>
+            `<tr><td ${td}>#${e.item}</td><td ${td}>${e.codigo}</td><td ${td}>${e.descripcion}</td>` +
+            `<td ${td}>${e.lote || "-"}</td><td ${td}>${e.cantidad || "-"}</td>` +
+            `<td ${td}>${e.venc}</td><td ${td}>${e.prev}</td><td ${tdInc}>INCUMPLE</td></tr>`
+        )
+        .join("") +
+      `</tbody></table>`;
+
+    // Copia la tabla con formato al portapapeles (best-effort).
+    try {
+      if (navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([
+          new window.ClipboardItem({
+            "text/html": new Blob([htmlTabla], { type: "text/html" }),
+            "text/plain": new Blob([filasTxt], { type: "text/plain" }),
+          }),
+        ]);
+      }
+    } catch {
+      /* si el navegador no permite copiar, igual se abre el correo */
+    }
+
+    const mailto =
+      `mailto:?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpoTxt)}`;
+    window.location.href = mailto;
+  };
+
   const proveedorEsAmcor = useMemo(
     () => isAmcorProveedor(header.proveedor),
     [header.proveedor]
@@ -3902,13 +3998,35 @@ export default function Recibo() {
                 }}
               >
                 <span style={{ fontSize: 18, lineHeight: 1 }}>⚠</span>
-                <span>
+                <span style={{ flex: 1 }}>
                   Incumplimiento de rotación del proveedor en {rotacionByIdx.size} línea(s):{" "}
                   {Array.from(rotacionByIdx.entries())
                     .map(([i, r]) => `#${i + 1} (${r.codigo}) vence ${formatDateDisplay(r.venc)} vs stock que vence ${formatDateDisplay(r.prev)}`)
                     .join("; ")}
                   . Esta novedad quedará registrada en el recibo impreso.
                 </span>
+                <button
+                  type="button"
+                  onClick={enviarNovedadProveedor}
+                  title="Abrir Outlook con la novedad y la tabla de evidencia lista para el proveedor"
+                  style={{
+                    flexShrink: 0,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #b42318",
+                    background: "#b42318",
+                    color: "#fff",
+                    fontWeight: 800,
+                    fontSize: 12.5,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  ✉ Enviar al proveedor
+                </button>
               </div>
             )}
 
