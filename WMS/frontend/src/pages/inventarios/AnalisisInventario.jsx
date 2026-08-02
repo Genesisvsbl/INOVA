@@ -23,8 +23,8 @@ import {
 
 const colors = {
   navy: "#1f2d5c",
-  blue: "#012a5c",
-  red: "#c62828",
+  blue: "#0b3d91",
+  red: "#dc2626",
   green: "#1f7a3d",
   text: "#1f2d3d",
   muted: "#6b7a90",
@@ -275,7 +275,7 @@ export default function AnalisisInventario() {
         <div style={cardStyle}>
           <div style={headStyle}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={iconBox}><BarChart3 size={20} color="#012a5c" /></div>
+              <div style={iconBox}><BarChart3 size={20} color="#0b3d91" /></div>
               <div>
                 <div style={kicker}>Inventarios</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: "#17324d" }}>Análisis</div>
@@ -344,7 +344,7 @@ export default function AnalisisInventario() {
         <div style={headStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button onClick={() => setVista("lista")} style={{ ...miniBtn("#64748b"), height: 34 }}><ArrowLeft size={14} /> Volver</button>
-            <div style={iconBox}><BarChart3 size={20} color="#012a5c" /></div>
+            <div style={iconBox}><BarChart3 size={20} color="#0b3d91" /></div>
             <div>
               <div style={kicker}>Inventarios · Análisis</div>
               <div style={{ fontSize: 20, fontWeight: 800, color: "#17324d" }}>Análisis (SAP vs físico)</div>
@@ -570,8 +570,8 @@ function buildInformeHtml({ base, fileName }) {
     return `
       <section class="fam">
         <div class="fam-h"><span class="fam-n">${fam}</span><span class="fam-c">${items.length} material(es)</span></div>
-        ${subTabla("Faltantes", falt, "#c62828")}
-        ${subTabla("Sobrantes", sob, "#012a5c")}
+        ${subTabla("Faltantes", falt, "#dc2626")}
+        ${subTabla("Sobrantes", sob, "#0b3d91")}
         ${subTabla("Cuadrados", cuad, "#1f7a3d")}
       </section>`;
   }).join("");
@@ -640,8 +640,8 @@ function buildInformeHtml({ base, fileName }) {
     <p class="sub">Comparativo del teórico de SAP contra el físico real del WMS, desglosado por familia.</p>
 
     <div class="kpis">
-      ${kpi("Faltantes", `${gFalt}`, "#c62828")}
-      ${kpi("Sobrantes", `${gSob}`, "#012a5c")}
+      ${kpi("Faltantes", `${gFalt}`, "#dc2626")}
+      ${kpi("Sobrantes", `${gSob}`, "#0b3d91")}
       ${kpi("Cuadrados", `${gCuad}`, "#1f7a3d")}
       ${kpi("Familias", `${familias.length}`, "#1f2d5c")}
     </div>
