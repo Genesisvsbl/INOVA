@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Users,
   BarChart3,
+  ArrowLeft,
 } from "lucide-react";
 import { getInventarioTareas } from "../api";
 
@@ -205,7 +206,33 @@ export default function Inventarios() {
   };
 
   if (!isRoot) {
-    return <Outlet />;
+    return (
+      <div>
+        <div style={{ padding: "12px 24px 0" }}>
+          <Link
+            to="/inventarios"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              textDecoration: "none",
+              height: 36,
+              padding: "0 14px",
+              borderRadius: 8,
+              border: "1px solid #d9e1ea",
+              background: "#ffffff",
+              color: "#1f2d3d",
+              fontWeight: 800,
+              fontSize: 13,
+              boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+            }}
+          >
+            <ArrowLeft size={16} /> Volver a inventarios
+          </Link>
+        </div>
+        <Outlet />
+      </div>
+    );
   }
 
   return (
