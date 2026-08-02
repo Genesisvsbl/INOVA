@@ -89,7 +89,12 @@ export default function InspectoresCuadro() {
         ].sort((a, b) => a.localeCompare(b));
         setBodegas(bods);
         setFamilias(fams);
-        setUsuarios(Array.isArray(users) ? users : []);
+        // Los administradores no son inspectores: se excluyen del cuadro.
+        const rolesExcluidos = ["ADMIN_EMPRESA", "ADMIN_INOVA", "INOVA_ADMIN", "ADMIN_PLATAFORMA", "PLATFORM_ADMIN"];
+        const inspectores = (Array.isArray(users) ? users : []).filter(
+          (u) => !rolesExcluidos.includes(String(u.rol || "").toUpperCase())
+        );
+        setUsuarios(inspectores);
       } catch (e) {
         setError(e?.message || "No se pudieron cargar los catálogos.");
       } finally {
