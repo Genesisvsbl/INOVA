@@ -1,14 +1,25 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   Upload,
   Search,
   Download,
   FileText,
+  Save,
+  Plus,
+  ArrowLeft,
+  FolderOpen,
+  Trash2,
   AlertTriangle,
   Loader2,
 } from "lucide-react";
-import { generarAnalisisInventario } from "../../api";
+import {
+  generarAnalisisInventario,
+  guardarAnalisisInventario,
+  listarAnalisisInventario,
+  getAnalisisInventario,
+  eliminarAnalisisInventario,
+} from "../../api";
 
 const colors = {
   navy: "#0f2744",
@@ -25,6 +36,13 @@ const nf2 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFr
 const nf0 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const fmt = (v) => nf2.format(Number(v || 0));
 const fmtInt = (v) => (v || v === 0 ? nf0.format(Number(v || 0)) : "");
+const fmtFecha = (v) => {
+  if (!v) return "";
+  const d = new Date(v);
+  return Number.isNaN(d.getTime())
+    ? String(v)
+    : d.toLocaleString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+};
 
 // DIFERENCIA = (FISICO - TEORICO) - P.INGRESO + P.DESCARGAR - DEVOLUCION
 function calcDiferencia(r) {
@@ -36,39 +54,12 @@ function calcDiferencia(r) {
   );
 }
 
-const th = {
-  padding: "8px 8px",
-  fontSize: 10.5,
-  fontWeight: 800,
-  color: "#e8eefb",
-  background: "#0f2744",
-  borderRight: "1px solid #24405f",
-  whiteSpace: "nowrap",
-  textAlign: "right",
-};
+const th = { padding: "8px 8px", fontSize: 10.5, fontWeight: 800, color: "#e8eefb", background: "#0f2744", borderRight: "1px solid #24405f", whiteSpace: "nowrap", textAlign: "right" };
 const thL = { ...th, textAlign: "left" };
-const td = {
-  padding: "5px 8px",
-  fontSize: 11.5,
-  borderBottom: "1px solid #eef2f7",
-  borderRight: "1px solid #f1f5f9",
-  textAlign: "right",
-  color: "#24384d",
-  whiteSpace: "nowrap",
-};
+const td = { padding: "5px 8px", fontSize: 11.5, borderBottom: "1px solid #eef2f7", borderRight: "1px solid #f1f5f9", textAlign: "right", color: "#24384d", whiteSpace: "nowrap" };
 const tdL = { ...td, textAlign: "left" };
-const editInput = {
-  width: 96,
-  height: 26,
-  textAlign: "right",
-  border: "1px solid #d9e2ec",
-  borderRadius: 6,
-  padding: "0 6px",
-  fontSize: 11.5,
-  outline: "none",
-};
+const editInput = { width: 96, height: 26, textAlign: "right", border: "1px solid #d9e2ec", borderRadius: 6, padding: "0 6px", fontSize: 11.5, outline: "none" };
 
-// Input numérico que muestra puntos de mil mientras se escribe.
 function NumInput({ value, onChange }) {
   const display = value || value === 0 ? nf0.format(Number(value || 0)) : "";
   return (
@@ -87,6 +78,12 @@ function NumInput({ value, onChange }) {
 
 export default function AnalisisInventario() {
   const fileRef = useRef(null);
+  const creadoPor = (sessionStorage.getItem("usuario") || sessionStorage.getItem("nombre") || "SISTEMA").trim();
+
+  const [vista, setVista] = useState("lista"); // "lista" | "trabajo"
+  const [guardados, setGuardados] = useState([]);
+  const [loadingList, setLoadingList] = useState(true);
+
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -95,6 +92,62 @@ export default function AnalisisInventario() {
   const [fFamilia, setFFamilia] = useState("TODAS");
   const [fMaterial, setFMaterial] = useState("");
   const [fTexto, setFTexto] = useState("");
+
+  const [saveModal, setSaveModal] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const cargarLista = async () => {
+    setLoadingList(true);
+    try {
+      const data = await listarAnalisisInventario();
+      setGuardados(Array.isArray(data) ? data : []);
+    } catch {
+      setGuardados([]);
+    } finally {
+      setLoadingList(false);
+    }
+  };
+
+  useEffect(() => {
+    cargarLista();
+  }, []);
+
+  const nuevo = () => {
+    setRows([]);
+    setFileName("");
+    setError("");
+    setFFamilia("TODAS");
+    setFMaterial("");
+    setFTexto("");
+    setVista("trabajo");
+  };
+
+  const abrirGuardado = async (id) => {
+    setVista("trabajo");
+    setLoading(true);
+    setError("");
+    try {
+      const a = await getAnalisisInventario(id);
+      const datos = Array.isArray(a?.datos) ? a.datos : [];
+      setRows(datos.map((r) => ({ p_ingreso: 0, p_descargar: 0, devolucion: 0, ...r })));
+      setFileName(a?.nombre || a?.archivo || `Análisis ${fmtFecha(a?.fecha)}`);
+    } catch (e) {
+      setError(e?.message || "No se pudo abrir el análisis.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const borrarGuardado = async (id) => {
+    if (!window.confirm("¿Eliminar este análisis guardado?")) return;
+    try {
+      await eliminarAnalisisInventario(id);
+      cargarLista();
+    } catch (e) {
+      setError(e?.message || "No se pudo eliminar.");
+    }
+  };
 
   const onFile = async (e) => {
     const file = e.target.files?.[0];
@@ -153,30 +206,12 @@ export default function AnalisisInventario() {
     const XLSX = await import("xlsx");
     const aoa = [
       ["FAMILIA", "MATERIAL", "TEXTO BREVE DEL MATERIAL", "TEORICO", "P. INGRESO", "P. DESCARGAR", "DEVOLUCION", "FISICO", "DIFERENCIA"],
-      ...filtered.map((r) => [
-        r.familia,
-        r.material,
-        r.texto,
-        Number(r.teorico || 0),
-        Number(r.p_ingreso || 0),
-        Number(r.p_descargar || 0),
-        Number(r.devolucion || 0),
-        Number(r.fisico || 0),
-        calcDiferencia(r),
-      ]),
+      ...filtered.map((r) => [r.familia, r.material, r.texto, Number(r.teorico || 0), Number(r.p_ingreso || 0), Number(r.p_descargar || 0), Number(r.devolucion || 0), Number(r.fisico || 0), calcDiferencia(r)]),
     ];
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Analisis");
-    const hoy = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `analisis_inventario_${hoy}.xlsx`);
-  };
-
-  // Color condicional: 0 => normal, negativo => rojo, sobrante => azul.
-  const difStyle = (v) => {
-    if (v < 0) return { background: colors.red, color: "#fff" };
-    if (v > 0) return { background: colors.blue, color: "#fff" };
-    return { background: "transparent", color: "#334155" };
+    XLSX.writeFile(wb, `analisis_inventario_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   const generarInforme = () => {
@@ -190,51 +225,141 @@ export default function AnalisisInventario() {
     win.document.close();
   };
 
-  return (
-    <div style={{ padding: 24, display: "grid", gap: 16, color: colors.text }}>
-      <div style={{ background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 12, overflow: "hidden" }}>
-        <div
-          style={{
-            padding: "16px 18px",
-            borderBottom: `1px solid ${colors.border}`,
-            background: "linear-gradient(to bottom,#fbfcfd,#f5f8fb)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 16,
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, display: "grid", placeItems: "center", background: "#eef2fb", border: "1px solid #d6e1ec" }}>
-              <BarChart3 size={20} color="#1f4e9c" />
-            </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".08em", color: "#7a8797", textTransform: "uppercase" }}>Inventarios</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "#17324d" }}>Análisis (SAP vs físico)</div>
-              <div style={{ fontSize: 13, color: "#5b6b7c" }}>
-                Sube las existencias de SAP (LX02). El teórico sale del archivo y el físico de tu inventario real del WMS.
+  const abrirGuardar = () => {
+    const ahora = new Date();
+    setSaveName(`Análisis ${ahora.toLocaleDateString("es-CO")} ${ahora.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}`);
+    setSaveModal(true);
+  };
+
+  const confirmarGuardar = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      const datos = rows.map((r) => ({
+        familia: r.familia,
+        material: r.material,
+        texto: r.texto,
+        teorico: Number(r.teorico || 0),
+        fisico: Number(r.fisico || 0),
+        p_ingreso: Number(r.p_ingreso || 0),
+        p_descargar: Number(r.p_descargar || 0),
+        devolucion: Number(r.devolucion || 0),
+      }));
+      const difs = datos.map(calcDiferencia);
+      await guardarAnalisisInventario({
+        nombre: saveName.trim() || null,
+        archivo: fileName || null,
+        creado_por: creadoPor,
+        total_materiales: datos.length,
+        total_faltantes: difs.filter((d) => d < 0).length,
+        total_sobrantes: difs.filter((d) => d > 0).length,
+        total_cuadrados: difs.filter((d) => d === 0).length,
+        datos,
+      });
+      setSaveModal(false);
+      await cargarLista();
+      setVista("lista");
+    } catch (e) {
+      setError(e?.message || "No se pudo guardar el análisis.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const difBg = (v) => (v < 0 ? colors.red : v > 0 ? colors.blue : "transparent");
+
+  // ---------------- Vista LISTA (guardados) ----------------
+  if (vista === "lista") {
+    return (
+      <div style={{ padding: 24, display: "grid", gap: 16, color: colors.text }}>
+        <div style={cardStyle}>
+          <div style={headStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={iconBox}><BarChart3 size={20} color="#1f4e9c" /></div>
+              <div>
+                <div style={kicker}>Inventarios</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: "#17324d" }}>Análisis</div>
+                <div style={{ fontSize: 13, color: "#5b6b7c" }}>Sube existencias de SAP y compara contra el físico del WMS.</div>
               </div>
             </div>
+            <button onClick={nuevo} style={btnPrimary(false)}>
+              <Plus size={16} /> Nuevo análisis
+            </button>
           </div>
 
+          <div style={{ padding: 14 }}>
+            {loadingList ? (
+              <div style={{ color: colors.muted, fontWeight: 700 }}>Cargando análisis guardados…</div>
+            ) : guardados.length === 0 ? (
+              <div style={{ color: colors.muted, fontSize: 13, padding: "16px 4px" }}>
+                Aún no hay análisis guardados. Dale a <b>Nuevo análisis</b>, sube el LX02 de SAP, revisa la diferencia y guárdalo.
+              </div>
+            ) : (
+              <div style={{ overflowX: "auto", border: `1px solid ${colors.border}`, borderRadius: 10 }}>
+                <table style={{ width: "100%", minWidth: 760, borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={thL}>Fecha y hora</th>
+                      <th style={thL}>Nombre</th>
+                      <th style={thL}>Creado por</th>
+                      <th style={th}>Materiales</th>
+                      <th style={th}>Faltantes</th>
+                      <th style={th}>Sobrantes</th>
+                      <th style={th}>Cuadrados</th>
+                      <th style={{ ...th, borderRight: "none" }}>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {guardados.map((g, i) => (
+                      <tr key={g.id} style={{ background: i % 2 ? "#fbfcfe" : "#fff" }}>
+                        <td style={{ ...tdL, fontWeight: 700, color: colors.navy }}>{fmtFecha(g.fecha)}</td>
+                        <td style={tdL}>{g.nombre || "—"}</td>
+                        <td style={tdL}>{g.creado_por || "—"}</td>
+                        <td style={td}>{g.total_materiales}</td>
+                        <td style={{ ...td, color: colors.red, fontWeight: 800 }}>{g.total_faltantes}</td>
+                        <td style={{ ...td, color: colors.blue, fontWeight: 800 }}>{g.total_sobrantes}</td>
+                        <td style={{ ...td, color: colors.green, fontWeight: 800 }}>{g.total_cuadrados}</td>
+                        <td style={{ ...td, borderRight: "none" }}>
+                          <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                            <button onClick={() => abrirGuardado(g.id)} style={miniBtn("#0b57d0")}><FolderOpen size={13} /> Abrir</button>
+                            <button onClick={() => borrarGuardado(g.id)} style={miniBtn(colors.red)}><Trash2 size={13} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------------- Vista TRABAJO ----------------
+  return (
+    <div style={{ padding: 24, display: "grid", gap: 16, color: colors.text }}>
+      <div style={cardStyle}>
+        <div style={headStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button onClick={() => setVista("lista")} style={{ ...miniBtn("#64748b"), height: 34 }}><ArrowLeft size={14} /> Volver</button>
+            <div style={iconBox}><BarChart3 size={20} color="#1f4e9c" /></div>
+            <div>
+              <div style={kicker}>Inventarios · Análisis</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "#17324d" }}>Análisis (SAP vs físico)</div>
+            </div>
+          </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <button
-              onClick={() => fileRef.current?.click()}
-              disabled={loading}
-              style={btnPrimary(loading)}
-            >
+            <button onClick={() => fileRef.current?.click()} disabled={loading} style={btnPrimary(loading)}>
               {loading ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
-              {loading ? "Procesando…" : "Subir existencias SAP"}
+              {loading ? "Procesando…" : rows.length ? "Cambiar archivo" : "Subir existencias SAP"}
             </button>
             {rows.length > 0 && (
               <>
-                <button onClick={generarInforme} style={btnDark}>
-                  <FileText size={15} /> Generar informe
-                </button>
-                <button onClick={exportar} style={btnGhost}>
-                  <Download size={15} /> Exportar Excel
-                </button>
+                <button onClick={abrirGuardar} style={btnGreen}><Save size={15} /> Guardar</button>
+                <button onClick={generarInforme} style={btnDark}><FileText size={15} /> Generar informe</button>
+                <button onClick={exportar} style={btnGhost}><Download size={15} /> Excel</button>
               </>
             )}
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={onFile} style={{ display: "none" }} />
@@ -250,8 +375,7 @@ export default function AnalisisInventario() {
 
           {rows.length === 0 && !loading && !error && (
             <div style={{ color: colors.muted, fontSize: 13, padding: "20px 4px" }}>
-              Aún no has cargado el archivo. Al subir el LX02 de SAP se genera el análisis: TEÓRICO (SAP) vs FÍSICO
-              (WMS), con columnas editables P. Ingreso, P. Descargar y Devolución, y la Diferencia calculada.
+              Sube el LX02 de SAP para generar el análisis: TEÓRICO (SAP) vs FÍSICO (WMS), columnas editables P. Ingreso, P. Descargar y Devolución, y la Diferencia calculada.
             </div>
           )}
 
@@ -261,24 +385,16 @@ export default function AnalisisInventario() {
                 <div>
                   <div style={lbl}>Familia</div>
                   <select value={fFamilia} onChange={(e) => setFFamilia(e.target.value)} style={selectStyle}>
-                    {familias.map((f) => (
-                      <option key={f} value={f}>{f}</option>
-                    ))}
+                    {familias.map((f) => (<option key={f} value={f}>{f}</option>))}
                   </select>
                 </div>
                 <div>
                   <div style={lbl}>Material</div>
-                  <div style={searchBox}>
-                    <Search size={14} color={colors.muted} />
-                    <input value={fMaterial} onChange={(e) => setFMaterial(e.target.value)} placeholder="Código…" style={searchInput} />
-                  </div>
+                  <div style={searchBox}><Search size={14} color={colors.muted} /><input value={fMaterial} onChange={(e) => setFMaterial(e.target.value)} placeholder="Código…" style={searchInput} /></div>
                 </div>
                 <div>
                   <div style={lbl}>Texto</div>
-                  <div style={searchBox}>
-                    <Search size={14} color={colors.muted} />
-                    <input value={fTexto} onChange={(e) => setFTexto(e.target.value)} placeholder="Descripción…" style={searchInput} />
-                  </div>
+                  <div style={searchBox}><Search size={14} color={colors.muted} /><input value={fTexto} onChange={(e) => setFTexto(e.target.value)} placeholder="Descripción…" style={searchInput} /></div>
                 </div>
                 <div style={{ fontSize: 12, color: colors.muted, fontWeight: 700, paddingBottom: 8, textAlign: "right" }}>
                   {fileName}<br />{filtered.length} de {rows.length} materiales
@@ -297,13 +413,14 @@ export default function AnalisisInventario() {
                       <th style={th}>P. DESCARGAR</th>
                       <th style={th}>DEVOLUCION</th>
                       <th style={th}>FISICO</th>
-                      <th style={{ ...th, borderRight: "none" }}>DIFERENCIA</th>
+                      <th style={{ ...th, borderRight: "none", minWidth: 130 }}>DIFERENCIA</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.map((r, idx) => {
                       const realIdx = rows.indexOf(r);
                       const dif = calcDiferencia(r);
+                      const bg = difBg(dif);
                       return (
                         <tr key={`${r.material}-${idx}`} style={{ background: idx % 2 ? "#fbfcfe" : "#fff" }}>
                           <td style={{ ...tdL, fontWeight: 700, color: colors.navy }}>{r.familia}</td>
@@ -314,21 +431,19 @@ export default function AnalisisInventario() {
                           <td style={td}><NumInput value={r.p_descargar} onChange={(v) => setVal(realIdx, "p_descargar", v)} /></td>
                           <td style={td}><NumInput value={r.devolucion} onChange={(v) => setVal(realIdx, "devolucion", v)} /></td>
                           <td style={{ ...td, fontWeight: 700 }}>{fmt(r.fisico)}</td>
-                          <td style={{ ...td, borderRight: "none" }}>
-                            <span
-                              style={{
-                                display: "inline-block",
-                                minWidth: 84,
-                                textAlign: "right",
-                                padding: "3px 9px",
-                                borderRadius: 6,
-                                fontWeight: 800,
-                                background: dif < 0 ? colors.red : dif > 0 ? colors.blue : "transparent",
-                                color: dif === 0 ? "#334155" : "#fff",
-                              }}
-                            >
-                              {fmt(dif)}
-                            </span>
+                          <td
+                            style={{
+                              ...td,
+                              borderRight: "none",
+                              textAlign: "center",
+                              padding: 0,
+                              background: bg,
+                              color: dif === 0 ? "#334155" : "#fff",
+                              fontWeight: 900,
+                              fontSize: 14,
+                            }}
+                          >
+                            {fmt(dif)}
                           </td>
                         </tr>
                       );
@@ -342,48 +457,80 @@ export default function AnalisisInventario() {
                       <td style={td}>{fmtInt(totales.p_descargar)}</td>
                       <td style={td}>{fmtInt(totales.devolucion)}</td>
                       <td style={td}>{fmt(totales.fisico)}</td>
-                      <td style={{ ...td, borderRight: "none", color: totales.diferencia < 0 ? colors.red : totales.diferencia > 0 ? colors.blue : "#334155" }}>{fmt(totales.diferencia)}</td>
+                      <td style={{ ...td, borderRight: "none", textAlign: "center", background: difBg(totales.diferencia), color: totales.diferencia === 0 ? "#334155" : "#fff", fontWeight: 900, fontSize: 14 }}>{fmt(totales.diferencia)}</td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
 
               <div style={{ marginTop: 10, fontSize: 11.5, color: colors.muted }}>
-                Fórmula de la diferencia: (FÍSICO − TEÓRICO) − P. Ingreso + P. Descargar − Devolución. Rojo = faltante, azul = sobrante, sin color = cuadrado.
+                Fórmula: (FÍSICO − TEÓRICO) − P. Ingreso + P. Descargar − Devolución. Rojo = faltante, azul = sobrante, sin color = cuadrado.
               </div>
             </>
           )}
         </div>
       </div>
 
+      {saveModal && (
+        <div style={overlay} onClick={() => !saving && setSaveModal(false)}>
+          <div style={{ ...cardStyle, width: "min(460px,96vw)" }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ padding: "14px 18px", borderBottom: `1px solid ${colors.border}`, background: colors.soft, display: "flex", alignItems: "center", gap: 8 }}>
+              <Save size={16} color={colors.green} />
+              <span style={{ fontWeight: 900, color: "#17324d", fontSize: 16 }}>Guardar análisis</span>
+            </div>
+            <div style={{ padding: 18 }}>
+              <div style={{ fontSize: 12.5, color: colors.muted, marginBottom: 12 }}>
+                Se guardará con la fecha y hora actuales. Ponle un nombre para reconocerlo después.
+              </div>
+              <div style={lbl}>Nombre del análisis</div>
+              <input value={saveName} onChange={(e) => setSaveName(e.target.value)} autoFocus style={{ ...selectStyle, fontWeight: 500 }} />
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
+                <button onClick={() => setSaveModal(false)} disabled={saving} style={btnGhost}>Cancelar</button>
+                <button onClick={confirmarGuardar} disabled={saving} style={btnGreen}>{saving ? "Guardando…" : "Guardar"}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} .spin{animation:spin 1s linear infinite}`}</style>
     </div>
   );
 }
 
+const cardStyle = { background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 12, overflow: "hidden" };
+const headStyle = { padding: "16px 18px", borderBottom: `1px solid ${colors.border}`, background: "linear-gradient(to bottom,#fbfcfd,#f5f8fb)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" };
+const iconBox = { width: 40, height: 40, borderRadius: 10, display: "grid", placeItems: "center", background: "#eef2fb", border: "1px solid #d6e1ec" };
+const kicker = { fontSize: 11, fontWeight: 800, letterSpacing: ".08em", color: "#7a8797", textTransform: "uppercase" };
 const lbl = { fontSize: 11, fontWeight: 800, color: "#7a8797", letterSpacing: ".04em", marginBottom: 6, textTransform: "uppercase" };
 const selectStyle = { width: "100%", height: 38, padding: "0 10px", borderRadius: 8, border: "1px solid #d9e2ec", background: "#fff", color: "#1f2d3d", fontSize: 13, fontWeight: 600, boxSizing: "border-box" };
 const searchBox = { display: "flex", alignItems: "center", gap: 8, border: "1px solid #d9e2ec", borderRadius: 8, background: "#fff", height: 38, padding: "0 10px" };
 const searchInput = { border: "none", outline: "none", width: "100%", fontSize: 13, background: "transparent" };
+const overlay = { position: "fixed", inset: 0, zIndex: 10001, display: "grid", placeItems: "center", background: "rgba(8,17,31,.55)", padding: 16 };
 const btnGhost = { height: 40, padding: "0 14px", borderRadius: 8, border: "1px solid #d9e2ec", background: "#fff", color: "#1f2d3d", fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
 const btnDark = { height: 40, padding: "0 14px", borderRadius: 8, border: "1px solid #0f2744", background: "#0f2744", color: "#fff", fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
+const btnGreen = { height: 40, padding: "0 14px", borderRadius: 8, border: "1px solid #1f7a3d", background: "#1f7a3d", color: "#fff", fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
 function btnPrimary(loading) {
   return { height: 40, padding: "0 16px", borderRadius: 8, border: "1px solid #0b57d0", background: loading ? "#9dc0f0" : "#0b57d0", color: "#fff", fontWeight: 800, cursor: loading ? "default" : "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
 }
+function miniBtn(color) {
+  return { height: 28, padding: "0 8px", borderRadius: 6, border: `1px solid ${color}`, background: "#fff", color, fontWeight: 800, fontSize: 11.5, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 };
+}
 
-// ---------- Informe corporativo por FAMILIA (con logo INOVA) ----------
+// ---------- Informe corporativo por FAMILIA ----------
 function buildInformeHtml({ base, fileName }) {
   const logo = `${window.location.origin}/INOVA2026.png`;
   const nf = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const money = (v) => nf.format(Number(v || 0));
-  const hoy = new Date().toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" });
+  const ahora = new Date();
+  const hoy = ahora.toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" });
+  const hora = ahora.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
 
   const rows = Array.isArray(base) ? base : [];
   const gFalt = rows.filter((r) => r.diferencia < 0).length;
   const gSob = rows.filter((r) => r.diferencia > 0).length;
   const gCuad = rows.filter((r) => r.diferencia === 0).length;
 
-  // Agrupar por familia.
   const byFam = new Map();
   rows.forEach((r) => {
     const f = String(r.familia || "(sin familia)");
@@ -392,120 +539,113 @@ function buildInformeHtml({ base, fileName }) {
   });
   const familias = [...byFam.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 
-  // Sub-tabla de una categoría dentro de una familia.
   const subTabla = (titulo, list, color) => {
     if (!list.length) {
-      return `<div class="cat"><div class="cat-h" style="background:${color}"><span class="dot"></span>${titulo} <b>0</b></div><div class="empty">Sin registros.</div></div>`;
+      return `<div class="cat"><div class="cat-h" style="color:${color}"><span class="tag" style="background:${color}"></span>${titulo}<span class="cnt">0</span></div><div class="empty">Sin registros.</div></div>`;
     }
     const sub = list.reduce((a, r) => a + Number(r.diferencia || 0), 0);
     return `
       <div class="cat">
-        <div class="cat-h" style="background:${color}"><span class="dot"></span>${titulo} <b>${list.length}</b>
-          <span class="cat-total">${money(sub)}</span>
-        </div>
+        <div class="cat-h" style="color:${color}"><span class="tag" style="background:${color}"></span>${titulo}<span class="cnt" style="background:${color}">${list.length}</span><span class="cat-total" style="color:${color}">${money(sub)}</span></div>
         <table class="t">
           <thead><tr><th>Material</th><th>Descripción</th><th class="r">Teórico</th><th class="r">Físico</th><th class="r">Diferencia</th></tr></thead>
           <tbody>
-            ${list
-              .map(
-                (r) => `<tr>
-                  <td class="mono">${r.material}</td>
-                  <td>${String(r.texto || "")}</td>
-                  <td class="r">${money(r.teorico)}</td>
-                  <td class="r">${money(r.fisico)}</td>
-                  <td class="r b" style="color:${color}">${money(r.diferencia)}</td>
-                </tr>`
-              )
-              .join("")}
+            ${list.map((r) => `<tr>
+              <td class="mono">${r.material}</td>
+              <td>${String(r.texto || "")}</td>
+              <td class="r">${money(r.teorico)}</td>
+              <td class="r">${money(r.fisico)}</td>
+              <td class="r b" style="color:${color}">${money(r.diferencia)}</td>
+            </tr>`).join("")}
             <tr class="sub"><td colspan="4" class="r">Subtotal</td><td class="r" style="color:${color}">${money(sub)}</td></tr>
           </tbody>
         </table>
       </div>`;
   };
 
-  const bloquesFamilia = familias
-    .map(([fam, items]) => {
-      const falt = items.filter((r) => r.diferencia < 0);
-      const sob = items.filter((r) => r.diferencia > 0);
-      const cuad = items.filter((r) => r.diferencia === 0);
-      return `
-        <div class="fam-block">
-          <div class="fam-title">
-            <span>${fam}</span>
-            <span class="fam-sub">${items.length} material(es)</span>
-            <span class="fam-kpis">
-              <em style="color:#c0201a">Faltantes ${falt.length}</em>
-              <em style="color:#1f4e9c">Sobrantes ${sob.length}</em>
-              <em style="color:#1f7a3d">Cuadrados ${cuad.length}</em>
-            </span>
-          </div>
-          ${subTabla("Faltantes", falt, "#c0201a")}
-          ${subTabla("Sobrantes", sob, "#1f4e9c")}
-          ${subTabla("Cuadrados", cuad, "#1f7a3d")}
-        </div>`;
-    })
-    .join("");
+  const bloques = familias.map(([fam, items]) => {
+    const falt = items.filter((r) => r.diferencia < 0);
+    const sob = items.filter((r) => r.diferencia > 0);
+    const cuad = items.filter((r) => r.diferencia === 0);
+    return `
+      <section class="fam">
+        <div class="fam-h"><span class="fam-n">${fam}</span><span class="fam-c">${items.length} material(es)</span></div>
+        ${subTabla("Faltantes", falt, "#c0201a")}
+        ${subTabla("Sobrantes", sob, "#1f4e9c")}
+        ${subTabla("Cuadrados", cuad, "#1f7a3d")}
+      </section>`;
+  }).join("");
 
-  const kpi = (label, value, color) =>
-    `<div class="kpi"><div class="kpi-l">${label}</div><div class="kpi-v" style="color:${color}">${value}</div></div>`;
+  const kpi = (l, v, c) => `<div class="kpi"><span class="kl">${l}</span><span class="kv" style="color:${c}">${v}</span></div>`;
 
   return `<!doctype html><html><head><meta charset="utf-8"/>
   <title>Informe de análisis de inventario</title>
   <style>
-    @page { size: Letter; margin: 14mm 12mm; }
+    @page { size: Letter; margin: 16mm 14mm; }
     * { box-sizing: border-box; }
-    body { font-family: Arial, Helvetica, sans-serif; color:#17324d; margin:0; }
-    .cover { display:flex; align-items:center; gap:16px; background:linear-gradient(120deg,#0b2c5e,#123f83); color:#fff; padding:20px 22px; border-radius:12px; }
-    .cover img { height:44px; background:#fff; padding:6px 10px; border-radius:8px; }
-    .cover h1 { margin:0; font-size:22px; letter-spacing:.02em; }
-    .cover p { margin:2px 0 0; font-size:12px; color:#cfe0ff; }
-    .meta { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
-    .kpi { flex:1; min-width:150px; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; background:#f8fafc; }
-    .kpi-l { font-size:10px; font-weight:800; letter-spacing:.06em; color:#64748b; text-transform:uppercase; }
-    .kpi-v { font-size:20px; font-weight:900; margin-top:3px; }
-    .fam-block { margin:18px 0; page-break-inside:auto; }
-    .fam-title { display:flex; align-items:center; gap:12px; background:#0f2744; color:#fff; padding:10px 14px; border-radius:8px 8px 0 0; font-size:16px; font-weight:900; }
-    .fam-title .fam-sub { font-size:11px; font-weight:600; color:#9fb6cf; }
-    .fam-title .fam-kpis { margin-left:auto; display:flex; gap:12px; font-size:11px; font-weight:800; }
-    .fam-title .fam-kpis em { background:#fff; padding:2px 8px; border-radius:999px; font-style:normal; }
-    .cat { margin:6px 0 12px; }
-    .cat-h { display:flex; align-items:center; gap:8px; color:#fff; font-weight:800; font-size:12px; padding:5px 10px; border-radius:6px; }
-    .cat-h b { background:rgba(255,255,255,.25); border-radius:999px; padding:1px 8px; }
-    .cat-h .cat-total { margin-left:auto; }
-    .cat-h .dot { width:9px; height:9px; border-radius:50%; background:rgba(255,255,255,.85); display:inline-block; }
-    table.t { width:100%; border-collapse:collapse; margin:4px 0; font-size:11px; page-break-inside:auto; }
-    table.t th, table.t td { border:1px solid #e2e8f0; padding:5px 7px; }
-    table.t thead th { background:#eef2f7; color:#334155; font-size:10px; text-transform:uppercase; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color:#1f2d3d; margin:0; }
+    .doc-head { display:flex; align-items:center; justify-content:space-between; padding-bottom:12px; border-bottom:3px solid #0b2c5e; }
+    .doc-head .brand { display:flex; align-items:center; gap:14px; }
+    .doc-head .brand img { height:42px; }
+    .doc-head .brand .sys { font-size:11px; font-weight:800; letter-spacing:.14em; color:#0b2c5e; }
+    .doc-head .brand .sys small { display:block; color:#8a97a8; font-weight:700; letter-spacing:.08em; }
+    .doc-head .meta { text-align:right; font-size:11px; color:#64748b; line-height:1.5; }
+    .doc-head .meta b { color:#0b2c5e; }
+    h1.title { font-size:24px; font-weight:800; color:#0b2c5e; margin:18px 0 2px; letter-spacing:.01em; }
+    .sub { color:#64748b; font-size:12px; margin:0 0 6px; }
+    .kpis { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0 6px; }
+    .kpi { flex:1; min-width:150px; border:1px solid #e6ecf3; border-radius:10px; padding:12px 14px; background:#fbfdff; display:flex; flex-direction:column; }
+    .kpi .kl { font-size:10px; font-weight:800; letter-spacing:.06em; color:#7a8797; text-transform:uppercase; }
+    .kpi .kv { font-size:22px; font-weight:900; margin-top:4px; }
+    section.fam { margin:20px 0; page-break-inside:auto; }
+    .fam-h { display:flex; align-items:baseline; gap:12px; border-bottom:2px solid #0b2c5e; padding-bottom:6px; margin-bottom:8px; }
+    .fam-h .fam-n { font-size:17px; font-weight:900; color:#0b2c5e; letter-spacing:.02em; }
+    .fam-h .fam-c { font-size:11px; font-weight:700; color:#8a97a8; }
+    .cat { margin:8px 0 12px; }
+    .cat-h { display:flex; align-items:center; gap:8px; font-weight:800; font-size:12.5px; margin-bottom:4px; }
+    .cat-h .tag { width:10px; height:10px; border-radius:2px; display:inline-block; }
+    .cat-h .cnt { color:#fff; border-radius:999px; font-size:10.5px; padding:1px 8px; }
+    .cat-h .cat-total { margin-left:auto; font-weight:900; }
+    table.t { width:100%; border-collapse:collapse; margin:2px 0; font-size:11px; }
+    table.t th, table.t td { border:1px solid #e6ecf3; padding:5px 8px; }
+    table.t thead th { background:#f1f5fa; color:#334155; font-size:10px; text-transform:uppercase; letter-spacing:.03em; }
     table.t tr { page-break-inside:avoid; }
     .r { text-align:right; } .b { font-weight:800; } .mono { font-weight:700; }
     tr.sub td { background:#f8fafc; font-weight:800; }
-    .empty { padding:6px 10px; color:#64748b; font-size:11px; background:#f8fafc; border:1px solid #eef2f7; border-top:0; }
-    .foot { margin-top:18px; text-align:center; color:#94a3b8; font-size:10px; border-top:1px solid #e2e8f0; padding-top:8px; }
+    .empty { padding:6px 10px; color:#8a97a8; font-size:11px; background:#fafbfc; border:1px dashed #e6ecf3; border-radius:6px; }
+    .foot { margin-top:22px; text-align:center; color:#9aa7b5; font-size:10px; border-top:1px solid #e6ecf3; padding-top:8px; }
     @media print { .noprint { display:none; } }
     .noprint { text-align:center; margin:16px 0; }
-    .noprint button { background:#0b57d0; color:#fff; border:0; padding:10px 18px; border-radius:8px; font-weight:800; cursor:pointer; }
+    .noprint button { background:#0b2c5e; color:#fff; border:0; padding:11px 20px; border-radius:8px; font-weight:800; cursor:pointer; }
   </style></head>
   <body>
-    <div class="cover">
-      <img src="${logo}" alt="INOVA" onerror="this.style.display='none'"/>
-      <div>
-        <h1>Informe de análisis de inventario</h1>
-        <p>SAP (teórico) vs físico WMS · ${hoy}${fileName ? ` · Archivo: ${fileName}` : ""}</p>
+    <div class="doc-head">
+      <div class="brand">
+        <img src="${logo}" alt="INOVA" onerror="this.style.display='none'"/>
+        <div class="sys">SISTEMA WMS<small>Gestión de inventarios</small></div>
+      </div>
+      <div class="meta">
+        <div><b>Informe de análisis de inventario</b></div>
+        <div>${hoy} · ${hora}</div>
+        ${fileName ? `<div>Archivo: ${fileName}</div>` : ""}
       </div>
     </div>
 
-    <div class="meta">
+    <h1 class="title">Análisis de inventario · SAP vs físico</h1>
+    <p class="sub">Comparativo del teórico de SAP contra el físico real del WMS, desglosado por familia.</p>
+
+    <div class="kpis">
       ${kpi("Faltantes", `${gFalt}`, "#c0201a")}
       ${kpi("Sobrantes", `${gSob}`, "#1f4e9c")}
       ${kpi("Cuadrados", `${gCuad}`, "#1f7a3d")}
-      ${kpi("Familias", `${familias.length}`, "#0f2744")}
+      ${kpi("Familias", `${familias.length}`, "#0b2c5e")}
     </div>
 
-    ${bloquesFamilia || '<div class="empty">No hay datos para el informe.</div>'}
+    ${bloques || '<div class="empty">No hay datos para el informe.</div>'}
 
-    <div class="foot">Fórmula: (Físico − Teórico) − P. Ingreso + P. Descargar − Devolución · Generado por INOVA WMS</div>
+    <div class="foot">Fórmula: (Físico − Teórico) − P. Ingreso + P. Descargar − Devolución · Generado por INOVA · Sistema WMS</div>
 
     <div class="noprint"><button onclick="window.print()">Imprimir / Guardar PDF</button></div>
-    <script>window.onload=function(){setTimeout(function(){window.focus();window.print();},400);};</script>
+    <script>window.onload=function(){setTimeout(function(){window.focus();window.print();},450);};</script>
   </body></html>`;
 }

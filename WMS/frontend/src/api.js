@@ -1244,6 +1244,48 @@ export async function generarAnalisisInventario(file) {
     );
 }
 
+// Guardar / listar / abrir análisis de inventario (snapshot con fecha y hora).
+export function guardarAnalisisInventario(payload) {
+  if (!supabaseEnabled) return Promise.reject(new Error("Servicio operativo no configurado."));
+  return insertRow("wms", "analisis_inventario", {
+    empresa_id: empresaId,
+    nombre: payload.nombre || null,
+    archivo: payload.archivo || null,
+    creado_por: payload.creado_por || null,
+    total_materiales: Number(payload.total_materiales || 0),
+    total_faltantes: Number(payload.total_faltantes || 0),
+    total_sobrantes: Number(payload.total_sobrantes || 0),
+    total_cuadrados: Number(payload.total_cuadrados || 0),
+    datos: Array.isArray(payload.datos) ? payload.datos : [],
+  }).then((r) => (Array.isArray(r) ? r[0] : r));
+}
+
+export function listarAnalisisInventario() {
+  if (!supabaseEnabled) return Promise.resolve([]);
+  return selectRows("wms", "analisis_inventario", {
+    empresa_id: `eq.${empresaId}`,
+    select:
+      "id,nombre,archivo,creado_por,fecha,total_materiales,total_faltantes,total_sobrantes,total_cuadrados",
+    order: "fecha.desc",
+    limit: "200",
+  });
+}
+
+export function getAnalisisInventario(id) {
+  if (!supabaseEnabled) return Promise.resolve(null);
+  return selectRows("wms", "analisis_inventario", {
+    id: `eq.${id}`,
+    empresa_id: `eq.${empresaId}`,
+    select: "*",
+    limit: "1",
+  }).then((r) => (Array.isArray(r) ? r[0] : r));
+}
+
+export function eliminarAnalisisInventario(id) {
+  if (!supabaseEnabled) return Promise.reject(new Error("Servicio operativo no configurado."));
+  return deleteById("wms", "analisis_inventario", id);
+}
+
 export function importarDespachos(file) {
   if (!supabaseEnabled) return Promise.reject(new Error("Servicio operativo no configurado."));
   return readSpreadsheetRows(file).then(async (rows) => {
