@@ -509,7 +509,7 @@ const searchInput = { border: "none", outline: "none", width: "100%", fontSize: 
 const overlay = { position: "fixed", inset: 0, zIndex: 10001, display: "grid", placeItems: "center", background: "rgba(8,17,31,.55)", padding: 16 };
 const btnGhost = { height: 40, padding: "0 14px", borderRadius: 8, border: "1px solid #d9e2ec", background: "#fff", color: "#1f2d3d", fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
 const btnDark = { height: 40, padding: "0 14px", borderRadius: 8, border: "1px solid #312e81", background: "#312e81", color: "#fff", fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
-const btnGreen = { height: 40, padding: "0 14px", borderRadius: 8, border: "1px solid #1f7a3d", background: "#1f7a3d", color: "#fff", fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
+const btnGreen = { height: 40, padding: "0 16px", borderRadius: 9, border: "1px solid #0f9d58", background: "linear-gradient(135deg,#22c55e,#12a150)", color: "#fff", fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, boxShadow: "0 6px 16px rgba(18,161,80,.30)" };
 function btnPrimary(loading) {
   return { height: 40, padding: "0 16px", borderRadius: 8, border: "1px solid #0b57d0", background: loading ? "#9dc0f0" : "#0b57d0", color: "#fff", fontWeight: 800, cursor: loading ? "default" : "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
 }
