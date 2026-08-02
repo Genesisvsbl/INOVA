@@ -181,15 +181,12 @@ export default function AnalisisInventario() {
 
   const generarInforme = () => {
     const base = filtered.map((r) => ({ ...r, diferencia: calcDiferencia(r) }));
-    const faltantes = base.filter((r) => r.diferencia < 0);
-    const sobrantes = base.filter((r) => r.diferencia > 0);
-    const cuadrados = base.filter((r) => r.diferencia === 0);
     const win = window.open("", "_blank", "width=1100,height=800");
     if (!win) {
       setError("El navegador bloqueó la ventana del informe. Permite ventanas emergentes.");
       return;
     }
-    win.document.write(buildInformeHtml({ faltantes, sobrantes, cuadrados, fileName }));
+    win.document.write(buildInformeHtml({ base, fileName }));
     win.document.close();
   };
 
@@ -374,40 +371,42 @@ function btnPrimary(loading) {
   return { height: 40, padding: "0 16px", borderRadius: 8, border: "1px solid #0b57d0", background: loading ? "#9dc0f0" : "#0b57d0", color: "#fff", fontWeight: 800, cursor: loading ? "default" : "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
 }
 
-// ---------- Informe corporativo (HTML imprimible con logo INOVA) ----------
-function buildInformeHtml({ faltantes, sobrantes, cuadrados, fileName }) {
+// ---------- Informe corporativo por FAMILIA (con logo INOVA) ----------
+function buildInformeHtml({ base, fileName }) {
   const logo = `${window.location.origin}/INOVA2026.png`;
   const nf = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const money = (v) => nf.format(Number(v || 0));
   const hoy = new Date().toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" });
 
-  const groupByFamilia = (list) => {
-    const m = new Map();
-    list.forEach((r) => {
-      const f = String(r.familia || "(sin familia)");
-      if (!m.has(f)) m.set(f, []);
-      m.get(f).push(r);
-    });
-    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  };
+  const rows = Array.isArray(base) ? base : [];
+  const gFalt = rows.filter((r) => r.diferencia < 0).length;
+  const gSob = rows.filter((r) => r.diferencia > 0).length;
+  const gCuad = rows.filter((r) => r.diferencia === 0).length;
 
-  const seccion = (titulo, list, color) => {
+  // Agrupar por familia.
+  const byFam = new Map();
+  rows.forEach((r) => {
+    const f = String(r.familia || "(sin familia)");
+    if (!byFam.has(f)) byFam.set(f, []);
+    byFam.get(f).push(r);
+  });
+  const familias = [...byFam.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+
+  // Sub-tabla de una categoría dentro de una familia.
+  const subTabla = (titulo, list, color) => {
     if (!list.length) {
-      return `<div class="sec"><div class="sec-head" style="border-left-color:${color}"><span class="dot" style="background:${color}"></span>${titulo} <span class="badge">0</span></div><div class="empty">Sin registros en esta categoría.</div></div>`;
+      return `<div class="cat"><div class="cat-h" style="background:${color}"><span class="dot"></span>${titulo} <b>0</b></div><div class="empty">Sin registros.</div></div>`;
     }
-    const grupos = groupByFamilia(list);
-    const totalSec = list.reduce((a, r) => a + Number(r.diferencia || 0), 0);
-    let html = `<div class="sec"><div class="sec-head" style="border-left-color:${color}"><span class="dot" style="background:${color}"></span>${titulo} <span class="badge">${list.length}</span><span class="sec-total" style="color:${color}">${money(totalSec)}</span></div>`;
-    for (const [fam, items] of grupos) {
-      const sub = items.reduce((a, r) => a + Number(r.diferencia || 0), 0);
-      html += `
+    const sub = list.reduce((a, r) => a + Number(r.diferencia || 0), 0);
+    return `
+      <div class="cat">
+        <div class="cat-h" style="background:${color}"><span class="dot"></span>${titulo} <b>${list.length}</b>
+          <span class="cat-total">${money(sub)}</span>
+        </div>
         <table class="t">
-          <thead>
-            <tr><th class="fam" colspan="5">${fam} <span>· ${items.length} material(es)</span></th></tr>
-            <tr><th>Material</th><th>Descripción</th><th class="r">Teórico</th><th class="r">Físico</th><th class="r">Diferencia</th></tr>
-          </thead>
+          <thead><tr><th>Material</th><th>Descripción</th><th class="r">Teórico</th><th class="r">Físico</th><th class="r">Diferencia</th></tr></thead>
           <tbody>
-            ${items
+            ${list
               .map(
                 (r) => `<tr>
                   <td class="mono">${r.material}</td>
@@ -418,19 +417,37 @@ function buildInformeHtml({ faltantes, sobrantes, cuadrados, fileName }) {
                 </tr>`
               )
               .join("")}
-            <tr class="sub"><td colspan="4" class="r">Subtotal ${fam}</td><td class="r" style="color:${color}">${money(sub)}</td></tr>
+            <tr class="sub"><td colspan="4" class="r">Subtotal</td><td class="r" style="color:${color}">${money(sub)}</td></tr>
           </tbody>
-        </table>`;
-    }
-    html += `</div>`;
-    return html;
+        </table>
+      </div>`;
   };
+
+  const bloquesFamilia = familias
+    .map(([fam, items]) => {
+      const falt = items.filter((r) => r.diferencia < 0);
+      const sob = items.filter((r) => r.diferencia > 0);
+      const cuad = items.filter((r) => r.diferencia === 0);
+      return `
+        <div class="fam-block">
+          <div class="fam-title">
+            <span>${fam}</span>
+            <span class="fam-sub">${items.length} material(es)</span>
+            <span class="fam-kpis">
+              <em style="color:#c0201a">Faltantes ${falt.length}</em>
+              <em style="color:#1f4e9c">Sobrantes ${sob.length}</em>
+              <em style="color:#1f7a3d">Cuadrados ${cuad.length}</em>
+            </span>
+          </div>
+          ${subTabla("Faltantes", falt, "#c0201a")}
+          ${subTabla("Sobrantes", sob, "#1f4e9c")}
+          ${subTabla("Cuadrados", cuad, "#1f7a3d")}
+        </div>`;
+    })
+    .join("");
 
   const kpi = (label, value, color) =>
     `<div class="kpi"><div class="kpi-l">${label}</div><div class="kpi-v" style="color:${color}">${value}</div></div>`;
-
-  const totalFalt = faltantes.reduce((a, r) => a + Number(r.diferencia || 0), 0);
-  const totalSob = sobrantes.reduce((a, r) => a + Number(r.diferencia || 0), 0);
 
   return `<!doctype html><html><head><meta charset="utf-8"/>
   <title>Informe de análisis de inventario</title>
@@ -446,19 +463,23 @@ function buildInformeHtml({ faltantes, sobrantes, cuadrados, fileName }) {
     .kpi { flex:1; min-width:150px; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; background:#f8fafc; }
     .kpi-l { font-size:10px; font-weight:800; letter-spacing:.06em; color:#64748b; text-transform:uppercase; }
     .kpi-v { font-size:20px; font-weight:900; margin-top:3px; }
-    .sec { margin:16px 0; }
-    .sec-head { display:flex; align-items:center; gap:10px; font-size:15px; font-weight:900; padding:8px 12px; background:#f1f5f9; border-left:5px solid #999; border-radius:6px; }
-    .sec-head .badge { background:#0f2744; color:#fff; border-radius:999px; font-size:11px; padding:2px 9px; }
-    .sec-head .sec-total { margin-left:auto; font-size:15px; font-weight:900; }
-    .dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
-    table.t { width:100%; border-collapse:collapse; margin:8px 0 4px; font-size:11px; }
+    .fam-block { margin:18px 0; page-break-inside:auto; }
+    .fam-title { display:flex; align-items:center; gap:12px; background:#0f2744; color:#fff; padding:10px 14px; border-radius:8px 8px 0 0; font-size:16px; font-weight:900; }
+    .fam-title .fam-sub { font-size:11px; font-weight:600; color:#9fb6cf; }
+    .fam-title .fam-kpis { margin-left:auto; display:flex; gap:12px; font-size:11px; font-weight:800; }
+    .fam-title .fam-kpis em { background:#fff; padding:2px 8px; border-radius:999px; font-style:normal; }
+    .cat { margin:6px 0 12px; }
+    .cat-h { display:flex; align-items:center; gap:8px; color:#fff; font-weight:800; font-size:12px; padding:5px 10px; border-radius:6px; }
+    .cat-h b { background:rgba(255,255,255,.25); border-radius:999px; padding:1px 8px; }
+    .cat-h .cat-total { margin-left:auto; }
+    .cat-h .dot { width:9px; height:9px; border-radius:50%; background:rgba(255,255,255,.85); display:inline-block; }
+    table.t { width:100%; border-collapse:collapse; margin:4px 0; font-size:11px; page-break-inside:auto; }
     table.t th, table.t td { border:1px solid #e2e8f0; padding:5px 7px; }
     table.t thead th { background:#eef2f7; color:#334155; font-size:10px; text-transform:uppercase; }
-    table.t th.fam { text-align:left; background:#0f2744; color:#fff; font-size:11px; }
-    table.t th.fam span { color:#9fb6cf; font-weight:600; }
+    table.t tr { page-break-inside:avoid; }
     .r { text-align:right; } .b { font-weight:800; } .mono { font-weight:700; }
     tr.sub td { background:#f8fafc; font-weight:800; }
-    .empty { padding:10px 12px; color:#64748b; font-size:12px; }
+    .empty { padding:6px 10px; color:#64748b; font-size:11px; background:#f8fafc; border:1px solid #eef2f7; border-top:0; }
     .foot { margin-top:18px; text-align:center; color:#94a3b8; font-size:10px; border-top:1px solid #e2e8f0; padding-top:8px; }
     @media print { .noprint { display:none; } }
     .noprint { text-align:center; margin:16px 0; }
@@ -474,15 +495,13 @@ function buildInformeHtml({ faltantes, sobrantes, cuadrados, fileName }) {
     </div>
 
     <div class="meta">
-      ${kpi("Faltantes", `${faltantes.length} · ${money(totalFalt)}`, "#c0201a")}
-      ${kpi("Sobrantes", `${sobrantes.length} · ${money(totalSob)}`, "#1f4e9c")}
-      ${kpi("Cuadrados", `${cuadrados.length}`, "#1f7a3d")}
-      ${kpi("Total analizado", `${faltantes.length + sobrantes.length + cuadrados.length} materiales`, "#0f2744")}
+      ${kpi("Faltantes", `${gFalt}`, "#c0201a")}
+      ${kpi("Sobrantes", `${gSob}`, "#1f4e9c")}
+      ${kpi("Cuadrados", `${gCuad}`, "#1f7a3d")}
+      ${kpi("Familias", `${familias.length}`, "#0f2744")}
     </div>
 
-    ${seccion("Faltantes", faltantes, "#c0201a")}
-    ${seccion("Sobrantes", sobrantes, "#1f4e9c")}
-    ${seccion("Cuadrados", cuadrados, "#1f7a3d")}
+    ${bloquesFamilia || '<div class="empty">No hay datos para el informe.</div>'}
 
     <div class="foot">Fórmula: (Físico − Teórico) − P. Ingreso + P. Descargar − Devolución · Generado por INOVA WMS</div>
 
