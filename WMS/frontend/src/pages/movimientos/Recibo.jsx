@@ -731,7 +731,7 @@ export default function Recibo() {
     const th = "border:1px solid #0b3d91;padding:8px 9px;color:#fff;background:#0b3d91;font-family:Arial,sans-serif;font-size:12.5px;text-align:left;white-space:nowrap";
     const td = "border:1px solid #cbd5e1;padding:6px 9px;font-family:Arial,sans-serif;font-size:12.5px;color:#111827";
     const tdR = td + ";text-align:right";
-    const logo = `${window.location.origin}/INOVA-dark.png`;
+    const logo = `${window.location.origin}/INOVA2026.png`;
     const totalInc = grupos.filter((g) => g.estado === "INCUMPLE").length;
 
     const filasHtml = grupos
@@ -746,13 +746,21 @@ export default function Recibo() {
               `<td style="${td}">${esc(p.lote) || "-"}</td>` +
               `<td style="${td};text-align:center">${fmtDMY(p.fv)}</td>` +
               `<td style="${tdR}">${nf(p.cantidad)}</td>` +
-              `<td style="border:1px solid #cbd5e1;padding:6px 9px;font-family:Arial,sans-serif;font-size:12.5px;text-align:center;background:#eef2f7;color:#475569">RECIBIDO ANTES</td>` +
+              `<td style="border:1px solid #cbd5e1;padding:6px 9px;font-family:Arial,sans-serif;font-size:12.5px;text-align:center;background:#eef2f7;color:#475569">${fmtDMY(p.fechaRec) || "RECIBIDO"}</td>` +
               `</tr>`
           )
           .join("");
-        // Fila que estamos recibiendo (última), resaltada, con su estado.
+        // Fila que estamos recibiendo (última), resaltada según el estado.
+        const filaBg =
+          g.estado === "INCUMPLE"
+            ? "#fdecec"
+            : g.estado === "IGUAL"
+            ? "#eafaf0"
+            : g.estado === "CUMPLE"
+            ? "#eef4ff"
+            : "#fff7e6";
         const recibiendoHtml =
-          `<tr style="background:#fff7e6">` +
+          `<tr style="background:${filaBg}">` +
           `<td style="${td};font-weight:700;color:#0b3d91">${esc(g.codigo)}</td>` +
           `<td style="${td};font-weight:700">${esc(g.descripcion)} <span style="color:#b45309">◄ RECIBIENDO</span></td>` +
           `<td style="${td}">${esc(g.lote) || "-"}</td>` +
@@ -768,13 +776,13 @@ export default function Recibo() {
 
     const tarjetaHtml =
       `<div style="width:1120px;background:#fff;padding:26px 28px;box-sizing:border-box">` +
-      `<div style="display:flex;align-items:center;gap:16px;border-bottom:3px solid #0b3d91;padding-bottom:14px;margin-bottom:16px">` +
-      `<img src="${logo}" crossorigin="anonymous" style="height:50px" onerror="this.style.display='none'"/>` +
+      `<div style="display:flex;align-items:center;gap:18px;background:#0a1f52;border-radius:10px;padding:16px 22px;margin-bottom:18px">` +
+      `<img src="${logo}" crossorigin="anonymous" style="height:46px" onerror="this.style.display='none'"/>` +
       `<div>` +
-      `<div style="font-family:Arial,sans-serif;font-size:19px;font-weight:800;color:#0b3d91">EVIDENCIA DE RECEPCIÓN Y ROTACIÓN (FEFO)</div>` +
-      `<div style="font-family:Arial,sans-serif;font-size:13px;color:#475569;margin-top:3px">` +
-      `Proveedor: <b>${esc(proveedor) || "-"}</b>${oc ? ` &nbsp;|&nbsp; OC: <b>${esc(oc)}</b>` : ""}` +
-      `${doc ? ` &nbsp;|&nbsp; Documento: <b>${esc(doc)}</b>` : ""} &nbsp;|&nbsp; Fecha: <b>${hoy}</b></div>` +
+      `<div style="font-family:Arial,sans-serif;font-size:19px;font-weight:800;color:#ffffff;letter-spacing:.3px">EVIDENCIA DE RECEPCIÓN Y ROTACIÓN (FEFO)</div>` +
+      `<div style="font-family:Arial,sans-serif;font-size:13px;color:#c7d2e8;margin-top:4px">` +
+      `Proveedor: <b style="color:#fff">${esc(proveedor) || "-"}</b>${oc ? ` &nbsp;|&nbsp; OC: <b style="color:#fff">${esc(oc)}</b>` : ""}` +
+      `${doc ? ` &nbsp;|&nbsp; Documento: <b style="color:#fff">${esc(doc)}</b>` : ""} &nbsp;|&nbsp; Fecha: <b style="color:#fff">${hoy}</b></div>` +
       `</div></div>` +
       `<table style="border-collapse:collapse;width:100%">` +
       `<thead><tr>` +
