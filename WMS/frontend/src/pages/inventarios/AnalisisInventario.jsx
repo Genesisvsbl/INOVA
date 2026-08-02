@@ -22,9 +22,9 @@ import {
 } from "../../api";
 
 const colors = {
-  navy: "#0f2744",
-  blue: "#1f4e9c",
-  red: "#c0201a",
+  navy: "#312e81",
+  blue: "#5a37d6",
+  red: "#e11d1d",
   green: "#1f7a3d",
   text: "#1f2d3d",
   muted: "#6b7a90",
@@ -54,7 +54,7 @@ function calcDiferencia(r) {
   );
 }
 
-const th = { padding: "8px 8px", fontSize: 10.5, fontWeight: 800, color: "#e8eefb", background: "#0f2744", borderRight: "1px solid #24405f", whiteSpace: "nowrap", textAlign: "center" };
+const th = { padding: "8px 8px", fontSize: 10.5, fontWeight: 800, color: "#e8eefb", background: "#312e81", borderRight: "1px solid #24405f", whiteSpace: "nowrap", textAlign: "center" };
 const thL = { ...th, textAlign: "center" };
 const td = { padding: "5px 8px", fontSize: 11.5, borderBottom: "1px solid #eef2f7", borderRight: "1px solid #f1f5f9", textAlign: "right", color: "#24384d", whiteSpace: "nowrap" };
 const tdL = { ...td, textAlign: "left" };
@@ -275,7 +275,7 @@ export default function AnalisisInventario() {
         <div style={cardStyle}>
           <div style={headStyle}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={iconBox}><BarChart3 size={20} color="#1f4e9c" /></div>
+              <div style={iconBox}><BarChart3 size={20} color="#5a37d6" /></div>
               <div>
                 <div style={kicker}>Inventarios</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: "#17324d" }}>Análisis</div>
@@ -344,7 +344,7 @@ export default function AnalisisInventario() {
         <div style={headStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button onClick={() => setVista("lista")} style={{ ...miniBtn("#64748b"), height: 34 }}><ArrowLeft size={14} /> Volver</button>
-            <div style={iconBox}><BarChart3 size={20} color="#1f4e9c" /></div>
+            <div style={iconBox}><BarChart3 size={20} color="#5a37d6" /></div>
             <div>
               <div style={kicker}>Inventarios · Análisis</div>
               <div style={{ fontSize: 20, fontWeight: 800, color: "#17324d" }}>Análisis (SAP vs físico)</div>
@@ -508,7 +508,7 @@ const searchBox = { display: "flex", alignItems: "center", gap: 8, border: "1px 
 const searchInput = { border: "none", outline: "none", width: "100%", fontSize: 13, background: "transparent" };
 const overlay = { position: "fixed", inset: 0, zIndex: 10001, display: "grid", placeItems: "center", background: "rgba(8,17,31,.55)", padding: 16 };
 const btnGhost = { height: 40, padding: "0 14px", borderRadius: 8, border: "1px solid #d9e2ec", background: "#fff", color: "#1f2d3d", fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
-const btnDark = { height: 40, padding: "0 14px", borderRadius: 8, border: "1px solid #0f2744", background: "#0f2744", color: "#fff", fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
+const btnDark = { height: 40, padding: "0 14px", borderRadius: 8, border: "1px solid #312e81", background: "#312e81", color: "#fff", fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
 const btnGreen = { height: 40, padding: "0 14px", borderRadius: 8, border: "1px solid #1f7a3d", background: "#1f7a3d", color: "#fff", fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
 function btnPrimary(loading) {
   return { height: 40, padding: "0 16px", borderRadius: 8, border: "1px solid #0b57d0", background: loading ? "#9dc0f0" : "#0b57d0", color: "#fff", fontWeight: 800, cursor: loading ? "default" : "pointer", display: "inline-flex", alignItems: "center", gap: 8 };
@@ -570,8 +570,8 @@ function buildInformeHtml({ base, fileName }) {
     return `
       <section class="fam">
         <div class="fam-h"><span class="fam-n">${fam}</span><span class="fam-c">${items.length} material(es)</span></div>
-        ${subTabla("Faltantes", falt, "#c0201a")}
-        ${subTabla("Sobrantes", sob, "#1f4e9c")}
+        ${subTabla("Faltantes", falt, "#e11d1d")}
+        ${subTabla("Sobrantes", sob, "#5a37d6")}
         ${subTabla("Cuadrados", cuad, "#1f7a3d")}
       </section>`;
   }).join("");
@@ -584,27 +584,27 @@ function buildInformeHtml({ base, fileName }) {
     @page { size: Letter; margin: 16mm 14mm; }
     * { box-sizing: border-box; }
     body { font-family: 'Segoe UI', Arial, sans-serif; color:#1f2d3d; margin:0; }
-    .doc-head { display:flex; align-items:center; justify-content:space-between; padding-bottom:12px; border-bottom:3px solid #0b2c5e; }
+    .doc-head { display:flex; align-items:center; justify-content:space-between; padding-bottom:12px; border-bottom:3px solid #312e81; }
     .doc-head .brand { display:flex; align-items:center; gap:14px; }
     .doc-head .brand .logo {
       display:inline-block; width:132px; height:42px;
-      background-color:#0b2c5e;
+      background-color:#312e81;
       -webkit-mask: url("${logo}") left center / contain no-repeat;
       mask: url("${logo}") left center / contain no-repeat;
     }
-    .doc-head .brand .sys { font-size:11px; font-weight:800; letter-spacing:.14em; color:#0b2c5e; }
+    .doc-head .brand .sys { font-size:11px; font-weight:800; letter-spacing:.14em; color:#312e81; }
     .doc-head .brand .sys small { display:block; color:#8a97a8; font-weight:700; letter-spacing:.08em; }
     .doc-head .meta { text-align:right; font-size:11px; color:#64748b; line-height:1.5; }
-    .doc-head .meta b { color:#0b2c5e; }
-    h1.title { font-size:24px; font-weight:800; color:#0b2c5e; margin:18px 0 2px; letter-spacing:.01em; }
+    .doc-head .meta b { color:#312e81; }
+    h1.title { font-size:24px; font-weight:800; color:#312e81; margin:18px 0 2px; letter-spacing:.01em; }
     .sub { color:#64748b; font-size:12px; margin:0 0 6px; }
     .kpis { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0 6px; }
     .kpi { flex:1; min-width:150px; border:1px solid #e6ecf3; border-radius:10px; padding:12px 14px; background:#fbfdff; display:flex; flex-direction:column; }
     .kpi .kl { font-size:10px; font-weight:800; letter-spacing:.06em; color:#7a8797; text-transform:uppercase; }
     .kpi .kv { font-size:22px; font-weight:900; margin-top:4px; }
     section.fam { margin:20px 0; page-break-inside:auto; }
-    .fam-h { display:flex; align-items:baseline; gap:12px; border-bottom:2px solid #0b2c5e; padding-bottom:6px; margin-bottom:8px; }
-    .fam-h .fam-n { font-size:17px; font-weight:900; color:#0b2c5e; letter-spacing:.02em; }
+    .fam-h { display:flex; align-items:baseline; gap:12px; border-bottom:2px solid #312e81; padding-bottom:6px; margin-bottom:8px; }
+    .fam-h .fam-n { font-size:17px; font-weight:900; color:#312e81; letter-spacing:.02em; }
     .fam-h .fam-c { font-size:11px; font-weight:700; color:#8a97a8; }
     .cat { margin:8px 0 12px; }
     .cat-h { display:flex; align-items:center; gap:8px; font-weight:800; font-size:12.5px; margin-bottom:4px; }
@@ -621,7 +621,7 @@ function buildInformeHtml({ base, fileName }) {
     .foot { margin-top:22px; text-align:center; color:#9aa7b5; font-size:10px; border-top:1px solid #e6ecf3; padding-top:8px; }
     @media print { .noprint { display:none; } }
     .noprint { text-align:center; margin:16px 0; }
-    .noprint button { background:#0b2c5e; color:#fff; border:0; padding:11px 20px; border-radius:8px; font-weight:800; cursor:pointer; }
+    .noprint button { background:#312e81; color:#fff; border:0; padding:11px 20px; border-radius:8px; font-weight:800; cursor:pointer; }
   </style></head>
   <body>
     <div class="doc-head">
@@ -640,10 +640,10 @@ function buildInformeHtml({ base, fileName }) {
     <p class="sub">Comparativo del teórico de SAP contra el físico real del WMS, desglosado por familia.</p>
 
     <div class="kpis">
-      ${kpi("Faltantes", `${gFalt}`, "#c0201a")}
-      ${kpi("Sobrantes", `${gSob}`, "#1f4e9c")}
+      ${kpi("Faltantes", `${gFalt}`, "#e11d1d")}
+      ${kpi("Sobrantes", `${gSob}`, "#5a37d6")}
       ${kpi("Cuadrados", `${gCuad}`, "#1f7a3d")}
-      ${kpi("Familias", `${familias.length}`, "#0b2c5e")}
+      ${kpi("Familias", `${familias.length}`, "#312e81")}
     </div>
 
     ${bloques || '<div class="empty">No hay datos para el informe.</div>'}
