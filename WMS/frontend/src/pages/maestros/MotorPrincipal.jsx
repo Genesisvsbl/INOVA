@@ -166,6 +166,18 @@ function fmtDateTime(v) {
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
 }
 
+function fmtFechaDMY(v) {
+  if (!v) return "";
+  const s = String(v).trim();
+  // ISO aaaa-mm-dd (opcionalmente con hora) -> dd/mm/aaaa
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+  // aaaa/mm/dd -> dd/mm/aaaa
+  const bar = s.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+  if (bar) return `${String(bar[3]).padStart(2, "0")}/${String(bar[2]).padStart(2, "0")}/${bar[1]}`;
+  return s; // ya viene dd/mm/aaaa u otro
+}
+
 const fmtCO = new Intl.NumberFormat("es-CO", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
@@ -1189,8 +1201,8 @@ export default function MotorPrincipal() {
                     <td style={tdStyle}>{r.bodega || ""}</td>
                     <td style={tdStyle}>{r.lote_almacen || ""}</td>
                     <td style={tdStyle}>{r.lote_proveedor || ""}</td>
-                    <td style={tdStyle}>{r.fecha_fabricacion || ""}</td>
-                    <td style={tdStyle}>{r.fecha_vencimiento || ""}</td>
+                    <td style={tdStyle}>{fmtFechaDMY(r.fecha_fabricacion)}</td>
+                    <td style={tdStyle}>{fmtFechaDMY(r.fecha_vencimiento)}</td>
                     <td
                       style={{
                         ...tdStyle,
@@ -1307,8 +1319,8 @@ export default function MotorPrincipal() {
                       <td style={tdStyle}>{r.bodega || ""}</td>
                       <td style={tdStyle}>{r.lote_almacen || ""}</td>
                       <td style={tdStyle}>{r.lote_proveedor || ""}</td>
-                      <td style={tdStyle}>{r.fecha_fabricacion || ""}</td>
-                      <td style={tdStyle}>{r.fecha_vencimiento || ""}</td>
+                      <td style={tdStyle}>{fmtFechaDMY(r.fecha_fabricacion)}</td>
+                      <td style={tdStyle}>{fmtFechaDMY(r.fecha_vencimiento)}</td>
 
                       <td
                         style={{

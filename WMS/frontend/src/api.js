@@ -47,21 +47,30 @@ function getImportValue(row, key) {
 }
 
 function excelDateToISO(value) {
-  if (!value) return null;
+  if (value === null || value === undefined || value === "") return null;
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
   if (typeof value === "number" && Number.isFinite(value)) {
     const date = new Date(Date.UTC(1899, 11, 30 + Math.floor(value)));
     return date.toISOString().slice(0, 10);
   }
   const text = String(value).trim();
+  if (!text) return null;
+  // ISO ya formateado: 2027-07-23
   if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10);
-  const match = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
-  if (match) {
-    const [, d, m, yRaw] = match;
-    const y = yRaw.length === 2 ? `20${yRaw}` : yRaw;
-    return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  // aaaa/mm/dd o aaaa-mm-dd (año primero, 4 dígitos): 2028/02/03
+  let m = text.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
+  if (m) {
+    const [, y, mo, d] = m;
+    return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
   }
-  return text.slice(0, 10) || null;
+  // dd/mm/aaaa o dd-mm-aaaa (día primero): 23/07/2027
+  m = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
+  if (m) {
+    const [, d, mo, yRaw] = m;
+    const y = yRaw.length === 2 ? `20${yRaw}` : yRaw;
+    return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  }
+  return null; // formato no reconocido -> no rompe el insert (queda sin fecha)
 }
 
 async function readSpreadsheetRows(file) {
