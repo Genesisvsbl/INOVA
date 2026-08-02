@@ -1951,7 +1951,7 @@ export default function Recibo() {
       .map((row) => `
         <tr>
           <td style="text-align:center; vertical-align:middle;">${escapeHtml(row.item)}</td>
-          <td style="text-align:center; vertical-align:middle; padding:9px 14px; line-height:1.45;">${escapeHtml(row.hallazgo)}</td>
+          <td style="text-align:justify; vertical-align:middle; padding:10px 16px; line-height:1.5;">${escapeHtml(row.hallazgo)}</td>
           <td style="text-align:center; vertical-align:middle;">${escapeHtml(row.empaque)}</td>
           <td style="text-align:center; vertical-align:middle;">${escapeHtml(row.cantidad)}</td>
         </tr>
@@ -2273,11 +2273,9 @@ export default function Recibo() {
             }
 
             .receipt-novelty-wrap {
-              width: 48%;
-              margin: 0;
-              position: absolute;
-              right: 0;
-              bottom: 14mm;
+              width: 100%;
+              margin: 18px 0 0;
+              position: static;
               border: 1px solid #d9e2ec;
               border-radius: 8px;
               overflow: hidden;
@@ -2744,10 +2742,10 @@ export default function Recibo() {
                 <div class="receipt-novelty-title">NOVEDAD POR ITEM DETECTADA EN EL RECIBO FÍSICO</div>
                 <table class="receipt-novelty-table">
                   <colgroup>
-                    <col style="width: 18%" />
-                    <col style="width: 32%" />
-                    <col style="width: 28%" />
-                    <col style="width: 22%" />
+                    <col style="width: 8%" />
+                    <col style="width: 62%" />
+                    <col style="width: 15%" />
+                    <col style="width: 15%" />
                   </colgroup>
                   <thead>
                     <tr>
