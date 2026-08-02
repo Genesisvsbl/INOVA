@@ -1612,6 +1612,31 @@ export async function getLotesRecibidosPorCodigos(codigos) {
   return out;
 }
 
+// Ubicaciones VACÍAS (sin stock ALMACENADO) filtradas por base y/o zona.
+// Sirve para sugerir dónde ubicar un material desde tránsito.
+export async function getUbicacionesVacias(base, zona) {
+  if (!supabaseEnabled) return [];
+  const params = {
+    empresa_id: `eq.${empresaId}`,
+    select: "id,ubicacion,ubicacion_base,posicion,zona,familias,bodega",
+    order: "ubicacion.asc",
+  };
+  if (base) params.ubicacion_base = `eq.${base}`;
+  if (zona) params.zona = `eq.${zona}`;
+  const ubic = await selectAllRows("wms", "ubicaciones", params);
+  const movs = await selectAllRows("wms", "movimientos", {
+    empresa_id: `eq.${empresaId}`,
+    estado: "eq.ALMACENADO",
+    select: "ubicacion_id,cantidad_r",
+  });
+  const sum = new Map();
+  for (const m of movs || []) {
+    if (m.ubicacion_id == null) continue;
+    sum.set(m.ubicacion_id, (sum.get(m.ubicacion_id) || 0) + Number(m.cantidad_r || 0));
+  }
+  return (ubic || []).filter((u) => (sum.get(u.id) || 0) <= 0);
+}
+
 export function importarDespachos(file) {
   if (!supabaseEnabled) return Promise.reject(new Error("Servicio operativo no configurado."));
   return readSpreadsheetRows(file).then(async (rows) => {

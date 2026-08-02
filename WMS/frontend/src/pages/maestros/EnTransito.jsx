@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { showWmsAlert, showWmsConfirm, showWmsPrompt } from "../../wmsDialog.jsx";
 import { BrowserMultiFormatReader } from "@zxing/browser";
-import { asignarUbicacionDesdeTransito, getEnTransito, getUbicaciones } from "../../api";
+import {
+  asignarUbicacionDesdeTransito,
+  getEnTransito,
+  getUbicaciones,
+  getUbicacionesVacias,
+} from "../../api";
 import {
   Truck,
   Search,
@@ -11,6 +16,9 @@ import {
   CheckCircle,
   AlertTriangle,
   ImageUp,
+  MapPin,
+  X,
+  Check,
 } from "lucide-react";
 
 const colors = {
@@ -110,6 +118,18 @@ const secondaryButtonStyle = {
   alignItems: "center",
   gap: 8,
   cursor: "pointer",
+};
+
+const tbInputStyle = {
+  width: "100%",
+  height: 38,
+  padding: "0 10px",
+  borderRadius: 8,
+  border: `1px solid ${colors.border}`,
+  background: "#fff",
+  color: colors.text,
+  fontWeight: 600,
+  fontSize: 14,
 };
 
 const iconButtonStyle = {
@@ -359,6 +379,35 @@ export default function EnTransito() {
   const [q, setQ] = useState("");
   const [ubicPorId, setUbicPorId] = useState({});
   const [validacionPorId, setValidacionPorId] = useState({});
+
+  // Toolbox de ubicaciones vacías (sugerencia estratégica al ubicar).
+  const [tbRow, setTbRow] = useState(null); // material que se está ubicando
+  const [tbBase, setTbBase] = useState("");
+  const [tbZona, setTbZona] = useState("");
+  const [tbList, setTbList] = useState([]);
+  const [tbLoading, setTbLoading] = useState(false);
+  const [tbSel, setTbSel] = useState("");
+  const [tbBuscado, setTbBuscado] = useState(false);
+
+  const basesUbic = useMemo(() => {
+    const s = new Set();
+    ubicaciones.forEach((u) => {
+      const b = String(u.ubicacion_base || "").trim();
+      if (b) s.add(b);
+    });
+    return Array.from(s).sort();
+  }, [ubicaciones]);
+
+  const zonasUbic = useMemo(() => {
+    const s = new Set();
+    ubicaciones.forEach((u) => {
+      const b = String(u.ubicacion_base || "").trim();
+      if (tbBase && b !== tbBase) return;
+      const z = String(u.zona || "").trim();
+      if (z) s.add(z);
+    });
+    return Array.from(s).sort();
+  }, [ubicaciones, tbBase]);
 
   const ubicacionesValidasSet = useMemo(() => {
     const set = new Set();
@@ -957,6 +1006,99 @@ export default function EnTransito() {
     }, 500);
   };
 
+  // ---- Toolbox de ubicaciones vacías ----
+  const abrirToolbox = (row) => {
+    setTbRow(row);
+    setTbBase("");
+    setTbZona("");
+    setTbList([]);
+    setTbSel("");
+    setTbBuscado(false);
+  };
+
+  const cerrarToolbox = () => {
+    setTbRow(null);
+    setTbList([]);
+    setTbSel("");
+    setTbBuscado(false);
+  };
+
+  const consultarVacias = async () => {
+    setTbLoading(true);
+    setTbBuscado(true);
+    try {
+      const list = await getUbicacionesVacias(tbBase || null, tbZona || null);
+      setTbList(list || []);
+      setTbSel(list && list.length ? normalizeUbicacion(list[0].ubicacion) : ""); // sugerida = primera libre
+    } catch (e) {
+      showWmsAlert("Error consultando ubicaciones vacías:\n" + (e?.message || e));
+      setTbList([]);
+      setTbSel("");
+    } finally {
+      setTbLoading(false);
+    }
+  };
+
+  const imprimirSugerido = () => {
+    if (!tbRow || !tbSel) {
+      showWmsAlert("Selecciona una ubicación sugerida primero.");
+      return;
+    }
+    const w = window.open("", "_blank", "width=560,height=420");
+    if (!w) {
+      showWmsAlert("El navegador bloqueó la ventana de impresión.");
+      return;
+    }
+    const logo = `${window.location.origin}/INOVA2026.png`;
+    const html =
+      `<html><head><meta charset="utf-8"><title>Rótulo de ubicación</title></head>` +
+      `<body style="font-family:Arial,sans-serif;margin:0;padding:18px">` +
+      `<div style="border:2px solid #0a1f52;border-radius:12px;overflow:hidden">` +
+      `<div style="background:#0a1f52;color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px">` +
+      `<img src="${logo}" style="height:34px" onerror="this.style.display='none'"/>` +
+      `<div style="font-size:16px;font-weight:800">UBICACIÓN DE MATERIAL</div></div>` +
+      `<div style="padding:16px 18px">` +
+      `<div style="font-size:13px;color:#475569">Código</div>` +
+      `<div style="font-size:20px;font-weight:800;color:#0b3d91">${tbRow.codigo_material || ""}</div>` +
+      `<div style="font-size:13px;color:#334155;margin:6px 0 12px">${tbRow.descripcion_material || ""}</div>` +
+      `<div style="font-size:13px;color:#475569">Ubicación asignada</div>` +
+      `<div style="font-size:30px;font-weight:900;letter-spacing:1px;color:#0a1f52">${tbSel}</div>` +
+      `<div style="font-size:12px;color:#64748b;margin-top:12px">Base ${tbBase || "-"} · Zona ${tbZona || "-"} · ${new Date().toLocaleString("es-CO")}</div>` +
+      `</div></div></body></html>`;
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => {
+      w.print();
+      w.close();
+    }, 400);
+  };
+
+  const guardarDesdeToolbox = async () => {
+    if (!tbRow) return;
+    const ubicacion = normalizeUbicacion(tbSel);
+    if (!ubicacion) {
+      showWmsAlert("Selecciona o escribe una ubicación.");
+      return;
+    }
+    if (!ubicacionesValidasSet.has(ubicacion)) {
+      showWmsAlert(`La ubicación "${ubicacion}" no existe en la lista válida.`);
+      return;
+    }
+    setSavingId(tbRow.id);
+    try {
+      await asignarUbicacionDesdeTransito(tbRow.id, ubicacion);
+      showWmsAlert(`Ubicación ${ubicacion} asignada al material ${tbRow.codigo_material}`);
+      cerrarToolbox();
+      await cargarTodo();
+    } catch (e) {
+      showWmsAlert("Error asignando ubicación:\n" + (e?.message || e));
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const asignarUbicacion = async (row) => {
     const ubicacion = normalizeUbicacion(ubicPorId[row.id]);
 
@@ -1276,21 +1418,45 @@ export default function EnTransito() {
                     </td>
 
                     <td style={{ ...tdStyle, textAlign: "center", padding: "4px 1px" }}>
-                      <button
-                        onClick={() => asignarUbicacion(r)}
-                        disabled={savingId === r.id}
-                        style={{
-                          ...primaryButtonStyle,
-                          height: 22,
-                          minHeight: 22,
-                          padding: "0 6px",
-                          fontSize: 8,
-                          borderRadius: 6,
-                          opacity: savingId === r.id ? 0.7 : 1,
-                        }}
-                      >
-                        {savingId === r.id ? "Guardando..." : "Asignar"}
-                      </button>
+                      <div style={{ display: "flex", gap: 3, justifyContent: "center", alignItems: "center" }}>
+                        <button
+                          onClick={() => asignarUbicacion(r)}
+                          disabled={savingId === r.id}
+                          style={{
+                            ...primaryButtonStyle,
+                            height: 22,
+                            minHeight: 22,
+                            padding: "0 6px",
+                            fontSize: 8,
+                            borderRadius: 6,
+                            opacity: savingId === r.id ? 0.7 : 1,
+                          }}
+                        >
+                          {savingId === r.id ? "..." : "Asignar"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => abrirToolbox(r)}
+                          title="Buscar ubicaciones vacías (sugerencia)"
+                          style={{
+                            height: 22,
+                            minHeight: 22,
+                            padding: "0 5px",
+                            fontSize: 8,
+                            borderRadius: 6,
+                            border: `1px solid ${colors.blue}`,
+                            background: "#fff",
+                            color: colors.blue,
+                            fontWeight: 800,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 3,
+                          }}
+                        >
+                          <MapPin size={9} /> Vacías
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -1306,6 +1472,199 @@ export default function EnTransito() {
             ))}
           </datalist>
         </div>
+
+        {tbRow && (
+          <div
+            onClick={cerrarToolbox}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(15,23,42,.5)",
+              display: "grid",
+              placeItems: "center",
+              zIndex: 1000,
+              padding: 16,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "min(760px, 96vw)",
+                maxHeight: "90vh",
+                overflow: "auto",
+                background: "#fff",
+                borderRadius: 14,
+                boxShadow: "0 20px 60px rgba(0,0,0,.3)",
+              }}
+            >
+              <div
+                style={{
+                  background: "#0a1f52",
+                  color: "#fff",
+                  padding: "14px 18px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 800 }}>
+                  <MapPin size={18} /> Ubicaciones vacías (sugerencia)
+                </div>
+                <button
+                  type="button"
+                  onClick={cerrarToolbox}
+                  style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer" }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div style={{ padding: 18 }}>
+                <div style={{ fontSize: 13, color: colors.muted }}>Material</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: colors.navy }}>
+                  {tbRow.codigo_material} — {tbRow.descripcion_material}
+                </div>
+
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 14 }}>
+                  <div style={{ flex: "1 1 200px" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: colors.muted, marginBottom: 4 }}>BASE</div>
+                    <select
+                      value={tbBase}
+                      onChange={(e) => {
+                        setTbBase(e.target.value);
+                        setTbZona("");
+                        setTbBuscado(false);
+                      }}
+                      style={tbInputStyle}
+                    >
+                      <option value="">Todas</option>
+                      {basesUbic.map((b) => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ flex: "1 1 200px" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: colors.muted, marginBottom: 4 }}>ZONA</div>
+                    <select value={tbZona} onChange={(e) => { setTbZona(e.target.value); setTbBuscado(false); }} style={tbInputStyle}>
+                      <option value="">Todas</option>
+                      {zonasUbic.map((z) => (
+                        <option key={z} value={z}>{z}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "flex-end" }}>
+                    <button
+                      type="button"
+                      onClick={consultarVacias}
+                      disabled={tbLoading}
+                      style={{
+                        ...primaryButtonStyle,
+                        height: 38,
+                        padding: "0 16px",
+                        borderRadius: 8,
+                        opacity: tbLoading ? 0.7 : 1,
+                      }}
+                    >
+                      <Search size={15} /> {tbLoading ? "Buscando..." : "Consultar vacías"}
+                    </button>
+                  </div>
+                </div>
+
+                {tbBuscado && !tbLoading && (
+                  <div style={{ marginTop: 16 }}>
+                    {tbList.length === 0 ? (
+                      <div style={{ padding: 14, color: colors.muted, fontWeight: 600 }}>
+                        No hay ubicaciones vacías para esa base/zona.
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ fontSize: 13, color: colors.text, marginBottom: 8 }}>
+                          <b>{tbList.length}</b> ubicación(es) libre(s). Sugerida:{" "}
+                          <b style={{ color: colors.blue }}>{tbSel || "-"}</b> — puedes cambiarla abajo.
+                        </div>
+                        <div style={{ maxHeight: 260, overflow: "auto", border: `1px solid ${colors.border}`, borderRadius: 8 }}>
+                          {tbList.map((u) => {
+                            const code = normalizeUbicacion(u.ubicacion);
+                            const sel = code === tbSel;
+                            return (
+                              <button
+                                key={u.id}
+                                type="button"
+                                onClick={() => setTbSel(code)}
+                                style={{
+                                  display: "flex",
+                                  width: "100%",
+                                  textAlign: "left",
+                                  gap: 10,
+                                  alignItems: "center",
+                                  padding: "9px 12px",
+                                  border: "none",
+                                  borderBottom: `1px solid ${colors.border}`,
+                                  background: sel ? "#eef4ff" : "#fff",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <span style={{ width: 16, color: colors.blue }}>{sel ? <Check size={16} /> : null}</span>
+                                <span style={{ fontWeight: 800, color: colors.navy, minWidth: 120 }}>{code}</span>
+                                <span style={{ fontSize: 12, color: colors.muted }}>
+                                  Base {u.ubicacion_base || "-"} · Pos {u.posicion || "-"} · Zona {u.zona || "-"} · {u.bodega || "-"}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                          <button
+                            type="button"
+                            onClick={imprimirSugerido}
+                            disabled={!tbSel}
+                            style={{
+                              height: 40,
+                              padding: "0 16px",
+                              borderRadius: 8,
+                              border: `1px solid ${colors.navy}`,
+                              background: "#fff",
+                              color: colors.navy,
+                              fontWeight: 800,
+                              cursor: tbSel ? "pointer" : "not-allowed",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
+                            }}
+                          >
+                            <Printer size={16} /> Imprimir rótulo
+                          </button>
+                          <button
+                            type="button"
+                            onClick={guardarDesdeToolbox}
+                            disabled={!tbSel || savingId === tbRow.id}
+                            style={{
+                              height: 40,
+                              padding: "0 18px",
+                              borderRadius: 8,
+                              border: "none",
+                              background: colors.good,
+                              color: "#fff",
+                              fontWeight: 800,
+                              cursor: tbSel ? "pointer" : "not-allowed",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
+                              opacity: savingId === tbRow.id ? 0.7 : 1,
+                            }}
+                          >
+                            <Check size={16} /> {savingId === tbRow.id ? "Guardando..." : "Confirmar y guardar aquí"}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {err && (
           <div
