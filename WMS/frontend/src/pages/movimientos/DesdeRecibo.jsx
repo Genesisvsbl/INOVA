@@ -3352,21 +3352,19 @@ export default function DesdeRecibo() {
                                   title="Buscar ubicaciones vacías (sugerencia)"
                                   style={{
                                     height: 24,
+                                    width: 24,
                                     minWidth: 24,
-                                    padding: "0 5px",
+                                    padding: 0,
                                     borderRadius: 7,
                                     border: `1px solid ${colors.blue}`,
                                     background: "#fff",
                                     color: colors.blue,
-                                    fontWeight: 800,
-                                    fontSize: 8.6,
                                     cursor: "pointer",
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: 3,
+                                    display: "grid",
+                                    placeItems: "center",
                                   }}
                                 >
-                                  <MapPin size={11} /> Vacías
+                                  <MapPin size={13} />
                                 </button>
                               </>
                             )}
