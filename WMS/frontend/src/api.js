@@ -1146,6 +1146,46 @@ export function importarInventarioInicial(file) {
       return "";
     };
 
+    // 1er paso: detectar ubicaciones que no existen (no-PNC, con código) y crearlas.
+    const nuevasUbic = new Map(); // normCod -> payload
+    for (const row of rows) {
+      const codUb = String(val(row, "codigo ubicacion") || getImportValue(row, "ubicacion")).trim();
+      if (!codUb) continue;
+      const ubBase = String(val(row, "ubicacion base")).trim();
+      const posicion = String(val(row, "posicion")).trim();
+      const estadoXls = String(val(row, "estado")).trim();
+      const esPnc =
+        /pnc/i.test(ubBase) || /pnc/i.test(codUb) || /bloqueo/i.test(posicion) || /pnc/i.test(estadoXls);
+      if (esPnc) continue;
+      const norm = normalizeText(codUb);
+      if (ubByCod.has(norm) || nuevasUbic.has(norm)) continue;
+      nuevasUbic.set(
+        norm,
+        compactObject({
+          empresa_id: empresaId,
+          ubicacion: codUb,
+          ubicacion_base: ubBase || null,
+          posicion: posicion || null,
+          zona: String(val(row, "zona")).trim(),
+          familias: String(val(row, "familias", "familia")).trim(),
+          bodega: String(val(row, "bodega")).trim(),
+        })
+      );
+    }
+
+    let ubicacionesCreadas = 0;
+    if (nuevasUbic.size) {
+      const nuevas = Array.from(nuevasUbic.values());
+      for (let i = 0; i < nuevas.length; i += 200) {
+        await insertRow("wms", "ubicaciones", nuevas.slice(i, i + 200));
+      }
+      ubicacionesCreadas = nuevas.length;
+      // Recarga el mapa con las ubicaciones recién creadas.
+      const ubActual = await getUbicaciones();
+      ubByCod.clear();
+      (ubActual || []).forEach((u) => ubByCod.set(normalizeText(u.ubicacion), u.id));
+    }
+
     const items = [];
     let omit = 0;
     let sinMaterial = 0;
@@ -1205,9 +1245,11 @@ export function importarInventarioInicial(file) {
     return {
       inserted: items.length,
       pnc,
+      ubicacionesCreadas,
       mensaje:
         `Inventario importado: ${items.length} registro(s)` +
         (pnc ? `, ${pnc} en PNC bloqueado` : "") +
+        (ubicacionesCreadas ? `; ${ubicacionesCreadas} ubicación(es) nueva(s) creada(s)` : "") +
         (sinMaterial ? `; ${sinMaterial} omitido(s) por material inexistente` : "") +
         (omit ? `; ${omit} fila(s) sin código/cantidad` : "") +
         ".",
