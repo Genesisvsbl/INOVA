@@ -95,10 +95,10 @@ export default function Inventarios() {
 
   const allOperations = [
     {
-      title: "Crear tarea",
-      desc: "Genera una nueva tarea de inventario fisico o ciclico.",
-      to: "/inventarios/crear-tarea",
-      icon: Plus,
+      title: "Análisis de diferencia",
+      desc: "Sube existencias de SAP y compara contra el físico del WMS.",
+      to: "/inventarios/analisis",
+      icon: BarChart3,
       perm: "inventarios.crear",
     },
     {
@@ -109,10 +109,10 @@ export default function Inventarios() {
       perm: "inventarios.crear",
     },
     {
-      title: "Análisis",
-      desc: "Sube existencias de SAP y compara contra el físico del WMS.",
-      to: "/inventarios/analisis",
-      icon: BarChart3,
+      title: "Crear tarea",
+      desc: "Genera una nueva tarea de inventario fisico o ciclico.",
+      to: "/inventarios/crear-tarea",
+      icon: Plus,
       perm: "inventarios.crear",
     },
     {
@@ -120,6 +120,13 @@ export default function Inventarios() {
       desc: "Registra cantidades contadas por ubicacion, material o lote.",
       to: "/inventarios/conteo-fisico",
       icon: Boxes,
+      perm: "inventarios.contar",
+    },
+    {
+      title: "Mis conteos",
+      desc: "Consulta y ejecuta tareas asignadas al usuario actual.",
+      to: "/inventarios/mis-conteos",
+      icon: ClipboardList,
       perm: "inventarios.contar",
     },
     {
@@ -135,13 +142,6 @@ export default function Inventarios() {
       to: "/inventarios/reconteos",
       icon: RefreshCcw,
       perm: "inventarios.conciliar",
-    },
-    {
-      title: "Mis conteos",
-      desc: "Consulta y ejecuta tareas asignadas al usuario actual.",
-      to: "/inventarios/mis-conteos",
-      icon: ClipboardList,
-      perm: "inventarios.contar",
     },
     {
       title: "Informe inventario",
