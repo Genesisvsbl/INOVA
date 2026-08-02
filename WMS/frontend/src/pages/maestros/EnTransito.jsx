@@ -132,24 +132,21 @@ const tbInputStyle = {
   fontSize: 14,
 };
 
-// Nivel = dígito antes del apóstrofe; Rack = pasillo+bloque (código WMS).
-function nivelDeUbicacion(u) {
-  const code = String(u?.ubicacion || `${u?.ubicacion_base || ""}${u?.posicion || ""}`)
+// Nivel = dígito justo antes del apóstrofe; Módulo = dos posiciones antes.
+function codeUbic(u) {
+  return String(u?.ubicacion || `${u?.ubicacion_base || ""}${u?.posicion || ""}`)
     .replace(/[´`’]/g, "'")
     .toUpperCase();
-  const m = code.match(/^(\d{3})(\d)(\d)(\d)'?(\d+)$/);
-  if (m) return m[4];
-  const ap = code.indexOf("'");
-  if (ap > 0) return code[ap - 1];
-  return "";
 }
-function rackDeUbicacion(u) {
-  const code = String(u?.ubicacion || `${u?.ubicacion_base || ""}${u?.posicion || ""}`)
-    .replace(/[´`’]/g, "'")
-    .toUpperCase();
-  const m = code.match(/^(\d{3})(\d)(\d)(\d)'?(\d+)$/);
-  if (m) return `${m[2]}${m[3]}`;
-  return "";
+function nivelDeUbicacion(u) {
+  const code = codeUbic(u);
+  const ap = code.indexOf("'");
+  return ap > 0 ? code[ap - 1] : "";
+}
+function moduloDeUbicacion(u) {
+  const code = codeUbic(u);
+  const ap = code.indexOf("'");
+  return ap > 1 ? code[ap - 2] : "";
 }
 
 // Rótulo de ubicación en tamaño de etiqueta (10.16 x 5.08 cm), como el historial.
@@ -162,26 +159,28 @@ function buildRotuloUbicacionHtml({ logo, codigo, descripcion, lote, vencimiento
     `@page{size:10.16cm 5.08cm;margin:0}` +
     `html,body{margin:0;padding:0}` +
     `*{font-family:Arial,Helvetica,sans-serif;box-sizing:border-box}` +
-    `.lbl{width:10.16cm;height:5.08cm;padding:2.4mm 3mm;overflow:hidden;display:flex;flex-direction:column}` +
-    `.hd{display:flex;align-items:center;gap:2mm;border-bottom:1.5px solid #0a1f52;padding-bottom:1mm;margin-bottom:1mm}` +
-    `.hd img{height:6.5mm}` +
-    `.hd .t{font-size:11px;font-weight:800;color:#0a1f52;letter-spacing:.3px}` +
-    `.cod{font-size:17px;font-weight:900;color:#0b3d91;line-height:1.05}` +
+    `.lbl{width:10.16cm;height:5.08cm;overflow:hidden;display:flex;flex-direction:column}` +
+    `.hd{background:#0a1f52;color:#fff;display:flex;align-items:center;gap:2mm;padding:1.8mm 3mm}` +
+    `.hd img{height:6mm}` +
+    `.hd .t{font-size:12px;font-weight:800;letter-spacing:.3px;color:#fff}` +
+    `.bd{flex:1;display:flex;flex-direction:column;padding:1.4mm 3mm 1.6mm}` +
+    `.cod{font-size:18px;font-weight:900;color:#0b3d91;line-height:1.05}` +
     `.desc{font-size:9px;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}` +
-    `.meta{display:flex;gap:5mm;font-size:9.5px;color:#0f172a;margin-top:.8mm}` +
-    `.ubwrap{margin-top:auto;border-top:1px dashed #94a3b8;padding-top:1mm}` +
+    `.meta{display:flex;gap:5mm;font-size:9.5px;color:#0f172a;margin-top:.6mm}` +
+    `.ubwrap{margin-top:auto;border-top:1px dashed #94a3b8;padding-top:.8mm}` +
     `.ublabel{font-size:8px;color:#475569;text-transform:uppercase;letter-spacing:.5px}` +
-    `.ub{font-size:26px;font-weight:900;color:#0a1f52;letter-spacing:1px;line-height:1}` +
-    `.foot{font-size:7.5px;color:#94a3b8;margin-top:.6mm}` +
+    `.ub{font-size:40px;font-weight:900;color:#0a1f52;letter-spacing:1px;line-height:1}` +
+    `.foot{font-size:7.5px;color:#94a3b8;margin-top:.4mm}` +
     `</style></head><body>` +
     `<div class="lbl">` +
     `<div class="hd"><img src="${logo}" onerror="this.style.display='none'"/><div class="t">UBICACIÓN DE MATERIAL</div></div>` +
+    `<div class="bd">` +
     `<div class="cod">${esc(codigo)}</div>` +
     `<div class="desc">${esc(descripcion)}</div>` +
     `<div class="meta"><span>Lote: <b>${esc(lote || "-")}</b></span><span>Vence: <b>${esc(venc || "-")}</b></span></div>` +
     `<div class="ubwrap"><div class="ublabel">Ubicación</div><div class="ub">${esc(ubicacion)}</div>` +
     `<div class="foot">Base ${esc(base || "-")} · Zona ${esc(zona || "-")} · ${new Date().toLocaleString("es-CO")}</div></div>` +
-    `</div></body></html>`
+    `</div></div></body></html>`
   );
 }
 
@@ -463,6 +462,24 @@ export default function EnTransito() {
     });
     return Array.from(s).sort();
   }, [ubicaciones, tbBase]);
+
+  const tbUbicScope = useMemo(
+    () =>
+      (ubicaciones || []).filter(
+        (u) =>
+          (!tbBase || String(u.ubicacion_base || "").trim() === tbBase) &&
+          (!tbZona || String(u.zona || "").trim() === tbZona)
+      ),
+    [ubicaciones, tbBase, tbZona]
+  );
+  const modulosUbic = useMemo(
+    () => [...new Set(tbUbicScope.map((u) => moduloDeUbicacion(u)).filter(Boolean))].sort((a, b) => Number(a) - Number(b)),
+    [tbUbicScope]
+  );
+  const nivelesUbic = useMemo(
+    () => [...new Set(tbUbicScope.map((u) => nivelDeUbicacion(u)).filter(Boolean))].sort((a, b) => Number(a) - Number(b)),
+    [tbUbicScope]
+  );
 
   const ubicacionesValidasSet = useMemo(() => {
     const set = new Set();
@@ -1089,7 +1106,7 @@ export default function EnTransito() {
       const list = await getUbicacionesVacias(tbBase || null, tbZona || null);
       setTbList(list || []);
       const filtr = (list || []).filter(
-        (u) => (!tbNivel || nivelDeUbicacion(u) === tbNivel) && (!tbRack || rackDeUbicacion(u) === tbRack)
+        (u) => (!tbNivel || nivelDeUbicacion(u) === tbNivel) && (!tbRack || moduloDeUbicacion(u) === tbRack)
       );
       setTbSel(filtr.length ? normalizeUbicacion(filtr[0].ubicacion) : "");
     } catch (e) {
@@ -1614,20 +1631,20 @@ export default function EnTransito() {
                     </select>
                   </div>
                   <div style={{ flex: "1 1 110px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: colors.muted, marginBottom: 4 }}>RACK</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: colors.muted, marginBottom: 4 }}>MÓDULO</div>
                     <select
                       value={tbRack}
                       onChange={(e) => {
                         const rk = e.target.value;
                         setTbRack(rk);
-                        const view = tbList.filter((u) => (!tbNivel || nivelDeUbicacion(u) === tbNivel) && (!rk || rackDeUbicacion(u) === rk));
+                        const view = tbList.filter((u) => (!tbNivel || nivelDeUbicacion(u) === tbNivel) && (!rk || moduloDeUbicacion(u) === rk));
                         setTbSel(view.length ? normalizeUbicacion(view[0].ubicacion) : "");
                       }}
                       style={tbInputStyle}
                     >
                       <option value="">Todos</option>
-                      {[...new Set(tbList.map((u) => rackDeUbicacion(u)).filter(Boolean))].sort().map((rk) => (
-                        <option key={rk} value={rk}>Rack {rk}</option>
+                      {modulosUbic.map((rk) => (
+                        <option key={rk} value={rk}>Módulo {rk}</option>
                       ))}
                     </select>
                   </div>
@@ -1638,13 +1655,13 @@ export default function EnTransito() {
                       onChange={(e) => {
                         const nv = e.target.value;
                         setTbNivel(nv);
-                        const view = tbList.filter((u) => (!nv || nivelDeUbicacion(u) === nv) && (!tbRack || rackDeUbicacion(u) === tbRack));
+                        const view = tbList.filter((u) => (!nv || nivelDeUbicacion(u) === nv) && (!tbRack || moduloDeUbicacion(u) === tbRack));
                         setTbSel(view.length ? normalizeUbicacion(view[0].ubicacion) : "");
                       }}
                       style={tbInputStyle}
                     >
                       <option value="">Todos</option>
-                      {[...new Set(tbList.map((u) => nivelDeUbicacion(u)).filter(Boolean))].sort().map((n) => (
+                      {nivelesUbic.map((n) => (
                         <option key={n} value={n}>Nivel {n}</option>
                       ))}
                     </select>
@@ -1668,8 +1685,8 @@ export default function EnTransito() {
                 </div>
 
                 {tbBuscado && !tbLoading && (() => {
-                  const tbView = tbList.filter((u) => (!tbNivel || nivelDeUbicacion(u) === tbNivel) && (!tbRack || rackDeUbicacion(u) === tbRack));
-                  const filtroTxt = `${tbRack ? ` / rack ${tbRack}` : ""}${tbNivel ? ` / nivel ${tbNivel}` : ""}`;
+                  const tbView = tbList.filter((u) => (!tbNivel || nivelDeUbicacion(u) === tbNivel) && (!tbRack || moduloDeUbicacion(u) === tbRack));
+                  const filtroTxt = `${tbRack ? ` / módulo ${tbRack}` : ""}${tbNivel ? ` / nivel ${tbNivel}` : ""}`;
                   return (
                   <div style={{ marginTop: 16 }}>
                     {tbView.length === 0 ? (
