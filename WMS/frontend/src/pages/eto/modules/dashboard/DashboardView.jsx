@@ -4936,7 +4936,7 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                   </div>
                 </div>
 
-                {(dashboardData.dimensions || []).length > 0 ? (
+                {entityDashboardBarData.length > 0 ? (
                   <div
                     className="table-tools-skip"
                     style={{
@@ -4969,7 +4969,10 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                           >
                             Persona
                           </th>
-                          {(dashboardData.dimensions || []).map((d) => (
+                          {((dashboardData.dimensions || []).length
+                            ? dashboardData.dimensions
+                            : ["AVANCE"]
+                          ).map((d) => (
                             <th
                               key={d}
                               style={{
@@ -5010,9 +5013,21 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                             >
                               {it.entity_name}
                             </td>
-                            {(dashboardData.dimensions || []).map((d) => {
-                              const st = (it.dim_status || {})[d];
-                              const val = (it.by_dimension || {})[d] || 0;
+                            {((dashboardData.dimensions || []).length
+                              ? dashboardData.dimensions
+                              : ["AVANCE"]
+                            ).map((d) => {
+                              const sinDims = (dashboardData.dimensions || []).length === 0;
+                              const meta = Number(it.target_value || 0);
+                              const acc = Number(it.accumulated || 0);
+                              const st = sinDims
+                                ? meta <= 0 || acc >= meta
+                                  ? "ok"
+                                  : acc === 0
+                                  ? "critical"
+                                  : "warning"
+                                : (it.dim_status || {})[d];
+                              const val = sinDims ? acc : (it.by_dimension || {})[d] || 0;
                               const palette = {
                                 ok: { bg: "#22c55e", fg: "#ffffff" },
                                 warning: { bg: "#f59e0b", fg: "#ffffff" },
@@ -5306,6 +5321,30 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                     const rk = dashboardData.ranking || [];
                     const metaOf = (it) => Number(it.target_value || 0);
                     const accOf = (it) => Number(it.accumulated || 0);
+                    // Indicador POR EVENTO (todas las metas en 0): el ranking por
+                    // estado de meta no aplica.
+                    const esPorEvento =
+                      rk.length > 0 && rk.every((it) => metaOf(it) <= 0);
+                    if (esPorEvento) {
+                      return (
+                        <div
+                          style={{
+                            gridColumn: "1 / -1",
+                            padding: "18px 20px",
+                            borderRadius: 14,
+                            border: `1px dashed ${CHART_COLORS.cardBorder}`,
+                            background: "#f8fafc",
+                            color: CHART_COLORS.textSoft,
+                            fontWeight: 600,
+                            fontSize: 13.5,
+                            textAlign: "center",
+                          }}
+                        >
+                          Este indicador es <b>por evento</b> (meta 0): el ranking por estado de meta
+                          <b> no aplica</b>. Aquí solo se registran las novedades cuando se presenta un evento.
+                        </div>
+                      );
+                    }
                     // Con condiciones usamos el estado (que ya excluye el Diario).
                     const hasConds = (dashboardData.dimensions || []).length > 0;
                     // "Ya cumplieron": estado ok (con condiciones) o llegó a la meta.
