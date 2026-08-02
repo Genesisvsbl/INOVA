@@ -586,7 +586,12 @@ function buildInformeHtml({ base, fileName }) {
     body { font-family: 'Segoe UI', Arial, sans-serif; color:#1f2d3d; margin:0; }
     .doc-head { display:flex; align-items:center; justify-content:space-between; padding-bottom:12px; border-bottom:3px solid #0b2c5e; }
     .doc-head .brand { display:flex; align-items:center; gap:14px; }
-    .doc-head .brand img { height:42px; }
+    .doc-head .brand .logo {
+      display:inline-block; width:132px; height:42px;
+      background-color:#0b2c5e;
+      -webkit-mask: url("${logo}") left center / contain no-repeat;
+      mask: url("${logo}") left center / contain no-repeat;
+    }
     .doc-head .brand .sys { font-size:11px; font-weight:800; letter-spacing:.14em; color:#0b2c5e; }
     .doc-head .brand .sys small { display:block; color:#8a97a8; font-weight:700; letter-spacing:.08em; }
     .doc-head .meta { text-align:right; font-size:11px; color:#64748b; line-height:1.5; }
@@ -621,7 +626,7 @@ function buildInformeHtml({ base, fileName }) {
   <body>
     <div class="doc-head">
       <div class="brand">
-        <img src="${logo}" alt="INOVA" onerror="this.style.display='none'"/>
+        <span class="logo" role="img" aria-label="INOVA"></span>
         <div class="sys">SISTEMA WMS<small>Gestión de inventarios</small></div>
       </div>
       <div class="meta">
