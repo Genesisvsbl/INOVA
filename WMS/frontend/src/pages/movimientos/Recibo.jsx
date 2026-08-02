@@ -687,40 +687,18 @@ export default function Recibo() {
     const hoy = fmtDMY(new Date().toISOString());
 
     const asunto =
-      `Novedad de recepción - Incumplimiento de rotación (FEFO)` +
+      `Novedad de recepcion - Incumplimiento de rotacion (FEFO)` +
       (proveedor ? ` - ${proveedor}` : "") +
       (oc ? ` - OC ${oc}` : "");
 
-    // Cuerpo en texto plano (para que Outlook lo abra ya redactado).
-    const filasTxt = evid
-      .map(
-        (e) =>
-          `#${e.item} | ${e.codigo} | ${e.descripcion} | Lote ${e.lote || "-"} | Cant. ${e.cantidad || "-"} | ` +
-          `Vence entregado ${e.venc} | Vence en stock ${e.prev} | INCUMPLE`
-      )
-      .join("\n");
-
-    const cuerpoTxt =
-      `Buen día,\n\n` +
-      `Durante la recepción del ${hoy}${doc ? ` (documento ${doc})` : ""} se identificó un INCUMPLIMIENTO DE ROTACIÓN (FEFO) ` +
-      `por parte del proveedor${proveedor ? ` ${proveedor}` : ""}. Se entregó producto con fecha de vencimiento ANTERIOR ` +
-      `a las existencias del mismo material ya recibidas, lo que no respeta el principio "primero en vencer, primero en salir" ` +
-      `e incrementa el riesgo de obsolescencia del inventario más antiguo.\n\n` +
-      `Evidencia del incumplimiento:\n${filasTxt}\n\n` +
-      `Nota: la tabla de evidencia con formato quedó copiada; puede pegarla en este correo con Ctrl+V.\n\n` +
-      `Agradecemos su gestión y seguimiento para corregir la rotación en las próximas entregas.\n\n` +
-      `Cordialmente,\nEquipo de Recepción`;
-
-    // Tabla de evidencia con formato/colores (para pegar en el correo).
-    const th = 'style="border:1px solid #0b3d91;padding:6px 8px;color:#fff;background:#0b3d91;font-family:Arial,sans-serif;font-size:12px;text-align:left"';
+    // Tabla de evidencia con formato/colores (queda incrustada en el correo).
+    const th = 'style="border:1px solid #0b3d91;padding:6px 8px;color:#ffffff;background:#0b3d91;font-family:Arial,sans-serif;font-size:12px;text-align:left"';
     const td = 'style="border:1px solid #cbd5e1;padding:6px 8px;font-family:Arial,sans-serif;font-size:12px"';
     const tdInc = 'style="border:1px solid #cbd5e1;padding:6px 8px;font-family:Arial,sans-serif;font-size:12px;background:#f8d7da;color:#b42318;font-weight:bold;text-align:center"';
     const htmlTabla =
-      `<p style="font-family:Arial,sans-serif;font-size:13px">Evidencia de incumplimiento de rotación (FEFO)` +
-      `${proveedor ? ` - Proveedor: <b>${proveedor}</b>` : ""}${oc ? ` - OC: <b>${oc}</b>` : ""} - Fecha: <b>${hoy}</b></p>` +
-      `<table style="border-collapse:collapse">` +
+      `<table style="border-collapse:collapse;margin:10px 0">` +
       `<thead><tr>` +
-      `<th ${th}>Ítem</th><th ${th}>Código</th><th ${th}>Descripción</th><th ${th}>Lote prov.</th>` +
+      `<th ${th}>&Iacute;tem</th><th ${th}>C&oacute;digo</th><th ${th}>Descripci&oacute;n</th><th ${th}>Lote prov.</th>` +
       `<th ${th}>Cantidad</th><th ${th}>Vence entregado</th><th ${th}>Vence en stock</th><th ${th}>Estado</th>` +
       `</tr></thead><tbody>` +
       evid
@@ -733,23 +711,49 @@ export default function Recibo() {
         .join("") +
       `</tbody></table>`;
 
-    // Copia la tabla con formato al portapapeles (best-effort).
-    try {
-      if (navigator.clipboard && window.ClipboardItem) {
-        await navigator.clipboard.write([
-          new window.ClipboardItem({
-            "text/html": new Blob([htmlTabla], { type: "text/html" }),
-            "text/plain": new Blob([filasTxt], { type: "text/plain" }),
-          }),
-        ]);
-      }
-    } catch {
-      /* si el navegador no permite copiar, igual se abre el correo */
-    }
+    const htmlBody =
+      `<html><body style="font-family:Arial,sans-serif;font-size:13px;color:#111827">` +
+      `<p>Buen d&iacute;a,</p>` +
+      `<p>Durante la recepci&oacute;n del <b>${hoy}</b>${doc ? ` (documento ${doc})` : ""} se identific&oacute; un ` +
+      `<b>INCUMPLIMIENTO DE ROTACI&Oacute;N (FEFO)</b> por parte del proveedor${proveedor ? ` <b>${proveedor}</b>` : ""}` +
+      `${oc ? ` (OC ${oc})` : ""}. Se entreg&oacute; producto con fecha de vencimiento <b>anterior</b> a las existencias del ` +
+      `mismo material ya recibidas, lo que no respeta el principio &ldquo;primero en vencer, primero en salir&rdquo; e ` +
+      `incrementa el riesgo de obsolescencia del inventario m&aacute;s antiguo.</p>` +
+      `<p><b>Evidencia del incumplimiento:</b></p>` +
+      htmlTabla +
+      `<p>Agradecemos su gesti&oacute;n y seguimiento para corregir la rotaci&oacute;n en las pr&oacute;ximas entregas.</p>` +
+      `<p>Cordialmente,<br/>Equipo de Recepci&oacute;n</p>` +
+      `</body></html>`;
 
-    const mailto =
-      `mailto:?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpoTxt)}`;
-    window.location.href = mailto;
+    // Asunto codificado (UTF-8) y archivo .eml con X-Unsent:1 para que Outlook lo
+    // abra como CORREO NUEVO editable, con la tabla ya incrustada. Solo falta el "Para".
+    const b64 = (s) => {
+      try {
+        return btoa(unescape(encodeURIComponent(s)));
+      } catch {
+        return btoa(s);
+      }
+    };
+    const asuntoEnc = `=?UTF-8?B?${b64(asunto)}?=`;
+    const eml =
+      `To: \r\n` +
+      `Subject: ${asuntoEnc}\r\n` +
+      `X-Unsent: 1\r\n` +
+      `MIME-Version: 1.0\r\n` +
+      `Content-Type: text/html; charset=utf-8\r\n` +
+      `\r\n` +
+      htmlBody;
+
+    const blob = new Blob([eml], { type: "message/rfc822" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const slug = (proveedor || "proveedor").replace(/[^a-z0-9]+/gi, "_").slice(0, 40);
+    a.download = `Novedad_FEFO_${slug}.eml`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
   };
 
   const proveedorEsAmcor = useMemo(
