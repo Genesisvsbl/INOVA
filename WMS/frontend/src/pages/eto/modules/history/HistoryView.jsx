@@ -705,12 +705,15 @@ export default function HistoryView({
           }
           const condCells = {};
           const condMetas = {};
+          const condObs = {};
           for (const cond of conds) {
             const rec = cmap.get(`${target.entity_id}::${cond}`);
             condCells[cond] =
               rec && rec.value !== null && rec.value !== undefined
                 ? String(rec.value)
                 : "";
+            // Conservamos la observación (conteo de caracteres) para no borrarla al guardar.
+            condObs[cond] = rec?.observation || "";
             condMetas[cond] =
               metaByCond[cond] !== undefined && metaByCond[cond] !== null
                 ? metaByCond[cond]
@@ -725,6 +728,7 @@ export default function HistoryView({
             record_date: recordDate,
             condCells,
             condMetas,
+            condObs,
           };
         });
 
@@ -832,6 +836,8 @@ export default function HistoryView({
             (byDim[cond] = byDim[cond] || []).push({
               entity_id: entityId,
               value: toNullableNumber(raw),
+              // Preservamos el conteo de caracteres guardado (no lo borramos).
+              observation: row.condObs?.[cond] || "",
             });
           }
         }
