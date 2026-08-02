@@ -2,6 +2,7 @@
   deleteById,
   empresaId,
   insertRow,
+  selectAllRows,
   selectRows,
   supabaseEnabled,
   updateById,
@@ -178,11 +179,10 @@ export async function getBodegas5S({ activeOnly = false } = {}) {
 
     if (bodegas5S.length) return bodegas5S;
 
-    const ubicaciones = await selectRows("wms", "ubicaciones", {
+    const ubicaciones = await selectAllRows("wms", "ubicaciones", {
       empresa_id: `eq.${empresaId}`,
       select: "bodega,zona",
       order: "bodega.asc",
-      limit: "5000",
     });
 
     const byName = new Map();
@@ -314,11 +314,10 @@ export async function getResponsables5S({ activo } = {}) {
 
     if (responsables5S.length) return responsables5S;
 
-    const usuarios = await selectRows("public", "usuarios", {
+    const usuarios = await selectAllRows("public", "usuarios", {
       empresa_id: `eq.${empresaId}`,
       select: "id,nombre,usuario,rol,estado",
       order: "nombre.asc",
-      limit: "1000",
     });
 
     return usuarios

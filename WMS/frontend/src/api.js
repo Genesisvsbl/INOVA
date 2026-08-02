@@ -609,11 +609,10 @@ export async function borrarRecetaPorSerial(serial) {
 
 export function getMovimientos() {
   if (supabaseEnabled) {
-    return selectRows("wms", "movimientos", {
+    return selectAllRows("wms", "movimientos", {
       empresa_id: `eq.${empresaId}`,
       select: "*,material:materiales(codigo,descripcion,unidad_medida,familia),ubicacion:ubicaciones(ubicacion,ubicacion_base,posicion,zona,familias,bodega)",
       order: "fecha.desc",
-      limit: "3000",
     }).then((rows) => rows.map(mapMovimientoRow));
   }
 
@@ -679,12 +678,11 @@ export function getMovimientosPorSerial(serial) {
 export async function buscarReciboGuardado(query) {
   const q = String(query || "").trim();
   if (!supabaseEnabled || !q) return null;
-  const rows = await selectRows("wms", "rotulos", {
+  const rows = await selectAllRows("wms", "rotulos", {
     empresa_id: `eq.${empresaId}`,
     or: `(codigo_cita.ilike.*${q}*,documento.ilike.*${q}*,remesa.ilike.*${q}*,orden_compra.ilike.*${q}*,lote_proveedor.ilike.*${q}*,lote_almacen.ilike.*${q}*,sku.ilike.*${q}*)`,
     select: "*",
     order: "impresion.asc",
-    limit: "500",
   });
   if (!rows || !rows.length) return null;
 
@@ -816,12 +814,11 @@ export async function corregirTrazabilidadPorSerial(serial, correcciones) {
 
 export function getMovimientosLayoutStock() {
   if (supabaseEnabled) {
-    return selectRows("wms", "movimientos", {
+    return selectAllRows("wms", "movimientos", {
       empresa_id: `eq.${empresaId}`,
       estado: "eq.ALMACENADO",
       select: "id,estado,cantidad_r,ubicacion_id,proveedor,lote_almacen,lote_proveedor,fecha_vencimiento,material:materiales(codigo,descripcion,unidad_medida,familia),ubicacion:ubicaciones(ubicacion,ubicacion_base,posicion,zona,familias,bodega)",
       order: "id.desc",
-      limit: "5000",
     }).then((rows) =>
       (rows || []).map((row) => {
         const cantidad = Number(row.cantidad_r ?? 0);
@@ -860,10 +857,9 @@ export function getEnTransito(q = "") {
       estado: "eq.EN_TRANSITO",
       select: "*,material:materiales(codigo,descripcion,unidad_medida,familia)",
       order: "fecha.desc",
-      limit: "3000",
     };
     if (q) params.or = `(documento.ilike.*${q}*,codigo_cita.ilike.*${q}*,lote_almacen.ilike.*${q}*,lote_proveedor.ilike.*${q}*)`;
-    return selectRows("wms", "movimientos", params).then((rows) => rows.map(mapMovimientoRow));
+    return selectAllRows("wms", "movimientos", params).then((rows) => rows.map(mapMovimientoRow));
   }
 
   return Promise.resolve([]);
@@ -1009,10 +1005,9 @@ export function getUbicaciones(search = "") {
       empresa_id: `eq.${empresaId}`,
       select: "*",
       order: "ubicacion.asc",
-      limit: "1000",
     };
     params.or = `(ubicacion.ilike.*${search}*,ubicacion_base.ilike.*${search}*,zona.ilike.*${search}*,bodega.ilike.*${search}*)`;
-    return selectRows("wms", "ubicaciones", params);
+    return selectAllRows("wms", "ubicaciones", params);
   }
 
   return apiFetch("/ubicaciones");
@@ -1297,12 +1292,11 @@ export function importarInventarioInicial(file) {
 // Lista los movimientos en estado PNC_BLOQUEADO (para Reasignación).
 export async function getPncBloqueado() {
   if (!supabaseEnabled) return [];
-  const rows = await selectRows("wms", "movimientos", {
+  const rows = await selectAllRows("wms", "movimientos", {
     empresa_id: `eq.${empresaId}`,
     estado: "eq.PNC_BLOQUEADO",
     select: "*,material:materiales(codigo,descripcion,unidad_medida,familia),ubicacion:ubicaciones(ubicacion,zona,bodega)",
     order: "id.desc",
-    limit: "3000",
   });
   return (rows || [])
     .map((r) => ({
@@ -1480,13 +1474,18 @@ export async function generarAnalisisInventario(file) {
 
   if (!sap.size) throw new Error("El archivo no tiene datos válidos. Requiere Material y Stock disponible.");
 
-  // Físico real del WMS: stock neto por material.
-  const movs = await getMotor();
+  // Físico real del WMS: stock neto por material. Trae TODOS los movimientos
+  // (sin límite, paginado) con una consulta liviana (solo código + cantidad)
+  // para que sea rápido aunque haya mucha información.
+  const movs = await selectAllRows("wms", "movimientos", {
+    empresa_id: `eq.${empresaId}`,
+    select: "cantidad_r,material:materiales(codigo)",
+  });
   const fisico = new Map();
   for (const m of Array.isArray(movs) ? movs : []) {
-    const cod = String(m.codigo_material || m.sku || "").trim();
+    const cod = String(m.material?.codigo || "").trim();
     if (!cod) continue;
-    fisico.set(cod, (fisico.get(cod) || 0) + Number(m.cantidad ?? m.cantidad_r ?? 0));
+    fisico.set(cod, (fisico.get(cod) || 0) + Number(m.cantidad_r ?? 0));
   }
 
   return Array.from(sap.values())
@@ -1516,12 +1515,11 @@ export function guardarAnalisisInventario(payload) {
 
 export function listarAnalisisInventario() {
   if (!supabaseEnabled) return Promise.resolve([]);
-  return selectRows("wms", "analisis_inventario", {
+  return selectAllRows("wms", "analisis_inventario", {
     empresa_id: `eq.${empresaId}`,
     select:
       "id,nombre,archivo,creado_por,fecha,total_materiales,total_faltantes,total_sobrantes,total_cuadrados",
     order: "fecha.desc",
-    limit: "200",
   });
 }
 
@@ -1554,11 +1552,10 @@ export async function getMaxVencimientoPorCodigos(codigos) {
   const idToCodigo = new Map((materiales || []).map((m) => [m.id, String(m.codigo)]));
   const ids = (materiales || []).map((m) => m.id);
   if (!ids.length) return {};
-  const movs = await selectRows("wms", "movimientos", {
+  const movs = await selectAllRows("wms", "movimientos", {
     empresa_id: `eq.${empresaId}`,
     material_id: `in.(${ids.join(",")})`,
     select: "material_id,fecha_vencimiento,cantidad_r",
-    limit: "8000",
   });
   const maxByCodigo = {};
   for (const m of movs || []) {
@@ -1767,12 +1764,11 @@ export function generarPicking(reserva) {
 export function verPicking(reserva) {
   const reservaValue = String(reserva || "").trim();
   if (!reservaValue) return Promise.resolve([]);
-  return selectRows("wms", "picking_detalle", {
+  return selectAllRows("wms", "picking_detalle", {
     empresa_id: `eq.${empresaId}`,
     reserva: `eq.${reservaValue}`,
     select: "*",
     order: "confirmado.asc,fecha_vencimiento.asc,id.asc",
-    limit: "5000",
   });
 }
 
@@ -2079,11 +2075,10 @@ export function getInventarioTareas(params = {}) {
     empresa_id: `eq.${empresaId}`,
     select: "*",
     order: "fecha_creacion.desc",
-    limit: "1000",
   };
   if (params.asignado_a) query.asignado_a = `eq.${params.asignado_a}`;
   if (params.estado) query.estado = `eq.${params.estado}`;
-  return selectRows("wms", "inventario_tareas", query);
+  return selectAllRows("wms", "inventario_tareas", query);
 }
 
 export function getInventarioTarea(id) {
@@ -2098,12 +2093,11 @@ export function getInventarioDetalles(tareaId, { ciego = false } = {}) {
   const select = ciego
     ? "id,tarea_id,ubicacion,zona,codigo_material,descripcion_material,lote_almacen,lote_proveedor,fecha_vencimiento,cantidad_contada,contado,observacion"
     : "*";
-  return selectRows("wms", "inventario_tarea_detalles", {
+  return selectAllRows("wms", "inventario_tarea_detalles", {
     empresa_id: `eq.${empresaId}`,
     tarea_id: `eq.${tareaId}`,
     select,
     order: "ubicacion.asc,codigo_material.asc,id.asc",
-    limit: "5000",
   });
 }
 
