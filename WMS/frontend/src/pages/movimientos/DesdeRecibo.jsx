@@ -88,6 +88,29 @@ function buildRotuloUbicacionHtml({ logo, codigo, descripcion, lote, vencimiento
   );
 }
 
+// Extrae el NIVEL de una ubicación (dígito antes del apóstrofe en el código
+// zona+pasillo+bloque+nivel'posición). Devuelve "" si no se puede determinar.
+function nivelDeUbicacion(u) {
+  const code = String(u?.ubicacion || `${u?.ubicacion_base || ""}${u?.posicion || ""}`)
+    .replace(/[´`’]/g, "'")
+    .toUpperCase();
+  const m = code.match(/^(\d{3})(\d)(\d)(\d)'?(\d+)$/);
+  if (m) return m[4];
+  const ap = code.indexOf("'");
+  if (ap > 0) return code[ap - 1];
+  return "";
+}
+
+// Rack = pasillo+bloque (los dígitos entre la base/zona y el nivel).
+function rackDeUbicacion(u) {
+  const code = String(u?.ubicacion || `${u?.ubicacion_base || ""}${u?.posicion || ""}`)
+    .replace(/[´`’]/g, "'")
+    .toUpperCase();
+  const m = code.match(/^(\d{3})(\d)(\d)(\d)'?(\d+)$/);
+  if (m) return `${m[2]}${m[3]}`;
+  return "";
+}
+
 function todayISODate() {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -559,6 +582,8 @@ export default function DesdeRecibo() {
   const [tbLoading, setTbLoading] = useState(false);
   const [tbSel, setTbSel] = useState(null); // objeto ubicacion seleccionado
   const [tbBuscado, setTbBuscado] = useState(false);
+  const [tbNivel, setTbNivel] = useState(""); // filtro de nivel
+  const [tbRack, setTbRack] = useState(""); // filtro de rack
 
   const tbBases = useMemo(() => {
     const s = new Set();
@@ -1431,6 +1456,8 @@ export default function DesdeRecibo() {
     });
     setTbBase(r.base || "");
     setTbZona("");
+    setTbNivel("");
+    setTbRack("");
     setTbList([]);
     setTbSel(null);
     setTbBuscado(false);
@@ -1441,6 +1468,8 @@ export default function DesdeRecibo() {
     setTbList([]);
     setTbSel(null);
     setTbBuscado(false);
+    setTbNivel("");
+    setTbRack("");
   };
 
   const consultarVacias = async () => {
@@ -1449,7 +1478,10 @@ export default function DesdeRecibo() {
     try {
       const list = await getUbicacionesVacias(tbBase || null, tbZona || null);
       setTbList(list || []);
-      setTbSel(list && list.length ? list[0] : null);
+      const filtr = (list || []).filter(
+        (u) => (!tbNivel || nivelDeUbicacion(u) === tbNivel) && (!tbRack || rackDeUbicacion(u) === tbRack)
+      );
+      setTbSel(filtr.length ? filtr[0] : null);
     } catch (e) {
       showWmsAlert("Error consultando ubicaciones vacías:\n" + (e?.message || e));
       setTbList([]);
@@ -3577,6 +3609,50 @@ export default function DesdeRecibo() {
                     ))}
                   </select>
                 </div>
+                <div style={{ flex: "1 1 120px" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: colors.muted, marginBottom: 4 }}>RACK</div>
+                  <select
+                    value={tbRack}
+                    onChange={(e) => {
+                      const rk = e.target.value;
+                      setTbRack(rk);
+                      const view = tbList.filter(
+                        (u) => (!tbNivel || nivelDeUbicacion(u) === tbNivel) && (!rk || rackDeUbicacion(u) === rk)
+                      );
+                      setTbSel(view.length ? view[0] : null);
+                    }}
+                    style={tbSelectStyle}
+                  >
+                    <option value="">Todos</option>
+                    {[...new Set(tbList.map((u) => rackDeUbicacion(u)).filter(Boolean))]
+                      .sort()
+                      .map((rk) => (
+                        <option key={rk} value={rk}>Rack {rk}</option>
+                      ))}
+                  </select>
+                </div>
+                <div style={{ flex: "1 1 120px" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: colors.muted, marginBottom: 4 }}>NIVEL</div>
+                  <select
+                    value={tbNivel}
+                    onChange={(e) => {
+                      const nv = e.target.value;
+                      setTbNivel(nv);
+                      const view = tbList.filter(
+                        (u) => (!nv || nivelDeUbicacion(u) === nv) && (!tbRack || rackDeUbicacion(u) === tbRack)
+                      );
+                      setTbSel(view.length ? view[0] : null);
+                    }}
+                    style={tbSelectStyle}
+                  >
+                    <option value="">Todos</option>
+                    {[...new Set(tbList.map((u) => nivelDeUbicacion(u)).filter(Boolean))]
+                      .sort()
+                      .map((n) => (
+                        <option key={n} value={n}>Nivel {n}</option>
+                      ))}
+                  </select>
+                </div>
                 <div style={{ display: "flex", alignItems: "flex-end" }}>
                   <button
                     type="button"
@@ -3602,22 +3678,27 @@ export default function DesdeRecibo() {
                 </div>
               </div>
 
-              {tbBuscado && !tbLoading && (
+              {tbBuscado && !tbLoading && (() => {
+                const tbView = tbList.filter(
+                  (u) => (!tbNivel || nivelDeUbicacion(u) === tbNivel) && (!tbRack || rackDeUbicacion(u) === tbRack)
+                );
+                const filtroTxt = `${tbRack ? ` / rack ${tbRack}` : ""}${tbNivel ? ` / nivel ${tbNivel}` : ""}`;
+                return (
                 <div style={{ marginTop: 16 }}>
-                  {tbList.length === 0 ? (
+                  {tbView.length === 0 ? (
                     <div style={{ padding: 14, color: colors.muted, fontWeight: 600 }}>
-                      No hay ubicaciones vacías para esa base/zona.
+                      No hay ubicaciones vacías para esa base/zona{filtroTxt}.
                     </div>
                   ) : (
                     <>
                       <div style={{ fontSize: 13, color: colors.text, marginBottom: 8 }}>
-                        <b>{tbList.length}</b> ubicación(es) libre(s). Sugerida:{" "}
+                        <b>{tbView.length}</b> ubicación(es) libre(s){filtroTxt}. Sugerida:{" "}
                         <b style={{ color: colors.blue }}>
                           {tbSel ? normalizarUbicacionPantalla(tbSel.ubicacion || `${tbSel.ubicacion_base || ""}${tbSel.posicion || ""}`) : "-"}
                         </b>
                       </div>
                       <div style={{ maxHeight: 260, overflow: "auto", border: `1px solid ${colors.border}`, borderRadius: 8 }}>
-                        {tbList.map((u) => {
+                        {tbView.map((u) => {
                           const code = normalizarUbicacionPantalla(u.ubicacion || `${u.ubicacion_base || ""}${u.posicion || ""}`);
                           const sel = tbSel && tbSel.id === u.id;
                           return (
@@ -3693,7 +3774,8 @@ export default function DesdeRecibo() {
                     </>
                   )}
                 </div>
-              )}
+                );
+              })()}
             </div>
           </div>
         </div>

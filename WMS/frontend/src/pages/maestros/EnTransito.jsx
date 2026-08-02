@@ -132,6 +132,26 @@ const tbInputStyle = {
   fontSize: 14,
 };
 
+// Nivel = dígito antes del apóstrofe; Rack = pasillo+bloque (código WMS).
+function nivelDeUbicacion(u) {
+  const code = String(u?.ubicacion || `${u?.ubicacion_base || ""}${u?.posicion || ""}`)
+    .replace(/[´`’]/g, "'")
+    .toUpperCase();
+  const m = code.match(/^(\d{3})(\d)(\d)(\d)'?(\d+)$/);
+  if (m) return m[4];
+  const ap = code.indexOf("'");
+  if (ap > 0) return code[ap - 1];
+  return "";
+}
+function rackDeUbicacion(u) {
+  const code = String(u?.ubicacion || `${u?.ubicacion_base || ""}${u?.posicion || ""}`)
+    .replace(/[´`’]/g, "'")
+    .toUpperCase();
+  const m = code.match(/^(\d{3})(\d)(\d)(\d)'?(\d+)$/);
+  if (m) return `${m[2]}${m[3]}`;
+  return "";
+}
+
 // Rótulo de ubicación en tamaño de etiqueta (10.16 x 5.08 cm), como el historial.
 function buildRotuloUbicacionHtml({ logo, codigo, descripcion, lote, vencimiento, ubicacion, base, zona }) {
   const esc = (s) =>
@@ -421,6 +441,8 @@ export default function EnTransito() {
   const [tbLoading, setTbLoading] = useState(false);
   const [tbSel, setTbSel] = useState("");
   const [tbBuscado, setTbBuscado] = useState(false);
+  const [tbNivel, setTbNivel] = useState("");
+  const [tbRack, setTbRack] = useState("");
 
   const basesUbic = useMemo(() => {
     const s = new Set();
@@ -1044,6 +1066,8 @@ export default function EnTransito() {
     setTbRow(row);
     setTbBase("");
     setTbZona("");
+    setTbNivel("");
+    setTbRack("");
     setTbList([]);
     setTbSel("");
     setTbBuscado(false);
@@ -1054,6 +1078,8 @@ export default function EnTransito() {
     setTbList([]);
     setTbSel("");
     setTbBuscado(false);
+    setTbNivel("");
+    setTbRack("");
   };
 
   const consultarVacias = async () => {
@@ -1062,7 +1088,10 @@ export default function EnTransito() {
     try {
       const list = await getUbicacionesVacias(tbBase || null, tbZona || null);
       setTbList(list || []);
-      setTbSel(list && list.length ? normalizeUbicacion(list[0].ubicacion) : ""); // sugerida = primera libre
+      const filtr = (list || []).filter(
+        (u) => (!tbNivel || nivelDeUbicacion(u) === tbNivel) && (!tbRack || rackDeUbicacion(u) === tbRack)
+      );
+      setTbSel(filtr.length ? normalizeUbicacion(filtr[0].ubicacion) : "");
     } catch (e) {
       showWmsAlert("Error consultando ubicaciones vacías:\n" + (e?.message || e));
       setTbList([]);
@@ -1575,12 +1604,48 @@ export default function EnTransito() {
                       ))}
                     </select>
                   </div>
-                  <div style={{ flex: "1 1 200px" }}>
+                  <div style={{ flex: "1 1 160px" }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: colors.muted, marginBottom: 4 }}>ZONA</div>
                     <select value={tbZona} onChange={(e) => { setTbZona(e.target.value); setTbBuscado(false); }} style={tbInputStyle}>
                       <option value="">Todas</option>
                       {zonasUbic.map((z) => (
                         <option key={z} value={z}>{z}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ flex: "1 1 110px" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: colors.muted, marginBottom: 4 }}>RACK</div>
+                    <select
+                      value={tbRack}
+                      onChange={(e) => {
+                        const rk = e.target.value;
+                        setTbRack(rk);
+                        const view = tbList.filter((u) => (!tbNivel || nivelDeUbicacion(u) === tbNivel) && (!rk || rackDeUbicacion(u) === rk));
+                        setTbSel(view.length ? normalizeUbicacion(view[0].ubicacion) : "");
+                      }}
+                      style={tbInputStyle}
+                    >
+                      <option value="">Todos</option>
+                      {[...new Set(tbList.map((u) => rackDeUbicacion(u)).filter(Boolean))].sort().map((rk) => (
+                        <option key={rk} value={rk}>Rack {rk}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ flex: "1 1 110px" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: colors.muted, marginBottom: 4 }}>NIVEL</div>
+                    <select
+                      value={tbNivel}
+                      onChange={(e) => {
+                        const nv = e.target.value;
+                        setTbNivel(nv);
+                        const view = tbList.filter((u) => (!nv || nivelDeUbicacion(u) === nv) && (!tbRack || rackDeUbicacion(u) === tbRack));
+                        setTbSel(view.length ? normalizeUbicacion(view[0].ubicacion) : "");
+                      }}
+                      style={tbInputStyle}
+                    >
+                      <option value="">Todos</option>
+                      {[...new Set(tbList.map((u) => nivelDeUbicacion(u)).filter(Boolean))].sort().map((n) => (
+                        <option key={n} value={n}>Nivel {n}</option>
                       ))}
                     </select>
                   </div>
@@ -1602,20 +1667,23 @@ export default function EnTransito() {
                   </div>
                 </div>
 
-                {tbBuscado && !tbLoading && (
+                {tbBuscado && !tbLoading && (() => {
+                  const tbView = tbList.filter((u) => (!tbNivel || nivelDeUbicacion(u) === tbNivel) && (!tbRack || rackDeUbicacion(u) === tbRack));
+                  const filtroTxt = `${tbRack ? ` / rack ${tbRack}` : ""}${tbNivel ? ` / nivel ${tbNivel}` : ""}`;
+                  return (
                   <div style={{ marginTop: 16 }}>
-                    {tbList.length === 0 ? (
+                    {tbView.length === 0 ? (
                       <div style={{ padding: 14, color: colors.muted, fontWeight: 600 }}>
-                        No hay ubicaciones vacías para esa base/zona.
+                        No hay ubicaciones vacías para esa base/zona{filtroTxt}.
                       </div>
                     ) : (
                       <>
                         <div style={{ fontSize: 13, color: colors.text, marginBottom: 8 }}>
-                          <b>{tbList.length}</b> ubicación(es) libre(s). Sugerida:{" "}
+                          <b>{tbView.length}</b> ubicación(es) libre(s){filtroTxt}. Sugerida:{" "}
                           <b style={{ color: colors.blue }}>{tbSel || "-"}</b> — puedes cambiarla abajo.
                         </div>
                         <div style={{ maxHeight: 260, overflow: "auto", border: `1px solid ${colors.border}`, borderRadius: 8 }}>
-                          {tbList.map((u) => {
+                          {tbView.map((u) => {
                             const code = normalizeUbicacion(u.ubicacion);
                             const sel = code === tbSel;
                             return (
@@ -1692,7 +1760,8 @@ export default function EnTransito() {
                       </>
                     )}
                   </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
           </div>
