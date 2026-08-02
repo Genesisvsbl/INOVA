@@ -1924,14 +1924,21 @@ export default function Recibo() {
       .filter((row) => row.item || row.hallazgo || row.empaque || row.cantidad);
 
     // Novedad automática: incumplimiento de rotación del proveedor (FEFO).
+    const fechaLarga = (v) => {
+      const s = String(v || "").slice(0, 10);
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+      return m ? `${m[3]}/${m[2]}/${m[1]}` : formatDateDisplay(v);
+    };
     Array.from(rotacionByIdx.entries()).forEach(([i, r]) => {
       rows.push({
         item: i + 1,
-        hallazgo: `INCUMPLIMIENTO DE ROTACIÓN: el material vence ${formatDateDisplay(
-          r.venc
-        )}, pero ya se recibió stock que vence ${formatDateDisplay(
-          r.prev
-        )}. El proveedor está enviando producto que vence antes.`,
+        hallazgo:
+          `INCUMPLIMIENTO DE ROTACIÓN (FEFO). El proveedor entregó producto con fecha de ` +
+          `vencimiento ${fechaLarga(r.venc)}, anterior a la de existencias del mismo material ` +
+          `recibidas previamente, cuya fecha de vencimiento es ${fechaLarga(r.prev)}. ` +
+          `Esta entrega no respeta el principio de rotación “primero en vencer, primero en salir”, ` +
+          `lo que incrementa el riesgo de obsolescencia del inventario más antiguo. Se deja ` +
+          `constancia de la novedad para su gestión y seguimiento con el proveedor.`,
         empaque: lineas[i]?.empaque || "",
         cantidad: lineas[i]?.cantidad || "",
       });
@@ -1943,10 +1950,10 @@ export default function Recibo() {
     return rows
       .map((row) => `
         <tr>
-          <td>${escapeHtml(row.item)}</td>
-          <td>${escapeHtml(row.hallazgo)}</td>
-          <td>${escapeHtml(row.empaque)}</td>
-          <td style="text-align:right;">${escapeHtml(row.cantidad)}</td>
+          <td style="text-align:center; vertical-align:middle;">${escapeHtml(row.item)}</td>
+          <td style="text-align:center; vertical-align:middle; padding:9px 14px; line-height:1.45;">${escapeHtml(row.hallazgo)}</td>
+          <td style="text-align:center; vertical-align:middle;">${escapeHtml(row.empaque)}</td>
+          <td style="text-align:center; vertical-align:middle;">${escapeHtml(row.cantidad)}</td>
         </tr>
       `)
       .join("");
