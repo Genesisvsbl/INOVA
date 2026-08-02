@@ -317,7 +317,22 @@ export default function AnalisisInventario() {
                           <td style={td}><NumInput value={r.p_descargar} onChange={(v) => setVal(realIdx, "p_descargar", v)} /></td>
                           <td style={td}><NumInput value={r.devolucion} onChange={(v) => setVal(realIdx, "devolucion", v)} /></td>
                           <td style={{ ...td, fontWeight: 700 }}>{fmt(r.fisico)}</td>
-                          <td style={{ ...td, borderRight: "none", fontWeight: 800, ...difStyle(dif) }}>{fmt(dif)}</td>
+                          <td style={{ ...td, borderRight: "none" }}>
+                            <span
+                              style={{
+                                display: "inline-block",
+                                minWidth: 84,
+                                textAlign: "right",
+                                padding: "3px 9px",
+                                borderRadius: 6,
+                                fontWeight: 800,
+                                background: dif < 0 ? colors.red : dif > 0 ? colors.blue : "transparent",
+                                color: dif === 0 ? "#334155" : "#fff",
+                              }}
+                            >
+                              {fmt(dif)}
+                            </span>
+                          </td>
                         </tr>
                       );
                     })}
