@@ -1215,6 +1215,16 @@ export async function borrarDatosWms(seleccion = {}) {
       }
     }
   }
+  // Los certificados de calidad viven también en un caché local (localStorage)
+  // cuando la tabla no existe; lo limpiamos para que la vista quede vacía.
+  if (seleccion.certificados) {
+    try {
+      localStorage.removeItem(CERTIFICADOS_CACHE_KEY);
+      if (!borradas.includes("certificados_calidad")) borradas.push("certificados_calidad (caché)");
+    } catch {
+      /* ignore */
+    }
+  }
   return { grupos: grupos.map((g) => g.key), tablas: borradas, omitidas };
 }
 
