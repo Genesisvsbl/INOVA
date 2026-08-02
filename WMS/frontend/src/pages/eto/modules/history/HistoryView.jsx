@@ -1298,6 +1298,7 @@ export default function HistoryView({
       const MIN_DESC_N = 100;
 
       const counts = {};
+      const validChars = {}; // caracteres de cada reporte VÁLIDO por entidad-fecha
       const invalidByEntity = {};
       let matched = 0;
       let notFound = 0;
@@ -1332,6 +1333,7 @@ export default function HistoryView({
         }
         // Si trae descripci\u00f3n y es menor a 100 caracteres, se invalida (no cuenta,
         // pero se registra aparte como "Invalido" para verlo en el dashboard).
+        let descLen = null;
         if (descKeyN) {
           const desc = String(raw[descKeyN] ?? "").trim();
           if (desc.length < MIN_DESC_N) {
@@ -1342,9 +1344,14 @@ export default function HistoryView({
             invalidByEntity[target.entity_id].push(desc.length);
             continue;
           }
+          descLen = desc.length;
         }
         const key = `${target.entity_id}-${iso}`;
         counts[key] = (counts[key] || 0) + 1;
+        if (descLen != null) {
+          validChars[key] = validChars[key] || [];
+          validChars[key].push(descLen);
+        }
         matched += 1;
       }
 
@@ -1359,7 +1366,8 @@ export default function HistoryView({
         prev.map((row) => {
           const key = `${row.entity_id}-${row.record_date}`;
           if (counts[key] !== undefined) {
-            return { ...row, value: String(counts[key]) };
+            const obs = validChars[key] ? validChars[key].join(", ") : row.observation;
+            return { ...row, value: String(counts[key]), observation: obs };
           }
           return row;
         })
