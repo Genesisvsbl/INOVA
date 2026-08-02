@@ -525,6 +525,25 @@ export default function DesdeRecibo() {
   const [tbLoading, setTbLoading] = useState(false);
   const [tbSel, setTbSel] = useState(null); // objeto ubicacion seleccionado
   const [tbBuscado, setTbBuscado] = useState(false);
+
+  const tbBases = useMemo(() => {
+    const s = new Set();
+    (ubicaciones || []).forEach((u) => {
+      const b = String(u.ubicacion_base || "").trim();
+      if (b) s.add(b);
+    });
+    return Array.from(s).sort();
+  }, [ubicaciones]);
+
+  const tbZonas = useMemo(() => {
+    const s = new Set();
+    (ubicaciones || []).forEach((u) => {
+      if (tbBase && String(u.ubicacion_base || "").trim() !== tbBase) return;
+      const z = String(u.zona || "").trim();
+      if (z) s.add(z);
+    });
+    return Array.from(s).sort();
+  }, [ubicaciones, tbBase]);
   const [pncPorNovedad, setPncPorNovedad] = useState({});
   const [sugiriendoLinea, setSugiriendoLinea] = useState({});
   const [sugiriendoSecundaria, setSugiriendoSecundaria] = useState({});
@@ -1367,25 +1386,6 @@ export default function DesdeRecibo() {
   };
 
   // ---- Toolbox de ubicaciones vacías ----
-  const tbBases = useMemo(() => {
-    const s = new Set();
-    (ubicaciones || []).forEach((u) => {
-      const b = String(u.ubicacion_base || "").trim();
-      if (b) s.add(b);
-    });
-    return Array.from(s).sort();
-  }, [ubicaciones]);
-
-  const tbZonas = useMemo(() => {
-    const s = new Set();
-    (ubicaciones || []).forEach((u) => {
-      if (tbBase && String(u.ubicacion_base || "").trim() !== tbBase) return;
-      const z = String(u.zona || "").trim();
-      if (z) s.add(z);
-    });
-    return Array.from(s).sort();
-  }, [ubicaciones, tbBase]);
-
   const abrirToolboxVacias = (r) => {
     setTbLinea({ idx: r.idxLineaOriginal, codigo: r.sku, texto: r.texto });
     setTbBase(r.base || "");
