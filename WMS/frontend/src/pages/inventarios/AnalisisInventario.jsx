@@ -23,7 +23,7 @@ import {
 
 const colors = {
   navy: "#312e81",
-  blue: "#5a37d6",
+  blue: "#2563eb",
   red: "#e11d1d",
   green: "#1f7a3d",
   text: "#1f2d3d",
@@ -275,7 +275,7 @@ export default function AnalisisInventario() {
         <div style={cardStyle}>
           <div style={headStyle}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={iconBox}><BarChart3 size={20} color="#5a37d6" /></div>
+              <div style={iconBox}><BarChart3 size={20} color="#2563eb" /></div>
               <div>
                 <div style={kicker}>Inventarios</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: "#17324d" }}>Análisis</div>
@@ -344,7 +344,7 @@ export default function AnalisisInventario() {
         <div style={headStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button onClick={() => setVista("lista")} style={{ ...miniBtn("#64748b"), height: 34 }}><ArrowLeft size={14} /> Volver</button>
-            <div style={iconBox}><BarChart3 size={20} color="#5a37d6" /></div>
+            <div style={iconBox}><BarChart3 size={20} color="#2563eb" /></div>
             <div>
               <div style={kicker}>Inventarios · Análisis</div>
               <div style={{ fontSize: 20, fontWeight: 800, color: "#17324d" }}>Análisis (SAP vs físico)</div>
@@ -571,7 +571,7 @@ function buildInformeHtml({ base, fileName }) {
       <section class="fam">
         <div class="fam-h"><span class="fam-n">${fam}</span><span class="fam-c">${items.length} material(es)</span></div>
         ${subTabla("Faltantes", falt, "#e11d1d")}
-        ${subTabla("Sobrantes", sob, "#5a37d6")}
+        ${subTabla("Sobrantes", sob, "#2563eb")}
         ${subTabla("Cuadrados", cuad, "#1f7a3d")}
       </section>`;
   }).join("");
@@ -641,7 +641,7 @@ function buildInformeHtml({ base, fileName }) {
 
     <div class="kpis">
       ${kpi("Faltantes", `${gFalt}`, "#e11d1d")}
-      ${kpi("Sobrantes", `${gSob}`, "#5a37d6")}
+      ${kpi("Sobrantes", `${gSob}`, "#2563eb")}
       ${kpi("Cuadrados", `${gCuad}`, "#1f7a3d")}
       ${kpi("Familias", `${familias.length}`, "#312e81")}
     </div>
