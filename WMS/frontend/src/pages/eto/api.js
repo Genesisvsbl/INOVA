@@ -728,9 +728,11 @@ async function consultaPersonaSupabase(params) {
             .reduce((s, r) => s + Number(r.value || 0), 0);
       const estado = dims.length
         ? worst || "ok"
+        : metaSimple <= 0
+        ? "ok" // meta 0 = indicador por evento: no hay nada que incumplir
         : accumulated === 0
         ? "critical"
-        : metaSimple > 0 && accumulated < metaSimple
+        : accumulated < metaSimple
         ? "warning"
         : "ok";
 
@@ -928,9 +930,11 @@ async function entityDashboardSupabase(params) {
     // Estado general: peor condición (solo de las que tienen meta); si no, alineado con la meta.
     const estado = conditionsCfg.length
       ? worst || "ok"
+      : meta <= 0
+      ? "ok" // meta 0 = indicador por evento: no hay nada que incumplir
       : accumulated === 0
       ? "critical"
-      : meta > 0 && accumulated < meta
+      : accumulated < meta
       ? "warning"
       : "ok";
     // Cumplimiento: en modo condiciones, % de condiciones con meta cumplidas.

@@ -4413,7 +4413,9 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
     const metaOf = (it) => Number(it.target_value || 0);
     const accOf = (it) => Number(it.accumulated || 0);
     const esOk = (it) =>
-      hasConds ? it.estado === "ok" : metaOf(it) > 0 && accOf(it) >= metaOf(it);
+      hasConds
+        ? it.estado === "ok"
+        : metaOf(it) <= 0 || accOf(it) >= metaOf(it);
     let okC = 0, warnC = 0, critC = 0;
     rk.forEach((it) => {
       if (esOk(it)) okC += 1;
@@ -5313,7 +5315,7 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                     const esOk = (it) =>
                       hasConds
                         ? it.estado === "ok"
-                        : metaOf(it) > 0 && accOf(it) >= metaOf(it);
+                        : metaOf(it) <= 0 || accOf(it) >= metaOf(it);
                     const cumplieron = rk.filter(esOk);
                     const enCero = rk.filter((it) => !esOk(it) && accOf(it) === 0);
                     const faltan = rk.filter((it) => !esOk(it) && accOf(it) > 0);
