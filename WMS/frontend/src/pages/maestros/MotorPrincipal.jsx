@@ -1265,6 +1265,8 @@ export default function MotorPrincipal() {
                           <StatusChip label="EN TRANSITO" tone="amber" />
                         ) : estadoUp === "PNC_BLOQUEADO" ? (
                           <StatusChip label="PNC BLOQUEADO" tone="red" />
+                        ) : estadoUp === "BAJA_PNC" ? (
+                          <StatusChip label="BAJA PNC" tone="neutral" />
                         ) : (
                           <StatusChip label="ALMACENADO" tone="blue" />
                         )}

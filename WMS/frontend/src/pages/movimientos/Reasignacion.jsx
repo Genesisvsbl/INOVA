@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
-import { getMotorPorUbicacion, getUbicaciones, registrarAjusteInterno } from "../../api";
+import {
+  getMotorPorUbicacion,
+  getUbicaciones,
+  registrarAjusteInterno,
+  getPncBloqueado,
+  desbloquearPnc,
+  darDeBajaPnc,
+} from "../../api";
 import {
   Camera,
   ImagePlus,
@@ -61,6 +68,56 @@ export default function Reasignacion() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [readerControls, setReaderControls] = useState(null);
 
+  // ----- PNC (bloqueado) -----
+  const [pncRows, setPncRows] = useState([]);
+  const [pncLoading, setPncLoading] = useState(false);
+  const [pncUbic, setPncUbic] = useState({}); // { [movId]: codigoUbicacion }
+  const [pncBusyId, setPncBusyId] = useState(null);
+
+  const cargarPnc = async () => {
+    setPncLoading(true);
+    try {
+      const data = await getPncBloqueado();
+      setPncRows(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setToast({ type: "error", message: e.message });
+    } finally {
+      setPncLoading(false);
+    }
+  };
+
+  const onDesbloquear = async (row) => {
+    const ub = String(pncUbic[row.id] || "").trim();
+    if (!ub) {
+      setToast({ type: "error", message: "Escribe la ubicación destino para desbloquear." });
+      return;
+    }
+    setPncBusyId(row.id);
+    try {
+      await desbloquearPnc(row.id, ub);
+      setToast({ type: "success", message: `PNC desbloqueado y ubicado en ${ub}.` });
+      await cargarPnc();
+    } catch (e) {
+      setToast({ type: "error", message: e.message || "No se pudo desbloquear." });
+    } finally {
+      setPncBusyId(null);
+    }
+  };
+
+  const onDarDeBaja = async (row) => {
+    if (!window.confirm(`¿Dar de baja el PNC de ${row.codigo_material} (${row.cantidad})? Queda registrado como salida.`)) return;
+    setPncBusyId(row.id);
+    try {
+      await darDeBajaPnc(row);
+      setToast({ type: "success", message: "PNC dado de baja (salida registrada)." });
+      await cargarPnc();
+    } catch (e) {
+      setToast({ type: "error", message: e.message || "No se pudo dar de baja." });
+    } finally {
+      setPncBusyId(null);
+    }
+  };
+
   const leerRespuesta = async (res) => {
     const text = await res.text();
 
@@ -80,6 +137,7 @@ export default function Reasignacion() {
     cargarUbicaciones().catch((e) =>
       setToast({ type: "error", message: e.message })
     );
+    cargarPnc();
 
     return () => cerrarCamara();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -482,6 +540,80 @@ export default function Reasignacion() {
         style={{ display: "none" }}
         onChange={(e) => leerFoto(e.target.files?.[0])}
       />
+
+      <div style={{ ...card, marginBottom: 16, border: "1px solid #f3c7c7" }}>
+        <div style={{ ...header, background: "#fdf0f0", borderBottom: "1px solid #f3c7c7" }}>
+          <div>
+            <div style={{ ...eyebrow, color: colors.bad }}>WMS / PRODUCTO NO CONFORME (PNC)</div>
+            <h2 style={{ margin: "4px 0", color: colors.bad }}>Material bloqueado (PNC)</h2>
+            <div style={{ color: colors.muted, fontSize: 13, fontWeight: 700 }}>
+              Este stock NO cuenta para picking. Desbloquéalo dándole una ubicación, o dalo de baja.
+            </div>
+          </div>
+          <button onClick={cargarPnc} style={buttonSecondary}>
+            <RefreshCw size={16} /> Refrescar
+          </button>
+        </div>
+
+        <div style={{ padding: 16 }}>
+          {pncLoading ? (
+            <div style={{ color: colors.muted, fontWeight: 700 }}>Cargando PNC…</div>
+          ) : pncRows.length === 0 ? (
+            <div style={{ color: colors.muted, fontSize: 13 }}>No hay material en PNC bloqueado.</div>
+          ) : (
+            <div style={{ overflowX: "auto", border: `1px solid ${colors.border}`, borderRadius: 10 }}>
+              <table style={{ width: "100%", minWidth: 900, borderCollapse: "collapse", fontSize: 12.5 }}>
+                <thead>
+                  <tr>
+                    {["Código", "Descripción", "Lote almacén", "Vence", "Zona", "Cantidad", "Ubicación destino", "Acciones"].map((h) => (
+                      <th key={h} style={{ textAlign: "left", padding: "8px 10px", background: "#0f2744", color: "#eaf1f8", fontSize: 10.5, fontWeight: 800, whiteSpace: "nowrap" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pncRows.map((r, i) => (
+                    <tr key={r.id} style={{ background: i % 2 ? "#fbfcfe" : "#fff" }}>
+                      <td style={{ padding: "7px 10px", fontWeight: 800, color: colors.navy }}>{r.codigo_material}</td>
+                      <td style={{ padding: "7px 10px" }}>{r.descripcion_material}</td>
+                      <td style={{ padding: "7px 10px" }}>{r.lote_almacen}</td>
+                      <td style={{ padding: "7px 10px" }}>{String(r.fecha_vencimiento || "").slice(0, 10)}</td>
+                      <td style={{ padding: "7px 10px" }}>{r.zona}</td>
+                      <td style={{ padding: "7px 10px", fontWeight: 800, textAlign: "right" }}>{new Intl.NumberFormat("es-CO").format(r.cantidad)}</td>
+                      <td style={{ padding: "7px 10px" }}>
+                        <input
+                          list="lista-ubicaciones"
+                          value={pncUbic[r.id] || ""}
+                          onChange={(e) => setPncUbic((p) => ({ ...p, [r.id]: normalizeCode(e.target.value) }))}
+                          placeholder="Ubicación…"
+                          style={{ width: 130, height: 30, borderRadius: 6, border: `1px solid ${colors.border}`, padding: "0 8px", fontSize: 12 }}
+                        />
+                      </td>
+                      <td style={{ padding: "7px 10px" }}>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button
+                            onClick={() => onDesbloquear(r)}
+                            disabled={pncBusyId === r.id}
+                            style={{ height: 30, padding: "0 10px", borderRadius: 6, border: "1px solid #1f7a3d", background: "#1f7a3d", color: "#fff", fontWeight: 800, fontSize: 11.5, cursor: "pointer" }}
+                          >
+                            {pncBusyId === r.id ? "…" : "Desbloquear"}
+                          </button>
+                          <button
+                            onClick={() => onDarDeBaja(r)}
+                            disabled={pncBusyId === r.id}
+                            style={{ height: 30, padding: "0 10px", borderRadius: 6, border: `1px solid ${colors.bad}`, background: "#fff", color: colors.bad, fontWeight: 800, fontSize: 11.5, cursor: "pointer" }}
+                          >
+                            Dar de baja
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div style={card}>
         <div style={header}>

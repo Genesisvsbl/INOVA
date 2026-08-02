@@ -1118,21 +1118,151 @@ export function imprimirRotulo(rotuloId, copias = 1) {
   return Promise.reject(new Error("La impresion debe realizarse desde la vista previa disponible."));
 }
 
+// Importa el inventario inicial (formato completo tipo MOTOR). Detecta PNC:
+// filas con ubicacion_base = "PNC" (o codigo_ubicacion PNCBLOQUEO / posicion
+// BLOQUEO) se guardan como PNC_BLOQUEADO (no cuentan para picking hasta
+// desbloquearlas). Precarga maestros para resolver rápido, sin una consulta
+// por fila.
 export function importarInventarioInicial(file) {
   if (!supabaseEnabled) return Promise.reject(new Error("Servicio operativo no configurado."));
   return readSpreadsheetRows(file).then(async (rows) => {
-    const items = rows.map((row) => ({
-      usuario: "IMPORTACION",
-      documento: "INVENTARIO_INICIAL",
-      codigo_material: getImportValue(row, "codigo"),
-      ubicacion: getImportValue(row, "ubicacion"),
-      estado: "ALMACENADO",
-      cantidad_r: toNumber(getImportValue(row, "cantidad")),
-    })).filter((row) => row.codigo_material && row.ubicacion && row.cantidad_r);
-    if (!items.length) throw new Error("El archivo no tiene inventario valido. Requiere codigo, ubicacion y cantidad.");
-    await crearMovimientosBulk({ items });
-    return importResult(items.length, rows.length - items.length);
+    const [materiales, ubicaciones] = await Promise.all([getMateriales(), getUbicaciones()]);
+    const matByCod = new Map((materiales || []).map((m) => [normalizeText(m.codigo), m.id]));
+    const ubByCod = new Map((ubicaciones || []).map((u) => [normalizeText(u.ubicacion), u.id]));
+
+    const val = (row, ...keys) => {
+      for (const k of keys) {
+        if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== "") return row[k];
+      }
+      return "";
+    };
+
+    const items = [];
+    let omit = 0;
+    let sinMaterial = 0;
+    let pnc = 0;
+
+    for (const row of rows) {
+      const codigo = String(getImportValue(row, "codigo") || val(row, "codigo material", "material")).trim();
+      const cantidad = toNumber(val(row, "cantidad r", "cantidad", "cantidad_r"));
+      if (!codigo || !cantidad) {
+        omit += 1;
+        continue;
+      }
+      const materialId = matByCod.get(normalizeText(codigo));
+      if (!materialId) {
+        sinMaterial += 1;
+        continue;
+      }
+
+      const ubBase = String(val(row, "ubicacion base")).trim();
+      const codUb = String(val(row, "codigo ubicacion") || getImportValue(row, "ubicacion")).trim();
+      const posicion = String(val(row, "posicion")).trim();
+      const estadoXls = String(val(row, "estado")).trim();
+      const esPnc =
+        /pnc/i.test(ubBase) || /pnc/i.test(codUb) || /bloqueo/i.test(posicion) || /pnc/i.test(estadoXls);
+      if (esPnc) pnc += 1;
+
+      const ubicacionId = esPnc ? null : ubByCod.get(normalizeText(codUb)) || null;
+
+      items.push(
+        compactObject({
+          empresa_id: empresaId,
+          fecha: excelDateToISO(val(row, "fecha"))
+            ? new Date(`${excelDateToISO(val(row, "fecha"))}T00:00:00`).toISOString()
+            : new Date().toISOString(),
+          usuario: String(val(row, "usuario") || "IMPORTACION").trim(),
+          documento: String(val(row, "documento") || "INVENTARIO_INICIAL").trim(),
+          material_id: materialId,
+          ubicacion_id: ubicacionId,
+          um: String(val(row, "unidad medida", "um")).trim() || undefined,
+          estado: esPnc ? "PNC_BLOQUEADO" : ubicacionId ? "ALMACENADO" : "EN_TRANSITO",
+          lote_almacen: String(val(row, "lote almacen")).trim() || undefined,
+          lote_proveedor: String(val(row, "lote proveedor")).trim() || undefined,
+          fecha_vencimiento: excelDateToISO(val(row, "fecha vencimiento")) || undefined,
+          cantidad_r: cantidad,
+        })
+      );
+    }
+
+    if (!items.length) throw new Error("El archivo no tiene inventario válido. Requiere código y cantidad.");
+
+    // Inserta en lotes para no exceder límites.
+    const chunk = 500;
+    for (let i = 0; i < items.length; i += chunk) {
+      await insertRow("wms", "movimientos", items.slice(i, i + chunk));
+    }
+
+    return {
+      inserted: items.length,
+      pnc,
+      mensaje:
+        `Inventario importado: ${items.length} registro(s)` +
+        (pnc ? `, ${pnc} en PNC bloqueado` : "") +
+        (sinMaterial ? `; ${sinMaterial} omitido(s) por material inexistente` : "") +
+        (omit ? `; ${omit} fila(s) sin código/cantidad` : "") +
+        ".",
+    };
   });
+}
+
+// ---- PNC (Producto No Conforme / bloqueado) ----
+// Lista los movimientos en estado PNC_BLOQUEADO (para Reasignación).
+export async function getPncBloqueado() {
+  if (!supabaseEnabled) return [];
+  const rows = await selectRows("wms", "movimientos", {
+    empresa_id: `eq.${empresaId}`,
+    estado: "eq.PNC_BLOQUEADO",
+    select: "*,material:materiales(codigo,descripcion,unidad_medida,familia),ubicacion:ubicaciones(ubicacion,zona,bodega)",
+    order: "id.desc",
+    limit: "3000",
+  });
+  return (rows || [])
+    .map((r) => ({
+      id: r.id,
+      codigo_material: r.material?.codigo || "",
+      descripcion_material: r.material?.descripcion || "",
+      um: r.um || r.material?.unidad_medida || "",
+      familia: r.material?.familia || "",
+      lote_almacen: r.lote_almacen || "",
+      lote_proveedor: r.lote_proveedor || "",
+      fecha_vencimiento: r.fecha_vencimiento || "",
+      zona: r.ubicacion?.zona || "",
+      cantidad: Number(r.cantidad_r || 0),
+    }))
+    .filter((r) => r.cantidad > 0);
+}
+
+// Desbloquea un PNC: le asigna una ubicación real y pasa a ALMACENADO.
+export async function desbloquearPnc(movimientoId, codigoUbicacion) {
+  if (!supabaseEnabled) throw new Error("Servicio operativo no configurado.");
+  const ubicacionId = await resolveUbicacionId(codigoUbicacion);
+  return updateById("wms", "movimientos", movimientoId, {
+    ubicacion_id: ubicacionId,
+    estado: "ALMACENADO",
+  });
+}
+
+// Da de baja un PNC: deja el positivo como BAJA_PNC y registra una SALIDA
+// negativa (documento "BAJA PNC") para conservar el rastro. Neto = 0.
+export async function darDeBajaPnc(movimiento) {
+  if (!supabaseEnabled) throw new Error("Servicio operativo no configurado.");
+  const materialId = await resolveMaterialId(movimiento.codigo_material);
+  await insertRow("wms", "movimientos", {
+    empresa_id: empresaId,
+    fecha: new Date().toISOString(),
+    usuario: String(sessionStorage.getItem("usuario") || "SISTEMA"),
+    documento: "BAJA PNC",
+    material_id: materialId,
+    ubicacion_id: null,
+    um: movimiento.um || null,
+    estado: "BAJA_PNC",
+    lote_almacen: movimiento.lote_almacen || null,
+    lote_proveedor: movimiento.lote_proveedor || null,
+    fecha_vencimiento: movimiento.fecha_vencimiento || null,
+    cantidad_r: -Math.abs(Number(movimiento.cantidad || 0)),
+  });
+  return updateById("wms", "movimientos", movimiento.id, { estado: "BAJA_PNC" });
 }
 
 // Categorías de datos transaccionales que el administrador puede borrar.
