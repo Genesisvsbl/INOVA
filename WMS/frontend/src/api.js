@@ -154,6 +154,14 @@ function readCertificadosCache() {
   }
 }
 
+export function limpiarCertificadosCacheLocal() {
+  try {
+    localStorage.removeItem(CERTIFICADOS_CACHE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 function writeCertificadosCache(rows) {
   localStorage.setItem(CERTIFICADOS_CACHE_KEY, JSON.stringify(rows || []));
 }

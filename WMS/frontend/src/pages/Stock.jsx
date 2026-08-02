@@ -19,7 +19,7 @@ import {
   Plus,
   Bell,
 } from "lucide-react";
-import { actualizarCertificadoCalidad, getCertificadosCalidad, getMovimientos, getStock } from "../api";
+import { actualizarCertificadoCalidad, getCertificadosCalidad, getMovimientos, getStock, limpiarCertificadosCacheLocal } from "../api";
 
 const colors = {
   navy: "#133454",
@@ -1237,7 +1237,19 @@ function CertificadosCalidadView() {
             <div style={{ fontWeight: 950, color: colors.purple, fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase" }}>Lista de materiales</div>
             <div style={{ color: colors.muted, fontWeight: 650, marginTop: 3 }}>Certificados, recibos y evidencias por lote.</div>
           </div>
-          <button onClick={loadRows} style={{ ...actionButton, width: "auto" }}>{loading ? "Actualizando..." : "Actualizar"}</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={async () => {
+                if (!window.confirm("¿Vaciar la lista de trazabilidad guardada en este equipo? Esto no borra la base, solo limpia el listado local.")) return;
+                limpiarCertificadosCacheLocal();
+                await loadRows();
+              }}
+              style={{ ...actionButton, width: "auto", background: "#fff", color: colors.bad, border: `1px solid ${colors.badBd || "#f3c7c7"}` }}
+            >
+              Vaciar lista
+            </button>
+            <button onClick={loadRows} style={{ ...actionButton, width: "auto" }}>{loading ? "Actualizando..." : "Actualizar"}</button>
+          </div>
         </div>
         <div style={{ padding: 14, display: "grid", gridTemplateColumns: "1fr 210px 92px", gap: 10, borderBottom: `1px solid ${colors.border}` }}>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar en la tabla..." style={inputStyle} />
