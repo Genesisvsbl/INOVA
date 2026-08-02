@@ -54,6 +54,40 @@ const tbSelectStyle = {
   fontSize: 14,
 };
 
+// Rótulo de ubicación en el mismo tamaño de etiqueta que el historial (10.16 x 5.08 cm).
+function buildRotuloUbicacionHtml({ logo, codigo, descripcion, lote, vencimiento, ubicacion, base, zona }) {
+  const esc = (s) =>
+    String(s ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  const venc = String(vencimiento || "").slice(0, 10);
+  return (
+    `<html><head><meta charset="utf-8"><title>Rótulo de ubicación</title><style>` +
+    `@page{size:10.16cm 5.08cm;margin:0}` +
+    `html,body{margin:0;padding:0}` +
+    `*{font-family:Arial,Helvetica,sans-serif;box-sizing:border-box}` +
+    `.lbl{width:10.16cm;height:5.08cm;padding:2.4mm 3mm;overflow:hidden;display:flex;flex-direction:column}` +
+    `.hd{display:flex;align-items:center;gap:2mm;border-bottom:1.5px solid #0a1f52;padding-bottom:1mm;margin-bottom:1mm}` +
+    `.hd img{height:6.5mm}` +
+    `.hd .t{font-size:11px;font-weight:800;color:#0a1f52;letter-spacing:.3px}` +
+    `.cod{font-size:17px;font-weight:900;color:#0b3d91;line-height:1.05}` +
+    `.desc{font-size:9px;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}` +
+    `.meta{display:flex;gap:5mm;font-size:9.5px;color:#0f172a;margin-top:.8mm}` +
+    `.meta b{color:#0f172a}` +
+    `.ubwrap{margin-top:auto;border-top:1px dashed #94a3b8;padding-top:1mm}` +
+    `.ublabel{font-size:8px;color:#475569;text-transform:uppercase;letter-spacing:.5px}` +
+    `.ub{font-size:26px;font-weight:900;color:#0a1f52;letter-spacing:1px;line-height:1}` +
+    `.foot{font-size:7.5px;color:#94a3b8;margin-top:.6mm}` +
+    `</style></head><body>` +
+    `<div class="lbl">` +
+    `<div class="hd"><img src="${logo}" onerror="this.style.display='none'"/><div class="t">UBICACIÓN DE MATERIAL</div></div>` +
+    `<div class="cod">${esc(codigo)}</div>` +
+    `<div class="desc">${esc(descripcion)}</div>` +
+    `<div class="meta"><span>Lote: <b>${esc(lote || "-")}</b></span><span>Vence: <b>${esc(venc || "-")}</b></span></div>` +
+    `<div class="ubwrap"><div class="ublabel">Ubicación</div><div class="ub">${esc(ubicacion)}</div>` +
+    `<div class="foot">Base ${esc(base || "-")} · Zona ${esc(zona || "-")} · ${new Date().toLocaleString("es-CO")}</div></div>` +
+    `</div></body></html>`
+  );
+}
+
 function todayISODate() {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -1434,25 +1468,16 @@ export default function DesdeRecibo() {
       return;
     }
     const logo = `${window.location.origin}/INOVA2026.png`;
-    const html =
-      `<html><head><meta charset="utf-8"><title>Rótulo de ubicación</title></head>` +
-      `<body style="font-family:Arial,sans-serif;margin:0;padding:18px">` +
-      `<div style="border:2px solid #0a1f52;border-radius:12px;overflow:hidden">` +
-      `<div style="background:#0a1f52;color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px">` +
-      `<img src="${logo}" style="height:34px" onerror="this.style.display='none'"/>` +
-      `<div style="font-size:16px;font-weight:800">UBICACIÓN DE MATERIAL</div></div>` +
-      `<div style="padding:16px 18px">` +
-      `<div style="font-size:13px;color:#475569">Código</div>` +
-      `<div style="font-size:20px;font-weight:800;color:#0b3d91">${escapeHtml(tbLinea.codigo || "")}</div>` +
-      `<div style="font-size:13px;color:#334155;margin:6px 0 12px">${escapeHtml(tbLinea.texto || "")}</div>` +
-      `<div style="display:flex;gap:24px;margin:0 0 12px">` +
-      `<div><div style="font-size:13px;color:#475569">Lote</div><div style="font-size:16px;font-weight:800;color:#0f172a">${escapeHtml(tbLinea.loteAlm || tbLinea.loteProv || "-")}</div></div>` +
-      `<div><div style="font-size:13px;color:#475569">Vencimiento</div><div style="font-size:16px;font-weight:800;color:#0f172a">${escapeHtml(tbLinea.fv || "-")}</div></div>` +
-      `</div>` +
-      `<div style="font-size:13px;color:#475569">Ubicación asignada</div>` +
-      `<div style="font-size:30px;font-weight:900;letter-spacing:1px;color:#0a1f52">${escapeHtml(code)}</div>` +
-      `<div style="font-size:12px;color:#64748b;margin-top:12px">Base ${escapeHtml(tbBase || "-")} · Zona ${escapeHtml(tbZona || "-")} · ${new Date().toLocaleString("es-CO")}</div>` +
-      `</div></div></body></html>`;
+    const html = buildRotuloUbicacionHtml({
+      logo,
+      codigo: tbLinea.codigo || "",
+      descripcion: tbLinea.texto || "",
+      lote: tbLinea.loteAlm || tbLinea.loteProv || "",
+      vencimiento: tbLinea.fv || "",
+      ubicacion: code,
+      base: tbBase,
+      zona: tbZona,
+    });
     w.document.open();
     w.document.write(html);
     w.document.close();
