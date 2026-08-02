@@ -54,7 +54,7 @@ function calcDiferencia(r) {
   );
 }
 
-const th = { padding: "8px 8px", fontSize: 10.5, fontWeight: 800, color: "#e8eefb", background: "#1f2d5c", borderRight: "1px solid #24405f", whiteSpace: "nowrap", textAlign: "center" };
+const th = { padding: "8px 8px", fontSize: 10.5, fontWeight: 800, color: "#e8eefb", background: "#0b3d91", borderRight: "1px solid #2a56ad", whiteSpace: "nowrap", textAlign: "center" };
 const thL = { ...th, textAlign: "center" };
 const td = { padding: "5px 8px", fontSize: 11.5, borderBottom: "1px solid #eef2f7", borderRight: "1px solid #f1f5f9", textAlign: "right", color: "#24384d", whiteSpace: "nowrap" };
 const tdL = { ...td, textAlign: "left" };
