@@ -688,28 +688,57 @@ export default function Recibo() {
 
     const nf = (n) => Number(n || 0).toLocaleString("es-CO");
 
+    const EST = {
+      CUMPLE: { label: "CUMPLE", bg: "#dbe9ff", color: "#0b3d91" },
+      IGUAL: { label: "IGUAL", bg: "#d1f0dd", color: "#157347" },
+      INCUMPLE: { label: "INCUMPLE", bg: "#f8d7da", color: "#b42318" },
+      NA: { label: "—", bg: "#f1f5f9", color: "#64748b" },
+    };
+
     // Un grupo por línea recibida (con código): histórico de lo ya recibido + la
-    // fila que llega ahora (última), con su estado de rotación.
+    // fila que llega ahora, ordenados por fecha de recepción, con estado por fila.
     const grupos = lineas
       .map((ln) => {
         const cod = String(ln.codigo || "").trim();
         if (!cod) return null;
         const vencIso = String(ln.fecha_vencimiento || "").slice(0, 10);
-        const prevIso = vencPrevio[cod] ? String(vencPrevio[cod]).slice(0, 10) : "";
-        const est = estadoInfo(vencIso, prevIso);
-        // Vencimientos ya recibidos antes (excluye exactamente el que llega).
-        const previos = (lotesRecibidos[cod] || []).filter((p) => p.fv);
+        const previos = (lotesRecibidos[cod] || [])
+          .filter((p) => p.fv)
+          .map((p) => ({
+            fechaRec: String(p.fechaRec || "").slice(0, 10),
+            lote: String(p.lote || "").trim(),
+            fv: p.fv,
+            cantidad: nf(p.cantidad),
+            recibiendo: false,
+          }));
+        const incoming = {
+          fechaRec: String(ln.fecha_recepcion || new Date().toISOString()).slice(0, 10),
+          lote: String(ln.lote_proveedor || ln.lote || "").trim(),
+          fv: vencIso,
+          cantidad: String(ln.cantidad || "").trim() || "-",
+          recibiendo: true,
+        };
+        const filas = [...previos, incoming].sort(
+          (a, b) =>
+            (a.fechaRec || "").localeCompare(b.fechaRec || "") ||
+            (a.fv || "").localeCompare(b.fv || "")
+        );
+        // Estado por fila: comparado con el mayor vencimiento recibido ANTES.
+        let runMax = "";
+        filas.forEach((f) => {
+          if (!f.fv) f.est = EST.NA;
+          else if (!runMax) f.est = EST.CUMPLE;
+          else if (f.fv < runMax) f.est = EST.INCUMPLE;
+          else if (f.fv > runMax) f.est = EST.CUMPLE;
+          else f.est = EST.IGUAL;
+          if (f.fv && f.fv > runMax) runMax = f.fv;
+        });
+        const inc = filas.find((f) => f.recibiendo);
         return {
           codigo: cod,
           descripcion: String(ln.descripcion || "").trim(),
-          fechaRec: fmtDMY(ln.fecha_recepcion),
-          lote: String(ln.lote_proveedor || ln.lote || "").trim(),
-          cantidad: String(ln.cantidad || "").trim(),
-          venc: vencIso ? fmtDMY(vencIso) : "-",
-          previos,
-          estado: est.label,
-          estBg: est.bg,
-          estColor: est.color,
+          filas,
+          incumple: !!(inc && inc.est === EST.INCUMPLE),
         };
       })
       .filter(Boolean);
@@ -732,45 +761,42 @@ export default function Recibo() {
     const td = "border:1px solid #cbd5e1;padding:6px 9px;font-family:Arial,sans-serif;font-size:12.5px;color:#111827";
     const tdR = td + ";text-align:right";
     const logo = `${window.location.origin}/INOVA2026.png`;
-    const totalInc = grupos.filter((g) => g.estado === "INCUMPLE").length;
+    const totalInc = grupos.filter((g) => g.incumple).length;
 
     const filasHtml = grupos
       .map((g) => {
-        // Filas del histórico ya recibido (más antiguo a más nuevo por vencimiento).
-        const previasHtml = g.previos
-          .map(
-            (p, k) =>
-              `<tr style="background:${k % 2 ? "#f5f8ff" : "#ffffff"}">` +
+        const rows = g.filas
+          .map((f, k) => {
+            const rowBg = f.recibiendo
+              ? f.est === EST.INCUMPLE
+                ? "#fdecec"
+                : f.est === EST.IGUAL
+                ? "#eafaf0"
+                : f.est === EST.CUMPLE
+                ? "#eef4ff"
+                : "#fff7e6"
+              : k % 2
+              ? "#f5f8ff"
+              : "#ffffff";
+            const bold = f.recibiendo ? "font-weight:700;" : "";
+            const desc =
+              esc(g.descripcion) +
+              (f.recibiendo ? ` <span style="color:#b45309;font-weight:700">◄ RECIBIENDO</span>` : "");
+            return (
+              `<tr style="background:${rowBg}">` +
+              `<td style="${td};text-align:center;${bold}">${fmtDMY(f.fechaRec) || "-"}</td>` +
               `<td style="${td};font-weight:700;color:#0b3d91">${esc(g.codigo)}</td>` +
-              `<td style="${td}">${esc(g.descripcion)}</td>` +
-              `<td style="${td}">${esc(p.lote) || "-"}</td>` +
-              `<td style="${td};text-align:center">${fmtDMY(p.fv)}</td>` +
-              `<td style="${tdR}">${nf(p.cantidad)}</td>` +
-              `<td style="border:1px solid #cbd5e1;padding:6px 9px;font-family:Arial,sans-serif;font-size:12.5px;text-align:center;background:#eef2f7;color:#475569">${fmtDMY(p.fechaRec) || "RECIBIDO"}</td>` +
+              `<td style="${td};${bold}">${desc}</td>` +
+              `<td style="${td}">${esc(f.lote) || "-"}</td>` +
+              `<td style="${td};text-align:center;${bold}">${fmtDMY(f.fv) || "-"}</td>` +
+              `<td style="${tdR};${bold}">${esc(f.cantidad) || "-"}</td>` +
+              `<td style="border:1px solid #cbd5e1;padding:6px 9px;font-family:Arial,sans-serif;font-size:12.5px;font-weight:bold;text-align:center;background:${f.est.bg};color:${f.est.color}">${f.est.label}</td>` +
               `</tr>`
-          )
+            );
+          })
           .join("");
-        // Fila que estamos recibiendo (última), resaltada según el estado.
-        const filaBg =
-          g.estado === "INCUMPLE"
-            ? "#fdecec"
-            : g.estado === "IGUAL"
-            ? "#eafaf0"
-            : g.estado === "CUMPLE"
-            ? "#eef4ff"
-            : "#fff7e6";
-        const recibiendoHtml =
-          `<tr style="background:${filaBg}">` +
-          `<td style="${td};font-weight:700;color:#0b3d91">${esc(g.codigo)}</td>` +
-          `<td style="${td};font-weight:700">${esc(g.descripcion)} <span style="color:#b45309">◄ RECIBIENDO</span></td>` +
-          `<td style="${td}">${esc(g.lote) || "-"}</td>` +
-          `<td style="${td};text-align:center;font-weight:700">${g.venc}</td>` +
-          `<td style="${tdR};font-weight:700">${esc(g.cantidad) || "-"}</td>` +
-          `<td style="border:1px solid #cbd5e1;padding:6px 9px;font-family:Arial,sans-serif;font-size:12.5px;font-weight:bold;text-align:center;background:${g.estBg};color:${g.estColor}">${g.estado}</td>` +
-          `</tr>`;
-        // Separador entre materiales.
-        const sep = `<tr><td colspan="6" style="height:6px;background:#ffffff;border:none"></td></tr>`;
-        return previasHtml + recibiendoHtml + sep;
+        const sep = `<tr><td colspan="7" style="height:6px;background:#ffffff;border:none"></td></tr>`;
+        return rows + sep;
       })
       .join("");
 
@@ -786,6 +812,7 @@ export default function Recibo() {
       `</div></div>` +
       `<table style="border-collapse:collapse;width:100%">` +
       `<thead><tr>` +
+      `<th style="${th};text-align:center">Fecha recepción</th>` +
       `<th style="${th}">Código</th><th style="${th}">Descripción</th>` +
       `<th style="${th}">Lote</th><th style="${th};text-align:center">Fecha vencimiento</th>` +
       `<th style="${th};text-align:right">Cantidad</th>` +
