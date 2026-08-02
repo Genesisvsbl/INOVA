@@ -546,7 +546,7 @@ function buildInformeHtml({ base, fileName }) {
     const sub = list.reduce((a, r) => a + Number(r.diferencia || 0), 0);
     return `
       <div class="cat">
-        <div class="cat-h" style="color:${color}"><span class="tag" style="background:${color}"></span>${titulo}<span class="cnt" style="background:${color}">${list.length}</span><span class="cat-total" style="color:${color}">${money(sub)}</span></div>
+        <div class="cat-h" style="color:${color}"><span class="tag" style="background:${color}"></span>${titulo}<span class="cnt" style="background:${color}">${list.length}</span></div>
         <table class="t">
           <thead><tr><th>Material</th><th>Descripción</th><th class="r">Teórico</th><th class="r">Físico</th><th class="r">Diferencia</th></tr></thead>
           <tbody>
