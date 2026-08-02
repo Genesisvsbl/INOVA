@@ -695,14 +695,29 @@ export default function Recibo() {
       NA: { label: "—", bg: "#f1f5f9", color: "#64748b" },
     };
 
-    // Un grupo por línea recibida (con código): histórico de lo ya recibido + la
-    // fila que llega ahora, ordenados por fecha de recepción, con estado por fila.
-    const grupos = lineas
-      .map((ln) => {
-        const cod = String(ln.codigo || "").trim();
-        if (!cod) return null;
-        const vencIso = String(ln.fecha_vencimiento || "").slice(0, 10);
-        const previos = (lotesRecibidos[cod] || [])
+    // Agrupar por CÓDIGO (no por línea): el histórico se muestra una sola vez y
+    // todas las líneas que se están recibiendo de ese código van juntas.
+    const porCodigo = new Map();
+    lineas.forEach((ln) => {
+      const cod = String(ln.codigo || "").trim();
+      if (!cod) return;
+      if (!porCodigo.has(cod)) {
+        porCodigo.set(cod, { codigo: cod, descripcion: String(ln.descripcion || "").trim(), incomings: [] });
+      }
+      const g = porCodigo.get(cod);
+      if (!g.descripcion) g.descripcion = String(ln.descripcion || "").trim();
+      g.incomings.push({
+        fechaRec: String(ln.fecha_recepcion || new Date().toISOString()).slice(0, 10),
+        lote: String(ln.lote_proveedor || ln.lote || "").trim(),
+        fv: String(ln.fecha_vencimiento || "").slice(0, 10),
+        cantidad: String(ln.cantidad || "").trim() || "-",
+        recibiendo: true,
+      });
+    });
+
+    const grupos = Array.from(porCodigo.values())
+      .map((g) => {
+        const previos = (lotesRecibidos[g.codigo] || [])
           .filter((p) => p.fv)
           .map((p) => ({
             fechaRec: String(p.fechaRec || "").slice(0, 10),
@@ -711,14 +726,7 @@ export default function Recibo() {
             cantidad: nf(p.cantidad),
             recibiendo: false,
           }));
-        const incoming = {
-          fechaRec: String(ln.fecha_recepcion || new Date().toISOString()).slice(0, 10),
-          lote: String(ln.lote_proveedor || ln.lote || "").trim(),
-          fv: vencIso,
-          cantidad: String(ln.cantidad || "").trim() || "-",
-          recibiendo: true,
-        };
-        const filas = [...previos, incoming].sort(
+        const filas = [...previos, ...g.incomings].sort(
           (a, b) =>
             (a.fechaRec || "").localeCompare(b.fechaRec || "") ||
             (a.fv || "").localeCompare(b.fv || "")
@@ -733,12 +741,11 @@ export default function Recibo() {
           else f.est = EST.IGUAL;
           if (f.fv && f.fv > runMax) runMax = f.fv;
         });
-        const inc = filas.find((f) => f.recibiendo);
         return {
-          codigo: cod,
-          descripcion: String(ln.descripcion || "").trim(),
+          codigo: g.codigo,
+          descripcion: g.descripcion,
           filas,
-          incumple: !!(inc && inc.est === EST.INCUMPLE),
+          incumple: filas.some((f) => f.recibiendo && f.est === EST.INCUMPLE),
         };
       })
       .filter(Boolean);
