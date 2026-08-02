@@ -1146,7 +1146,9 @@ export const WMS_DATA_GROUPS = [
     key: "despachos",
     grupo: "bases",
     label: "Despachos y picking",
-    tablas: ["despacho_detalles", "picking_detalle", "despacho_cargas"],
+    // Orden importante por llaves foráneas: primero picking_detalle (hijo),
+    // luego despacho_detalles, y al final despacho_cargas (padre).
+    tablas: ["picking_detalle", "despacho_detalles", "despacho_cargas"],
   },
   {
     key: "inventarios",
