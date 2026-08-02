@@ -73,25 +73,64 @@ export function selectRows(schema, table, params = {}) {
   return request(schema, table, { params });
 }
 
-// Trae TODOS los registros que cumplen el filtro, paginando de a 1000,
-// para que los catalogos (materiales, ubicaciones, proveedores) no se corten.
+// Trae TODOS los registros que cumplen el filtro, SIN límite. Pide la primera
+// página junto con el total exacto (header content-range) y luego descarga las
+// páginas restantes EN PARALELO (concurrencia limitada) para que sea rápido
+// aunque haya muchísima información. Todas las pantallas pasan por aquí.
 export async function selectAllRows(schema, table, params = {}) {
+  if (!supabaseEnabled) {
+    throw new Error("Supabase no esta configurado en VITE_SUPABASE_URL/VITE_SUPABASE_PUBLISHABLE_KEY.");
+  }
+
   const pageSize = 1000;
   const base = { ...params };
   delete base.limit;
   delete base.offset;
 
-  let all = [];
-  let offset = 0;
-  for (let i = 0; i < 500; i += 1) {
-    const page = await request(schema, table, {
-      params: { ...base, limit: String(pageSize), offset: String(offset) },
-    });
-    if (!Array.isArray(page) || page.length === 0) break;
-    all = all.concat(page);
-    if (page.length < pageSize) break;
-    offset += pageSize;
+  // Primera página + total exacto.
+  const firstRes = await fetch(buildUrl(schema, table, { ...base, limit: String(pageSize), offset: "0" }), {
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      Prefer: "count=exact",
+      "Accept-Profile": schema,
+    },
+  });
+  if (!firstRes.ok) {
+    const text = await firstRes.text();
+    throw new Error(text || `Supabase HTTP ${firstRes.status}`);
   }
+  const first = await firstRes.json();
+  if (!Array.isArray(first) || first.length < pageSize) return Array.isArray(first) ? first : [];
+
+  const cr = firstRes.headers.get("content-range") || "";
+  const totalStr = cr.split("/").pop();
+  const total = totalStr && totalStr !== "*" ? Number(totalStr) : 0;
+  if (!total || total <= pageSize) return first;
+
+  // Offsets de las páginas restantes.
+  const offsets = [];
+  for (let off = pageSize; off < total; off += pageSize) offsets.push(off);
+
+  // Descarga en paralelo con concurrencia limitada (no saturar).
+  const CONCURRENCIA = 6;
+  const results = new Array(offsets.length);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < offsets.length) {
+      const my = cursor;
+      cursor += 1;
+      results[my] = await request(schema, table, {
+        params: { ...base, limit: String(pageSize), offset: String(offsets[my]) },
+      });
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(CONCURRENCIA, offsets.length) }, () => worker())
+  );
+
+  let all = first;
+  for (const page of results) if (Array.isArray(page)) all = all.concat(page);
   return all;
 }
 
