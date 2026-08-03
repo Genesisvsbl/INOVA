@@ -23,6 +23,9 @@ function codeUbic(u) {
 const nivelDe = (u) => { const c = codeUbic(u); const a = c.indexOf("'"); return a > 0 ? c[a - 1] : ""; };
 const moduloDe = (u) => { const c = codeUbic(u); const a = c.indexOf("'"); return a > 1 ? c[a - 2] : ""; };
 const pasilloDe = (u) => { const c = codeUbic(u); const a = c.indexOf("'"); return a > 2 ? c[a - 3] : ""; };
+// Es posición de RACK real (tiene apóstrofe + módulo + nivel). Las áreas de
+// piso tipo 300PISO / 300MALLA / ZONAREVISION no lo cumplen.
+const esRack = (u) => { const c = codeUbic(u); return c.includes("'") && !!moduloDe(u) && !!nivelDe(u); };
 
 const esc = (s) => String(s ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 
@@ -115,6 +118,7 @@ export default function ConsultaUbicacionesVacias() {
   const [modulo, setModulo] = useState("");
   const [nivel, setNivel] = useState("");
   const [texto, setTexto] = useState("");
+  const [soloRack, setSoloRack] = useState(true); // ocultar áreas de piso
   const [lista, setLista] = useState([]);
   const [loading, setLoading] = useState(false);
   const [buscado, setBuscado] = useState(false);
@@ -148,19 +152,24 @@ export default function ConsultaUbicacionesVacias() {
   const modulos = useMemo(() => opt(scope.map(moduloDe)), [scope]);
   const niveles = useMemo(() => opt(scope.map(nivelDe)), [scope]);
 
-  const filtrar = (arr) => arr.filter((u) => {
-    // Solo excluye si la ubicación TIENE familia asignada y no coincide;
-    // las ubicaciones sin familia asignada no se descartan.
-    if (familia && String(u.familias || "").trim() && !String(u.familias).toUpperCase().includes(familia.toUpperCase())) return false;
-    if (pasillo && pasilloDe(u) !== pasillo) return false;
-    if (modulo && moduloDe(u) !== modulo) return false;
-    if (nivel && nivelDe(u) !== nivel) return false;
-    if (texto) {
-      const t = texto.toLowerCase();
-      if (!(`${u.ubicacion || ""} ${u.zona || ""} ${u.bodega || ""} ${u.familias || ""}`.toLowerCase().includes(t))) return false;
-    }
-    return true;
-  }).sort((a, b) => String(a.ubicacion || "").localeCompare(String(b.ubicacion || ""), undefined, { numeric: true }));
+  const filtrar = (arr) => {
+    // ¿Las ubicaciones traen familia asignada? Si ninguna la tiene, el filtro de
+    // familia no aplica (para no vaciar la lista). Cuando cargues la familia en
+    // el maestro de ubicaciones, el filtro pasa a ser estricto automáticamente.
+    const hayFamiliaEnUbic = arr.some((u) => String(u.familias || "").trim());
+    return arr.filter((u) => {
+      if (soloRack && !esRack(u)) return false;
+      if (familia && hayFamiliaEnUbic && !String(u.familias || "").toUpperCase().includes(familia.toUpperCase())) return false;
+      if (pasillo && pasilloDe(u) !== pasillo) return false;
+      if (modulo && moduloDe(u) !== modulo) return false;
+      if (nivel && nivelDe(u) !== nivel) return false;
+      if (texto) {
+        const t = texto.toLowerCase();
+        if (!(`${u.ubicacion || ""} ${u.zona || ""} ${u.bodega || ""} ${u.familias || ""}`.toLowerCase().includes(t))) return false;
+      }
+      return true;
+    }).sort((a, b) => String(a.ubicacion || "").localeCompare(String(b.ubicacion || ""), undefined, { numeric: true }));
+  };
 
   const consultar = async () => {
     setLoading(true); setBuscado(true); setSel({});
@@ -216,6 +225,10 @@ export default function ConsultaUbicacionesVacias() {
               <div style={{ fontSize: 11, fontWeight: 700, color: colors.muted, marginBottom: 4 }}>TEXTO</div>
               <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Buscar…" style={inputStyle} />
             </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: colors.text, height: 36, whiteSpace: "nowrap" }}>
+              <input type="checkbox" checked={soloRack} onChange={(e) => setSoloRack(e.target.checked)} />
+              Solo posiciones de rack
+            </label>
             <button onClick={consultar} disabled={loading} style={btn(colors.blue)}><Search size={15} /> {loading ? "Buscando…" : "Consultar"}</button>
           </div>
 
