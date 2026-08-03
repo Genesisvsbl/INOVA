@@ -183,7 +183,7 @@ function buildRotuloUbicacionHtml({ logo, codigo, descripcion, lote, vencimiento
     `.qtybox{text-align:right;flex-shrink:0}` +
     `.lab{font-size:7px;color:#475569;text-transform:uppercase;letter-spacing:.5px}` +
     `.qty{font-size:32px;font-weight:900;color:#0a1f52;line-height:.95}` +
-    `.ubwrap{text-align:center;margin-top:.4mm}` +
+    `.ubwrap{text-align:center;margin-top:3mm}` +
     `.ub{font-size:31px;font-weight:900;color:#0a1f52;letter-spacing:2px;line-height:1}` +
     `.bcwrap{margin-top:auto}` +
     `.bcwrap svg{width:100%;height:48px;display:block}` +
