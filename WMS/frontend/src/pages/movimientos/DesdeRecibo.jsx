@@ -10,6 +10,7 @@ import {
   sugerirUbicaciones,
   getUbicacionesVacias,
   borrarRecetaPorSerial,
+  borrarRecetaPorDocumento,
 } from "../../api";
 import {
   ArrowLeft,
@@ -2365,11 +2366,13 @@ export default function DesdeRecibo() {
     setGuardando(true);
 
     try {
-      // Si el recibo (serial) ya existía, borramos sus movimientos y rótulos
-      // ANTES de reescribir, para que una corrección no duplique.
-      const serialActual = String(draft?.header?.serial || "").trim();
-      if (serialActual) {
-        await borrarRecetaPorSerial(serialActual);
+      // Si el recibo (por su NÚMERO DE DOCUMENTO) ya existía, borramos sus
+      // movimientos y rótulos ANTES de reescribir, para que una corrección no
+      // duplique. Se usa el documento (no el serial), porque varios recibos
+      // ciegos distintos pueden compartir el mismo serial/cita.
+      const documentoActual = String(draft?.header?.documento || "").trim();
+      if (documentoActual) {
+        await borrarRecetaPorDocumento(documentoActual);
       }
 
       for (const nov of novedadesPNC) {
@@ -2478,11 +2481,13 @@ export default function DesdeRecibo() {
     setGuardando(true);
 
     try {
-      // Si el recibo (serial) ya existía, borramos sus movimientos y rótulos
-      // ANTES de reescribir, para que una corrección no duplique.
-      const serialActual = String(draft?.header?.serial || "").trim();
-      if (serialActual) {
-        await borrarRecetaPorSerial(serialActual);
+      // Si el recibo (por su NÚMERO DE DOCUMENTO) ya existía, borramos sus
+      // movimientos y rótulos ANTES de reescribir, para que una corrección no
+      // duplique. Se usa el documento (no el serial), porque varios recibos
+      // ciegos distintos pueden compartir el mismo serial/cita.
+      const documentoActual = String(draft?.header?.documento || "").trim();
+      if (documentoActual) {
+        await borrarRecetaPorDocumento(documentoActual);
       }
 
       for (const nov of novedadesPNC) {

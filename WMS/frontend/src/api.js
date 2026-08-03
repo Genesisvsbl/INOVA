@@ -607,6 +607,23 @@ export async function borrarRecetaPorSerial(serial) {
   return { ok: true };
 }
 
+// Borra los movimientos y rótulos de un recibo por su NÚMERO DE DOCUMENTO.
+// El serial (cita) puede repetirse entre recibos ciegos distintos, por eso la
+// reescritura de un recibo debe identificarse por documento, no por serial.
+export async function borrarRecetaPorDocumento(documento) {
+  const d = String(documento || "").trim();
+  if (!supabaseEnabled || !d) return { ok: false };
+  await deleteWhere("wms", "movimientos", {
+    empresa_id: `eq.${empresaId}`,
+    documento: `eq.${d}`,
+  });
+  await deleteWhere("wms", "rotulos", {
+    empresa_id: `eq.${empresaId}`,
+    documento: `eq.${d}`,
+  });
+  return { ok: true };
+}
+
 export function getMovimientos() {
   if (supabaseEnabled) {
     return selectAllRows("wms", "movimientos", {
