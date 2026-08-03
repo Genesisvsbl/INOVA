@@ -11,6 +11,7 @@ import {
   Home,
   LogOut,
   Map,
+  MapPin,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
@@ -317,6 +318,11 @@ export default function Layout() {
                   <NavLink to="/stock" style={(state) => navStyle(state, sidebarExpanded)} title="Consulta">
                     <Search size={18} />
                     {sidebarExpanded && <span>Consulta</span>}
+                  </NavLink>
+
+                  <NavLink to="/ubicaciones-vacias" style={(state) => navStyle(state, sidebarExpanded)} title="Ubicaciones vacías">
+                    <MapPin size={18} />
+                    {sidebarExpanded && <span>Ubicaciones vacías</span>}
                   </NavLink>
 
                   <NavLink to="/layout-zona" style={(state) => navStyle(state, sidebarExpanded)} title="Layout por zona">
