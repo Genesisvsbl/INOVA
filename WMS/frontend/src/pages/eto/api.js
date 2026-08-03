@@ -639,7 +639,6 @@ async function consultaPersonaSupabase(params) {
     select: "*",
     or: `(code.ilike.*${q}*,name.ilike.*${q}*)`,
     order: "name.asc",
-    limit: "25",
   });
   if (!entidades.length) return { personas: [] };
 
