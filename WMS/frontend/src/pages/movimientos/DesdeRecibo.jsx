@@ -74,30 +74,34 @@ function buildRotuloUbicacionHtml({ logo, codigo, descripcion, lote, vencimiento
     `.hd{background:#0a1f52;color:#fff;display:flex;align-items:center;gap:2mm;padding:1.6mm 3mm}` +
     `.hd img{height:6mm}` +
     `.hd .t{font-size:11px;font-weight:800;letter-spacing:.3px;color:#fff}` +
-    `.bd{flex:1;display:flex;flex-direction:column;padding:1.1mm 3mm 1.2mm}` +
+    `.bd{flex:1;display:flex;flex-direction:column;padding:1.1mm 3mm 1.4mm}` +
+    `.top{display:flex;justify-content:space-between;align-items:flex-start;gap:3mm}` +
+    `.info{min-width:0;flex:1}` +
     `.cod{font-size:15px;font-weight:900;color:#0b3d91;line-height:1.02}` +
     `.desc{font-size:8px;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}` +
-    `.meta{display:flex;gap:5mm;font-size:8.5px;color:#0f172a;margin-top:.3mm}` +
+    `.meta{font-size:8.5px;color:#0f172a;margin-top:.3mm}` +
     `.meta b{color:#0f172a}` +
-    `.mid{display:flex;justify-content:space-between;align-items:flex-end;margin-top:.8mm}` +
+    `.qtybox{text-align:right;flex-shrink:0}` +
     `.lab{font-size:7px;color:#475569;text-transform:uppercase;letter-spacing:.5px}` +
-    `.ub{font-size:29px;font-weight:900;color:#0a1f52;letter-spacing:1px;line-height:1}` +
-    `.qty{font-size:29px;font-weight:900;color:#0a1f52;line-height:1;text-align:right}` +
-    `.bcwrap{margin-top:auto;text-align:center}` +
-    `.bcwrap svg{width:100%;height:40px}` +
-    `.bctxt{font-size:8px;color:#334155;letter-spacing:2px}` +
+    `.qty{font-size:32px;font-weight:900;color:#0a1f52;line-height:.95}` +
+    `.ubwrap{text-align:center;margin-top:.4mm}` +
+    `.ub{font-size:31px;font-weight:900;color:#0a1f52;letter-spacing:2px;line-height:1}` +
+    `.bcwrap{margin-top:auto}` +
+    `.bcwrap svg{width:100%;height:48px;display:block}` +
     `</style></head><body>` +
     `<div class="lbl">` +
     `<div class="hd"><img src="${logo}" onerror="this.style.display='none'"/><div class="t">UBICACIÓN DE MATERIAL</div></div>` +
     `<div class="bd">` +
+    `<div class="top">` +
+    `<div class="info">` +
     `<div class="cod">${esc(codigo)}</div>` +
     `<div class="desc">${esc(descripcion)}</div>` +
-    `<div class="meta"><span>Lote: <b>${esc(lote || "-")}</b></span><span>Vence: <b>${esc(venc || "-")}</b></span></div>` +
-    `<div class="mid">` +
-    `<div><div class="lab">Ubicación</div><div class="ub">${esc(ubic)}</div></div>` +
-    `<div><div class="lab">Cantidad</div><div class="qty">${esc(cant)}</div></div>` +
+    `<div class="meta">Lote <b>${esc(lote || "-")}</b> · Vence <b>${esc(venc || "-")}</b></div>` +
     `</div>` +
-    `<div class="bcwrap"><svg id="bc"></svg><div class="bctxt">${esc(ubic)}</div></div>` +
+    `<div class="qtybox"><div class="lab">Cantidad</div><div class="qty">${esc(cant)}</div></div>` +
+    `</div>` +
+    `<div class="ubwrap"><div class="lab">Ubicación</div><div class="ub">${esc(ubic)}</div></div>` +
+    `<div class="bcwrap"><svg id="bc"></svg></div>` +
     `</div></div>` +
     `<script>(function(){function go(){try{JsBarcode("#bc",${JSON.stringify(ubic)},{format:"CODE128",displayValue:false,height:40,width:1.5,margin:0});}catch(e){}setTimeout(function(){try{window.focus();window.print();}catch(e){}},250);}if(document.readyState==="complete"){go();}else{window.addEventListener("load",go);}window.onafterprint=function(){setTimeout(function(){try{window.close();}catch(e){}},150);};})();<\/script>` +
     `</body></html>`
