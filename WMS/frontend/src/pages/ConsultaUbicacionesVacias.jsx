@@ -42,7 +42,7 @@ function labelCss() {
     `.bd{flex:1;display:flex;flex-direction:column;padding:1.4mm 3mm 1.4mm}` +
     `.meta{font-size:9px;color:#334155}` +
     `.meta b{color:#0f172a}` +
-    `.ubwrap{text-align:center;margin-top:2mm}` +
+    `.ubwrap{text-align:center;margin-top:6mm}` +
     `.lab{font-size:7.5px;color:#475569;text-transform:uppercase;letter-spacing:.5px}` +
     `.ub{font-size:34px;font-weight:900;color:#0a1f52;letter-spacing:2px;line-height:1}` +
     `.bcwrap{margin-top:auto}` +
@@ -53,7 +53,7 @@ function labelBody(loc, idx, logo) {
   const code = codeUbic(loc);
   return (
     `<div class="lbl">` +
-    `<div class="hd"><img src="${logo}" onerror="this.style.display='none'"/><div class="t">UBICACIÓN VACÍA</div></div>` +
+    `<div class="hd"><img src="${logo}" onerror="this.style.display='none'"/><div class="t">UBICACIÓN</div></div>` +
     `<div class="bd">` +
     `<div class="meta">Base <b>${esc(loc.ubicacion_base || "-")}</b> · Zona <b>${esc(loc.zona || "-")}</b> · Pasillo <b>${esc(pasilloDe(loc) || "-")}</b> · Módulo <b>${esc(moduloDe(loc) || "-")}</b> · Nivel <b>${esc(nivelDe(loc) || "-")}</b>${loc.familias ? ` · Familia <b>${esc(loc.familias)}</b>` : ""}</div>` +
     `<div class="ubwrap"><div class="lab">Ubicación</div><div class="ub">${esc(code)}</div></div>` +
