@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { showWmsAlert } from "../wmsDialog.jsx";
-import { getUbicaciones, getUbicacionesVacias } from "../api";
+import { getUbicaciones, getUbicacionesVacias, getMateriales } from "../api";
 import { Search, Printer, FileText, MapPin, ArrowLeft, Check } from "lucide-react";
 
 const colors = {
@@ -107,6 +107,7 @@ function imprimirInforme(locs, filtros) {
 export default function ConsultaUbicacionesVacias() {
   const navigate = useNavigate();
   const [ubicaciones, setUbicaciones] = useState([]);
+  const [familiasMaestro, setFamiliasMaestro] = useState([]);
   const [base, setBase] = useState("");
   const [zona, setZona] = useState("");
   const [familia, setFamilia] = useState("");
@@ -122,6 +123,9 @@ export default function ConsultaUbicacionesVacias() {
 
   useEffect(() => {
     getUbicaciones().then((u) => setUbicaciones(Array.isArray(u) ? u : [])).catch(() => setUbicaciones([]));
+    getMateriales()
+      .then((m) => setFamiliasMaestro([...new Set((m || []).map((x) => String(x.familia || "").trim()).filter(Boolean))]))
+      .catch(() => setFamiliasMaestro([]));
   }, []);
 
   const scope = useMemo(
@@ -133,13 +137,21 @@ export default function ConsultaUbicacionesVacias() {
   const opt = (arr) => [...new Set(arr.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
   const bases = useMemo(() => opt((ubicaciones || []).map((u) => String(u.ubicacion_base || "").trim())), [ubicaciones]);
   const zonas = useMemo(() => opt((ubicaciones || []).filter((u) => !base || String(u.ubicacion_base || "").trim() === base).map((u) => String(u.zona || "").trim())), [ubicaciones, base]);
-  const familias = useMemo(() => opt(scope.flatMap((u) => String(u.familias || "").split(/[,;/]/).map((x) => x.trim()))), [scope]);
+  const familias = useMemo(
+    () => opt([
+      ...scope.flatMap((u) => String(u.familias || "").split(/[,;/]/).map((x) => x.trim())),
+      ...familiasMaestro,
+    ]),
+    [scope, familiasMaestro]
+  );
   const pasillos = useMemo(() => opt(scope.map(pasilloDe)), [scope]);
   const modulos = useMemo(() => opt(scope.map(moduloDe)), [scope]);
   const niveles = useMemo(() => opt(scope.map(nivelDe)), [scope]);
 
   const filtrar = (arr) => arr.filter((u) => {
-    if (familia && !String(u.familias || "").toUpperCase().includes(familia.toUpperCase())) return false;
+    // Solo excluye si la ubicación TIENE familia asignada y no coincide;
+    // las ubicaciones sin familia asignada no se descartan.
+    if (familia && String(u.familias || "").trim() && !String(u.familias).toUpperCase().includes(familia.toUpperCase())) return false;
     if (pasillo && pasilloDe(u) !== pasillo) return false;
     if (modulo && moduloDe(u) !== modulo) return false;
     if (nivel && nivelDe(u) !== nivel) return false;
