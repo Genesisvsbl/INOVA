@@ -55,29 +55,37 @@ const tbSelectStyle = {
   fontSize: 14,
 };
 
-// Rótulo de ubicación en el mismo tamaño de etiqueta que el historial (10.16 x 5.08 cm).
-function buildRotuloUbicacionHtml({ logo, codigo, descripcion, lote, vencimiento, ubicacion, base, zona }) {
+// Rótulo de ubicación (10.16 x 5.08 cm) con cantidad en grande y código de
+// barras (Code128) de la ubicación. Se imprime solo al cargar.
+function buildRotuloUbicacionHtml({ logo, codigo, descripcion, lote, vencimiento, ubicacion, cantidad }) {
   const esc = (s) =>
     String(s ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
   const venc = String(vencimiento || "").slice(0, 10);
+  const ubic = String(ubicacion || "");
+  const cant = cantidad === undefined || cantidad === null || cantidad === "" ? "-" : String(cantidad);
   return (
-    `<html><head><meta charset="utf-8"><title>Rótulo de ubicación</title><style>` +
+    `<html><head><meta charset="utf-8"><title>Rótulo de ubicación</title>` +
+    `<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>` +
+    `<style>` +
     `@page{size:10.16cm 5.08cm;margin:0}` +
     `html,body{margin:0;padding:0}` +
     `*{font-family:Arial,Helvetica,sans-serif;box-sizing:border-box}` +
     `.lbl{width:10.16cm;height:5.08cm;overflow:hidden;display:flex;flex-direction:column}` +
-    `.hd{background:#0a1f52;color:#fff;display:flex;align-items:center;gap:2mm;padding:1.8mm 3mm}` +
+    `.hd{background:#0a1f52;color:#fff;display:flex;align-items:center;gap:2mm;padding:1.6mm 3mm}` +
     `.hd img{height:6mm}` +
-    `.hd .t{font-size:12px;font-weight:800;letter-spacing:.3px;color:#fff}` +
-    `.bd{flex:1;display:flex;flex-direction:column;padding:1.4mm 3mm 1.6mm}` +
-    `.cod{font-size:18px;font-weight:900;color:#0b3d91;line-height:1.05}` +
-    `.desc{font-size:9px;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}` +
-    `.meta{display:flex;gap:5mm;font-size:9.5px;color:#0f172a;margin-top:.6mm}` +
+    `.hd .t{font-size:11px;font-weight:800;letter-spacing:.3px;color:#fff}` +
+    `.bd{flex:1;display:flex;flex-direction:column;padding:1.1mm 3mm 1.2mm}` +
+    `.cod{font-size:15px;font-weight:900;color:#0b3d91;line-height:1.02}` +
+    `.desc{font-size:8px;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}` +
+    `.meta{display:flex;gap:5mm;font-size:8.5px;color:#0f172a;margin-top:.3mm}` +
     `.meta b{color:#0f172a}` +
-    `.ubwrap{margin-top:auto;border-top:1px dashed #94a3b8;padding-top:.8mm}` +
-    `.ublabel{font-size:8px;color:#475569;text-transform:uppercase;letter-spacing:.5px}` +
-    `.ub{font-size:40px;font-weight:900;color:#0a1f52;letter-spacing:1px;line-height:1}` +
-    `.foot{font-size:7.5px;color:#94a3b8;margin-top:.4mm}` +
+    `.mid{display:flex;justify-content:space-between;align-items:flex-end;margin-top:.8mm}` +
+    `.lab{font-size:7px;color:#475569;text-transform:uppercase;letter-spacing:.5px}` +
+    `.ub{font-size:29px;font-weight:900;color:#0a1f52;letter-spacing:1px;line-height:1}` +
+    `.qty{font-size:29px;font-weight:900;color:#0a1f52;line-height:1;text-align:right}` +
+    `.bcwrap{margin-top:auto;text-align:center}` +
+    `.bcwrap svg{width:100%;height:40px}` +
+    `.bctxt{font-size:8px;color:#334155;letter-spacing:2px}` +
     `</style></head><body>` +
     `<div class="lbl">` +
     `<div class="hd"><img src="${logo}" onerror="this.style.display='none'"/><div class="t">UBICACIÓN DE MATERIAL</div></div>` +
@@ -85,9 +93,14 @@ function buildRotuloUbicacionHtml({ logo, codigo, descripcion, lote, vencimiento
     `<div class="cod">${esc(codigo)}</div>` +
     `<div class="desc">${esc(descripcion)}</div>` +
     `<div class="meta"><span>Lote: <b>${esc(lote || "-")}</b></span><span>Vence: <b>${esc(venc || "-")}</b></span></div>` +
-    `<div class="ubwrap"><div class="ublabel">Ubicación</div><div class="ub">${esc(ubicacion)}</div>` +
-    `<div class="foot">Base ${esc(base || "-")} · Zona ${esc(zona || "-")} · ${new Date().toLocaleString("es-CO")}</div></div>` +
-    `</div></div></body></html>`
+    `<div class="mid">` +
+    `<div><div class="lab">Ubicación</div><div class="ub">${esc(ubic)}</div></div>` +
+    `<div><div class="lab">Cantidad</div><div class="qty">${esc(cant)}</div></div>` +
+    `</div>` +
+    `<div class="bcwrap"><svg id="bc"></svg><div class="bctxt">${esc(ubic)}</div></div>` +
+    `</div></div>` +
+    `<script>(function(){function go(){try{JsBarcode("#bc",${JSON.stringify(ubic)},{format:"CODE128",displayValue:false,height:40,width:1.5,margin:0});}catch(e){}setTimeout(function(){try{window.focus();window.print();}catch(e){}},250);}if(document.readyState==="complete"){go();}else{window.addEventListener("load",go);}window.onafterprint=function(){setTimeout(function(){try{window.close();}catch(e){}},150);};})();<\/script>` +
+    `</body></html>`
   );
 }
 
@@ -1484,6 +1497,7 @@ export default function DesdeRecibo() {
       loteAlm: r.loteAlm || "",
       loteProv: r.loteProv || "",
       fv: r.fv || "",
+      cantidad: r.cantidadFmt || r.cantidad || r.cantidadRaw || "",
     });
     setTbBase(r.base || "");
     setTbZona("");
@@ -1543,17 +1557,13 @@ export default function DesdeRecibo() {
       lote: tbLinea.loteAlm || tbLinea.loteProv || "",
       vencimiento: tbLinea.fv || "",
       ubicacion: code,
-      base: tbBase,
-      zona: tbZona,
+      cantidad: tbLinea.cantidad || "",
     });
     w.document.open();
     w.document.write(html);
     w.document.close();
     w.focus();
-    setTimeout(() => {
-      w.print();
-      w.close();
-    }, 400);
+    // La ventana se imprime sola (tras generar el código de barras).
   };
 
   const confirmarVacia = () => {
