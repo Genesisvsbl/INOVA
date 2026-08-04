@@ -143,8 +143,8 @@ function isDuplicateKeyError(error) {
 }
 
 function isMissingColumnError(error) {
-  const message = String(error?.message || "");
-  return message.includes("PGRST204") || message.includes("42703") || message.includes("schema cache");
+  const message = String(error?.raw || error?.message || "");
+  return error?.code === "PGRST204" || error?.code === "42703" || message.includes("PGRST204") || message.includes("42703") || message.includes("schema cache");
 }
 
 function withoutPasswordFlags(payload) {
@@ -484,7 +484,7 @@ export async function getAccessCatalogs() {
     try {
       return await safeSelect("public", table, params);
     } catch (error) {
-      if (String(error?.message || "").includes("PGRST205")) {
+      if (error?.code === "PGRST205" || /PGRST205|could not find the table|schema cache/i.test(String(error?.raw || error?.message || ""))) {
         missingTables.push(table);
         return [];
       }
@@ -530,7 +530,7 @@ export async function solicitarAcceso(payload) {
       clave_consulta: claveConsulta,
     });
   } catch (error) {
-    const message = String(error?.message || "");
+    const message = String(error?.raw || error?.message || "");
     if (!message.includes("clave_consulta") && !message.includes("schema cache")) throw error;
     rows = await insertRow("public", "solicitudes_acceso", {
       ...basePayload,

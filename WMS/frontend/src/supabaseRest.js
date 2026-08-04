@@ -38,7 +38,14 @@ async function request(schema, table, { method = "GET", params, body, prefer = "
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(mensajeErrorAmigable(text, res.status, table));
+    let data = null;
+    try { data = JSON.parse(text); } catch { /* no json */ }
+    const err = new Error(mensajeErrorAmigable(text, res.status, table));
+    err.raw = text; // texto técnico original (para chequeos internos)
+    err.code = data?.code || "";
+    err.status = res.status;
+    err.details = data?.details || "";
+    throw err;
   }
 
   if (res.status === 204) return null;

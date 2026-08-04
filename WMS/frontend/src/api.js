@@ -1486,10 +1486,11 @@ export async function borrarDatosWms(seleccion = {}) {
         await deleteWhere("wms", tabla, { empresa_id: `eq.${empresaId}` });
         borradas.push(tabla);
       } catch (e) {
-        const msg = String(e?.message || e);
+        const msg = String(e?.raw || e?.message || e);
         // Si la tabla no existe en la base (migración no aplicada), la
         // omitimos y seguimos con el resto.
         if (
+          e?.code === "PGRST205" ||
           msg.includes("PGRST205") ||
           /Could not find the table/i.test(msg) ||
           /does not exist/i.test(msg) ||
@@ -1814,7 +1815,7 @@ export async function crearReservaAdicionalDespacho(payload = {}) {
     });
     return Array.isArray(saved) ? saved[0] : saved;
   } catch (error) {
-    const message = String(error?.message || error || "");
+    const message = String(error?.raw || error?.message || error || "");
     if (!/origen|observacion|column|schema cache/i.test(message)) throw error;
     const saved = await insertRow("wms", "despacho_detalles", baseRow);
     return Array.isArray(saved) ? saved[0] : saved;
