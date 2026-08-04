@@ -1846,11 +1846,32 @@ export function generarPicking(reserva) {
     const pendientes = (detalles || []).filter((d) => !d.cerrada);
     if (!pendientes.length) throw new Error(`No hay despacho cargado para la reserva ${reservaValue}.`);
 
+    // Borra los picks NO confirmados de ESTA reserva (se van a regenerar).
     await Promise.all(
       (picksActuales || [])
         .filter((p) => !p.confirmado && !toNumber(p.cantidad_confirmada))
         .map((p) => deleteById("wms", "picking_detalle", p.id))
     );
+
+    // Clave única por ubicación + lote + vencimiento (una posición física).
+    const keyOf = (u, la, lp, fv) =>
+      `${String(u || "").toUpperCase()}|${la || ""}|${lp || ""}|${String(fv || "").slice(0, 10)}`;
+
+    // Cantidad YA comprometida en otros pickings sin confirmar (otras reservas):
+    // para no volver a sugerir la misma ubicación/lote que ya está reservado.
+    const comprometidos = await selectAllRows("wms", "picking_detalle", {
+      empresa_id: `eq.${empresaId}`,
+      confirmado: "eq.false",
+      select: "ubicacion,lote_almacen,lote_proveedor,fecha_vencimiento,cantidad_sugerida,cantidad_confirmada",
+    }).catch(() => []);
+    const consumido = new Map(); // key -> cantidad ya reservada (se va descontando)
+    (comprometidos || []).forEach((p) => {
+      const rem = toNumber(p.cantidad_sugerida) - toNumber(p.cantidad_confirmada);
+      if (rem > 0) {
+        const k = keyOf(p.ubicacion, p.lote_almacen, p.lote_proveedor, p.fecha_vencimiento);
+        consumido.set(k, (consumido.get(k) || 0) + rem);
+      }
+    });
 
     const nuevos = [];
     pendientes.forEach((detalle) => {
@@ -1872,7 +1893,11 @@ export function generarPicking(reserva) {
 
       disponibles.forEach((stock) => {
         if (restante <= 0) return;
-        const sugerida = Math.min(restante, toNumber(stock.cantidad_disponible));
+        const k = keyOf(stock.ubicacion, stock.lote_almacen, stock.lote_proveedor, stock.fecha_vencimiento);
+        // Lo realmente libre = existencia − lo ya reservado (otras líneas/reservas).
+        const libre = toNumber(stock.cantidad_disponible) - (consumido.get(k) || 0);
+        if (libre <= 0) return;
+        const sugerida = Math.min(restante, libre);
         if (sugerida <= 0) return;
         nuevos.push({
           empresa_id: empresaId,
@@ -1890,6 +1915,7 @@ export function generarPicking(reserva) {
           confirmado: false,
           despacho_detalle_id: detalle.id,
         });
+        consumido.set(k, (consumido.get(k) || 0) + sugerida); // consume la posición
         restante -= sugerida;
       });
     });
