@@ -38,11 +38,38 @@ async function request(schema, table, { method = "GET", params, body, prefer = "
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || `Supabase HTTP ${res.status}`);
+    throw new Error(mensajeErrorAmigable(text, res.status, table));
   }
 
   if (res.status === 204) return null;
   return res.json();
+}
+
+// Convierte los errores técnicos de PostgREST/Supabase en mensajes claros.
+function mensajeErrorAmigable(text, status, table) {
+  let data = null;
+  try { data = JSON.parse(text); } catch { /* no era JSON */ }
+  const code = data?.code || "";
+  const msg = data?.message || text || "";
+  const det = data?.details || "";
+  const t = table ? ` (${table})` : "";
+
+  if (code === "PGRST102" || /all object keys must match/i.test(msg))
+    return `El archivo tiene filas con columnas distintas${t}. Revisa que todas las filas tengan las mismas columnas y vuelve a intentar.`;
+  if (code === "23505" || /duplicate key|already exists/i.test(msg))
+    return `Hay registros duplicados${t}: ${det || "ya existe una fila con esa clave"}.`;
+  if (code === "23502" || /null value in column/i.test(msg))
+    return `Falta un dato obligatorio${t}: ${det || msg}.`;
+  if (code === "23503" || /foreign key/i.test(msg))
+    return `No se puede completar por una relación con otros datos${t}: ${det || msg}.`;
+  if (code === "PGRST205" || /could not find the table|schema cache/i.test(msg))
+    return `No se encontró la tabla${t}. Puede faltar una migración en la base de datos.`;
+  if (code === "PGRST301" || status === 401 || status === 403)
+    return `No tienes permiso para esta acción${t}. Revisa tu sesión o rol.`;
+  if (status === 413 || /payload too large/i.test(msg))
+    return `El archivo es demasiado grande para una sola carga${t}. Intenta dividirlo.`;
+
+  return msg || `Error del servidor (HTTP ${status})${t}.`;
 }
 
 export async function countRows(schema, table, params = {}) {
@@ -135,7 +162,22 @@ export async function selectAllRows(schema, table, params = {}) {
 }
 
 export function insertRow(schema, table, row) {
-  return request(schema, table, { method: "POST", body: row });
+  let body = row;
+  // En una inserción por lotes, PostgREST exige que TODOS los objetos tengan
+  // exactamente las mismas claves (si no: PGRST102 "All object keys must match").
+  // Normalizamos: unimos todas las claves y rellenamos las faltantes con null.
+  if (Array.isArray(row) && row.length > 1) {
+    const keys = new Set();
+    for (const r of row) {
+      if (r && typeof r === "object") for (const k of Object.keys(r)) keys.add(k);
+    }
+    body = row.map((r) => {
+      const o = {};
+      for (const k of keys) o[k] = r && r[k] !== undefined ? r[k] : null;
+      return o;
+    });
+  }
+  return request(schema, table, { method: "POST", body });
 }
 
 export function upsertRows(schema, table, rows, onConflict) {
