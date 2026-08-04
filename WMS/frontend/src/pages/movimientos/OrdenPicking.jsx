@@ -154,8 +154,10 @@ function SummaryBox({ label, value, tone = "default" }) {
 }
 
 function PrintCompareValue({ sugerido, tomado, format = (v) => v || "" }) {
-  const sugRaw = sugerido  -  "";
-  const tomRaw = tomado  -  "";
+  // OJO: usar "?? ''" y NO "- ''". Restar "- ''" a un texto (lote, fecha) da NaN
+  // y la columna salía vacía en la impresión.
+  const sugRaw = sugerido ?? "";
+  const tomRaw = tomado ?? "";
 
   const sug = format(sugRaw);
   const tom = format(tomRaw);
