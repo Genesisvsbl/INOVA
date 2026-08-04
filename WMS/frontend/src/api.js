@@ -1057,27 +1057,78 @@ export function eliminarUbicacion(id) {
 
 export function importarUbicacionesExcel(file) {
   if (!supabaseEnabled) return Promise.reject(new Error("Servicio operativo no configurado."));
-  return readSpreadsheetRows(file).then((rows) => {
-    const mapped = rows
-      .map((row) => {
-        const ubicacionBase = String(getImportValue(row, "ubicacion_base") || "").trim();
-        const posicion = String(getImportValue(row, "posicion") || "").trim();
-        const ubicacion = String(getImportValue(row, "ubicacion") || `${ubicacionBase}${posicion}`).trim();
-        if (!ubicacion) return null;
-        return compactObject({
-          empresa_id: empresaId,
-          ubicacion,
-          ubicacion_base: ubicacionBase || null,
-          posicion: posicion || null,
-          zona: String(getImportValue(row, "zona") || "").trim(),
-          familias: String(getImportValue(row, "familias") || "").trim(),
-          bodega: String(getImportValue(row, "bodega") || "").trim(),
-        });
-      })
-      .filter(Boolean);
-
+  return readSpreadsheetRows(file).then(async (rows) => {
+    // Mapea cada fila. Si hay columna de POSICIÓN, la columna "UBICACIÓN" se
+    // trata como la BASE y el código completo = base + posición. Si no hay
+    // posición, "UBICACIÓN" ya es el código completo.
+    const byUbic = new Map(); // clave normalizada -> payload (dedupe)
+    for (const row of rows) {
+      const posicion = String(getImportValue(row, "posicion") || "").trim();
+      const ubiCol = String(getImportValue(row, "ubicacion") || "").trim();
+      let base = String(getImportValue(row, "ubicacion_base") || "").trim();
+      let ubicacion;
+      if (posicion) {
+        if (!base) base = ubiCol; // la columna UBICACIÓN es la base
+        ubicacion = `${base}${posicion}`.trim();
+      } else {
+        ubicacion = (ubiCol || `${base}${posicion}`).trim();
+      }
+      if (!ubicacion) continue;
+      byUbic.set(ubicacion.toUpperCase(), compactObject({
+        empresa_id: empresaId,
+        ubicacion,
+        ubicacion_base: base || null,
+        posicion: posicion || null,
+        zona: String(getImportValue(row, "zona") || "").trim(),
+        familias: String(getImportValue(row, "familias") || "").trim(),
+        bodega: String(getImportValue(row, "bodega") || "").trim(),
+      }));
+    }
+    const mapped = Array.from(byUbic.values());
     if (!mapped.length) throw new Error("El archivo no tiene ubicaciones validas.");
-    return saveImportedRows("ubicaciones", mapped, "ubicacion").then(() => importResult(mapped.length, rows.length - mapped.length));
+
+    // Precarga lo existente UNA vez (rápido) para decidir insertar vs actualizar.
+    const existentes = await getUbicaciones();
+    const exByUbic = new Map((existentes || []).map((u) => [String(u.ubicacion || "").trim().toUpperCase(), u]));
+
+    const nuevos = [];
+    const cambios = [];
+    let sinCambio = 0;
+    for (const m of mapped) {
+      const ex = exByUbic.get(String(m.ubicacion).toUpperCase());
+      if (!ex) { nuevos.push(m); continue; }
+      const diff =
+        String(ex.ubicacion_base || "") !== String(m.ubicacion_base || "") ||
+        String(ex.posicion || "") !== String(m.posicion || "") ||
+        String(ex.zona || "") !== String(m.zona || "") ||
+        String(ex.familias || "") !== String(m.familias || "") ||
+        String(ex.bodega || "") !== String(m.bodega || "");
+      if (diff) cambios.push({ id: ex.id, payload: m });
+      else sinCambio += 1;
+    }
+
+    // Inserción masiva de los nuevos (en lotes).
+    for (let i = 0; i < nuevos.length; i += 500) {
+      await insertRow("wms", "ubicaciones", nuevos.slice(i, i + 500));
+    }
+    // Actualiza solo lo que cambió, en paralelo con concurrencia limitada.
+    let cursor = 0;
+    async function worker() {
+      while (cursor < cambios.length) {
+        const c = cambios[cursor++];
+        await updateById("wms", "ubicaciones", c.id, c.payload).catch(() => {});
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(8, cambios.length) }, () => worker()));
+
+    return {
+      inserted: nuevos.length,
+      actualizadas: cambios.length,
+      sinCambio,
+      mensaje:
+        `Ubicaciones: ${nuevos.length} nueva(s), ${cambios.length} actualizada(s)` +
+        (sinCambio ? `, ${sinCambio} sin cambios` : "") + `. Total en archivo: ${mapped.length}.`,
+    };
   });
 }
 
