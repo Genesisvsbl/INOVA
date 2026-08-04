@@ -32,6 +32,7 @@ const EMPTY_USER_FORM = {
   empresa_id: "",
   rol_id: "",
   pilar: "wms",
+  pilares: ["wms"],
   eto_nivel: "1",
   clave_acceso: "",
 };
@@ -239,22 +240,22 @@ export default function AdminAccess({ view = "usuarios" }) {
 
   const defaultEmpresaId = canManageCommercial ? visibleEmpresas[0]?.id || "" : actor.empresaId;
   const selectedCreateEmpresa = userForm.empresa_id || defaultEmpresaId;
+  const pilaresSel = (userForm.pilares && userForm.pilares.length ? userForm.pilares : [userForm.pilar]).map((p) => String(p).toUpperCase());
   const roleOptionsForCreate = visibleRoles.filter((role) => {
     if (String(role.empresa_id) !== String(selectedCreateEmpresa)) return false;
     const code = String(role.codigo || "").toUpperCase();
     if (code === "ADMIN_INOVA") return false;
     if (code === "SUPER_ADMIN") return canManageCommercial;
-    const pilar = String(userForm.pilar || "").toUpperCase();
-    if (pilar === "WMS") return code.includes("WMS") || code === "ADMIN_EMPRESA";
-    if (pilar === "5S") return code.includes("5S") || code === "ADMIN_EMPRESA";
-    if (pilar === "ETO") return code.includes("ETO") || code === "ADMIN_EMPRESA";
-    return false;
+    if (code === "ADMIN_EMPRESA") return true; // rol transversal: sirve para las tres plataformas
+    // Con varios pilares marcados solo aplican roles transversales (ADMIN_EMPRESA);
+    // con un solo pilar, se muestran los roles de ese pilar.
+    if (pilaresSel.length > 1) return false;
+    return pilaresSel.some((p) => code.includes(p));
   }).sort((a, b) => {
-    const pilar = String(userForm.pilar || "").toUpperCase();
     const codeA = String(a.codigo || "").toUpperCase();
     const codeB = String(b.codigo || "").toUpperCase();
-    const ownA = codeA.includes(pilar) ? 0 : 1;
-    const ownB = codeB.includes(pilar) ? 0 : 1;
+    const ownA = pilaresSel.some((p) => codeA.includes(p)) ? 0 : 1;
+    const ownB = pilaresSel.some((p) => codeB.includes(p)) ? 0 : 1;
     return ownA - ownB || String(a.nombre || "").localeCompare(String(b.nombre || ""));
   });
   const planForCreate = data.planes.find((item) => String(item.empresa_id) === String(selectedCreateEmpresa) && String(item.estado || "ACTIVO") === "ACTIVO");
@@ -441,14 +442,31 @@ export default function AdminAccess({ view = "usuarios" }) {
               <label>Cedula / documento<input required value={userForm.documento} onChange={(event) => setUserForm((prev) => ({ ...prev, documento: event.target.value }))} /></label>
               <label>Telefono<input value={userForm.telefono} onChange={(event) => setUserForm((prev) => ({ ...prev, telefono: event.target.value }))} /></label>
               <label>Cargo<input value={userForm.cargo} onChange={(event) => setUserForm((prev) => ({ ...prev, cargo: event.target.value }))} /></label>
-              <label>Pilar
-                <select value={userForm.pilar} onChange={(event) => setUserForm((prev) => ({ ...prev, pilar: event.target.value, rol_id: "" }))}>
-                  <option value="wms">WMS</option>
-                  <option value="5s">5S</option>
-                  <option value="eto">ETO</option>
-                </select>
+              <label>Pilar (plataformas)
+                <div style={{ display: "flex", gap: 14, flexWrap: "wrap", padding: "6px 0" }}>
+                  {["wms", "5s", "eto"].map((p) => {
+                    const checked = (userForm.pilares || []).includes(p);
+                    return (
+                      <label key={p} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600, cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() =>
+                            setUserForm((prev) => {
+                              const cur = prev.pilares || [];
+                              let next = cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p];
+                              if (!next.length) next = [p];
+                              return { ...prev, pilares: next, pilar: next[0], rol_id: "" };
+                            })
+                          }
+                        />
+                        {PILLAR_LABELS[p]}
+                      </label>
+                    );
+                  })}
+                </div>
               </label>
-              {userForm.pilar === "eto" && (
+              {(userForm.pilares || []).includes("eto") && (
                 <label>Nivel ETO
                   <select value={userForm.eto_nivel} onChange={(event) => setUserForm((prev) => ({ ...prev, eto_nivel: event.target.value }))}>
                     <option value="1">Nivel 1</option>

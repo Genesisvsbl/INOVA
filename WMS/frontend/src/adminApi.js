@@ -917,29 +917,33 @@ export async function crearUsuarioEmpresa(payload, actor = {}) {
     throw new Error("Ese usuario ya existe en esta empresa. Revisa la lista de usuarios y edita el rol o el pilar desde Acciones.");
   }
 
-  const pilar = payload.pilar;
-  const accessPayload = {
-    usuario_id: user.id,
-    empresa_id: empresaIdFinal,
-    pilar,
-    rol_id: rol.id,
-    eto_nivel: pilar === "eto" ? Number(payload.eto_nivel || 1) : null,
-    estado: "ACTIVO",
-  };
-
-  const existingAccess = await safeSelect("public", "usuario_pilares", {
-    select: "*",
-    usuario_id: eq(user.id),
-    empresa_id: eq(empresaIdFinal),
-    pilar: eq(pilar),
-    ...(accessPayload.eto_nivel ? { eto_nivel: eq(accessPayload.eto_nivel) } : { eto_nivel: "is.null" }),
-    limit: "1",
-  });
-
-  if (existingAccess?.[0]) {
-    await updateById("public", "usuario_pilares", existingAccess[0].id, accessPayload);
-  } else {
-    await insertRow("public", "usuario_pilares", accessPayload);
+  // Un usuario puede tener acceso a varias plataformas: se crea/actualiza un
+  // acceso por cada pilar marcado (checkboxes en el formulario).
+  const pilaresSeleccionados = Array.isArray(payload.pilares) && payload.pilares.length
+    ? payload.pilares
+    : [payload.pilar];
+  for (const pilar of pilaresSeleccionados) {
+    const accessPayload = {
+      usuario_id: user.id,
+      empresa_id: empresaIdFinal,
+      pilar,
+      rol_id: rol.id,
+      eto_nivel: pilar === "eto" ? Number(payload.eto_nivel || 1) : null,
+      estado: "ACTIVO",
+    };
+    const existingAccess = await safeSelect("public", "usuario_pilares", {
+      select: "*",
+      usuario_id: eq(user.id),
+      empresa_id: eq(empresaIdFinal),
+      pilar: eq(pilar),
+      ...(accessPayload.eto_nivel ? { eto_nivel: eq(accessPayload.eto_nivel) } : { eto_nivel: "is.null" }),
+      limit: "1",
+    });
+    if (existingAccess?.[0]) {
+      await updateById("public", "usuario_pilares", existingAccess[0].id, accessPayload);
+    } else {
+      await insertRow("public", "usuario_pilares", accessPayload);
+    }
   }
 
   await insertRow("public", "licencias_usuario", {
