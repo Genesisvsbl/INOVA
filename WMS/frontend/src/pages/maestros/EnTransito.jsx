@@ -419,26 +419,29 @@ function ModuleHeader({ title, subtitle, helper }) {
 
 const thStyle = {
   textAlign: "left",
-  padding: "6px 4px",
-  fontSize: 8.5,
-  lineHeight: 1.05,
+  padding: "10px 8px",
+  fontSize: 12.5,
+  lineHeight: 1.15,
   color: "#607080",
   borderBottom: `1px solid ${colors.border}`,
   fontWeight: 900,
-  whiteSpace: "normal",
+  whiteSpace: "nowrap",
   wordBreak: "normal",
   background: "#fbfcfd",
+  position: "sticky",
+  top: 0,
+  zIndex: 1,
 };
 
 const tdStyle = {
-  padding: "7px 4px",
+  padding: "10px 8px",
   borderBottom: "1px solid #edf2f7",
   color: "#24384d",
   whiteSpace: "normal",
   wordBreak: "break-word",
   overflowWrap: "anywhere",
-  lineHeight: 1.08,
-  fontSize: 9.5,
+  lineHeight: 1.25,
+  fontSize: 13,
 };
 
 export default function EnTransito() {
@@ -1335,8 +1338,8 @@ export default function EnTransito() {
           </div>
         </div>
 
-        <div style={{ overflowX: "hidden", width: "100%" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", fontSize: 9 }}>
+        <div style={{ overflow: "auto", width: "100%", maxHeight: "68vh", border: `1px solid ${colors.border}`, borderRadius: 10 }}>
+          <table style={{ width: "100%", minWidth: 1400, borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr>
                 <th style={{ ...thStyle, width: "5.8%" }}>Fecha</th>
@@ -1374,27 +1377,27 @@ export default function EnTransito() {
 
                 return (
                   <tr key={r.id}>
-                    <td style={{ ...tdStyle, fontSize: 8.5 }}>{fmtDateTime(r.fecha)}</td>
+                    <td style={{ ...tdStyle, fontSize: 13 }}>{fmtDateTime(r.fecha)}</td>
                     <td style={{ ...tdStyle, padding: "5px 2px", whiteSpace: "nowrap" }}>
                       <StatusChip label="EN TRÁNSITO" tone="amber" />
                     </td>
-                    <td style={{ ...tdStyle, fontSize: 8.6 }}>{r.usuario || ""}</td>
-                    <td style={{ ...tdStyle, fontWeight: 900, color: colors.navy, fontSize: 9 }}>
+                    <td style={{ ...tdStyle, fontSize: 13 }}>{r.usuario || ""}</td>
+                    <td style={{ ...tdStyle, fontWeight: 900, color: colors.navy, fontSize: 14 }}>
                       {r.codigo_material || ""}
                     </td>
-                    <td style={{ ...tdStyle, fontSize: 8.8, lineHeight: 1.08 }}>{r.descripcion_material || ""}</td>
-                    <td style={{ ...tdStyle, fontSize: 8.4 }}>{r.unidad_medida || ""}</td>
-                    <td style={{ ...tdStyle, fontSize: 8.4, lineHeight: 1.05 }}>{r.familia || ""}</td>
-                    <td style={{ ...tdStyle, fontSize: 8.6 }}>{r.um || ""}</td>
-                    <td style={{ ...tdStyle, fontSize: 8.6 }}>{r.umb || ""}</td>
-                    <td style={{ ...tdStyle, fontSize: 8.6 }}>{r.lote_almacen || ""}</td>
-                    <td style={{ ...tdStyle, fontSize: 8.6 }}>{r.lote_proveedor || ""}</td>
-                    <td style={{ ...tdStyle, fontSize: 8.6 }}>{r.fecha_fabricacion || ""}</td>
-                    <td style={{ ...tdStyle, fontSize: 8.6 }}>{r.fecha_vencimiento || ""}</td>
+                    <td style={{ ...tdStyle, fontSize: 13, lineHeight: 1.08 }}>{r.descripcion_material || ""}</td>
+                    <td style={{ ...tdStyle, fontSize: 13 }}>{r.unidad_medida || ""}</td>
+                    <td style={{ ...tdStyle, fontSize: 13, lineHeight: 1.05 }}>{r.familia || ""}</td>
+                    <td style={{ ...tdStyle, fontSize: 13 }}>{r.um || ""}</td>
+                    <td style={{ ...tdStyle, fontSize: 13 }}>{r.umb || ""}</td>
+                    <td style={{ ...tdStyle, fontSize: 13 }}>{r.lote_almacen || ""}</td>
+                    <td style={{ ...tdStyle, fontSize: 13 }}>{r.lote_proveedor || ""}</td>
+                    <td style={{ ...tdStyle, fontSize: 13 }}>{r.fecha_fabricacion || ""}</td>
+                    <td style={{ ...tdStyle, fontSize: 13 }}>{r.fecha_vencimiento || ""}</td>
                     <td
                       style={{
                         ...tdStyle,
-                        fontSize: 8.6,
+                        fontSize: 13,
                         fontWeight: 700,
                         color: r.observacion ? "#9a6700" : colors.muted,
                         whiteSpace: "normal",
@@ -1410,7 +1413,7 @@ export default function EnTransito() {
                         textAlign: "right",
                         fontWeight: 900,
                         color: colors.good,
-                        fontSize: 9.2,
+                        fontSize: 14,
                       }}
                     >
                       {fmtNumberCO(r.cantidad)}
