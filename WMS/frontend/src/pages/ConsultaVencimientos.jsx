@@ -177,8 +177,8 @@ export default function ConsultaVencimientos() {
 
       {!loading && (
         <>
-          {tabla(vencidos, "VENCIDOS (retirar / dar de baja)", <AlertTriangle size={18} />, colors.bad)}
-          {tabla(porVencer, `POR VENCER (≤ ${dias} días)`, <Clock size={18} />, colors.warn)}
+          {tabla(vencidos, "Vencidos (retirar / dar de baja)", <AlertTriangle size={18} />, colors.navy)}
+          {tabla(porVencer, `Por vencer (≤ ${dias} días)`, <Clock size={18} />, colors.navy)}
 
           <div style={{ background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 14, overflow: "hidden" }}>
             <div style={{ background: colors.navy, color: "#fff", padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, fontWeight: 800 }}>

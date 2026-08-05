@@ -107,6 +107,10 @@ export default function Layout() {
   const isDatosActive = location.pathname.startsWith("/datos-maestros");
   const isMovimientosActive = location.pathname.startsWith("/movimientos");
   const isInventariosActive = location.pathname.startsWith("/inventarios");
+  const isConsultasActive =
+    location.pathname.startsWith("/stock") ||
+    location.pathname.startsWith("/ubicaciones-vacias") ||
+    location.pathname.startsWith("/vencimientos");
   const isAdminUsuariosActive = location.pathname.startsWith("/admin/usuarios");
   const isAdminRolesActive = location.pathname.startsWith("/admin/roles");
   const isAdminAuditoriaActive = location.pathname.startsWith("/admin/auditoria");
@@ -316,20 +320,29 @@ export default function Layout() {
                     </SubNav>
                   )}
 
-                  <NavLink to="/stock" style={(state) => navStyle(state, sidebarExpanded)} title="Consulta">
-                    <Search size={18} />
-                    {sidebarExpanded && <span>Consulta</span>}
-                  </NavLink>
+                  <button
+                    type="button"
+                    style={menuStyle(isConsultasActive, sidebarExpanded)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleMenu("consultas");
+                    }}
+                    title="Consultas"
+                  >
+                    <span className="menu-left">
+                      <Search size={18} />
+                      {sidebarExpanded && <span>Consultas</span>}
+                    </span>
+                    {sidebarExpanded && (visibleOpenMenu === "consultas" ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
+                  </button>
 
-                  <NavLink to="/ubicaciones-vacias" style={(state) => navStyle(state, sidebarExpanded)} title="Ubicaciones vacías">
-                    <MapPin size={18} />
-                    {sidebarExpanded && <span>Ubicaciones vacías</span>}
-                  </NavLink>
-
-                  <NavLink to="/vencimientos" style={(state) => navStyle(state, sidebarExpanded)} title="Alertas de vencimiento">
-                    <AlertTriangle size={18} />
-                    {sidebarExpanded && <span>Vencimientos</span>}
-                  </NavLink>
+                  {sidebarExpanded && visibleOpenMenu === "consultas" && (
+                    <SubNav>
+                      <NavLink to="/stock" style={childNavStyle}>Consulta general</NavLink>
+                      <NavLink to="/ubicaciones-vacias" style={childNavStyle}>Ubicaciones vacías</NavLink>
+                      <NavLink to="/vencimientos" style={childNavStyle}>Vencimientos</NavLink>
+                    </SubNav>
+                  )}
 
                   <NavLink to="/layout-zona" style={(state) => navStyle(state, sidebarExpanded)} title="Layout por zona">
                     <Map size={18} />
