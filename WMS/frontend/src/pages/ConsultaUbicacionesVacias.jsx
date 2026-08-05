@@ -119,10 +119,6 @@ function imprimirInforme(locs, filtros) {
     `.hd img{height:52px}` +
     `.hd .t{font-size:21px;font-weight:900;color:#0a1f52;letter-spacing:.4px}` +
     `.hd .s{font-size:12px;color:#0a1f52;font-weight:700;margin-top:3px}` +
-    `.kpis{display:flex;gap:10px;margin:12px 0 2px}` +
-    `.kpi{border:1.5px solid #cdd9ee;border-radius:8px;padding:7px 12px;min-width:120px}` +
-    `.kpi .k{font-size:10px;color:#0a1f52;font-weight:800;text-transform:uppercase;letter-spacing:.4px}` +
-    `.kpi .v{font-size:18px;color:#0a1f52;font-weight:900}` +
     `table{border-collapse:collapse;width:100%;margin-top:12px}` +
     // Cabecera de tabla: relleno azul claro + texto azul (legible aunque el
     // relleno no se imprima).
@@ -138,9 +134,6 @@ function imprimirInforme(locs, filtros) {
     `</style></head><body>` +
     `<div class="hd"><img src="${logoAzul}" onerror="this.onerror=null;this.src='${logo}'"/><div><div class="t">INFORME DE UBICACIONES VACÍAS</div>` +
     `<div class="s">${filaTxt || "Todas las ubicaciones libres"} · ${new Date().toLocaleString("es-CO")}</div></div></div>` +
-    `<div class="kpis"><div class="kpi"><div class="k">Total vacías</div><div class="v">${locs.length}</div></div>` +
-    `${filtros.rack ? `<div class="kpi"><div class="k">Rack</div><div class="v">${esc(filtros.rack)}</div></div>` : ""}` +
-    `${filtros.zona ? `<div class="kpi"><div class="k">Zona</div><div class="v">${esc(filtros.zona)}</div></div>` : ""}</div>` +
     `<table><thead><tr><th class="chk">✓</th><th>#</th><th>Ubicación</th><th>Base</th><th>Zona</th><th>Pasillo</th><th>Rack</th><th>Módulo</th><th>Nivel</th><th>Familia</th><th>Bodega</th></tr></thead><tbody>${rows}</tbody></table>` +
     `<div class="foot"><span>INOVA · WMS — Control logístico</span><span>Total de ubicaciones vacías: <b>${locs.length}</b></span></div>` +
     `<script>setTimeout(function(){try{window.focus();window.print();}catch(e){}},250);window.onafterprint=function(){setTimeout(function(){try{window.close();}catch(e){}},150);};<\/script>` +
