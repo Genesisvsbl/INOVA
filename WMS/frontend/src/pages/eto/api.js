@@ -579,7 +579,59 @@ async function processDashboardSupabase(params) {
     historySupabase(params),
   ]);
   const process = processes[0] || {};
-  const summary = buildSummary(rows);
+
+  // % de cumplimiento por indicador = el mismo que se ve en su vista por
+  // entidad (promedio del cumplimiento de sus entidades).
+  const indicatorCards = await Promise.all(
+    indicators.map(async (indicator) => {
+      const indicatorRows = rows.filter(
+        (row) => Number(row.indicator_id) === Number(indicator.id)
+      );
+      let entSummary = null;
+      try {
+        const p = new URLSearchParams(params);
+        p.set("indicator_id", String(indicator.id));
+        const ed = await entityDashboardSupabase(p);
+        entSummary = ed?.summary || null;
+      } catch {
+        entSummary = null;
+      }
+      return {
+        ...indicator,
+        summary: buildSummary(indicatorRows),
+        average_general: buildSummary(indicatorRows).average_general,
+        average_compliance: entSummary
+          ? Number(entSummary.average_compliance || 0)
+          : 0,
+        entity_summary: entSummary,
+        total_entities: entSummary ? entSummary.total_entities : 0,
+        total_records: indicatorRows.length,
+      };
+    })
+  );
+
+  // Promedio general del proceso = promedio del cumplimiento de sus indicadores.
+  const avgCompliance = indicatorCards.length
+    ? indicatorCards.reduce((acc, c) => acc + Number(c.average_compliance || 0), 0) /
+      indicatorCards.length
+    : 0;
+
+  const baseSummary = buildSummary(rows);
+  const sumField = (f) =>
+    indicatorCards.reduce((acc, c) => acc + Number(c.entity_summary?.[f] || 0), 0);
+  const registrosTotal = sumField("total_records") || baseSummary.total_records;
+  const summary = {
+    ...baseSummary,
+    average_compliance: avgCompliance,
+    // El "promedio general" que se muestra arriba usa el cumplimiento.
+    average_general: avgCompliance,
+    total_indicators: indicatorCards.length,
+    total_records: registrosTotal,
+    ok_count: sumField("ok_count") || baseSummary.ok_count,
+    warning_count: sumField("warning_count") || baseSummary.warning_count,
+    critical_count: sumField("critical_count") || baseSummary.critical_count,
+  };
+
   return {
     process,
     summary,
@@ -593,15 +645,7 @@ async function processDashboardSupabase(params) {
         value: Number(row.general || 0),
         status: row.status,
       })),
-    indicator_cards: indicators.map((indicator) => {
-      const indicatorRows = rows.filter((row) => Number(row.indicator_id) === Number(indicator.id));
-      return {
-        ...indicator,
-        summary: buildSummary(indicatorRows),
-        average_general: buildSummary(indicatorRows).average_general,
-        total_records: indicatorRows.length,
-      };
-    }),
+    indicator_cards: indicatorCards,
     indicator_trends: indicators.map((indicator) => ({
       ...indicator,
       trend: rows
@@ -890,7 +934,14 @@ async function entityDashboardSupabase(params) {
       ? dimensionList.reduce((sum, d) => sum + (by_dimension[d] || 0), 0)
       : accByEntity.get(eid) || 0;
     const remaining = meta > 0 ? Math.max(0, meta - accumulated) : 0;
-    const compliance = meta > 0 ? (accumulated / meta) * 100 : 0;
+    // Regla: si la meta es 0 (objetivo "cero", ej. cero incidentes) y el
+    // acumulado es 0, el cumplimiento es 100%. Si hubo algo (>0), 0%.
+    const compliance =
+      meta > 0
+        ? (accumulated / meta) * 100
+        : accumulated <= 0
+        ? 100
+        : 0;
     const general = calculateGeneral({ ...indicator, target_value: meta }, accumulated);
     // Estado por condición (usa el override por entidad si existe, si no el del indicador)
     const entityCfg = (() => {

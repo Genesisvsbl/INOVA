@@ -1822,7 +1822,12 @@ function renderTrendChart({
       name: c.name || c.code || "",
       code: c.code || "",
       general: normalizeGeneralToPercent(
-        c.average_general ?? c.summary?.average_general ?? c.general ?? 0
+        c.average_compliance ??
+          c.entity_summary?.average_compliance ??
+          c.average_general ??
+          c.summary?.average_general ??
+          c.general ??
+          0
       ),
       status: normalizeStatus(c.status),
     }))
@@ -6372,7 +6377,12 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                         </div>
 
                         <div className="indicator-main-value">
-                          {safeDisplay(item.general, formatPercent)}
+                          {safeDisplay(
+                            item.average_compliance ??
+                              item.entity_summary?.average_compliance ??
+                              item.general,
+                            formatPercent
+                          )}
                         </div>
 
                         <div className="indicator-rules compact-rules">
