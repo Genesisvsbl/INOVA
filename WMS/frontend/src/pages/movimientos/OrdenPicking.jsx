@@ -953,6 +953,21 @@ export default function OrdenPicking() {
     };
   }, [rowsPendientesFull, detallesReserva, lineasSeleccionadas, cantidades, incumplimientoRows]);
 
+  // Imprime poniendo el nombre del archivo (título de la página) = número de
+  // reserva, para que al "Guardar como PDF" el archivo salga con ese nombre.
+  const imprimirConNombre = (nombre) => {
+    const tituloPrevio = document.title;
+    const limpio = String(nombre || "").replace(/[\\/:*?"<>|]+/g, "-").trim() || document.title;
+    document.title = limpio;
+    const restaurar = () => {
+      document.title = tituloPrevio;
+      window.removeEventListener("afterprint", restaurar);
+    };
+    window.addEventListener("afterprint", restaurar);
+    window.print();
+    setTimeout(restaurar, 4000); // respaldo por si no dispara afterprint
+  };
+
   const imprimirSeleccionados = async () => {
     if (!lineasSeleccionadas.length) {
       showWmsAlert("Selecciona al menos una línea pendiente con cantidad mayor que 0 para imprimir.");
@@ -967,14 +982,14 @@ export default function OrdenPicking() {
     setModoImpresion("seleccionados");
 
     if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
-    printTimeoutRef.current = setTimeout(() => window.print(), 300);
+    printTimeoutRef.current = setTimeout(() => imprimirConNombre(`Reserva ${reserva}`), 300);
   };
 
   const imprimirResultadoFinal = () => {
     setModoImpresion("final");
 
     if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
-    printTimeoutRef.current = setTimeout(() => window.print(), 300);
+    printTimeoutRef.current = setTimeout(() => imprimirConNombre(`Despacho ${reserva}`), 300);
   };
 
   const guardarDespacho = async ({ silent = false } = {}) => {
