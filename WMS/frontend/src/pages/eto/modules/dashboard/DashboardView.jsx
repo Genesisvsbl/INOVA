@@ -1821,10 +1821,43 @@ function renderTrendChart({
       label: String(c.code || formatCompactName(c.name) || "").slice(0, 16),
       name: c.name || c.code || "",
       code: c.code || "",
-      general: normalizeGeneralToPercent(c.general),
+      general: normalizeGeneralToPercent(
+        c.average_general ?? c.summary?.average_general ?? c.general ?? 0
+      ),
       status: normalizeStatus(c.status),
     }))
     .filter((b) => b.name || b.code);
+
+  const algunDato = indicatorBars.some((b) => Number(b.general) > 0);
+
+  if (indicatorBars.length && !algunDato) {
+    return (
+      <div
+        style={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          color: CHART_COLORS.textSoft,
+          textAlign: "center",
+          padding: 20,
+        }}
+      >
+        <div style={{ fontSize: 15, fontWeight: 800, color: CHART_COLORS.text }}>
+          Aún no hay capturas en este período
+        </div>
+        <div style={{ fontSize: 13 }}>
+          Tienes {indicatorBars.length} indicador(es) en este proceso:{" "}
+          {indicatorBars.map((b) => b.code || b.name).join(", ")}.
+        </div>
+        <div style={{ fontSize: 12.5 }}>
+          Cuando registres datos (o cambies el mes/año), aquí verás el % general de cada uno.
+        </div>
+      </div>
+    );
+  }
 
   if (indicatorBars.length) {
     const colorFor = (s) =>
