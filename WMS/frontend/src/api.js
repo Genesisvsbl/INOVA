@@ -2128,6 +2128,18 @@ export function confirmarPicking(reserva, payload) {
 // inventario. Fija ubicación/lote/cantidad a lo impreso (usa la alternativa si
 // el operario la eligió). Estas líneas ya no se reasignan al regenerar y otras
 // reservas no pueden tomar esa cantidad en esa ubicación.
+// Libera (descompromete) una reserva: borra sus líneas de picking NO
+// confirmadas (comprometidas o no), dejando libres esas ubicaciones para que
+// otras reservas puedan tomarlas.
+export async function liberarPickingReserva(reserva) {
+  const reservaValue = String(reserva || "").trim();
+  if (!reservaValue) return null;
+  const picks = await verPicking(reservaValue);
+  const aBorrar = (picks || []).filter((p) => !p.confirmado);
+  await Promise.all(aBorrar.map((p) => deleteById("wms", "picking_detalle", p.id)));
+  return recalcReserva(reservaValue);
+}
+
 export async function comprometerPicking(reserva, payload = {}) {
   const reservaValue = String(reserva || "").trim();
   const items = Array.isArray(payload?.items) ? payload.items : [];

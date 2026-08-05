@@ -3,6 +3,7 @@ import { showWmsAlert, showWmsConfirm, showWmsPrompt } from "../../wmsDialog.jsx
 import { useNavigate } from "react-router-dom";
 import {
   comprometerPicking,
+  liberarPickingReserva,
   crearReservaAdicionalDespacho,
   crearReservaAdicionalDespachoItems,
   eliminarReserva as eliminarReservaSupabase,
@@ -914,6 +915,25 @@ export default function Despacho() {
     }
   };
 
+  const liberarReserva = async (reservaId) => {
+    const ok = await showWmsConfirm(
+      `¿Liberar (descomprometer) la reserva ${reservaId}?\n\nSe borran sus líneas de picking no confirmadas y esas ubicaciones quedan libres para otras reservas.`
+    );
+    if (!ok) return;
+    try {
+      await liberarPickingReserva(reservaId);
+      await loadDespachos("");
+      forceRefreshStore();
+      showToast({
+        type: "success",
+        title: "Reserva liberada",
+        message: `La reserva ${reservaId} quedó descomprometida y sus ubicaciones libres.`,
+      });
+    } catch (e) {
+      showToast({ type: "error", title: "No se pudo liberar", message: e?.message || String(e) });
+    }
+  };
+
   const cerrarReserva = async (reservaId, estadoBase) => {
     const motivo = await showWmsPrompt(
       `Vas a cerrar la reserva ${reservaId}.\n\nEscribe una nota o motivo de cierre:`,
@@ -1569,6 +1589,15 @@ export default function Despacho() {
                         >
                           <Settings2 size={13} />
                           Picking
+                        </button>
+
+                        <button
+                          onClick={() => liberarReserva(r.reserva)}
+                          style={{ ...subtleWarnButtonStyle, ...compactActionButtonStyle }}
+                          title="Descomprometer: libera las ubicaciones reservadas de esta reserva"
+                        >
+                          <Unlock size={13} />
+                          Liberar
                         </button>
 
                         {!r.cerrada ? (
