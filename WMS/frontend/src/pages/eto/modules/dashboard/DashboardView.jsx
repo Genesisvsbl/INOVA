@@ -1818,7 +1818,7 @@ function renderTrendChart({
   // indicador y su % general. Más útil y vistosa que la línea vacía.
   const indicatorBars = (dashboardData?.indicator_cards || [])
     .map((c) => ({
-      label: String(c.code || formatCompactName(c.name) || "").slice(0, 16),
+      label: String(c.name || c.code || "").slice(0, 26),
       name: c.name || c.code || "",
       code: c.code || "",
       general: normalizeGeneralToPercent(
@@ -1878,7 +1878,7 @@ function renderTrendChart({
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={indicatorBars}
-          margin={{ top: 36, right: 22, left: 6, bottom: 72 }}
+          margin={{ top: 36, right: 22, left: 6, bottom: 108 }}
         >
           <defs>
             {indicatorBars.map((b, i) => (
@@ -1903,10 +1903,10 @@ function renderTrendChart({
           <XAxis
             dataKey="label"
             interval={0}
-            angle={-20}
+            angle={-32}
             textAnchor="end"
-            height={74}
-            tick={{ fontSize: 11, fill: CHART_COLORS.text, fontWeight: 700 }}
+            height={110}
+            tick={{ fontSize: 10.5, fill: CHART_COLORS.text, fontWeight: 700 }}
           />
           <YAxis
             domain={[0, 100]}
