@@ -1329,6 +1329,33 @@ export default function OrdenPicking() {
       visibility: hidden !important;
     }
 
+    /* Quitar del flujo el cromo del layout (barra superior, sidebar, etc.)
+       para que el informe quede pegado al borde superior de la hoja y no
+       aparezca espacio en blanco arriba. */
+    .topbar,
+    .sidebar,
+    .sidebar-hotzone-global,
+    .mobile-backdrop {
+      display: none !important;
+    }
+
+    .layout-root,
+    .workspace,
+    .content-area,
+    .content-wrap,
+    .content-card,
+    .orden-picking-page {
+      position: static !important;
+      height: auto !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: visible !important;
+      display: block !important;
+      transform: none !important;
+    }
+
     .print-area,
     .print-area * {
       visibility: visible !important;
@@ -1349,7 +1376,7 @@ export default function OrdenPicking() {
     .print-inner {
       width: 100% !important;
       margin: 0 !important;
-      padding: 2mm !important;
+      padding: 0 !important;
       box-sizing: border-box !important;
     }
 
@@ -1358,7 +1385,8 @@ export default function OrdenPicking() {
       justify-content: space-between !important;
       align-items: flex-start !important;
       gap: 8px !important;
-      margin-bottom: 4px !important;
+      margin-bottom: 3px !important;
+      padding-top: 0 !important;
       page-break-inside: avoid !important;
       break-inside: avoid !important;
     }
@@ -1380,7 +1408,7 @@ export default function OrdenPicking() {
 
     .print-title {
       margin: 0 !important;
-      font-size: 20px !important;
+      font-size: 17px !important;
       line-height: 1.05 !important;
       font-weight: 900 !important;
       color: #133454 !important;
@@ -1417,9 +1445,9 @@ export default function OrdenPicking() {
     }
 
     .print-section-title {
-      font-size: 12px !important;
+      font-size: 11px !important;
       font-weight: 900 !important;
-      padding: 3px 6px !important;
+      padding: 2px 6px !important;
       background: #ffffff !important;
       border-bottom: 1px solid #c8d1dc !important;
       color: #133454 !important;
@@ -1451,9 +1479,9 @@ export default function OrdenPicking() {
     .print-table th,
     .print-table td {
       border: 1px solid #c8d1dc !important;
-      padding: 4px 4px !important;
-      font-size: 11px !important;
-      line-height: 1.2 !important;
+      padding: 2.5px 4px !important;
+      font-size: 10px !important;
+      line-height: 1.15 !important;
       vertical-align: middle !important;
       text-align: center;
       /* Todo el contenido baja de línea si no cabe: nada se corta */
