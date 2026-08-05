@@ -469,6 +469,10 @@ export default function OrdenPicking() {
   const [cargandoAlternativas, setCargandoAlternativas] = useState({});
   const [alternativaElegida, setAlternativaElegida] = useState({});
   const [motivosRotacion, setMotivosRotacion] = useState({});
+  // Tipo de novedad por línea: "rotacion" (incumplimiento de rotación) o
+  // "cambio_lote" (cambio de lote solicitado por el área). Y observación libre.
+  const [tipoNovedad, setTipoNovedad] = useState({});
+  const [observacionNovedad, setObservacionNovedad] = useState({});
 
   const [modalRow, setModalRow] = useState(null);
   const [toolboxPickingOpen, setToolboxPickingOpen] = useState(false);
@@ -493,6 +497,23 @@ export default function OrdenPicking() {
   const buildMotivoRotacion = (texto) => {
     const limpio = String(texto || "").trim();
     return limpio ? `Incumplimiento de rotacion debido a ${limpio}` : "";
+  };
+
+  // Construye el mensaje de la novedad según el tipo elegido para la línea.
+  const buildMotivoNovedad = (id) => {
+    const tipo = tipoNovedad[id] || "rotacion";
+    const obs = String(observacionNovedad[id] || "").trim();
+    if (tipo === "cambio_lote") {
+      // Cambio de lote solicitado por el área: la observación es obligatoria.
+      return obs ? `Cambio de lote solicitado por el area: ${obs}` : "";
+    }
+    const limpio = String(motivosRotacion[id] || "").trim();
+    if (!limpio && !obs) return "";
+    let base = limpio
+      ? `Incumplimiento de rotacion debido a ${limpio}`
+      : "Incumplimiento de rotacion";
+    if (obs) base += ` - Obs: ${obs}`;
+    return base;
   };
 
   const closeModal = () => {
@@ -592,7 +613,8 @@ export default function OrdenPicking() {
 
   const guardarYcerrarModal = (row) => {
     const alt = alternativaElegida[row.id];
-    const motivo = buildMotivoRotacion(motivosRotacion[row.id]);
+    const motivo = buildMotivoNovedad(row.id);
+    const tipo = tipoNovedad[row.id] || "rotacion";
 
     if (!alt) {
       showWmsAlert("Debes seleccionar una ubicación alternativa.");
@@ -600,7 +622,11 @@ export default function OrdenPicking() {
     }
 
     if (!motivo.trim()) {
-      showWmsAlert("Debes seleccionar el motivo del incumplimiento de rotación.");
+      showWmsAlert(
+        tipo === "cambio_lote"
+          ? "Debes escribir la observación del cambio de lote solicitado por el área."
+          : "Debes seleccionar el motivo del incumplimiento de rotación."
+      );
       return;
     }
 
@@ -653,6 +679,8 @@ export default function OrdenPicking() {
       const initInc = {};
       const initAltElegida = {};
       const initMotivos = {};
+      const initTipoNov = {};
+      const initObsNov = {};
       const initMaximos = {};
 
       safePick.forEach((r) => {
@@ -668,9 +696,23 @@ export default function OrdenPicking() {
         initInc[r.id] = tieneIncumplimiento;
         initMaximos[r.id] = disponible;
 
-        initMotivos[r.id] = r.motivo_rotacion
-          ? String(r.motivo_rotacion).replace(/^Incumplimiento de rotacion debido a\s*/i, "")
-          : "";
+        const rawMotivo = String(r.motivo_rotacion || "");
+        if (/^Cambio de lote solicitado por el area/i.test(rawMotivo)) {
+          initTipoNov[r.id] = "cambio_lote";
+          initObsNov[r.id] = rawMotivo
+            .replace(/^Cambio de lote solicitado por el area[:\s-]*/i, "")
+            .trim();
+          initMotivos[r.id] = "";
+        } else {
+          initTipoNov[r.id] = "rotacion";
+          const sinPrefijo = rawMotivo.replace(
+            /^Incumplimiento de rotacion(?: debido a)?\s*/i,
+            ""
+          );
+          const [motivoPart, ...obsParts] = sinPrefijo.split(/\s*-\s*Obs:\s*/i);
+          initMotivos[r.id] = (motivoPart || "").trim();
+          initObsNov[r.id] = obsParts.join(" - ").trim();
+        }
 
         if (r.ubicacion_alternativa) {
           initAltElegida[r.id] = {
@@ -693,6 +735,8 @@ export default function OrdenPicking() {
       setIncumplimientoRows(initInc);
       setAlternativaElegida(initAltElegida);
       setMotivosRotacion(initMotivos);
+      setTipoNovedad(initTipoNov);
+      setObservacionNovedad(initObsNov);
       setMaximosManuales((prev) => ({ ...prev, ...initMaximos }));
     } catch (e) {
       setErr(String(e?.message || e));
@@ -1003,7 +1047,7 @@ export default function OrdenPicking() {
     const lineasGuardar = lineasSeleccionadas.map((r) => {
       const usaAlternativa = !!incumplimientoRows[r.id];
       const alt = alternativaElegida[r.id];
-      const motivo = buildMotivoRotacion(motivosRotacion[r.id]);
+      const motivo = buildMotivoNovedad(r.id);
 
       const esManual = !!r.manual;
       const ubicBase = r.ubicacion;
@@ -1042,7 +1086,7 @@ export default function OrdenPicking() {
 
     if (conIncumplimientoInvalido) {
       showWmsAlert(
-        "Debes seleccionar el motivo del incumplimiento de rotación y seleccionar una ubicación alternativa en todas las líneas marcadas."
+        "En las líneas con novedad debes indicar el motivo (rotación) o la observación (cambio de lote solicitado por el área) y seleccionar una ubicación alternativa."
       );
       return;
     }
@@ -1109,13 +1153,13 @@ export default function OrdenPicking() {
       ? rowsPendientesFull.map((r) => ({
           ...r,
           cantidad_impresion: Number(cantidades[r.id]  -  0),
-          motivo_rotacion_impresion: buildMotivoRotacion(motivosRotacion[r.id]),
+          motivo_rotacion_impresion: buildMotivoNovedad(r.id),
           alternativa_impresion: alternativaElegida[r.id] || null,
         }))
       : lineasSeleccionadas.map((r) => ({
           ...r,
           cantidad_impresion: Number(cantidades[r.id]  -  0),
-          motivo_rotacion_impresion: buildMotivoRotacion(motivosRotacion[r.id]),
+          motivo_rotacion_impresion: buildMotivoNovedad(r.id),
           alternativa_impresion: alternativaElegida[r.id] || null,
         }));
 
@@ -2150,8 +2194,8 @@ export default function OrdenPicking() {
                               <AlertTriangle size={13} style={{ flex: "0 0 auto", marginTop: 1 }} />
                               <div>
                                 <div style={{ marginBottom: 3 }}>
-                                  {buildMotivoRotacion(motivosRotacion[r.id]) ||
-                                    "Incumplimiento de rotacion debido a ..."}
+                                  {buildMotivoNovedad(r.id) ||
+                                    "Indica el motivo de la novedad..."}
                                 </div>
                                 <div>Alt: {alternativa?.ubicacion || "Pendiente"}</div>
                               </div>
@@ -2397,7 +2441,7 @@ export default function OrdenPicking() {
                   }}
                 >
                   <AlertTriangle size={16} />
-                  Incumplimiento de rotación
+                  Novedad en la línea
                 </div>
 
                 <div style={{ fontSize: 22, fontWeight: 900, color: colors.navy }}>
@@ -2508,30 +2552,83 @@ export default function OrdenPicking() {
                     fontSize: 14,
                   }}
                 >
-                  {buildMotivoRotacion(currentModalMotivo) ||
-                    "Incumplimiento de rotacion debido a ..."}
+                  {buildMotivoNovedad(modalRow.id) ||
+                    "Indica el motivo de la novedad..."}
                 </div>
               </div>
 
               <div>
-                <div style={labelStyle}>Motivo obligatorio</div>
+                <div style={labelStyle}>Tipo de novedad</div>
                 <select
-                  value={currentModalMotivo}
+                  value={tipoNovedad[modalRow.id] || "rotacion"}
                   onChange={(e) =>
-                    setMotivosRotacion((prev) => ({
+                    setTipoNovedad((prev) => ({
                       ...prev,
                       [modalRow.id]: e.target.value,
                     }))
                   }
                   style={selectStyle}
                 >
-                  <option value="">Selecciona un motivo</option>
-                  {MOTIVOS_ROTACION.map((motivo) => (
-                    <option key={motivo} value={motivo}>
-                      {motivo}
-                    </option>
-                  ))}
+                  <option value="rotacion">Incumplimiento de rotación</option>
+                  <option value="cambio_lote">
+                    Cambio de lote solicitado por el área
+                  </option>
                 </select>
+              </div>
+
+              {(tipoNovedad[modalRow.id] || "rotacion") === "rotacion" && (
+                <div>
+                  <div style={labelStyle}>Motivo obligatorio</div>
+                  <select
+                    value={currentModalMotivo}
+                    onChange={(e) =>
+                      setMotivosRotacion((prev) => ({
+                        ...prev,
+                        [modalRow.id]: e.target.value,
+                      }))
+                    }
+                    style={selectStyle}
+                  >
+                    <option value="">Selecciona un motivo</option>
+                    {MOTIVOS_ROTACION.map((motivo) => (
+                      <option key={motivo} value={motivo}>
+                        {motivo}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <div style={labelStyle}>
+                  Observación
+                  {(tipoNovedad[modalRow.id] || "rotacion") === "cambio_lote"
+                    ? " (obligatoria)"
+                    : " (opcional)"}
+                </div>
+                <textarea
+                  value={observacionNovedad[modalRow.id] || ""}
+                  onChange={(e) =>
+                    setObservacionNovedad((prev) => ({
+                      ...prev,
+                      [modalRow.id]: e.target.value,
+                    }))
+                  }
+                  rows={3}
+                  placeholder={
+                    (tipoNovedad[modalRow.id] || "rotacion") === "cambio_lote"
+                      ? "Ej: el área solicitó despachar el lote XYZ por requerimiento de producción"
+                      : "Detalle adicional de la novedad (opcional)"
+                  }
+                  style={{
+                    ...selectStyle,
+                    height: "auto",
+                    minHeight: 72,
+                    resize: "vertical",
+                    fontFamily: "inherit",
+                    padding: "10px 12px",
+                  }}
+                />
               </div>
 
               <div>
