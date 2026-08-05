@@ -1258,8 +1258,8 @@ export default function OrdenPicking() {
   }
 
   @page {
-    size: Letter landscape;
-    margin: 3mm;
+    size: Letter;
+    margin: 8mm 6mm;
   }
 
   @media print {
@@ -1389,6 +1389,10 @@ export default function OrdenPicking() {
       table-layout: auto !important;
     }
 
+    .print-table thead {
+      display: table-header-group !important;
+    }
+
     .print-table tr {
       page-break-inside: avoid !important;
       break-inside: avoid !important;
@@ -1397,10 +1401,12 @@ export default function OrdenPicking() {
     .print-table th,
     .print-table td {
       border: 1px solid #c8d1dc !important;
-      padding: 3px 4px !important;
-      font-size: 10px !important;
-      line-height: 1.2 !important;
+      padding: 4px 5px !important;
+      font-size: 11px !important;
+      line-height: 1.25 !important;
       vertical-align: top !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
 
     .print-table th {
