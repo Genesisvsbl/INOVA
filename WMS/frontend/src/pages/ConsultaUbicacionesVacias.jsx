@@ -85,7 +85,7 @@ function imprimirRotulos(locs) {
   if (!locs.length) return;
   const w = window.open("", "_blank", "width=640,height=480");
   if (!w) { showWmsAlert("El navegador bloqueó la ventana de impresión."); return; }
-  const logo = `${window.location.origin}/INOVA2026.png`;
+  const logo = `${window.location.origin}/inova-azul.png`;
   const bodies = locs.map((l, i) => labelBody(l, i, logo)).join("");
   const codes = JSON.stringify(locs.map((l) => codeUbic(l)));
   const html =
@@ -104,6 +104,7 @@ function imprimirInforme(locs, filtros) {
   if (!w) { showWmsAlert("El navegador bloqueó la ventana de impresión."); return; }
   const logo = `${window.location.origin}/INOVA2026.png`;
   const filaTxt = `${filtros.base ? `Base ${esc(filtros.base)} · ` : ""}${filtros.zona ? `Zona ${esc(filtros.zona)} · ` : ""}${filtros.familia ? `Familia ${esc(filtros.familia)} · ` : ""}${filtros.pasillo ? `Pasillo ${esc(filtros.pasillo)} · ` : ""}${filtros.rack ? `Rack ${esc(filtros.rack)} · ` : ""}${filtros.modulo ? `Módulo ${esc(filtros.modulo)} · ` : ""}${filtros.nivel ? `Nivel ${esc(filtros.nivel)}` : ""}`.replace(/ · $/, "");
+  const logoAzul = `${window.location.origin}/inova-azul.png`;
   const rows = locs.map((l, i) =>
     `<tr><td class="chk"><span class="chkbox"></span></td><td class="num">${i + 1}</td><td class="cod">${esc(codeUbic(l))}</td><td>${esc(l.ubicacion_base || "-")}</td><td>${esc(l.zona || "-")}</td><td class="c">${esc(pasilloDe(l) || "-")}</td><td class="c">${esc(rackDe(l) ?? "-")}</td><td class="c">${esc(moduloDe(l) || "-")}</td><td class="c">${esc(nivelDe(l) || "-")}</td><td>${esc(l.familias || "-")}</td><td>${esc(l.bodega || "-")}</td></tr>`
   ).join("");
@@ -112,12 +113,12 @@ function imprimirInforme(locs, filtros) {
     `@page{size:letter;margin:12mm}` +
     `*{font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}` +
     `body{margin:0;color:#0f172a}` +
-    // Encabezado: banda azul con el logo blanco. print-color-adjust:exact
-    // fuerza que el azul se imprima aunque el navegador tenga los fondos off.
-    `.hd{background:linear-gradient(135deg,#0a1f52,#123a8a);color:#fff;display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact}` +
-    `.hd img{height:46px}` +
-    `.hd .t{font-size:21px;font-weight:900;color:#fff;letter-spacing:.4px}` +
-    `.hd .s{font-size:12px;color:#d7e2f5;font-weight:700;margin-top:3px}` +
+    // Encabezado: logo INOVA en AZUL sobre blanco (se imprime siempre) con
+    // regla azul inferior. Sin fondo de color, todo el texto en azul.
+    `.hd{display:flex;align-items:center;gap:16px;padding:4px 2px 12px;border-bottom:3px solid #0b3d91}` +
+    `.hd img{height:52px}` +
+    `.hd .t{font-size:21px;font-weight:900;color:#0b3d91;letter-spacing:.4px}` +
+    `.hd .s{font-size:12px;color:#0b3d91;font-weight:700;margin-top:3px}` +
     `.kpis{display:flex;gap:10px;margin:12px 0 2px}` +
     `.kpi{border:1.5px solid #cdd9ee;border-radius:8px;padding:7px 12px;min-width:120px}` +
     `.kpi .k{font-size:10px;color:#0b3d91;font-weight:800;text-transform:uppercase;letter-spacing:.4px}` +
@@ -135,7 +136,7 @@ function imprimirInforme(locs, filtros) {
     `th.chk{color:#0a1f52}` +
     `.foot{margin-top:12px;padding-top:8px;border-top:1px solid #cbd5e1;font-size:11px;color:#64748b;display:flex;justify-content:space-between}` +
     `</style></head><body>` +
-    `<div class="hd"><img src="${logo}" onerror="this.style.display='none'"/><div><div class="t">INFORME DE UBICACIONES VACÍAS</div>` +
+    `<div class="hd"><img src="${logoAzul}" onerror="this.onerror=null;this.src='${logo}'"/><div><div class="t">INFORME DE UBICACIONES VACÍAS</div>` +
     `<div class="s">${filaTxt || "Todas las ubicaciones libres"} · ${new Date().toLocaleString("es-CO")}</div></div></div>` +
     `<div class="kpis"><div class="kpi"><div class="k">Total vacías</div><div class="v">${locs.length}</div></div>` +
     `${filtros.rack ? `<div class="kpi"><div class="k">Rack</div><div class="v">${esc(filtros.rack)}</div></div>` : ""}` +
