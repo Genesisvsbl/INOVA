@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   CheckSquare,
   Square,
+  Layers,
   Plus,
   Search,
   Trash2,
@@ -925,6 +926,86 @@ export default function OrdenPicking() {
         [id]: nuevo,
       };
     });
+  };
+
+  // Parseo tolerante de cantidades escritas (formato es-CO: 1.056.000,00).
+  const parseCantidadTexto = (str) => {
+    const limpio = String(str ?? "")
+      .replace(/\./g, "")
+      .replace(",", ".")
+      .replace(/[^\d.]/g, "");
+    const n = Number(limpio);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  // Despacho POR CANTIDAD para un SKU: el usuario escribe el total y el
+  // sistema da salida a las ubicaciones por rotación (vencimiento más
+  // próximo primero), sin tener que seleccionarlas una por una.
+  const despacharPorCantidad = async (sku) => {
+    const skuStr = String(sku || "").trim();
+    if (!skuStr) return;
+
+    const filas = rowsPendientesFull
+      .filter((r) => String(r.sku) === skuStr && !String(r.id).startsWith("manual-"))
+      .slice()
+      .sort((a, b) =>
+        String(a.fecha_vencimiento || "9999-12-31").localeCompare(
+          String(b.fecha_vencimiento || "9999-12-31")
+        )
+      );
+
+    if (!filas.length) {
+      showWmsAlert("No hay ubicaciones pendientes para este SKU.");
+      return;
+    }
+
+    const disponibleTotal = filas.reduce(
+      (acc, r) => acc + Number(r.cantidad_sugerida ?? r.cantidad_disponible ?? 0),
+      0
+    );
+
+    const resp = await showWmsPrompt(
+      `SKU ${skuStr}. Escribe la cantidad TOTAL a despachar; el sistema dará salida a las ubicaciones por rotación (vence primero, sale primero). Disponible sugerido: ${formatQty(
+        disponibleTotal
+      )}.`,
+      "",
+      {
+        title: `Despacho por cantidad - SKU ${skuStr}`,
+        tone: "info",
+        confirmLabel: "Repartir",
+        placeholder: "Cantidad total",
+      }
+    );
+    if (resp == null) return;
+
+    let restante = parseCantidadTexto(resp);
+    if (!(restante > 0)) {
+      showWmsAlert("Escribe una cantidad válida mayor a cero.");
+      return;
+    }
+
+    const nuevasCant = {};
+    const nuevasSel = {};
+    for (const r of filas) {
+      const cap = Number(r.cantidad_sugerida ?? r.cantidad_disponible ?? 0);
+      const asignar = Math.max(0, Math.min(cap, restante));
+      nuevasCant[r.id] = asignar;
+      nuevasSel[r.id] = asignar > 0;
+      restante -= asignar;
+    }
+
+    setCantidades((prev) => ({ ...prev, ...nuevasCant }));
+    setSeleccionados((prev) => ({ ...prev, ...nuevasSel }));
+
+    if (restante > 0.0001) {
+      showWmsAlert(
+        `Solo había ${formatQty(
+          disponibleTotal
+        )} disponible en las ubicaciones sugeridas de este SKU. Se repartió todo lo disponible y faltaron ${formatQty(
+          restante
+        )}.`
+      );
+    }
   };
 
   const lineasSeleccionadas = useMemo(() => {
@@ -2073,7 +2154,42 @@ export default function OrdenPicking() {
                           {r.reserva || ""}
                         </td>
 
-                        <td style={{ ...tdStyle, fontWeight: 800 }}>{r.sku || ""}</td>
+                        <td style={{ ...tdStyle, fontWeight: 800 }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "flex-start",
+                              gap: 4,
+                            }}
+                          >
+                            <span>{r.sku || ""}</span>
+                            {!esManual && (
+                              <button
+                                type="button"
+                                onClick={() => despacharPorCantidad(r.sku)}
+                                title="Despachar por cantidad: escribes el total y el sistema reparte las ubicaciones por rotación"
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 4,
+                                  padding: "2px 7px",
+                                  borderRadius: 6,
+                                  border: `1px solid ${colors.blue}`,
+                                  background: "#fff",
+                                  color: colors.blue,
+                                  fontSize: 10.5,
+                                  fontWeight: 800,
+                                  cursor: "pointer",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                <Layers size={12} />
+                                Por cantidad
+                              </button>
+                            )}
+                          </div>
+                        </td>
 
                         <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: "normal", minWidth: 190 }}>
                           {r.texto_breve || ""}
