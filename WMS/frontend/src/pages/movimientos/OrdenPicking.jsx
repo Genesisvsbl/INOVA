@@ -1260,8 +1260,8 @@ export default function OrdenPicking() {
   }
 
   @page {
-    /* Sin forzar tamaño ni orientación: el usuario elige Carta y la disposición
-       (Vertical/Horizontal) en el diálogo de impresión. El informe se adapta. */
+    /* Carta horizontal: hay muchas columnas y así entra todo sin cortar. */
+    size: Letter landscape;
     margin: 8mm 6mm;
   }
 
