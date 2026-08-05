@@ -115,13 +115,13 @@ function imprimirInforme(locs, filtros) {
     `body{margin:0;color:#0f172a}` +
     // Encabezado: logo INOVA en AZUL sobre blanco (se imprime siempre) con
     // regla azul inferior. Sin fondo de color, todo el texto en azul.
-    `.hd{display:flex;align-items:center;gap:16px;padding:4px 2px 12px;border-bottom:3px solid #0b3d91}` +
+    `.hd{display:flex;align-items:center;gap:16px;padding:4px 2px 12px;border-bottom:3px solid #0a1f52}` +
     `.hd img{height:52px}` +
-    `.hd .t{font-size:21px;font-weight:900;color:#0b3d91;letter-spacing:.4px}` +
-    `.hd .s{font-size:12px;color:#0b3d91;font-weight:700;margin-top:3px}` +
+    `.hd .t{font-size:21px;font-weight:900;color:#0a1f52;letter-spacing:.4px}` +
+    `.hd .s{font-size:12px;color:#0a1f52;font-weight:700;margin-top:3px}` +
     `.kpis{display:flex;gap:10px;margin:12px 0 2px}` +
     `.kpi{border:1.5px solid #cdd9ee;border-radius:8px;padding:7px 12px;min-width:120px}` +
-    `.kpi .k{font-size:10px;color:#0b3d91;font-weight:800;text-transform:uppercase;letter-spacing:.4px}` +
+    `.kpi .k{font-size:10px;color:#0a1f52;font-weight:800;text-transform:uppercase;letter-spacing:.4px}` +
     `.kpi .v{font-size:18px;color:#0a1f52;font-weight:900}` +
     `table{border-collapse:collapse;width:100%;margin-top:12px}` +
     // Cabecera de tabla: relleno azul claro + texto azul (legible aunque el
