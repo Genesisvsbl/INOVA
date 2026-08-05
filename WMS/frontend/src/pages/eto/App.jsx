@@ -985,13 +985,23 @@ export default function App() {
 
       if (editingEntityId) {
         savedEntity = await API.updateEntity(editingEntityId, payload);
-        clearMessageSoon("Entidad actualizada correctamente");
+        clearMessageSoon("Entidad actualizada en todos los indicadores");
       } else {
         savedEntity = await API.createEntity(payload);
         clearMessageSoon("Entidad creada correctamente");
       }
 
       const entityList = await loadEntities();
+
+      // Refresca la tabla de entidades asociadas del indicador abierto para
+      // que el cambio (código/nombre) se vea de inmediato.
+      if (selectedIndicatorForEntities?.id) {
+        const targets = await API.getEntityTargets({
+          indicator_id: selectedIndicatorForEntities.id,
+          active_only: true,
+        }).catch(() => null);
+        if (targets) setSelectedIndicatorEntityTargets(targets);
+      }
 
       if (savedEntity?.id) {
         setSelectedEntityId(String(savedEntity.id));
@@ -1131,7 +1141,11 @@ export default function App() {
   }
 
   function handleEditEntity(item) {
-    setEditingEntityId(item.id);
+    // En la tabla de entidades asociadas, item.id es el id de la ASOCIACIÓN
+    // (entity_indicator_targets) y item.entity_id el de la ENTIDAD. Debemos
+    // editar la ENTIDAD para que el cambio (ej. corregir el código) se refleje
+    // en TODOS los indicadores donde está asociada.
+    setEditingEntityId(item.entity_id || item.id);
     setEntityForm({
       code: item.entity_code || item.code || "",
       name: item.entity_name || item.name || "",
