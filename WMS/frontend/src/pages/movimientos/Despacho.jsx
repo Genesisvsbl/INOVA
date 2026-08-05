@@ -3,6 +3,7 @@ import { showWmsAlert, showWmsConfirm, showWmsPrompt } from "../../wmsDialog.jsx
 import { useNavigate } from "react-router-dom";
 import {
   crearReservaAdicionalDespacho,
+  crearReservaAdicionalDespachoItems,
   eliminarReserva as eliminarReservaSupabase,
   generarPicking,
   getDespachos,
@@ -447,10 +448,29 @@ export default function Despacho() {
   const [toast, setToast] = useState(null);
   const [adicionalForm, setAdicionalForm] = useState({
     reserva: "",
-    sku: "",
-    cantidad: "",
     fecha_necesidad: todayISO(),
+    lineas: [{ sku: "", cantidad: "" }],
   });
+
+  const setAdicionalLinea = (index, campo, valor) =>
+    setAdicionalForm((prev) => {
+      const lineas = prev.lineas.map((l, i) =>
+        i === index ? { ...l, [campo]: valor } : l
+      );
+      return { ...prev, lineas };
+    });
+
+  const agregarLineaAdicional = () =>
+    setAdicionalForm((prev) => ({
+      ...prev,
+      lineas: [...prev.lineas, { sku: "", cantidad: "" }],
+    }));
+
+  const quitarLineaAdicional = (index) =>
+    setAdicionalForm((prev) => {
+      const lineas = prev.lineas.filter((_, i) => i !== index);
+      return { ...prev, lineas: lineas.length ? lineas : [{ sku: "", cantidad: "" }] };
+    });
 
   const [storeVersion, setStoreVersion] = useState(0);
 
@@ -569,14 +589,32 @@ export default function Despacho() {
 
   const onCrearReservaAdicional = async ({ generarOrden = false } = {}) => {
     const reservaManual = String(adicionalForm.reserva || "").trim();
-    const skuManual = String(adicionalForm.sku || "").trim();
-    const cantidad = parseQtyCO(adicionalForm.cantidad);
 
-    if (!reservaManual || !skuManual || cantidad <= 0) {
+    const items = (adicionalForm.lineas || [])
+      .map((l) => ({ sku: String(l.sku || "").trim(), cantidad: parseQtyCO(l.cantidad) }))
+      .filter((l) => l.sku && l.cantidad > 0);
+
+    if (!reservaManual || !items.length) {
       showToast({
         type: "warn",
         title: "Reserva adicional incompleta",
-        message: "Completa numero de reserva, SKU y cantidad requerida mayor a cero.",
+        message: "Completa el numero de reserva y al menos un SKU con cantidad mayor a cero.",
+      });
+      return;
+    }
+
+    // No permitir el mismo SKU repetido en la misma reserva adicional.
+    const skusVistos = new Set();
+    const duplicado = items.find((l) => {
+      if (skusVistos.has(l.sku)) return true;
+      skusVistos.add(l.sku);
+      return false;
+    });
+    if (duplicado) {
+      showToast({
+        type: "warn",
+        title: "SKU repetido",
+        message: `El SKU ${duplicado.sku} está más de una vez. Únelos en una sola línea.`,
       });
       return;
     }
@@ -594,11 +632,10 @@ export default function Despacho() {
     setErr("");
 
     try {
-      await crearReservaAdicionalDespacho({
+      await crearReservaAdicionalDespachoItems({
         reserva: reservaManual,
-        sku: skuManual,
-        cantidad,
         fecha_necesidad: adicionalForm.fecha_necesidad || todayISO(),
+        items,
       });
 
       const actual = getAdditionalStore();
@@ -614,18 +651,18 @@ export default function Despacho() {
       setAdicionalOpen(false);
       setAdicionalForm({
         reserva: "",
-        sku: "",
-        cantidad: "",
         fecha_necesidad: todayISO(),
+        lineas: [{ sku: "", cantidad: "" }],
       });
 
       await loadDespachos(reservaManual);
       await loadPicking(reservaManual);
 
+      const totalCantidad = items.reduce((acc, l) => acc + Number(l.cantidad || 0), 0);
       showToast({
         type: "success",
         title: "Reserva adicional creada",
-        message: `Reserva ${reservaManual} marcada como ADICIONAL por ${formatQty(cantidad)} unidades.`,
+        message: `Reserva ${reservaManual} marcada como ADICIONAL con ${items.length} SKU (${formatQty(totalCantidad)} unidades).`,
         meta: generarOrden ? "Generando orden de picking..." : "Lista para generar picking.",
       });
 
@@ -1737,46 +1774,91 @@ export default function Despacho() {
                     style={{ ...inputStyle, background: colors.soft, cursor: "not-allowed" }}
                   />
                 </div>
-                <div>
-                  <div style={labelStyle}>SKU</div>
-                  <select
-                    value={adicionalForm.sku}
-                    onChange={(e) =>
-                      setAdicionalForm((prev) => ({ ...prev, sku: e.target.value }))
-                    }
-                    style={inputStyle}
-                    disabled={loadingMateriales || materiales.length === 0}
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 8,
+                  }}
+                >
+                  <div style={{ ...labelStyle, marginBottom: 0 }}>
+                    Materiales (uno o varios SKU)
+                  </div>
+                  <button
+                    type="button"
+                    onClick={agregarLineaAdicional}
+                    style={secondaryButtonStyle}
                   >
-                    <option value="">
-                      {loadingMateriales
-                        ? "Cargando materiales..."
-                        : materiales.length
-                        ? "Seleccione SKU..."
-                        : "Sin materiales disponibles"}
-                    </option>
-                    {materiales.map((material) => (
-                      <option key={material.id || material.codigo} value={material.codigo}>
-                        {material.codigo} - {material.descripcion || "Sin descripcion"}
-                      </option>
-                    ))}
-                  </select>
+                    <PackagePlus size={15} />
+                    Agregar SKU
+                  </button>
                 </div>
-                <div>
-                  <div style={labelStyle}>Cantidad requerida</div>
-                  <input
-                    value={adicionalForm.cantidad}
-                    onChange={(e) =>
-                      setAdicionalForm((prev) => ({ ...prev, cantidad: e.target.value }))
-                    }
-                    onBlur={() =>
-                      setAdicionalForm((prev) => ({
-                        ...prev,
-                        cantidad: formatInputQty(prev.cantidad) || prev.cantidad,
-                      }))
-                    }
-                    placeholder="0"
-                    style={{ ...inputStyle, textAlign: "right" }}
-                  />
+
+                <div style={{ display: "grid", gap: 8 }}>
+                  {adicionalForm.lineas.map((linea, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 150px 40px",
+                        gap: 8,
+                        alignItems: "center",
+                      }}
+                    >
+                      <select
+                        value={linea.sku}
+                        onChange={(e) => setAdicionalLinea(idx, "sku", e.target.value)}
+                        style={inputStyle}
+                        disabled={loadingMateriales || materiales.length === 0}
+                      >
+                        <option value="">
+                          {loadingMateriales
+                            ? "Cargando materiales..."
+                            : materiales.length
+                            ? "Seleccione SKU..."
+                            : "Sin materiales disponibles"}
+                        </option>
+                        {materiales.map((material) => (
+                          <option key={material.id || material.codigo} value={material.codigo}>
+                            {material.codigo} - {material.descripcion || "Sin descripcion"}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        value={linea.cantidad}
+                        onChange={(e) => setAdicionalLinea(idx, "cantidad", e.target.value)}
+                        onBlur={() =>
+                          setAdicionalLinea(
+                            idx,
+                            "cantidad",
+                            formatInputQty(linea.cantidad) || linea.cantidad
+                          )
+                        }
+                        placeholder="Cantidad"
+                        style={{ ...inputStyle, textAlign: "right" }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => quitarLineaAdicional(idx)}
+                        title="Quitar línea"
+                        style={{
+                          ...secondaryButtonStyle,
+                          padding: 0,
+                          width: 40,
+                          height: 40,
+                          justifyContent: "center",
+                          color: colors.bad || "#b42318",
+                        }}
+                        disabled={adicionalForm.lineas.length === 1 && !linea.sku && !linea.cantidad}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -1793,10 +1875,21 @@ export default function Despacho() {
               >
                 <SummaryBox label="Origen" value="Adicional" tone="blue" />
                 <SummaryBox label="Reserva" value={adicionalForm.reserva || "-"} tone="default" />
-                <SummaryBox label="SKU" value={adicionalForm.sku || "-"} tone="default" />
                 <SummaryBox
-                  label="Cantidad"
-                  value={formatQty(parseQtyCO(adicionalForm.cantidad) || 0)}
+                  label="SKU"
+                  value={String(
+                    adicionalForm.lineas.filter((l) => String(l.sku || "").trim()).length
+                  )}
+                  tone="default"
+                />
+                <SummaryBox
+                  label="Cantidad total"
+                  value={formatQty(
+                    adicionalForm.lineas.reduce(
+                      (acc, l) => acc + (parseQtyCO(l.cantidad) || 0),
+                      0
+                    )
+                  )}
                   tone="amber"
                 />
               </div>

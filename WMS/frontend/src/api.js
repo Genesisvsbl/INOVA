@@ -1838,6 +1838,81 @@ export async function crearReservaAdicionalDespacho(payload = {}) {
   }
 }
 
+// Crea una reserva adicional con VARIAS líneas (varios SKU) en una sola carga.
+export async function crearReservaAdicionalDespachoItems(payload = {}) {
+  if (!supabaseEnabled) throw new Error("Servicio operativo no configurado.");
+
+  const reserva = String(payload.reserva || "").trim();
+  if (!reserva) throw new Error("Numero de reserva obligatorio.");
+
+  const items = (Array.isArray(payload.items) ? payload.items : [])
+    .map((it) => ({
+      sku: String(it.sku || "").trim(),
+      cantidad: toNumber(it.cantidad),
+      texto_breve: String(it.texto_breve || "").trim(),
+    }))
+    .filter((it) => it.sku && it.cantidad > 0);
+
+  if (!items.length) {
+    throw new Error("Agrega al menos un SKU con cantidad mayor a cero.");
+  }
+
+  const fechaNecesidad = payload.fecha_necesidad || todayISO();
+
+  // Una sola carga para toda la reserva adicional.
+  const cargaRows = await insertRow("wms", "despacho_cargas", {
+    empresa_id: empresaId,
+    archivo_nombre: `reserva_adicional_${reserva}.manual`,
+  });
+  const carga = Array.isArray(cargaRows) ? cargaRows[0] : cargaRows;
+
+  const guardados = [];
+  for (const item of items) {
+    const material =
+      (await findOne("materiales", {
+        empresa_id: `eq.${empresaId}`,
+        codigo: `eq.${item.sku}`,
+        select: "*",
+      }).catch(() => null)) || null;
+
+    const baseRow = compactObject({
+      empresa_id: empresaId,
+      carga_id: carga?.id,
+      material_id: material?.id || null,
+      fecha_necesidad: fechaNecesidad,
+      reserva,
+      sku: item.sku,
+      texto_breve: String(item.texto_breve || material?.descripcion || "Reserva adicional").trim(),
+      cantidad: item.cantidad,
+      cantidad_retirada: 0,
+      diferencia: item.cantidad,
+      lineas_usadas: 0,
+      pct_cumplimiento_sku: 0,
+      pct_cumplimiento_reserva: 0,
+      clasificacion_sku: "NO CUMPLIDA",
+      clasificacion_final: "NO CUMPLIDA",
+      estado_operativo: "ABIERTA",
+      cerrada: false,
+    });
+
+    try {
+      const saved = await insertRow("wms", "despacho_detalles", {
+        ...baseRow,
+        origen: "ADICIONAL",
+        observacion: "Reserva adicional creada manualmente desde despacho.",
+      });
+      guardados.push(Array.isArray(saved) ? saved[0] : saved);
+    } catch (error) {
+      const message = String(error?.raw || error?.message || error || "");
+      if (!/origen|observacion|column|schema cache/i.test(message)) throw error;
+      const saved = await insertRow("wms", "despacho_detalles", baseRow);
+      guardados.push(Array.isArray(saved) ? saved[0] : saved);
+    }
+  }
+
+  return guardados;
+}
+
 export function getDespachos(params = {}) {
   const query = {
     empresa_id: `eq.${empresaId}`,
