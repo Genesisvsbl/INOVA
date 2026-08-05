@@ -1258,7 +1258,8 @@ export default function OrdenPicking() {
   }
 
   @page {
-    size: Letter;
+    /* Sin forzar tamaño ni orientación: el usuario elige Carta y la disposición
+       (Vertical/Horizontal) en el diálogo de impresión. El informe se adapta. */
     margin: 8mm 6mm;
   }
 
