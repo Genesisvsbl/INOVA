@@ -189,6 +189,26 @@ export default function ConsultaUbicacionesVacias() {
     ]),
     [scope, familiasMaestro]
   );
+  // Al elegir una base, la zona por defecto es la que le corresponde (misma
+  // numeración): base 300 -> zona 300 / "ZONA 300".
+  const zonaParaBase = (b) => {
+    const base0 = String(b || "").trim();
+    if (!base0) return "";
+    const zs = [...new Set(
+      (ubicaciones || [])
+        .filter((u) => String(u.ubicacion_base || "").trim() === base0)
+        .map((u) => String(u.zona || "").trim())
+        .filter(Boolean)
+    )];
+    if (!zs.length) return "";
+    const num = base0.replace(/\D/g, "");
+    return (
+      zs.find((z) => z.replace(/\D/g, "") === num) ||
+      zs.find((z) => z.includes(base0)) ||
+      (zs.length === 1 ? zs[0] : "")
+    );
+  };
+
   const pasillos = useMemo(() => opt(scope.map(pasilloDe)), [scope]);
   const modulos = useMemo(() => opt(scope.map(moduloDe)), [scope]);
   const niveles = useMemo(() => opt(scope.map(nivelDe)), [scope]);
@@ -269,7 +289,7 @@ export default function ConsultaUbicacionesVacias() {
 
         <div style={{ padding: 18 }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-            {[["BASE", base, setBase, bases, (v) => { setBase(v); setZona(""); }],
+            {[["BASE", base, setBase, bases, (v) => { setBase(v); setZona(zonaParaBase(v)); }],
               ["ZONA", zona, setZona, zonas],
               ["FAMILIA", familia, setFamilia, familias],
               ["PASILLO", pasillo, setPasillo, pasillos, null, "Pasillo "],
