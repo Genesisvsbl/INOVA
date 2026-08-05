@@ -69,24 +69,24 @@ function buildRotuloUbicacionHtml({ logo, codigo, descripcion, lote, vencimiento
     `<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>` +
     `<style>` +
     `@page{size:10.16cm 5.08cm;margin:0}` +
-    `html,body{margin:0;padding:0}` +
-    `*{font-family:Arial,Helvetica,sans-serif;box-sizing:border-box}` +
+    `html,body{margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}` +
+    `*{font-family:Arial,Helvetica,sans-serif;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}` +
     `.lbl{width:10.16cm;height:5.08cm;overflow:hidden;display:flex;flex-direction:column}` +
-    `.hd{background:#0a1f52;color:#fff;display:flex;align-items:center;gap:2mm;padding:1.6mm 3mm}` +
+    `.hd{background:#000;color:#fff;display:flex;align-items:center;gap:2mm;padding:1.6mm 3mm}` +
     `.hd img{height:6mm}` +
     `.hd .t{font-size:11px;font-weight:800;letter-spacing:.3px;color:#fff}` +
     `.bd{flex:1;display:flex;flex-direction:column;padding:1.1mm 3mm 1.4mm}` +
     `.top{display:flex;justify-content:space-between;align-items:flex-start;gap:3mm}` +
     `.info{min-width:0;flex:1}` +
-    `.cod{font-size:15px;font-weight:900;color:#0b3d91;line-height:1.02}` +
+    `.cod{font-size:15px;font-weight:900;color:#000;line-height:1.02}` +
     `.desc{font-size:8px;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}` +
     `.meta{font-size:8.5px;color:#0f172a;margin-top:.3mm}` +
     `.meta b{color:#0f172a}` +
     `.qtybox{text-align:right;flex-shrink:0}` +
     `.lab{font-size:7px;color:#475569;text-transform:uppercase;letter-spacing:.5px}` +
-    `.qty{font-size:32px;font-weight:900;color:#0a1f52;line-height:.95}` +
+    `.qty{font-size:32px;font-weight:900;color:#000;line-height:.95}` +
     `.ubwrap{text-align:center;margin-top:3mm}` +
-    `.ub{font-size:31px;font-weight:900;color:#0a1f52;letter-spacing:2px;line-height:1}` +
+    `.ub{font-size:31px;font-weight:900;color:#000;letter-spacing:2px;line-height:1}` +
     `.bcwrap{margin-top:auto}` +
     `.bcwrap svg{width:100%;height:48px;display:block}` +
     `</style></head><body>` +

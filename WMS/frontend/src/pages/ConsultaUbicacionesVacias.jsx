@@ -33,18 +33,18 @@ const esc = (s) => String(s ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt
 function labelCss() {
   return (
     `@page{size:10.16cm 5.08cm;margin:0}` +
-    `html,body{margin:0;padding:0}` +
-    `*{font-family:Arial,Helvetica,sans-serif;box-sizing:border-box}` +
+    `html,body{margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}` +
+    `*{font-family:Arial,Helvetica,sans-serif;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}` +
     `.lbl{width:10.16cm;height:5.08cm;overflow:hidden;display:flex;flex-direction:column;page-break-after:always}` +
-    `.hd{background:#0a1f52;color:#fff;display:flex;align-items:center;gap:2mm;padding:1.8mm 3mm}` +
+    `.hd{background:#000;color:#fff;display:flex;align-items:center;gap:2mm;padding:1.8mm 3mm}` +
     `.hd img{height:6mm}` +
     `.hd .t{font-size:12px;font-weight:800;letter-spacing:.3px;color:#fff}` +
     `.bd{flex:1;display:flex;flex-direction:column;padding:1.4mm 3mm 1.4mm}` +
-    `.meta{font-size:9px;color:#334155}` +
-    `.meta b{color:#0f172a}` +
+    `.meta{font-size:9px;color:#111}` +
+    `.meta b{color:#000}` +
     `.ubwrap{text-align:center;margin-top:6mm}` +
-    `.lab{font-size:7.5px;color:#475569;text-transform:uppercase;letter-spacing:.5px}` +
-    `.ub{font-size:34px;font-weight:900;color:#0a1f52;letter-spacing:2px;line-height:1}` +
+    `.lab{font-size:7.5px;color:#333;text-transform:uppercase;letter-spacing:.5px}` +
+    `.ub{font-size:34px;font-weight:900;color:#000;letter-spacing:2px;line-height:1}` +
     `.bcwrap{margin-top:auto}` +
     `.bcwrap svg{width:100%;height:50px;display:block}`
   );
