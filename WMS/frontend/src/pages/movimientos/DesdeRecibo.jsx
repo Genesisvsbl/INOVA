@@ -610,6 +610,12 @@ export default function DesdeRecibo() {
   const [tbRack, setTbRack] = useState(""); // filtro de módulo
   const [tbPasillo, setTbPasillo] = useState(""); // filtro de pasillo
 
+  // Fecha del movimiento (para correcciones: mantener la fecha original).
+  const fechaOverrideRef = useRef(null);
+  const [fechaModal, setFechaModal] = useState(null); // { accion: "ubicacion" | "transito" }
+  const [fechaModo, setFechaModo] = useState("ahora"); // "ahora" | "otra"
+  const [fechaValor, setFechaValor] = useState(""); // datetime-local
+
   const tbBases = useMemo(() => {
     const s = new Set();
     (ubicaciones || []).forEach((u) => {
@@ -1945,7 +1951,9 @@ export default function DesdeRecibo() {
     const umbMovimiento = (linea.umb || draft?.header?.umb || "").toString().trim();
 
     return {
-      fecha: new Date().toISOString(),
+      // Si es una corrección, se usa la fecha/hora elegida (ej. ayer 16:30);
+      // si no, la actual.
+      fecha: fechaOverrideRef.current || new Date().toISOString(),
       usuario,
       documento,
       codigo_cita: serial,
@@ -2370,6 +2378,29 @@ export default function DesdeRecibo() {
     };
   };
 
+  // Abre el toolbox de fecha antes de guardar (para poder mantener la fecha del
+  // recibo original cuando es una corrección).
+  const toDatetimeLocal = (iso) => {
+    const d = iso ? new Date(iso) : new Date();
+    if (Number.isNaN(d.getTime())) return "";
+    const p = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
+  const abrirModalFecha = (accion) => {
+    const base = draft?.createdAtISO || draft?.header?.fecha_recepcion || new Date().toISOString();
+    setFechaValor(toDatetimeLocal(base));
+    setFechaModo("ahora");
+    setFechaModal({ accion });
+  };
+  const confirmarFecha = () => {
+    fechaOverrideRef.current =
+      fechaModo === "otra" && fechaValor ? new Date(fechaValor).toISOString() : null;
+    const accion = fechaModal?.accion;
+    setFechaModal(null);
+    if (accion === "ubicacion") guardarMovimientos();
+    else if (accion === "transito") guardarEnTransito();
+  };
+
   const guardarMovimientos = async () => {
     const err = validarConUbicacion();
     if (err) {
@@ -2467,6 +2498,7 @@ export default function DesdeRecibo() {
       showNotice({ tone: "error", title: "Error guardando", message: msg + (msg.includes("Failed to fetch") ? "\n\nNo se pudo comunicar con el servicio. Revisa la conexion e intenta nuevamente." : "") });
     } finally {
       setGuardando(false);
+      fechaOverrideRef.current = null; // vuelve a fecha actual para el próximo guardado
     }
   };
 
@@ -2556,6 +2588,7 @@ export default function DesdeRecibo() {
       showNotice({ tone: "error", title: "Error guardando en transito", message: msg + (msg.includes("Failed to fetch") ? "\n\nNo se pudo comunicar con el servicio. Revisa la conexion e intenta nuevamente." : "") });
     } finally {
       setGuardando(false);
+      fechaOverrideRef.current = null; // vuelve a fecha actual para el próximo guardado
     }
   };
   const renderTopButtons = () => (
@@ -2580,7 +2613,7 @@ export default function DesdeRecibo() {
       </button>
 
       <button
-        onClick={guardarMovimientos}
+        onClick={() => abrirModalFecha("ubicacion")}
         disabled={guardando}
         style={{
           height: 42,
@@ -2602,7 +2635,7 @@ export default function DesdeRecibo() {
       </button>
 
       <button
-        onClick={guardarEnTransito}
+        onClick={() => abrirModalFecha("transito")}
         disabled={guardando}
         style={{
           height: 42,
@@ -3856,6 +3889,48 @@ export default function DesdeRecibo() {
                 </div>
                 );
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fechaModal && (
+        <div
+          onClick={() => setFechaModal(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.5)", display: "grid", placeItems: "center", zIndex: 1200, padding: 16 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "min(460px, 96vw)", background: "#fff", borderRadius: 14, overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,.3)" }}>
+            <div style={{ background: colors.navy, color: "#fff", padding: "14px 18px", fontWeight: 800 }}>
+              Fecha de recepción del movimiento
+            </div>
+            <div style={{ padding: 18 }}>
+              <p style={{ marginTop: 0, fontSize: 13.5, color: colors.muted }}>
+                Si es una <b>corrección</b> de un recibo anterior, mantén la fecha original para no perder el día en que se recibió.
+              </p>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, marginBottom: 8, cursor: "pointer" }}>
+                <input type="radio" name="fechamodo" checked={fechaModo === "ahora"} onChange={() => setFechaModo("ahora")} />
+                Fecha y hora actual
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, cursor: "pointer" }}>
+                <input type="radio" name="fechamodo" checked={fechaModo === "otra"} onChange={() => setFechaModo("otra")} />
+                Otra fecha/hora (corrección)
+              </label>
+              {fechaModo === "otra" && (
+                <input
+                  type="datetime-local"
+                  value={fechaValor}
+                  onChange={(e) => setFechaValor(e.target.value)}
+                  style={{ marginTop: 10, width: "100%", height: 40, padding: "0 10px", borderRadius: 8, border: `1px solid ${colors.border}`, fontWeight: 600 }}
+                />
+              )}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
+                <button type="button" onClick={() => setFechaModal(null)} style={{ height: 40, padding: "0 16px", borderRadius: 8, border: `1px solid ${colors.border}`, background: "#fff", color: colors.text, fontWeight: 800, cursor: "pointer" }}>
+                  Cancelar
+                </button>
+                <button type="button" onClick={confirmarFecha} style={{ height: 40, padding: "0 18px", borderRadius: 8, border: "none", background: colors.blue, color: "#fff", fontWeight: 800, cursor: "pointer" }}>
+                  Guardar
+                </button>
+              </div>
             </div>
           </div>
         </div>
