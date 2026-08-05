@@ -278,13 +278,15 @@ function QuantityMetaBox({ sugerido, maximo, exceso }) {
   return (
     <div
       style={{
-        display: "inline-flex",
-        alignItems: "center",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-start",
         justifyContent: "center",
-        gap: 6,
-        width: 190,
-        height: 30,
-        padding: "0 8px",
+        gap: 2,
+        minWidth: 130,
+        maxWidth: 200,
+        minHeight: 30,
+        padding: "4px 8px",
         borderRadius: "0 7px 7px 0",
         border: `1px solid ${exceso > 0 ? colors.badBd : colors.border}`,
         borderLeft: "none",
@@ -293,7 +295,7 @@ function QuantityMetaBox({ sugerido, maximo, exceso }) {
         fontSize: 10,
         fontWeight: 850,
         whiteSpace: "nowrap",
-        lineHeight: 1,
+        lineHeight: 1.15,
       }}
     >
       <span>Sug: {formatQty(sugerido)}</span>
