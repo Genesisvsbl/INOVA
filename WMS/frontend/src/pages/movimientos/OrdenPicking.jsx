@@ -3321,16 +3321,15 @@ export default function OrdenPicking() {
               <table className="print-table">
                 <colgroup>
                   <col style={{ width: "6%" }} />
-                  <col style={{ width: "13%" }} />
-                  <col style={{ width: "7%" }} />
-                  <col style={{ width: "7%" }} />
-                  <col style={{ width: "7%" }} />
-                  <col style={{ width: "8%" }} />
-                  <col style={{ width: "7%" }} />
                   <col style={{ width: "15%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "9%" }} />
                   <col style={{ width: "7%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "17%" }} />
+                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "9%" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -3344,13 +3343,12 @@ export default function OrdenPicking() {
                     <th className="print-wrap">Lote alm.</th>
                     <th className="print-wrap">Lote prov.</th>
                     <th className="print-wrap">Venc.</th>
-                    <th className="print-wrap">Estado</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rowsConfirmados.length === 0 ? (
                     <tr>
-                      <td colSpan={11} style={{ padding: 10 }}>
+                      <td colSpan={10} style={{ padding: 10 }}>
                         Aún no hay materiales confirmados.
                       </td>
                     </tr>
@@ -3394,7 +3392,6 @@ export default function OrdenPicking() {
                               format={(v) => fmtDate(v)}
                             />
                           </td>
-                          <td className="print-nowrap">CONFIRMADO</td>
                         </tr>
                       );
                     })
