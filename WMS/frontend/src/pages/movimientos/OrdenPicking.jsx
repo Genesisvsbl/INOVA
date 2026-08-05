@@ -465,6 +465,8 @@ export default function OrdenPicking() {
 
   const [cantidades, setCantidades] = useState({});
   const [seleccionados, setSeleccionados] = useState({});
+  // SKUs mostrados como UNA sola línea consolidada ("por cantidad").
+  const [skuConsolidado, setSkuConsolidado] = useState({});
   const [impresos, setImpresos] = useState({});
   const [modoImpresion, setModoImpresion] = useState("seleccionados");
 
@@ -941,15 +943,12 @@ export default function OrdenPicking() {
     return Number.isFinite(n) ? n : 0;
   };
 
-  // Despacho POR CANTIDAD para un SKU: el usuario escribe el total y el
-  // sistema da salida a las ubicaciones por rotación (vencimiento más
-  // próximo primero), sin tener que seleccionarlas una por una.
-  const despacharPorCantidad = async (sku) => {
-    const skuStr = String(sku || "").trim();
-    if (!skuStr) return;
-
-    const filas = rowsPendientesFull
-      .filter((r) => String(r.sku) === skuStr && !String(r.id).startsWith("manual-"))
+  // Filas (ubicaciones) pendientes de un SKU, ordenadas por rotación (FEFO).
+  const filasDeSku = (sku) =>
+    rowsPendientesFull
+      .filter(
+        (r) => String(r.sku) === String(sku) && !String(r.id).startsWith("manual-")
+      )
       .slice()
       .sort((a, b) =>
         String(a.fecha_vencimiento || "9999-12-31").localeCompare(
@@ -957,58 +956,44 @@ export default function OrdenPicking() {
         )
       );
 
-    if (!filas.length) {
-      showWmsAlert("No hay ubicaciones pendientes para este SKU.");
-      return;
-    }
-
-    const disponibleTotal = filas.reduce(
-      (acc, r) => acc + Number(r.cantidad_sugerida ?? r.cantidad_disponible ?? 0),
-      0
-    );
-
-    const resp = await showWmsPrompt(
-      `SKU ${skuStr}. Escribe la cantidad TOTAL a despachar; el sistema dará salida a las ubicaciones por rotación (vence primero, sale primero). Disponible sugerido: ${formatQty(
-        disponibleTotal
-      )}.`,
-      "",
-      {
-        title: `Despacho por cantidad - SKU ${skuStr}`,
-        tone: "info",
-        confirmLabel: "Repartir",
-        placeholder: "Cantidad total",
-      }
-    );
-    if (resp == null) return;
-
-    let restante = parseCantidadTexto(resp);
-    if (!(restante > 0)) {
-      showWmsAlert("Escribe una cantidad válida mayor a cero.");
-      return;
-    }
-
-    const nuevasCant = {};
-    const nuevasSel = {};
+  // Reparte una cantidad TOTAL entre las ubicaciones del SKU por rotación
+  // (vence primero, sale primero), llenando cada una hasta su sugerido.
+  const distribuirCantidadSku = (sku, totalTexto) => {
+    const filas = filasDeSku(sku);
+    let restante = parseCantidadTexto(totalTexto);
+    const nc = {};
+    const ns = {};
     for (const r of filas) {
       const cap = Number(r.cantidad_sugerida ?? r.cantidad_disponible ?? 0);
-      const asignar = Math.max(0, Math.min(cap, restante));
-      nuevasCant[r.id] = asignar;
-      nuevasSel[r.id] = asignar > 0;
+      const asignar = restante > 0 ? Math.max(0, Math.min(cap, restante)) : 0;
+      nc[r.id] = asignar;
+      ns[r.id] = asignar > 0;
       restante -= asignar;
     }
+    setCantidades((prev) => ({ ...prev, ...nc }));
+    setSeleccionados((prev) => ({ ...prev, ...ns }));
+  };
 
-    setCantidades((prev) => ({ ...prev, ...nuevasCant }));
-    setSeleccionados((prev) => ({ ...prev, ...nuevasSel }));
+  // Activa/desactiva el modo "por cantidad" (una sola línea) para el SKU.
+  const toggleConsolidarSku = (sku) => {
+    const skuStr = String(sku || "");
+    setSkuConsolidado((prev) => {
+      const next = { ...prev };
+      if (next[skuStr]) delete next[skuStr];
+      else next[skuStr] = true;
+      return next;
+    });
+  };
 
-    if (restante > 0.0001) {
-      showWmsAlert(
-        `Solo había ${formatQty(
-          disponibleTotal
-        )} disponible en las ubicaciones sugeridas de este SKU. Se repartió todo lo disponible y faltaron ${formatQty(
-          restante
-        )}.`
-      );
-    }
+  // Resume una lista de valores (lotes/ubicaciones): si es uno, lo muestra; si
+  // son varios, muestra el rango (primero … último) y cuántos son.
+  const resumenRango = (valores) => {
+    const u = [...new Set((valores || []).map((v) => String(v ?? "").trim()).filter(Boolean))].sort(
+      (a, b) => a.localeCompare(b, undefined, { numeric: true })
+    );
+    if (!u.length) return "-";
+    if (u.length === 1) return u[0];
+    return `${u.length}: ${u[0]} … ${u[u.length - 1]}`;
   };
 
   const lineasSeleccionadas = useMemo(() => {
@@ -1017,6 +1002,30 @@ export default function OrdenPicking() {
       return !!seleccionados[r.id] && cant > 0;
     });
   }, [rowsPendientesFull, cantidades, seleccionados]);
+
+  // Filas a mostrar en la tabla: para los SKU marcados "por cantidad" se
+  // muestra UNA sola línea consolidada (con su grupo de ubicaciones detrás);
+  // el resto de SKU se muestran normal (una fila por ubicación).
+  const filasVista = useMemo(() => {
+    const out = [];
+    const vistos = new Set();
+    for (const r of rowsPendientesFull) {
+      const sku = String(r.sku);
+      const esConsolidable =
+        skuConsolidado[sku] && !String(r.id).startsWith("manual-");
+      if (esConsolidable) {
+        if (vistos.has(sku)) continue;
+        vistos.add(sku);
+        const grupo = rowsPendientesFull.filter(
+          (x) => String(x.sku) === sku && !String(x.id).startsWith("manual-")
+        );
+        out.push({ ...r, __consolidada: true, __grupo: grupo });
+      } else {
+        out.push(r);
+      }
+    }
+    return out;
+  }, [rowsPendientesFull, skuConsolidado]);
 
   const resumen = useMemo(() => {
     const totalPendientes = rowsPendientesFull.length;
@@ -2181,7 +2190,138 @@ export default function OrdenPicking() {
                     </td>
                   </tr>
                 ) : (
-                  rowsPendientesFull.map((r, idx) => {
+                  filasVista.map((r, idx) => {
+                    // Línea CONSOLIDADA "por cantidad": una sola fila que
+                    // representa todas las ubicaciones del SKU.
+                    if (r.__consolidada) {
+                      const grupo = r.__grupo || [];
+                      const sumSug = grupo.reduce(
+                        (a, x) => a + Number(x.cantidad_sugerida  -  0),
+                        0
+                      );
+                      const sumCant = grupo.reduce(
+                        (a, x) => a + Number(cantidades[x.id]  -  0),
+                        0
+                      );
+                      const reqTotal = Number(r.cantidad_requerida  -  0);
+                      const algunoSel = grupo.some((x) => !!seleccionados[x.id]);
+                      const lotesAlm = resumenRango(grupo.map((x) => x.lote_almacen));
+                      const lotesProv = resumenRango(grupo.map((x) => x.lote_proveedor));
+                      const ubics = resumenRango(grupo.map((x) => x.ubicacion));
+                      const vencs = grupo
+                        .map((x) => String(x.fecha_vencimiento || "").slice(0, 10))
+                        .filter(Boolean)
+                        .sort();
+                      const vencTxt = vencs.length
+                        ? vencs[0] === vencs[vencs.length - 1]
+                          ? fmtDate(vencs[0])
+                          : `${fmtDate(vencs[0])} … ${fmtDate(vencs[vencs.length - 1])}`
+                        : "-";
+                      const estadoC = getEstadoEntrega(sumCant, sumSug);
+                      const desactivarGrupo = () => {
+                        const nc = {};
+                        const ns = {};
+                        grupo.forEach((x) => {
+                          nc[x.id] = 0;
+                          ns[x.id] = false;
+                        });
+                        setCantidades((p) => ({ ...p, ...nc }));
+                        setSeleccionados((p) => ({ ...p, ...ns }));
+                      };
+                      return (
+                        <tr
+                          key={`cons-${r.sku}`}
+                          style={{
+                            borderBottom: `2px solid ${colors.blue}`,
+                            background: "#f5f9ff",
+                          }}
+                        >
+                          <td style={{ ...tdStyle, textAlign: "center" }}>
+                            <input
+                              type="checkbox"
+                              checked={algunoSel}
+                              onChange={() =>
+                                algunoSel
+                                  ? desactivarGrupo()
+                                  : distribuirCantidadSku(r.sku, String(sumSug))
+                              }
+                              style={{ width: 18, height: 18, cursor: "pointer", accentColor: colors.blue }}
+                            />
+                          </td>
+                          <td style={tdStyle}>
+                            <Chip label="POR CANTIDAD" tone="blue" />
+                          </td>
+                          <td style={{ ...tdStyle, fontWeight: 800, color: colors.blue }}>
+                            {r.reserva || ""}
+                          </td>
+                          <td style={{ ...tdStyle, fontWeight: 800 }}>
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
+                              <span>{r.sku || ""}</span>
+                              <button
+                                type="button"
+                                onClick={() => toggleConsolidarSku(r.sku)}
+                                title="Ver las ubicaciones una por una"
+                                style={{
+                                  display: "inline-flex", alignItems: "center", gap: 4,
+                                  padding: "2px 7px", borderRadius: 6,
+                                  border: `1px solid ${colors.blue}`, background: colors.blue,
+                                  color: "#fff", fontSize: 10.5, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap",
+                                }}
+                              >
+                                <Layers size={12} /> Ver ubicaciones ({grupo.length})
+                              </button>
+                            </div>
+                          </td>
+                          <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: "normal", minWidth: 190 }}>
+                            {r.texto_breve || ""}
+                          </td>
+                          <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                            {formatQty(reqTotal)}
+                          </td>
+                          <td style={{ ...tdStyle, textAlign: "right", fontWeight: 800 }}>
+                            {formatQty(sumSug)}
+                          </td>
+                          <td style={{ ...tdStyle, textAlign: "right", minWidth: 300 }}>
+                            <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", whiteSpace: "nowrap" }}>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={sumCant}
+                                onChange={(e) => distribuirCantidadSku(r.sku, e.target.value)}
+                                style={{
+                                  width: 120, height: 30, padding: "0 8px",
+                                  borderRadius: "7px 0 0 7px",
+                                  border: sumCant > sumSug ? `1px solid ${colors.bad}` : `1px solid ${colors.border}`,
+                                  textAlign: "right", fontWeight: 800, fontSize: 11,
+                                  color: sumCant > sumSug ? colors.bad : colors.text, background: "#fff",
+                                }}
+                              />
+                              <QuantityMetaBox sugerido={sumSug} maximo={sumSug} exceso={Math.max(0, sumCant - sumSug)} />
+                            </div>
+                          </td>
+                          <td style={{ ...tdStyle, minWidth: 160, whiteSpace: "nowrap" }}>
+                            {sumCant > 0 ? (
+                              <DeliveryEvidenceBadge estado={estadoC} diferencia={sumCant - sumSug} />
+                            ) : (
+                              <span style={{ color: colors.muted }}>-</span>
+                            )}
+                          </td>
+                          <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>{ubics}</td>
+                          <td style={{ ...tdStyle, color: colors.muted }}>Reparto FEFO</td>
+                          <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>{lotesAlm}</td>
+                          <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>{lotesProv}</td>
+                          <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>{vencTxt}</td>
+                          <td style={{ ...tdStyle, textAlign: "center", color: colors.muted }}>-</td>
+                          <td style={{ ...tdStyle, textAlign: "center", color: colors.muted }}>-</td>
+                          <td style={{ ...tdStyle, textAlign: "center", color: colors.muted }}>-</td>
+                          <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
+                            {estadoC?.label || ""}
+                          </td>
+                        </tr>
+                      );
+                    }
+
                     const usandoAlternativa = !!incumplimientoRows[r.id];
                     const alternativa = alternativaElegida[r.id];
                     const esManual = !!r.manual;
@@ -2254,8 +2394,8 @@ export default function OrdenPicking() {
                             {!esManual && (
                               <button
                                 type="button"
-                                onClick={() => despacharPorCantidad(r.sku)}
-                                title="Despachar por cantidad: escribes el total y el sistema reparte las ubicaciones por rotación"
+                                onClick={() => toggleConsolidarSku(r.sku)}
+                                title="Por cantidad: junta todas las ubicaciones de este SKU en una sola línea y escribes el total; el sistema reparte por rotación"
                                 style={{
                                   display: "inline-flex",
                                   alignItems: "center",
