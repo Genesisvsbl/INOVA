@@ -1324,8 +1324,8 @@ export default function OrdenPicking() {
     }
 
     .print-logo {
-      width: 58px !important;
-      height: 58px !important;
+      width: 34px !important;
+      height: 34px !important;
       object-fit: contain !important;
       flex: 0 0 auto !important;
       display: block !important;
@@ -1333,7 +1333,7 @@ export default function OrdenPicking() {
 
     .print-title {
       margin: 0 !important;
-      font-size: 34px !important;
+      font-size: 20px !important;
       line-height: 1.05 !important;
       font-weight: 900 !important;
       color: #133454 !important;
@@ -1341,13 +1341,13 @@ export default function OrdenPicking() {
 
     .print-subtitle {
       margin-top: 2px !important;
-      font-size: 14px !important;
+      font-size: 9px !important;
       color: #5b6b7c !important;
       font-weight: 700 !important;
     }
 
     .print-meta {
-      font-size: 16px !important;
+      font-size: 11px !important;
       line-height: 1.15 !important;
       text-align: right !important;
       color: #0f172a !important;
@@ -1370,7 +1370,7 @@ export default function OrdenPicking() {
     }
 
     .print-section-title {
-      font-size: 19px !important;
+      font-size: 12px !important;
       font-weight: 900 !important;
       padding: 3px 6px !important;
       background: #ffffff !important;
@@ -1397,9 +1397,9 @@ export default function OrdenPicking() {
     .print-table th,
     .print-table td {
       border: 1px solid #c8d1dc !important;
-      padding: 4px 6px !important;
-      font-size: 14px !important;
-      line-height: 1.25 !important;
+      padding: 3px 4px !important;
+      font-size: 10px !important;
+      line-height: 1.2 !important;
       vertical-align: top !important;
     }
 
@@ -1423,7 +1423,7 @@ export default function OrdenPicking() {
       margin-top: 3px !important;
       color: #c62828 !important;
       font-weight: 800 !important;
-      font-size: 14px !important;
+      font-size: 10px !important;
     }
   }
 `}</style>
