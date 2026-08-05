@@ -3168,14 +3168,14 @@ export default function OrdenPicking() {
                 </colgroup>
                 <thead>
                   <tr>
-                    <th className="print-nowrap">Fecha necesidad</th>
+                    <th className="print-wrap">Fecha nec.</th>
                     <th className="print-nowrap">SKU</th>
                     <th className="print-wrap">Texto breve</th>
-                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad requerida</th>
-                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cantidad retirada</th>
-                    <th className="print-nowrap" style={{ textAlign: "right" }}>Diferencia</th>
+                    <th className="print-wrap" style={{ textAlign: "right" }}>Cant. req.</th>
+                    <th className="print-wrap" style={{ textAlign: "right" }}>Cant. ret.</th>
+                    <th className="print-wrap" style={{ textAlign: "right" }}>Diferencia</th>
                     <th className="print-nowrap" style={{ textAlign: "right" }}>% SKU</th>
-                    <th className="print-nowrap">Clasificación</th>
+                    <th className="print-wrap">Clasif.</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3220,15 +3220,15 @@ export default function OrdenPicking() {
                   <tr>
                     <th className="print-nowrap">SKU</th>
                     <th className="print-wrap">Texto breve</th>
-                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cant. requerida</th>
-                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cant. sugerida</th>
-                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cant. confirmada</th>
+                    <th className="print-wrap" style={{ textAlign: "right" }}>Cant. req.</th>
+                    <th className="print-wrap" style={{ textAlign: "right" }}>Cant. sug.</th>
+                    <th className="print-wrap" style={{ textAlign: "right" }}>Cant. conf.</th>
                     <th className="print-wrap">Evidencia</th>
-                    <th className="print-wrap">Ubicación</th>
-                    <th className="print-wrap">Lote almacén</th>
-                    <th className="print-wrap">Lote proveedor</th>
-                    <th className="print-wrap">Vencimiento</th>
-                    <th className="print-nowrap">Estado</th>
+                    <th className="print-wrap">Ubic.</th>
+                    <th className="print-wrap">Lote alm.</th>
+                    <th className="print-wrap">Lote prov.</th>
+                    <th className="print-wrap">Venc.</th>
+                    <th className="print-wrap">Estado</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3319,14 +3319,14 @@ export default function OrdenPicking() {
                   <tr>
                     <th className="print-nowrap">SKU</th>
                     <th className="print-wrap">Texto breve</th>
-                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cant. requerida</th>
-                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cant. sugerida</th>
-                    <th className="print-nowrap" style={{ textAlign: "right" }}>Cant. tomada</th>
-                    <th className="print-wrap">Ubicación</th>
-                    <th className="print-wrap">Lote almacén</th>
-                    <th className="print-wrap">Lote proveedor</th>
-                    <th className="print-wrap">Vencimiento</th>
-                    <th className="print-wrap">Observación rotación</th>
+                    <th className="print-wrap" style={{ textAlign: "right" }}>Cant. req.</th>
+                    <th className="print-wrap" style={{ textAlign: "right" }}>Cant. sug.</th>
+                    <th className="print-wrap" style={{ textAlign: "right" }}>Cant. tom.</th>
+                    <th className="print-wrap">Ubic.</th>
+                    <th className="print-wrap">Lote alm.</th>
+                    <th className="print-wrap">Lote prov.</th>
+                    <th className="print-wrap">Venc.</th>
+                    <th className="print-wrap">Observación</th>
                   </tr>
                 </thead>
                 <tbody>
