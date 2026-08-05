@@ -12,6 +12,8 @@ import {
   GitCompareArrows,
   X,
   CheckCircle2,
+  CheckSquare,
+  Square,
   Plus,
   Search,
   Trash2,
@@ -1844,7 +1846,48 @@ export default function OrdenPicking() {
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1980 }}>
               <thead>
                 <tr>
-                  <th style={thStyle}>Comprometer</th>
+                  <th style={thStyle}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                      <span>Comprometer</span>
+                      {(() => {
+                        const todos =
+                          rowsPendientesFull.length > 0 &&
+                          rowsPendientesFull.every((r) => !!seleccionados[r.id]);
+                        return (
+                          <button
+                            type="button"
+                            title={todos ? "Deseleccionar todo" : "Seleccionar todo"}
+                            onClick={() =>
+                              setSeleccionados((prev) => {
+                                const next = { ...prev };
+                                rowsPendientesFull.forEach((r) => {
+                                  next[r.id] = !todos;
+                                });
+                                return next;
+                              })
+                            }
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 5,
+                              padding: "3px 8px",
+                              borderRadius: 6,
+                              border: `1px solid ${colors.border}`,
+                              background: "#fff",
+                              color: colors.blue,
+                              fontSize: 11,
+                              fontWeight: 800,
+                              cursor: "pointer",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {todos ? <Square size={14} /> : <CheckSquare size={14} />}
+                            {todos ? "Deseleccionar todo" : "Seleccionar todo"}
+                          </button>
+                        );
+                      })()}
+                    </div>
+                  </th>
                   <th style={thStyle}>Tipo</th>
                   <th style={thStyle}>Reserva</th>
                   <th style={thStyle}>SKU</th>
