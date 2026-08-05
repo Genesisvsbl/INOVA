@@ -1404,7 +1404,8 @@ export default function OrdenPicking() {
       padding: 4px 5px !important;
       font-size: 11px !important;
       line-height: 1.25 !important;
-      vertical-align: top !important;
+      vertical-align: middle !important;
+      text-align: center;
       page-break-inside: avoid !important;
       break-inside: avoid !important;
     }
