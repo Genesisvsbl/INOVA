@@ -1499,6 +1499,22 @@ export default function OrdenPicking() {
       border-color: #c8d1dc !important;
     }
 
+    /* Los ENCABEZADOS siempre bajan de línea por palabra completa (nunca se
+       recortan ni se parten a mitad de palabra), en letra un poco menor.
+       Se usa doble clase para ganar en especificidad a las reglas de arriba. */
+    .print-table thead th,
+    .print-table thead th.print-nowrap,
+    .print-table thead th.print-wrap {
+      white-space: normal !important;
+      overflow-wrap: break-word !important;
+      word-break: normal !important;
+      hyphens: none !important;
+      font-size: 9px !important;
+      line-height: 1.1 !important;
+      padding: 3px 3px !important;
+      vertical-align: middle !important;
+    }
+
     .print-wrap {
       white-space: normal !important;
       word-break: break-word !important;

@@ -1963,11 +1963,19 @@ export function confirmarPicking(reserva, payload) {
       const cantidad = toNumber(item.cantidad_confirmada ?? item.cantidad ?? item.cantidad_retirada);
       if (cantidad <= 0) return null;
 
-      const pick = item.id ? (await findOne("picking_detalle", {
-        empresa_id: `eq.${empresaId}`,
-        id: `eq.${item.id}`,
-        select: "*",
-      })) : item;
+      const found = item.id
+        ? await findOne("picking_detalle", {
+            empresa_id: `eq.${empresaId}`,
+            id: `eq.${item.id}`,
+            select: "*",
+          })
+        : null;
+
+      // Si no se encontró la fila en la BD, usamos el propio item para no romper.
+      const pick = found || item;
+      // Id válido para actualizar: preferimos el del item (lo conocemos) y si
+      // no, el encontrado. Los SKU manuales llegan con id 0 (no se actualizan).
+      const pickId = Number(item.id) || Number(found?.id) || null;
 
       const ubicacionTomada =
         item.ubicacion_alternativa || item.ubicacion_tomada || pick?.ubicacion_alternativa || pick?.ubicacion;
@@ -1976,23 +1984,25 @@ export function confirmarPicking(reserva, payload) {
       const fechaVencimiento =
         item.fecha_vencimiento_alternativa || item.fecha_vencimiento || pick?.fecha_vencimiento;
 
-      await updateById("wms", "picking_detalle", pick.id, {
-        cantidad_confirmada: cantidad,
-        confirmado: true,
-        impreso: true,
-        motivo_rotacion: item.motivo_rotacion || pick?.motivo_rotacion || null,
-        ubicacion_alternativa: item.ubicacion_alternativa || pick?.ubicacion_alternativa || null,
-        lote_almacen_alternativo: item.lote_almacen_alternativo || pick?.lote_almacen_alternativo || null,
-        lote_proveedor_alternativo: item.lote_proveedor_alternativo || pick?.lote_proveedor_alternativo || null,
-        fecha_vencimiento_alternativa:
-          item.fecha_vencimiento_alternativa || pick?.fecha_vencimiento_alternativa || null,
-      });
+      if (pickId) {
+        await updateById("wms", "picking_detalle", pickId, {
+          cantidad_confirmada: cantidad,
+          confirmado: true,
+          impreso: true,
+          motivo_rotacion: item.motivo_rotacion || pick?.motivo_rotacion || null,
+          ubicacion_alternativa: item.ubicacion_alternativa || pick?.ubicacion_alternativa || null,
+          lote_almacen_alternativo: item.lote_almacen_alternativo || pick?.lote_almacen_alternativo || null,
+          lote_proveedor_alternativo: item.lote_proveedor_alternativo || pick?.lote_proveedor_alternativo || null,
+          fecha_vencimiento_alternativa:
+            item.fecha_vencimiento_alternativa || pick?.fecha_vencimiento_alternativa || null,
+        });
+      }
 
       await crearMovimiento({
         fecha: new Date().toISOString(),
         usuario,
         documento,
-        codigo_material: pick.sku,
+        codigo_material: pick?.sku || item.sku,
         ubicacion: ubicacionTomada,
         estado: "ALMACENADO",
         lote_almacen: loteAlmacen,
@@ -2001,7 +2011,7 @@ export function confirmarPicking(reserva, payload) {
         cantidad_r: -Math.abs(cantidad),
       });
 
-      return pick.id;
+      return pickId;
     })
   ).then(() => recalcReserva(reservaValue));
 }
