@@ -779,35 +779,72 @@ export default function Despacho() {
     }
     const logo = `${window.location.origin}/inova-azul.png`;
     const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const fmt = (v) => Number(v || 0).toLocaleString("es-CO");
-    const secciones = lista
-      .map(({ reserva, lineas }) => {
-        const filas = (lineas || []).filter((p) => Number(p.cantidad_sugerida || 0) > 0);
-        const rows = filas
+    const q = (v) =>
+      Number(v || 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const d10 = (v) => String(v || "").slice(0, 10);
+    const hoy = new Date().toLocaleDateString("es-CO");
+
+    // Una HOJA completa por reserva, con toda la estructura (encabezado,
+    // resumen de la reserva y orden de picking pendiente comprometida).
+    const paginas = lista
+      .map(({ reserva, lineas, detalles }, idx) => {
+        const resumen = (detalles || [])
           .map(
-            (p, i) =>
-              `<tr><td>${i + 1}</td><td class="cod">${esc(p.sku)}</td><td>${esc(p.texto_breve || "")}</td><td class="r">${fmt(
-                p.cantidad_sugerida
-              )}</td><td>${esc(p.ubicacion_alternativa || p.ubicacion || "")}</td><td>${esc(p.lote_almacen || "")}</td><td>${esc(
-                p.lote_proveedor || ""
-              )}</td><td>${esc(String(p.fecha_vencimiento || "").slice(0, 10))}</td></tr>`
+            (d) =>
+              `<tr><td>${esc(d10(d.fecha_necesidad))}</td><td class="cod">${esc(d.sku)}</td><td>${esc(
+                d.texto_breve || ""
+              )}</td><td class="r">${q(d.cantidad)}</td><td class="r">${q(d.cantidad_retirada)}</td><td class="r">${q(
+                d.diferencia
+              )}</td><td>${esc(d.clasificacion_sku || d.clasificacion_final || "")}</td></tr>`
           )
           .join("");
-        return `<div class="sec"><div class="rv">Reserva ${esc(reserva)} · ${filas.length} línea(s)</div><table><thead><tr><th>#</th><th>SKU</th><th>Texto breve</th><th>Cantidad</th><th>Ubicación</th><th>Lote almacén</th><th>Lote proveedor</th><th>Vencimiento</th></tr></thead><tbody>${
-          rows || `<tr><td colspan="8">Sin líneas comprometidas.</td></tr>`
-        }</tbody></table></div>`;
+        const picks = (lineas || [])
+          .filter((p) => Number(p.cantidad_sugerida || 0) > 0)
+          .map(
+            (p) =>
+              `<tr><td class="cod">${esc(p.sku)}</td><td>${esc(p.texto_breve || "")}</td><td class="r">${q(
+                p.cantidad_requerida
+              )}</td><td class="r">${q(p.cantidad_sugerida)}</td><td class="r">${q(
+                p.cantidad_sugerida
+              )}</td><td>${esc(p.ubicacion_alternativa || p.ubicacion || "")}</td><td>${esc(
+                p.lote_almacen || ""
+              )}</td><td>${esc(p.lote_proveedor || "")}</td><td>${esc(d10(p.fecha_vencimiento))}</td></tr>`
+          )
+          .join("");
+        return `<div class="page"${idx === lista.length - 1 ? ' style="page-break-after:auto"' : ""}>
+          <div class="hd">
+            <img src="${logo}" onerror="this.style.display='none'"/>
+            <div class="ti"><div class="t">ORDEN DE PICKING</div><div class="s">WMS INOVA · Control logístico</div></div>
+            <div class="meta"><div><b>Reserva:</b> ${esc(reserva)}</div><div><b>Usuario:</b> DESPACHO</div><div><b>Fecha impresión:</b> ${esc(
+              hoy
+            )}</div></div>
+          </div>
+          <div class="cap">Resumen de la reserva</div>
+          <table><thead><tr><th>Fecha necesidad</th><th>SKU</th><th>Texto breve</th><th>Cant. requerida</th><th>Cant. retirada</th><th>Diferencia</th><th>Clasificación</th></tr></thead><tbody>${
+            resumen || `<tr><td colspan="7">Sin resumen.</td></tr>`
+          }</tbody></table>
+          <div class="cap">Orden de picking pendiente (comprometida)</div>
+          <table><thead><tr><th>SKU</th><th>Texto breve</th><th>Cant. requerida</th><th>Cant. sugerida</th><th>Cant. tomada</th><th>Ubicación</th><th>Lote almacén</th><th>Lote proveedor</th><th>Vencimiento</th></tr></thead><tbody>${
+            picks || `<tr><td colspan="9">Sin líneas comprometidas.</td></tr>`
+          }</tbody></table>
+        </div>`;
       })
       .join("");
+
     const html =
-      `<html><head><meta charset="utf-8"><title>Órdenes de picking comprometidas</title><style>` +
-      `@page{size:letter landscape;margin:10mm}*{font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}` +
-      `body{margin:0;color:#0f172a}.hd{display:flex;align-items:center;gap:14px;border-bottom:3px solid #0a1f52;padding:4px 2px 10px;margin-bottom:10px}` +
-      `.hd img{height:46px}.hd .t{font-size:19px;font-weight:900;color:#0a1f52}` +
-      `.sec{margin-bottom:16px;page-break-inside:avoid}.rv{font-weight:900;color:#0a1f52;font-size:14px;margin:10px 0 4px}` +
-      `table{border-collapse:collapse;width:100%}th{background:#dbe6fb;color:#0a1f52;font-size:10px;text-align:left;padding:5px 6px;border:1px solid #9db3d6;text-transform:uppercase}` +
-      `td{font-size:11px;padding:4px 6px;border:1px solid #c7d2e0}td.cod{font-weight:800;color:#0a1f52}td.r{text-align:right;font-weight:800}tr:nth-child(even) td{background:#f3f7fd}` +
-      `</style></head><body><div class="hd"><img src="${logo}" onerror="this.style.display='none'"/><div class="t">ÓRDENES DE PICKING COMPROMETIDAS</div></div>${secciones}` +
-      `<script>setTimeout(function(){try{window.focus();window.print();}catch(e){}},300);window.onafterprint=function(){setTimeout(function(){try{window.close();}catch(e){}},150);};<\/script>` +
+      `<html><head><meta charset="utf-8"><title>Órdenes de picking</title><style>` +
+      `@page{size:letter landscape;margin:9mm}*{font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}` +
+      `body{margin:0;color:#0f172a}` +
+      `.page{page-break-after:always}` +
+      `.hd{display:flex;align-items:center;gap:14px;border-bottom:3px solid #0a1f52;padding:2px 2px 8px;margin-bottom:8px}` +
+      `.hd img{height:46px}.hd .ti{flex:1}.hd .t{font-size:20px;font-weight:900;color:#0a1f52;letter-spacing:.4px}.hd .s{font-size:11px;color:#0b3d91;font-weight:700}` +
+      `.hd .meta{font-size:11px;text-align:right;color:#0a1f52;font-weight:700;white-space:nowrap}` +
+      `.cap{font-weight:900;color:#0a1f52;font-size:12px;margin:10px 0 4px;padding-bottom:2px;border-bottom:1px solid #cdd9ee}` +
+      `table{border-collapse:collapse;width:100%;margin-bottom:6px}` +
+      `th{background:#dbe6fb;color:#0a1f52;font-size:9.5px;text-align:left;padding:4px 6px;border:1px solid #9db3d6;text-transform:uppercase}` +
+      `td{font-size:10.5px;padding:3px 6px;border:1px solid #c7d2e0}td.cod{font-weight:800;color:#0a1f52}td.r{text-align:right;font-weight:800}tr:nth-child(even) td{background:#f3f7fd}` +
+      `</style></head><body>${paginas}` +
+      `<script>setTimeout(function(){try{window.focus();window.print();}catch(e){}},350);window.onafterprint=function(){setTimeout(function(){try{window.close();}catch(e){}},150);};<\/script>` +
       `</body></html>`;
     w.document.open();
     w.document.write(html);
@@ -847,8 +884,11 @@ export default function Despacho() {
             }))
             .filter((it) => Number(it.cantidad_sugerida) > 0);
           if (items.length) await comprometerPicking(rv, { items });
-          const lineas = await verPicking(rv);
-          resultados.push({ reserva: rv, lineas });
+          const [lineas, detalles] = await Promise.all([
+            verPicking(rv),
+            getDespachos({ reserva: rv }),
+          ]);
+          resultados.push({ reserva: rv, lineas, detalles });
         } catch (e) {
           resultados.push({ reserva: rv, error: e?.message || String(e) });
         }
