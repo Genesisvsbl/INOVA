@@ -2097,14 +2097,35 @@ export function marcarPickingImpreso(reserva) {
   );
 }
 
-export function eliminarReserva(reserva) {
+export async function eliminarReserva(reserva) {
   const reservaValue = String(reserva || "").trim();
-  return Promise.all([getDespachos({ reserva: reservaValue }), verPicking(reservaValue)]).then(
-    ([detalles, picks]) =>
-      Promise.all([
-        ...detalles.map((row) => deleteById("wms", "despacho_detalles", row.id)),
-        ...picks.map((row) => deleteById("wms", "picking_detalle", row.id)),
-      ])
+  const [detalles, picks] = await Promise.all([
+    getDespachos({ reserva: reservaValue }),
+    verPicking(reservaValue),
+  ]);
+
+  // 1) Primero los HIJOS (picking_detalle). Reunimos los picks de la reserva y,
+  //    por seguridad, cualquier picking_detalle que referencie estos
+  //    despacho_detalles aunque verPicking no lo haya traído (ej. confirmados).
+  const pickIds = new Set((picks || []).map((p) => p.id));
+  const detalleIds = (detalles || []).map((d) => d.id).filter((id) => id != null);
+
+  if (detalleIds.length) {
+    const extra = await selectAllRows("wms", "picking_detalle", {
+      empresa_id: `eq.${empresaId}`,
+      despacho_detalle_id: `in.(${detalleIds.join(",")})`,
+      select: "id",
+    }).catch(() => []);
+    (extra || []).forEach((p) => pickIds.add(p.id));
+  }
+
+  await Promise.all(
+    Array.from(pickIds).map((id) => deleteById("wms", "picking_detalle", id))
+  );
+
+  // 2) Ahora sí, los PADRES (despacho_detalles).
+  await Promise.all(
+    (detalles || []).map((row) => deleteById("wms", "despacho_detalles", row.id))
   );
 }
 
