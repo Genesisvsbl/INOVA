@@ -915,6 +915,42 @@ export default function Despacho() {
     }
   };
 
+  // Libera (descompromete) TODAS las reservas marcadas de una vez.
+  const liberarLote = async () => {
+    const seleccionadas = reservasSeleccionadas();
+    if (!seleccionadas.length) {
+      showToast({ type: "warn", title: "Sin reservas", message: "Marca al menos una reserva en la lista." });
+      return;
+    }
+    const ok = await showWmsConfirm(
+      `¿Liberar (descomprometer) ${seleccionadas.length} reserva(s)?\n\nSe borran sus líneas de picking no confirmadas y esas ubicaciones quedan libres.`
+    );
+    if (!ok) return;
+
+    setProcesandoLote(true);
+    let okCount = 0;
+    try {
+      for (const rv of seleccionadas) {
+        try {
+          await liberarPickingReserva(rv);
+          okCount += 1;
+        } catch {
+          /* sigue con las demás */
+        }
+      }
+      await loadDespachos("");
+      forceRefreshStore();
+      setReservasSel({});
+      showToast({
+        type: "success",
+        title: "Reservas liberadas",
+        message: `${okCount} de ${seleccionadas.length} reservas quedaron descomprometidas.`,
+      });
+    } finally {
+      setProcesandoLote(false);
+    }
+  };
+
   const liberarReserva = async (reservaId) => {
     const ok = await showWmsConfirm(
       `¿Liberar (descomprometer) la reserva ${reservaId}?\n\nSe borran sus líneas de picking no confirmadas y esas ubicaciones quedan libres para otras reservas.`
@@ -1434,6 +1470,16 @@ export default function Despacho() {
             >
               <Printer size={14} />
               Generar, comprometer e imprimir
+            </button>
+            <button
+              type="button"
+              onClick={liberarLote}
+              disabled={procesandoLote || reservasSeleccionadas().length === 0}
+              style={{ ...subtleWarnButtonStyle, ...compactActionButtonStyle }}
+              title="Libera (descompromete) las reservas marcadas y suelta sus ubicaciones"
+            >
+              <Unlock size={14} />
+              Liberar seleccionadas
             </button>
           </div>
         </div>
