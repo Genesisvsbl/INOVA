@@ -1388,8 +1388,11 @@ export default function OrdenPicking() {
 
     .print-table {
       width: 100% !important;
+      max-width: 100% !important;
       border-collapse: collapse !important;
-      table-layout: auto !important;
+      /* Fijo: la tabla NUNCA excede el ancho de la hoja, las columnas
+         se reparten y el texto baja de línea (no se corta nada a la derecha). */
+      table-layout: fixed !important;
     }
 
     .print-table thead {
@@ -1404,11 +1407,15 @@ export default function OrdenPicking() {
     .print-table th,
     .print-table td {
       border: 1px solid #c8d1dc !important;
-      padding: 4px 5px !important;
+      padding: 4px 4px !important;
       font-size: 11px !important;
-      line-height: 1.25 !important;
+      line-height: 1.2 !important;
       vertical-align: middle !important;
       text-align: center;
+      /* Todo el contenido baja de línea si no cabe: nada se corta */
+      white-space: normal !important;
+      overflow-wrap: anywhere !important;
+      word-break: break-word !important;
       page-break-inside: avoid !important;
       break-inside: avoid !important;
     }
@@ -1423,10 +1430,16 @@ export default function OrdenPicking() {
     .print-wrap {
       white-space: normal !important;
       word-break: break-word !important;
+      overflow-wrap: anywhere !important;
     }
 
-    .print-nowrap {
+    /* Mayor especificidad que la regla general para que los números y
+       códigos cortos NO se partan en varias líneas. */
+    .print-table td.print-nowrap,
+    .print-table th.print-nowrap {
       white-space: nowrap !important;
+      overflow-wrap: normal !important;
+      word-break: normal !important;
     }
 
     .print-alert {
@@ -3002,6 +3015,16 @@ export default function OrdenPicking() {
 
             <div className="print-table-wrap">
               <table className="print-table">
+                <colgroup>
+                  <col style={{ width: "11%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "23%" }} />
+                  <col style={{ width: "13%" }} />
+                  <col style={{ width: "13%" }} />
+                  <col style={{ width: "11%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "14%" }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th className="print-nowrap">Fecha necesidad</th>
@@ -3039,6 +3062,19 @@ export default function OrdenPicking() {
 
             <div className="print-table-wrap">
               <table className="print-table">
+                <colgroup>
+                  <col style={{ width: "6%" }} />
+                  <col style={{ width: "16%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "9%" }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th className="print-nowrap">SKU</th>
@@ -3126,6 +3162,18 @@ export default function OrdenPicking() {
 
             <div className="print-table-wrap">
               <table className="print-table">
+                <colgroup>
+                  <col style={{ width: "6%" }} />
+                  <col style={{ width: "16%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "15%" }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th className="print-nowrap">SKU</th>
