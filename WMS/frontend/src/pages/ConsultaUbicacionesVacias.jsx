@@ -27,6 +27,26 @@ const pasilloDe = (u) => { const c = codeUbic(u); const a = c.indexOf("'"); retu
 // piso tipo 300PISO / 300MALLA / ZONAREVISION no lo cumplen.
 const esRack = (u) => { const c = codeUbic(u); return c.includes("'") && !!moduloDe(u) && !!nivelDe(u); };
 
+// Columna / posición = número después del apóstrofe (ej. 500111'26 -> 26).
+const columnaDe = (u) => {
+  const c = codeUbic(u);
+  const a = c.indexOf("'");
+  if (a < 0) return null;
+  const n = parseInt(c.slice(a + 1).replace(/\D/g, ""), 10);
+  return Number.isFinite(n) ? n : null;
+};
+// RACK: cada pasillo tiene 2 racks. En el pasillo 1, las posiciones que
+// terminan en IMPAR son el rack 1 y las PARES el rack 2; en el pasillo 2 el
+// rack 3 (impares) y el rack 4 (pares), y así sucesivamente.
+// rack = (pasillo - 1) * 2 + (impar ? 1 : 2)
+const rackDe = (u) => {
+  const p = parseInt(pasilloDe(u), 10);
+  const col = columnaDe(u);
+  if (!Number.isFinite(p) || col == null) return null;
+  const impar = col % 2 !== 0;
+  return (p - 1) * 2 + (impar ? 1 : 2);
+};
+
 const esc = (s) => String(s ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 
 // ---- Rótulo(s) de ubicación vacía (con barcode). Uno o varios por hoja. ----
@@ -36,14 +56,14 @@ function labelCss() {
     `html,body{margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}` +
     `*{font-family:Arial,Helvetica,sans-serif;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}` +
     `.lbl{width:10.16cm;height:5.08cm;overflow:hidden;display:flex;flex-direction:column;page-break-after:always}` +
-    `.hd{background:#000;color:#fff;display:flex;align-items:center;gap:2mm;padding:1.8mm 3mm}` +
+    `.hd{background:#fff;color:#000;display:flex;align-items:center;gap:2mm;padding:1.8mm 3mm;border-bottom:2px solid #000}` +
     `.hd img{height:6mm}` +
-    `.hd .t{font-size:12px;font-weight:800;letter-spacing:.3px;color:#fff}` +
+    `.hd .t{font-size:12px;font-weight:800;letter-spacing:.3px;color:#000}` +
     `.bd{flex:1;display:flex;flex-direction:column;padding:1.4mm 3mm 1.4mm}` +
-    `.meta{font-size:9px;color:#111}` +
+    `.meta{font-size:9px;color:#000}` +
     `.meta b{color:#000}` +
     `.ubwrap{text-align:center;margin-top:6mm}` +
-    `.lab{font-size:7.5px;color:#333;text-transform:uppercase;letter-spacing:.5px}` +
+    `.lab{font-size:7.5px;color:#000;text-transform:uppercase;letter-spacing:.5px}` +
     `.ub{font-size:34px;font-weight:900;color:#000;letter-spacing:2px;line-height:1}` +
     `.bcwrap{margin-top:auto}` +
     `.bcwrap svg{width:100%;height:50px;display:block}`
@@ -55,7 +75,7 @@ function labelBody(loc, idx, logo) {
     `<div class="lbl">` +
     `<div class="hd"><img src="${logo}" onerror="this.style.display='none'"/><div class="t">UBICACIÓN</div></div>` +
     `<div class="bd">` +
-    `<div class="meta">Base <b>${esc(loc.ubicacion_base || "-")}</b> · Zona <b>${esc(loc.zona || "-")}</b> · Pasillo <b>${esc(pasilloDe(loc) || "-")}</b> · Módulo <b>${esc(moduloDe(loc) || "-")}</b> · Nivel <b>${esc(nivelDe(loc) || "-")}</b>${loc.familias ? ` · Familia <b>${esc(loc.familias)}</b>` : ""}</div>` +
+    `<div class="meta">Base <b>${esc(loc.ubicacion_base || "-")}</b> · Zona <b>${esc(loc.zona || "-")}</b> · Pasillo <b>${esc(pasilloDe(loc) || "-")}</b> · Rack <b>${esc(rackDe(loc) ?? "-")}</b> · Módulo <b>${esc(moduloDe(loc) || "-")}</b> · Nivel <b>${esc(nivelDe(loc) || "-")}</b>${loc.familias ? ` · Familia <b>${esc(loc.familias)}</b>` : ""}</div>` +
     `<div class="ubwrap"><div class="lab">Ubicación</div><div class="ub">${esc(code)}</div></div>` +
     `<div class="bcwrap"><svg id="bc${idx}"></svg></div>` +
     `</div></div>`
@@ -83,9 +103,9 @@ function imprimirInforme(locs, filtros) {
   const w = window.open("", "_blank", "width=1100,height=800");
   if (!w) { showWmsAlert("El navegador bloqueó la ventana de impresión."); return; }
   const logo = `${window.location.origin}/INOVA2026.png`;
-  const filaTxt = `${filtros.base ? `Base ${esc(filtros.base)} · ` : ""}${filtros.zona ? `Zona ${esc(filtros.zona)} · ` : ""}${filtros.familia ? `Familia ${esc(filtros.familia)} · ` : ""}${filtros.pasillo ? `Pasillo ${esc(filtros.pasillo)} · ` : ""}${filtros.modulo ? `Módulo ${esc(filtros.modulo)} · ` : ""}${filtros.nivel ? `Nivel ${esc(filtros.nivel)}` : ""}`.replace(/ · $/, "");
+  const filaTxt = `${filtros.base ? `Base ${esc(filtros.base)} · ` : ""}${filtros.zona ? `Zona ${esc(filtros.zona)} · ` : ""}${filtros.familia ? `Familia ${esc(filtros.familia)} · ` : ""}${filtros.pasillo ? `Pasillo ${esc(filtros.pasillo)} · ` : ""}${filtros.rack ? `Rack ${esc(filtros.rack)} · ` : ""}${filtros.modulo ? `Módulo ${esc(filtros.modulo)} · ` : ""}${filtros.nivel ? `Nivel ${esc(filtros.nivel)}` : ""}`.replace(/ · $/, "");
   const rows = locs.map((l, i) =>
-    `<tr style="background:${i % 2 ? "#f5f8ff" : "#fff"}"><td>${i + 1}</td><td class="cod">${esc(codeUbic(l))}</td><td>${esc(l.ubicacion_base || "-")}</td><td>${esc(l.zona || "-")}</td><td>${esc(pasilloDe(l) || "-")}</td><td>${esc(moduloDe(l) || "-")}</td><td>${esc(nivelDe(l) || "-")}</td><td>${esc(l.familias || "-")}</td><td>${esc(l.bodega || "-")}</td></tr>`
+    `<tr style="background:${i % 2 ? "#f5f8ff" : "#fff"}"><td>${i + 1}</td><td class="cod">${esc(codeUbic(l))}</td><td>${esc(l.ubicacion_base || "-")}</td><td>${esc(l.zona || "-")}</td><td>${esc(pasilloDe(l) || "-")}</td><td>${esc(rackDe(l) ?? "-")}</td><td>${esc(moduloDe(l) || "-")}</td><td>${esc(nivelDe(l) || "-")}</td><td>${esc(l.familias || "-")}</td><td>${esc(l.bodega || "-")}</td></tr>`
   ).join("");
   const html =
     `<html><head><meta charset="utf-8"><title>Informe ubicaciones vacías</title><style>` +
@@ -95,12 +115,12 @@ function imprimirInforme(locs, filtros) {
     `table{border-collapse:collapse;width:100%;margin-top:14px}` +
     `th{background:#0b3d91;color:#fff;font-size:12px;text-align:left;padding:7px 8px;border:1px solid #0b3d91}` +
     `td{font-size:12px;padding:6px 8px;border:1px solid #cbd5e1}` +
-    `td.cod{font-weight:800;color:#0b3d91}` +
+    `td.cod{font-weight:800;color:#000}` +
     `.foot{margin-top:10px;font-size:11px;color:#64748b}` +
     `</style></head><body>` +
     `<div class="hd"><img src="${logo}" onerror="this.style.display='none'"/><div><div class="t">INFORME DE UBICACIONES VACÍAS</div>` +
     `<div class="s">${filaTxt || "Todas las ubicaciones libres"} · ${new Date().toLocaleString("es-CO")}</div></div></div>` +
-    `<table><thead><tr><th>#</th><th>Ubicación</th><th>Base</th><th>Zona</th><th>Pasillo</th><th>Módulo</th><th>Nivel</th><th>Familia</th><th>Bodega</th></tr></thead><tbody>${rows}</tbody></table>` +
+    `<table><thead><tr><th>#</th><th>Ubicación</th><th>Base</th><th>Zona</th><th>Pasillo</th><th>Rack</th><th>Módulo</th><th>Nivel</th><th>Familia</th><th>Bodega</th></tr></thead><tbody>${rows}</tbody></table>` +
     `<div class="foot">Total de ubicaciones vacías: <b>${locs.length}</b>.</div>` +
     `<script>setTimeout(function(){try{window.focus();window.print();}catch(e){}},250);window.onafterprint=function(){setTimeout(function(){try{window.close();}catch(e){}},150);};<\/script>` +
     `</body></html>`;
@@ -117,6 +137,7 @@ export default function ConsultaUbicacionesVacias() {
   const [pasillo, setPasillo] = useState("");
   const [modulo, setModulo] = useState("");
   const [nivel, setNivel] = useState("");
+  const [rack, setRack] = useState("");
   const [texto, setTexto] = useState("");
   const [soloRack, setSoloRack] = useState(true); // ocultar áreas de piso
   const [lista, setLista] = useState([]);
@@ -151,6 +172,10 @@ export default function ConsultaUbicacionesVacias() {
   const pasillos = useMemo(() => opt(scope.map(pasilloDe)), [scope]);
   const modulos = useMemo(() => opt(scope.map(moduloDe)), [scope]);
   const niveles = useMemo(() => opt(scope.map(nivelDe)), [scope]);
+  const racks = useMemo(
+    () => opt(scope.map((u) => { const r = rackDe(u); return r == null ? "" : String(r); })),
+    [scope]
+  );
 
   const filtrar = (arr) => {
     // ¿Las ubicaciones traen familia asignada? Si ninguna la tiene, el filtro de
@@ -161,6 +186,7 @@ export default function ConsultaUbicacionesVacias() {
       if (soloRack && !esRack(u)) return false;
       if (familia && hayFamiliaEnUbic && !String(u.familias || "").toUpperCase().includes(familia.toUpperCase())) return false;
       if (pasillo && pasilloDe(u) !== pasillo) return false;
+      if (rack && String(rackDe(u)) !== rack) return false;
       if (modulo && moduloDe(u) !== modulo) return false;
       if (nivel && nivelDe(u) !== nivel) return false;
       if (texto) {
@@ -168,7 +194,17 @@ export default function ConsultaUbicacionesVacias() {
         if (!(`${u.ubicacion || ""} ${u.zona || ""} ${u.bodega || ""} ${u.familias || ""}`.toLowerCase().includes(t))) return false;
       }
       return true;
-    }).sort((a, b) => String(a.ubicacion || "").localeCompare(String(b.ubicacion || ""), undefined, { numeric: true }));
+    }).sort((a, b) => {
+      // Orden por RACK, luego por posición (columna), módulo y nivel, para
+      // recorrer el rack en secuencia (impares juntos, pares juntos).
+      const ra = rackDe(a); const rb = rackDe(b);
+      if (ra != null && rb != null && ra !== rb) return ra - rb;
+      if (ra != null && rb == null) return -1;
+      if (ra == null && rb != null) return 1;
+      const ca = columnaDe(a); const cb = columnaDe(b);
+      if (ca != null && cb != null && ca !== cb) return ca - cb;
+      return String(a.ubicacion || "").localeCompare(String(b.ubicacion || ""), undefined, { numeric: true });
+    });
   };
 
   const consultar = async () => {
@@ -211,6 +247,7 @@ export default function ConsultaUbicacionesVacias() {
               ["ZONA", zona, setZona, zonas],
               ["FAMILIA", familia, setFamilia, familias],
               ["PASILLO", pasillo, setPasillo, pasillos, null, "Pasillo "],
+              ["RACK", rack, setRack, racks, null, "Rack "],
               ["MÓDULO", modulo, setModulo, modulos, null, "Módulo "],
               ["NIVEL", nivel, setNivel, niveles, null, "Nivel "]].map(([lab, val, set, opts, custom, pref]) => (
               <div key={lab}>
@@ -241,7 +278,7 @@ export default function ConsultaUbicacionesVacias() {
                 <input value={necesito} onChange={(e) => setNecesito(e.target.value.replace(/\D/g, ""))} placeholder="N" style={{ ...inputStyle, width: 70, minWidth: 70 }} />
                 <button onClick={seleccionarN} style={btn("#fff", colors.blue)}>Seleccionar N estratégicas</button>
                 <button onClick={() => imprimirRotulos(usadas())} disabled={!lista.length} style={btn(colors.navy)}><Printer size={15} /> Imprimir rótulos</button>
-                <button onClick={() => imprimirInforme(usadas(), { base, zona, familia, pasillo, modulo, nivel })} disabled={!lista.length} style={btn(colors.good)}><FileText size={15} /> Imprimir informe</button>
+                <button onClick={() => imprimirInforme(usadas(), { base, zona, familia, pasillo, rack, modulo, nivel })} disabled={!lista.length} style={btn(colors.good)}><FileText size={15} /> Imprimir informe</button>
               </div>
 
               {lista.length === 0 ? (
@@ -251,7 +288,7 @@ export default function ConsultaUbicacionesVacias() {
                   <table className="table-tools-skip" style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
-                        {["", "Ubicación", "Base", "Zona", "Pasillo", "Módulo", "Nivel", "Familia", "Bodega", ""].map((h, i) => (
+                        {["", "Ubicación", "Base", "Zona", "Pasillo", "Rack", "Módulo", "Nivel", "Familia", "Bodega", ""].map((h, i) => (
                           <th key={i} style={{ position: "sticky", top: 0, background: colors.blue, color: "#fff", fontSize: 12, textAlign: "left", padding: "8px 10px", whiteSpace: "nowrap" }}>{h}</th>
                         ))}
                       </tr>
@@ -266,6 +303,7 @@ export default function ConsultaUbicacionesVacias() {
                           <td style={{ padding: "6px 10px", borderBottom: `1px solid ${colors.border}` }}>{u.ubicacion_base || "-"}</td>
                           <td style={{ padding: "6px 10px", borderBottom: `1px solid ${colors.border}` }}>{u.zona || "-"}</td>
                           <td style={{ padding: "6px 10px", borderBottom: `1px solid ${colors.border}`, textAlign: "center" }}>{pasilloDe(u) || "-"}</td>
+                          <td style={{ padding: "6px 10px", borderBottom: `1px solid ${colors.border}`, textAlign: "center", fontWeight: 800, color: colors.navy }}>{rackDe(u) ?? "-"}</td>
                           <td style={{ padding: "6px 10px", borderBottom: `1px solid ${colors.border}`, textAlign: "center" }}>{moduloDe(u) || "-"}</td>
                           <td style={{ padding: "6px 10px", borderBottom: `1px solid ${colors.border}`, textAlign: "center" }}>{nivelDe(u) || "-"}</td>
                           <td style={{ padding: "6px 10px", borderBottom: `1px solid ${colors.border}` }}>{u.familias || "-"}</td>
