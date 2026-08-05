@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { showWmsAlert, showWmsConfirm, showWmsPrompt } from "../../wmsDialog.jsx";
 import { useNavigate, useParams } from "react-router-dom";
-import { confirmarPicking, getDespachos, getStock, marcarPickingImpreso, verPicking } from "../../api";
+import { comprometerPicking, confirmarPicking, getDespachos, getStock, marcarPickingImpreso, verPicking } from "../../api";
 import {
   ArrowLeft,
   Printer,
@@ -455,6 +455,7 @@ export default function OrdenPicking() {
   const [detallesReserva, setDetallesReserva] = useState([]);
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [comprometiendo, setComprometiendo] = useState(false);
   const [err, setErr] = useState("");
 
   const [usuario, setUsuario] = useState("DESPACHO");
@@ -1229,6 +1230,74 @@ export default function OrdenPicking() {
     }
   };
 
+  // COMPROMETER: reserva las líneas seleccionadas (ubicación + cantidad) sin
+  // descargar inventario. Se usa después de imprimir, para que esas
+  // ubicaciones se mantengan hasta la descarga y otras reservas no las tomen.
+  const comprometerSeleccionados = async () => {
+    const items = lineasSeleccionadas
+      .map((r) => {
+        const usaAlternativa = !!incumplimientoRows[r.id];
+        const alt = alternativaElegida[r.id];
+        const motivo = buildMotivoNovedad(r.id);
+        return {
+          id: String(r.id).startsWith("manual-") ? 0 : r.id,
+          cantidad_sugerida: Number(cantidades[r.id]  -  0),
+          cantidad_requerida: Number(r.cantidad_requerida ?? r.cantidad_sugerida ?? 0),
+          usar_alternativa: usaAlternativa,
+          motivo_rotacion: usaAlternativa ? motivo : null,
+          ubicacion: r.ubicacion,
+          lote_almacen: r.lote_almacen,
+          lote_proveedor: r.lote_proveedor,
+          fecha_vencimiento: r.fecha_vencimiento,
+          ubicacion_alternativa: usaAlternativa ? alt?.ubicacion || null : null,
+          lote_almacen_alternativo: usaAlternativa ? alt?.lote_almacen || null : null,
+          lote_proveedor_alternativo: usaAlternativa ? alt?.lote_proveedor || null : null,
+          fecha_vencimiento_alternativa: usaAlternativa ? alt?.fecha_vencimiento || null : null,
+          sku: r.sku,
+          texto_breve: r.texto_breve,
+          despacho_detalle_id: r.despacho_detalle_id || null,
+          manual: !!r.manual,
+        };
+      })
+      .filter((it) => Number(it.cantidad_sugerida) > 0);
+
+    if (!items.length) {
+      showWmsAlert("Selecciona al menos una línea con cantidad mayor que 0 para comprometer.");
+      return;
+    }
+
+    const invalido = items.find(
+      (it) =>
+        it.usar_alternativa &&
+        (!String(it.motivo_rotacion || "").trim() ||
+          !String(it.ubicacion_alternativa || "").trim())
+    );
+    if (invalido) {
+      showWmsAlert(
+        "En las líneas con novedad indica el motivo/observación y una ubicación alternativa antes de comprometer."
+      );
+      return;
+    }
+
+    const ok = await showWmsConfirm(
+      "¿Comprometer las líneas seleccionadas?\n\nReservará esas ubicaciones y cantidades para esta reserva (todavía NO descarga inventario). Se mantendrán hasta la descarga."
+    );
+    if (!ok) return;
+
+    setComprometiendo(true);
+    try {
+      await comprometerPicking(reserva, { items });
+      showWmsAlert(
+        "Líneas comprometidas. Esas ubicaciones quedan reservadas para esta reserva hasta la descarga."
+      );
+      await loadData();
+    } catch (e) {
+      showWmsAlert("Error comprometiendo:\n" + (e?.message || e));
+    } finally {
+      setComprometiendo(false);
+    }
+  };
+
   const lineasParaImprimir =
     modoImpresion === "final"
       ? rowsPendientesFull.map((r) => ({
@@ -1769,6 +1838,19 @@ export default function OrdenPicking() {
                 </button>
               )}
 
+              {rowsPendientesFull.length > 0 && (
+                <button
+                  onClick={comprometerSeleccionados}
+                  disabled={comprometiendo}
+                  style={secondaryButtonStyle}
+                  type="button"
+                  title="Reserva las ubicaciones y cantidades seleccionadas sin descargar inventario"
+                >
+                  <CheckSquare size={15} />
+                  {comprometiendo ? "Comprometiendo..." : "Comprometer"}
+                </button>
+              )}
+
               <button onClick={guardarDespacho} disabled={guardando} style={greenButtonStyle}>
                 <Save size={15} />
                 {guardando ? "Guardando..." : "Guardar despacho"}
@@ -2147,7 +2229,10 @@ export default function OrdenPicking() {
                         </td>
 
                         <td style={tdStyle}>
-                          <Chip label={esManual ? "MANUAL" : "SUGERIDO"} tone={esManual ? "amber" : "blue"} />
+                          <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
+                            <Chip label={esManual ? "MANUAL" : "SUGERIDO"} tone={esManual ? "amber" : "blue"} />
+                            {r.comprometido && <Chip label="COMPROMETIDO" tone="green" />}
+                          </div>
                         </td>
 
                         <td style={{ ...tdStyle, fontWeight: 800, color: colors.blue }}>

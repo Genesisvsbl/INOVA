@@ -1937,10 +1937,12 @@ export function generarPicking(reserva) {
     const pendientes = (detalles || []).filter((d) => !d.cerrada);
     if (!pendientes.length) throw new Error(`No hay despacho cargado para la reserva ${reservaValue}.`);
 
-    // Borra los picks NO confirmados de ESTA reserva (se van a regenerar).
+    // Borra los picks NO confirmados y NO comprometidos de ESTA reserva
+    // (se van a regenerar). Los COMPROMETIDOS se conservan: sus ubicaciones
+    // quedan fijas hasta la descarga.
     await Promise.all(
       (picksActuales || [])
-        .filter((p) => !p.confirmado && !toNumber(p.cantidad_confirmada))
+        .filter((p) => !p.confirmado && !p.comprometido && !toNumber(p.cantidad_confirmada))
         .map((p) => deleteById("wms", "picking_detalle", p.id))
     );
 
@@ -1970,7 +1972,12 @@ export function generarPicking(reserva) {
       const yaConfirmado = (picksActuales || [])
         .filter((p) => p.confirmado && normalizeText(p.sku) === sku)
         .reduce((acc, p) => acc + toNumber(p.cantidad_confirmada), 0);
-      let restante = Math.max(toNumber(detalle.cantidad) - yaConfirmado, 0);
+      // Cantidad ya COMPROMETIDA (sin confirmar) de esta reserva para el SKU:
+      // ya está cubierta por líneas fijas, no hay que volver a sugerirla.
+      const yaComprometido = (picksActuales || [])
+        .filter((p) => p.comprometido && !p.confirmado && normalizeText(p.sku) === sku)
+        .reduce((acc, p) => acc + toNumber(p.cantidad_sugerida), 0);
+      let restante = Math.max(toNumber(detalle.cantidad) - yaConfirmado - yaComprometido, 0);
       if (restante <= 0) return;
 
       const disponibles = stockRows
@@ -2089,6 +2096,67 @@ export function confirmarPicking(reserva, payload) {
       return pickId;
     })
   ).then(() => recalcReserva(reservaValue));
+}
+
+// Marca líneas de picking como COMPROMETIDAS (reservadas) sin descargar
+// inventario. Fija ubicación/lote/cantidad a lo impreso (usa la alternativa si
+// el operario la eligió). Estas líneas ya no se reasignan al regenerar y otras
+// reservas no pueden tomar esa cantidad en esa ubicación.
+export async function comprometerPicking(reserva, payload = {}) {
+  const reservaValue = String(reserva || "").trim();
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const ahora = new Date().toISOString();
+
+  for (const item of items) {
+    const cantidad = toNumber(item.cantidad_sugerida ?? item.cantidad ?? item.cantidad_confirmada);
+    if (cantidad <= 0) continue;
+
+    const usaAlt = !!item.usar_alternativa;
+    const ubic = (usaAlt ? item.ubicacion_alternativa : null) || item.ubicacion || null;
+    const loteAlm = (usaAlt ? item.lote_almacen_alternativo : null) || item.lote_almacen || null;
+    const loteProv = (usaAlt ? item.lote_proveedor_alternativo : null) || item.lote_proveedor || null;
+    const fv = (usaAlt ? item.fecha_vencimiento_alternativa : null) || item.fecha_vencimiento || null;
+
+    const campos = {
+      comprometido: true,
+      fecha_comprometido: ahora,
+      impreso: true,
+      cantidad_sugerida: cantidad,
+      ubicacion: ubic,
+      lote_almacen: loteAlm,
+      lote_proveedor: loteProv,
+      fecha_vencimiento: fv,
+      motivo_rotacion: item.motivo_rotacion || null,
+      ubicacion_alternativa: usaAlt ? item.ubicacion_alternativa || null : null,
+      lote_almacen_alternativo: usaAlt ? item.lote_almacen_alternativo || null : null,
+      lote_proveedor_alternativo: usaAlt ? item.lote_proveedor_alternativo || null : null,
+      fecha_vencimiento_alternativa: usaAlt ? item.fecha_vencimiento_alternativa || null : null,
+    };
+
+    const id = Number(String(item.id).startsWith("manual-") ? 0 : item.id);
+    if (id) {
+      await updateById("wms", "picking_detalle", id, campos);
+    } else {
+      // Línea manual: se crea la fila de picking ya comprometida.
+      await insertRow(
+        "wms",
+        "picking_detalle",
+        compactObject({
+          empresa_id: empresaId,
+          reserva: reservaValue,
+          sku: item.sku,
+          texto_breve: item.texto_breve,
+          cantidad_requerida: toNumber(item.cantidad_requerida ?? cantidad),
+          cantidad_confirmada: 0,
+          confirmado: false,
+          despacho_detalle_id: item.despacho_detalle_id || null,
+          ...campos,
+        })
+      );
+    }
+  }
+
+  return recalcReserva(reservaValue);
 }
 
 export function marcarPickingImpreso(reserva) {
