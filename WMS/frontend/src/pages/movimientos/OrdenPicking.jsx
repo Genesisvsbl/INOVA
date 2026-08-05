@@ -1279,13 +1279,20 @@ export default function OrdenPicking() {
       font-family: Arial, Helvetica, sans-serif !important;
     }
 
-    .screen-only-root {
-      display: none !important;
+    body * {
+      visibility: hidden !important;
+    }
+
+    .print-area,
+    .print-area * {
+      visibility: visible !important;
     }
 
     .print-area {
       display: block !important;
-      position: static !important;
+      position: absolute !important;
+      left: 0 !important;
+      top: 0 !important;
       width: 100% !important;
       background: #ffffff !important;
       margin: 0 !important;
