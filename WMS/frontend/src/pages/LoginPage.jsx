@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertTriangle,
   BarChart3,
   Boxes,
   ChevronLeft,
@@ -543,6 +544,7 @@ export default function LoginPage() {
               recordarme={recordarme}
               setRecordarme={setRecordarme}
               error={error}
+              onDismissError={() => setError("")}
               notice={loginNotice}
               loading={loading}
               login={login}
@@ -706,6 +708,7 @@ function LoginCard({
   recordarme,
   setRecordarme,
   error,
+  onDismissError,
   notice,
   loading,
   login,
@@ -779,7 +782,32 @@ function LoginCard({
         <h2>Bienvenido</h2>
         <p>Ingresa tus credenciales para continuar en el pilar seleccionado.</p>
 
-        {error ? <div className="error-box">{error}</div> : null}
+        {error ? (
+          <div
+            onClick={onDismissError}
+            style={{ position: "fixed", inset: 0, background: "rgba(6,11,26,.55)", display: "grid", placeItems: "center", zIndex: 3000, padding: 16 }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: "min(420px, 92vw)", background: "#fff", borderRadius: 14, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.45)" }}
+            >
+              <div style={{ background: "#b42318", color: "#fff", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", fontWeight: 800 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <AlertTriangle size={18} /> No se puede iniciar sesión
+                </span>
+                <button type="button" onClick={onDismissError} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer", display: "grid", placeItems: "center" }}>
+                  <X size={18} />
+                </button>
+              </div>
+              <div style={{ padding: "18px", color: "#1f2d3d", fontSize: 14.5, lineHeight: 1.5, fontWeight: 600 }}>{error}</div>
+              <div style={{ padding: "0 18px 18px", display: "flex", justifyContent: "flex-end" }}>
+                <button type="button" onClick={onDismissError} style={{ background: "#0b3d91", color: "#fff", border: "none", borderRadius: 8, padding: "9px 20px", fontWeight: 800, cursor: "pointer" }}>
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
         {notice ? <div className="success-box">{notice}</div> : null}
 
         <label className="field">
