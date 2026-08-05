@@ -195,12 +195,18 @@ export default function ConsultaUbicacionesVacias() {
       }
       return true;
     }).sort((a, b) => {
-      // Orden por RACK, luego por posición (columna), módulo y nivel, para
-      // recorrer el rack en secuencia (impares juntos, pares juntos).
+      // Orden: RACK → MÓDULO → NIVEL → posición (columna). Así, dentro de un
+      // rack, las posiciones del mismo módulo y nivel quedan juntas y en
+      // secuencia (ej. módulo 1 · nivel 3 · sus posiciones seguidas).
+      const num = (v) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : 9999; };
       const ra = rackDe(a); const rb = rackDe(b);
       if (ra != null && rb != null && ra !== rb) return ra - rb;
       if (ra != null && rb == null) return -1;
       if (ra == null && rb != null) return 1;
+      const ma = num(moduloDe(a)); const mb = num(moduloDe(b));
+      if (ma !== mb) return ma - mb;
+      const na = num(nivelDe(a)); const nb = num(nivelDe(b));
+      if (na !== nb) return na - nb;
       const ca = columnaDe(a); const cb = columnaDe(b);
       if (ca != null && cb != null && ca !== cb) return ca - cb;
       return String(a.ubicacion || "").localeCompare(String(b.ubicacion || ""), undefined, { numeric: true });
