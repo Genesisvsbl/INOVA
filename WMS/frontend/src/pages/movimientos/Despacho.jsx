@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { showWmsAlert, showWmsConfirm, showWmsPrompt } from "../../wmsDialog.jsx";
 import { useNavigate } from "react-router-dom";
 import {
+  comprometerPicking,
   crearReservaAdicionalDespacho,
   crearReservaAdicionalDespachoItems,
   eliminarReserva as eliminarReservaSupabase,
@@ -26,6 +27,7 @@ import {
   AlertTriangle,
   ClipboardList,
   ArrowRight,
+  Printer,
 } from "lucide-react";
 
 const colors = {
@@ -443,6 +445,8 @@ export default function Despacho() {
   const [soloPendientes, setSoloPendientes] = useState(false);
   const [soloCerradas, setSoloCerradas] = useState(false);
   const [reservaActiva, setReservaActiva] = useState("");
+  const [reservasSel, setReservasSel] = useState({});
+  const [procesandoLote, setProcesandoLote] = useState(false);
   const [adicionalOpen, setAdicionalOpen] = useState(false);
   const [guardandoAdicional, setGuardandoAdicional] = useState(false);
   const [toast, setToast] = useState(null);
@@ -737,6 +741,136 @@ export default function Despacho() {
         title: "No se pudo generar el picking",
         message: e?.message || String(e),
       });
+    }
+  };
+
+  const toggleReservaSel = (rv) =>
+    setReservasSel((prev) => {
+      const next = { ...prev };
+      if (next[rv]) delete next[rv];
+      else next[rv] = true;
+      return next;
+    });
+
+  const reservasSeleccionadas = () =>
+    reservasFiltradas.filter((r) => reservasSel[r.reserva]).map((r) => r.reserva);
+
+  const toggleSeleccionarTodasReservas = () => {
+    const visibles = reservasFiltradas.map((r) => r.reserva);
+    const todas = visibles.length > 0 && visibles.every((rv) => reservasSel[rv]);
+    if (todas) {
+      setReservasSel({});
+    } else {
+      const next = {};
+      visibles.forEach((rv) => {
+        next[rv] = true;
+      });
+      setReservasSel(next);
+    }
+  };
+
+  // Impresión combinada de varias órdenes ya comprometidas (una sección por reserva).
+  const imprimirLotePicking = (lista) => {
+    if (!lista.length) return;
+    const w = window.open("", "_blank", "width=1150,height=800");
+    if (!w) {
+      showToast({ type: "warn", title: "Ventana bloqueada", message: "El navegador bloqueó la impresión." });
+      return;
+    }
+    const logo = `${window.location.origin}/inova-azul.png`;
+    const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const fmt = (v) => Number(v || 0).toLocaleString("es-CO");
+    const secciones = lista
+      .map(({ reserva, lineas }) => {
+        const filas = (lineas || []).filter((p) => Number(p.cantidad_sugerida || 0) > 0);
+        const rows = filas
+          .map(
+            (p, i) =>
+              `<tr><td>${i + 1}</td><td class="cod">${esc(p.sku)}</td><td>${esc(p.texto_breve || "")}</td><td class="r">${fmt(
+                p.cantidad_sugerida
+              )}</td><td>${esc(p.ubicacion_alternativa || p.ubicacion || "")}</td><td>${esc(p.lote_almacen || "")}</td><td>${esc(
+                p.lote_proveedor || ""
+              )}</td><td>${esc(String(p.fecha_vencimiento || "").slice(0, 10))}</td></tr>`
+          )
+          .join("");
+        return `<div class="sec"><div class="rv">Reserva ${esc(reserva)} · ${filas.length} línea(s)</div><table><thead><tr><th>#</th><th>SKU</th><th>Texto breve</th><th>Cantidad</th><th>Ubicación</th><th>Lote almacén</th><th>Lote proveedor</th><th>Vencimiento</th></tr></thead><tbody>${
+          rows || `<tr><td colspan="8">Sin líneas comprometidas.</td></tr>`
+        }</tbody></table></div>`;
+      })
+      .join("");
+    const html =
+      `<html><head><meta charset="utf-8"><title>Órdenes de picking comprometidas</title><style>` +
+      `@page{size:letter landscape;margin:10mm}*{font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}` +
+      `body{margin:0;color:#0f172a}.hd{display:flex;align-items:center;gap:14px;border-bottom:3px solid #0a1f52;padding:4px 2px 10px;margin-bottom:10px}` +
+      `.hd img{height:46px}.hd .t{font-size:19px;font-weight:900;color:#0a1f52}` +
+      `.sec{margin-bottom:16px;page-break-inside:avoid}.rv{font-weight:900;color:#0a1f52;font-size:14px;margin:10px 0 4px}` +
+      `table{border-collapse:collapse;width:100%}th{background:#dbe6fb;color:#0a1f52;font-size:10px;text-align:left;padding:5px 6px;border:1px solid #9db3d6;text-transform:uppercase}` +
+      `td{font-size:11px;padding:4px 6px;border:1px solid #c7d2e0}td.cod{font-weight:800;color:#0a1f52}td.r{text-align:right;font-weight:800}tr:nth-child(even) td{background:#f3f7fd}` +
+      `</style></head><body><div class="hd"><img src="${logo}" onerror="this.style.display='none'"/><div class="t">ÓRDENES DE PICKING COMPROMETIDAS</div></div>${secciones}` +
+      `<script>setTimeout(function(){try{window.focus();window.print();}catch(e){}},300);window.onafterprint=function(){setTimeout(function(){try{window.close();}catch(e){}},150);};<\/script>` +
+      `</body></html>`;
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+  };
+
+  // Genera el picking de CADA reserva seleccionada y COMPROMETE sus ubicaciones,
+  // de forma secuencial para que una reserva no repita las ubicaciones ya
+  // comprometidas por otra. Al final ofrece imprimir todo junto.
+  const generarComprometerLote = async ({ imprimir = false } = {}) => {
+    const seleccionadas = reservasSeleccionadas();
+    if (!seleccionadas.length) {
+      showToast({ type: "warn", title: "Sin reservas", message: "Marca al menos una reserva en la lista." });
+      return;
+    }
+
+    setProcesandoLote(true);
+    const resultados = [];
+    try {
+      for (const rv of seleccionadas) {
+        try {
+          await generarPicking(rv);
+          const picks = await verPicking(rv);
+          const items = (picks || [])
+            .filter((p) => !p.confirmado)
+            .map((p) => ({
+              id: p.id,
+              cantidad_sugerida: Number(p.cantidad_sugerida || 0),
+              ubicacion: p.ubicacion,
+              lote_almacen: p.lote_almacen,
+              lote_proveedor: p.lote_proveedor,
+              fecha_vencimiento: p.fecha_vencimiento,
+              usar_alternativa: false,
+              sku: p.sku,
+              texto_breve: p.texto_breve,
+            }))
+            .filter((it) => Number(it.cantidad_sugerida) > 0);
+          if (items.length) await comprometerPicking(rv, { items });
+          const lineas = await verPicking(rv);
+          resultados.push({ reserva: rv, lineas });
+        } catch (e) {
+          resultados.push({ reserva: rv, error: e?.message || String(e) });
+        }
+      }
+
+      const ok = resultados.filter((r) => !r.error);
+      const fallidas = resultados.filter((r) => r.error);
+      showToast({
+        type: fallidas.length ? "warn" : "success",
+        title: "Órdenes generadas y comprometidas",
+        message: `${ok.length} de ${seleccionadas.length} reservas listas${
+          fallidas.length ? ` · ${fallidas.length} con error` : ""
+        }.`,
+        meta: "Cada ubicación quedó comprometida y no se repite entre reservas.",
+      });
+
+      await loadDespachos("");
+      forceRefreshStore();
+
+      if (imprimir && ok.length) imprimirLotePicking(ok);
+    } finally {
+      setProcesandoLote(false);
     }
   };
 
@@ -1217,8 +1351,30 @@ export default function Despacho() {
           <div style={{ fontWeight: 800, color: colors.navy, fontSize: 15 }}>
             Resumen por reserva
           </div>
-          <div style={{ fontSize: 12, color: colors.muted, fontWeight: 700 }}>
-            Mostrando {reservasFiltradas.length} reservas
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ fontSize: 12, color: colors.muted, fontWeight: 700 }}>
+              {reservasSeleccionadas().length} seleccionada(s) · {reservasFiltradas.length} reservas
+            </div>
+            <button
+              type="button"
+              onClick={() => generarComprometerLote({ imprimir: false })}
+              disabled={procesandoLote || reservasSeleccionadas().length === 0}
+              style={{ ...subtleBlueButtonStyle, ...compactActionButtonStyle }}
+              title="Genera el picking de las reservas marcadas y compromete sus ubicaciones (sin repetir entre reservas)"
+            >
+              <Settings2 size={14} />
+              {procesandoLote ? "Procesando..." : "Generar + comprometer"}
+            </button>
+            <button
+              type="button"
+              onClick={() => generarComprometerLote({ imprimir: true })}
+              disabled={procesandoLote || reservasSeleccionadas().length === 0}
+              style={{ ...primaryButtonStyle, ...compactActionButtonStyle }}
+              title="Genera, compromete e imprime todas las órdenes seleccionadas de una vez"
+            >
+              <Printer size={14} />
+              Generar, comprometer e imprimir
+            </button>
           </div>
         </div>
 
@@ -1226,6 +1382,18 @@ export default function Despacho() {
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1500 }}>
             <thead>
               <tr>
+                <th style={{ ...thStyle, textAlign: "center", width: 40 }}>
+                  <input
+                    type="checkbox"
+                    title="Seleccionar todas"
+                    checked={
+                      reservasFiltradas.length > 0 &&
+                      reservasFiltradas.every((r) => reservasSel[r.reserva])
+                    }
+                    onChange={toggleSeleccionarTodasReservas}
+                    style={{ width: 16, height: 16, cursor: "pointer" }}
+                  />
+                </th>
                 <th style={thStyle}>Fecha necesidad</th>
                 <th style={thStyle}>N° de reserva</th>
                 <th style={thStyle}>Tipo</th>
@@ -1244,7 +1412,7 @@ export default function Despacho() {
             <tbody>
               {!loading && reservasFiltradas.length === 0 && (
                 <tr>
-                  <td colSpan={12} style={{ padding: 18, color: colors.muted, fontWeight: 700 }}>
+                  <td colSpan={13} style={{ padding: 18, color: colors.muted, fontWeight: 700 }}>
                     No hay reservas con esos filtros.
                   </td>
                 </tr>
@@ -1269,6 +1437,14 @@ export default function Despacho() {
                           : colors.rowAlt,
                     }}
                   >
+                    <td style={{ ...tdStyle, textAlign: "center" }}>
+                      <input
+                        type="checkbox"
+                        checked={!!reservasSel[r.reserva]}
+                        onChange={() => toggleReservaSel(r.reserva)}
+                        style={{ width: 16, height: 16, cursor: "pointer" }}
+                      />
+                    </td>
                     <td style={{ ...tdStyle, fontWeight: 800 }}>
                       {r.fecha_necesidad_min === r.fecha_necesidad_max
                         ? r.fecha_necesidad_min

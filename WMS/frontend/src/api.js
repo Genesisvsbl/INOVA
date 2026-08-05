@@ -1980,14 +1980,40 @@ export function generarPicking(reserva) {
       let restante = Math.max(toNumber(detalle.cantidad) - yaConfirmado - yaComprometido, 0);
       if (restante <= 0) return;
 
+      // Orden físico de una ubicación según la lógica de bodega:
+      // código = base + pasillo + módulo + nivel + "'" + columna.
+      // Rack = pasillo + paridad de la columna (impares un rack, pares el otro).
+      const posOrden = (u) => {
+        const c = String(u || "").toUpperCase().replace(/[´`']/g, "'");
+        const a = c.indexOf("'");
+        const pasillo = a > 2 ? Number(c[a - 3]) || 0 : 0;
+        const modulo = a > 1 ? Number(c[a - 2]) || 0 : 0;
+        const nivel = a > 0 ? Number(c[a - 1]) || 0 : 0;
+        const col = a >= 0 ? Number(c.slice(a + 1).replace(/\D/g, "")) || 0 : 0;
+        const paridad = col % 2 === 0 ? 1 : 0; // impares primero, luego pares
+        return { pasillo, paridad, modulo, nivel, col };
+      };
+
       const disponibles = stockRows
         .filter((s) => normalizeText(s.codigo_material || s.sku) === sku)
         .filter((s) => !s.fecha_vencimiento || String(s.fecha_vencimiento).slice(0, 10) >= todayISO())
-        .sort((a, b) =>
-          String(a.fecha_vencimiento || "9999-99-99").localeCompare(
-            String(b.fecha_vencimiento || "9999-99-99")
-          )
-        );
+        .sort((a, b) => {
+          // 1) Rotación (FEFO): lo que vence primero, sale primero.
+          const fa = String(a.fecha_vencimiento || "9999-99-99").slice(0, 10);
+          const fb = String(b.fecha_vencimiento || "9999-99-99").slice(0, 10);
+          if (fa !== fb) return fa.localeCompare(fb);
+          // 2) A igual vencimiento, orden físico de bodega (ruta lógica):
+          //    pasillo → rack (par/impar) → módulo → nivel → columna.
+          const pa = posOrden(a.ubicacion);
+          const pb = posOrden(b.ubicacion);
+          return (
+            pa.pasillo - pb.pasillo ||
+            pa.paridad - pb.paridad ||
+            pa.modulo - pb.modulo ||
+            pa.nivel - pb.nivel ||
+            pa.col - pb.col
+          );
+        });
 
       disponibles.forEach((stock) => {
         if (restante <= 0) return;
