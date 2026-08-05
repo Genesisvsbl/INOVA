@@ -11,6 +11,7 @@ import {
   getUbicacionesVacias,
   borrarRecetaPorSerial,
   borrarRecetaPorDocumento,
+  fechaReciboPorDocumento,
 } from "../../api";
 import {
   ArrowLeft,
@@ -613,8 +614,9 @@ export default function DesdeRecibo() {
   // Fecha del movimiento (para correcciones: mantener la fecha original).
   const fechaOverrideRef = useRef(null);
   const [fechaModal, setFechaModal] = useState(null); // { accion: "ubicacion" | "transito" }
-  const [fechaModo, setFechaModo] = useState("ahora"); // "ahora" | "otra"
+  const [fechaModo, setFechaModo] = useState("original"); // "original" | "ahora" | "otra"
   const [fechaValor, setFechaValor] = useState(""); // datetime-local
+  const [fechaOriginal, setFechaOriginal] = useState(null); // ISO del recibo original
 
   const tbBases = useMemo(() => {
     const s = new Set();
@@ -2386,15 +2388,36 @@ export default function DesdeRecibo() {
     const p = (n) => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
   };
-  const abrirModalFecha = (accion) => {
-    const base = draft?.createdAtISO || draft?.header?.fecha_recepcion || new Date().toISOString();
-    setFechaValor(toDatetimeLocal(base));
-    setFechaModo("ahora");
+  const abrirModalFecha = async (accion) => {
+    const doc = String(draft?.header?.documento || "").trim();
+    let original = null;
+    if (doc) {
+      try {
+        original = await fechaReciboPorDocumento(doc);
+      } catch {
+        original = null;
+      }
+    }
+    // Recibo NUEVO (el documento no existe aún): guarda directo con fecha actual,
+    // sin preguntar. El toolbox solo aparece cuando es una corrección.
+    if (!original) {
+      fechaOverrideRef.current = null;
+      if (accion === "ubicacion") guardarMovimientos();
+      else guardarEnTransito();
+      return;
+    }
+    setFechaOriginal(original);
+    setFechaValor(toDatetimeLocal(original));
+    setFechaModo("original");
     setFechaModal({ accion });
   };
   const confirmarFecha = () => {
     fechaOverrideRef.current =
-      fechaModo === "otra" && fechaValor ? new Date(fechaValor).toISOString() : null;
+      fechaModo === "original"
+        ? fechaOriginal
+        : fechaModo === "otra" && fechaValor
+        ? new Date(fechaValor).toISOString()
+        : null; // "ahora"
     const accion = fechaModal?.accion;
     setFechaModal(null);
     if (accion === "ubicacion") guardarMovimientos();
@@ -3901,19 +3924,23 @@ export default function DesdeRecibo() {
         >
           <div onClick={(e) => e.stopPropagation()} style={{ width: "min(460px, 96vw)", background: "#fff", borderRadius: 14, overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,.3)" }}>
             <div style={{ background: colors.navy, color: "#fff", padding: "14px 18px", fontWeight: 800 }}>
-              Fecha de recepción del movimiento
+              Corrección de recibo — fecha del movimiento
             </div>
             <div style={{ padding: 18 }}>
               <p style={{ marginTop: 0, fontSize: 13.5, color: colors.muted }}>
-                Si es una <b>corrección</b> de un recibo anterior, mantén la fecha original para no perder el día en que se recibió.
+                Este recibo ya existía. ¿Con qué fecha guardas el movimiento en el Motor?
               </p>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, marginBottom: 8, cursor: "pointer" }}>
+                <input type="radio" name="fechamodo" checked={fechaModo === "original"} onChange={() => setFechaModo("original")} />
+                Mantener la fecha original {fechaOriginal ? `(${toDatetimeLocal(fechaOriginal).replace("T", " ")})` : ""}
+              </label>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, marginBottom: 8, cursor: "pointer" }}>
                 <input type="radio" name="fechamodo" checked={fechaModo === "ahora"} onChange={() => setFechaModo("ahora")} />
                 Fecha y hora actual
               </label>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, cursor: "pointer" }}>
                 <input type="radio" name="fechamodo" checked={fechaModo === "otra"} onChange={() => setFechaModo("otra")} />
-                Otra fecha/hora (corrección)
+                Otra fecha/hora
               </label>
               {fechaModo === "otra" && (
                 <input

@@ -624,6 +624,22 @@ export async function borrarRecetaPorDocumento(documento) {
   return { ok: true };
 }
 
+// Devuelve la fecha del primer movimiento existente con ese documento (o null
+// si no existe = recibo nuevo). Sirve para saber si es una corrección y con qué
+// fecha original.
+export async function fechaReciboPorDocumento(documento) {
+  const d = String(documento || "").trim();
+  if (!supabaseEnabled || !d) return null;
+  const rows = await selectRows("wms", "movimientos", {
+    empresa_id: `eq.${empresaId}`,
+    documento: `eq.${d}`,
+    select: "fecha",
+    order: "fecha.asc",
+    limit: "1",
+  }).catch(() => []);
+  return Array.isArray(rows) && rows[0]?.fecha ? rows[0].fecha : null;
+}
+
 export function getMovimientos() {
   if (supabaseEnabled) {
     return selectAllRows("wms", "movimientos", {
