@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
+  AlertTriangle,
   ArrowRightLeft,
   Bell,
   ChevronDown,
@@ -323,6 +324,11 @@ export default function Layout() {
                   <NavLink to="/ubicaciones-vacias" style={(state) => navStyle(state, sidebarExpanded)} title="Ubicaciones vacías">
                     <MapPin size={18} />
                     {sidebarExpanded && <span>Ubicaciones vacías</span>}
+                  </NavLink>
+
+                  <NavLink to="/vencimientos" style={(state) => navStyle(state, sidebarExpanded)} title="Alertas de vencimiento">
+                    <AlertTriangle size={18} />
+                    {sidebarExpanded && <span>Vencimientos</span>}
                   </NavLink>
 
                   <NavLink to="/layout-zona" style={(state) => navStyle(state, sidebarExpanded)} title="Layout por zona">

@@ -12,6 +12,7 @@ import DatosMaestros from "./pages/DatosMaestros";
 import Materiales from "./pages/Materiales";
 import Stock from "./pages/Stock";
 import ConsultaUbicacionesVacias from "./pages/ConsultaUbicacionesVacias";
+import ConsultaVencimientos from "./pages/ConsultaVencimientos";
 import Movimientos from "./pages/Movimientos";
 import Inventarios from "./pages/Inventarios";
 import LayoutZona from "./pages/LayoutZona";
@@ -373,6 +374,7 @@ function AppRoutes() {
 
           <Route path="stock" element={<OperationalRoute><Stock /></OperationalRoute>} />
           <Route path="ubicaciones-vacias" element={<OperationalRoute><ConsultaUbicacionesVacias /></OperationalRoute>} />
+          <Route path="vencimientos" element={<OperationalRoute><ConsultaVencimientos /></OperationalRoute>} />
           <Route path="layout-zona" element={<OperationalRoute><LayoutZona /></OperationalRoute>} />
           <Route path="admin/usuarios" element={<AdminRoute><AdminAccess view="usuarios" /></AdminRoute>} />
           <Route path="admin/roles" element={<AdminRoute><AdminAccess view="roles" /></AdminRoute>} />
