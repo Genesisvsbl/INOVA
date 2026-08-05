@@ -1814,6 +1814,96 @@ function renderTrendChart({
     );
   }
 
+  // Vista de PROCESO (todos los indicadores): gráfica de barras con cada
+  // indicador y su % general. Más útil y vistosa que la línea vacía.
+  const indicatorBars = (dashboardData?.indicator_cards || [])
+    .map((c) => ({
+      label: String(c.code || formatCompactName(c.name) || "").slice(0, 16),
+      name: c.name || c.code || "",
+      code: c.code || "",
+      general: normalizeGeneralToPercent(c.general),
+      status: normalizeStatus(c.status),
+    }))
+    .filter((b) => b.name || b.code);
+
+  if (indicatorBars.length) {
+    const colorFor = (s) =>
+      s === "ok"
+        ? CHART_COLORS.ok
+        : s === "warning"
+        ? CHART_COLORS.warning
+        : s === "critical"
+        ? CHART_COLORS.critical
+        : CHART_COLORS.blue;
+
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={indicatorBars}
+          margin={{ top: 36, right: 22, left: 6, bottom: 72 }}
+        >
+          <defs>
+            {indicatorBars.map((b, i) => (
+              <linearGradient
+                key={`indGrad${i}`}
+                id={`indGrad${i}`}
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+              >
+                <stop offset="0%" stopColor={colorFor(b.status)} stopOpacity={0.98} />
+                <stop offset="100%" stopColor={colorFor(b.status)} stopOpacity={0.5} />
+              </linearGradient>
+            ))}
+          </defs>
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke={CHART_COLORS.grid}
+            vertical={false}
+          />
+          <XAxis
+            dataKey="label"
+            interval={0}
+            angle={-20}
+            textAnchor="end"
+            height={74}
+            tick={{ fontSize: 11, fill: CHART_COLORS.text, fontWeight: 700 }}
+          />
+          <YAxis
+            domain={[0, 100]}
+            tickFormatter={(value) => `${value}%`}
+            tick={{ fontSize: 11, fill: CHART_COLORS.text }}
+          />
+          <Tooltip
+            cursor={{ fill: "rgba(5,150,105,0.06)" }}
+            formatter={(value) => [formatPercent(value), "% general"]}
+            labelFormatter={(label, payload) =>
+              (payload && payload[0] && payload[0].payload && payload[0].payload.name) ||
+              label
+            }
+          />
+          <Bar dataKey="general" radius={[12, 12, 0, 0]} maxBarSize={70}>
+            {indicatorBars.map((b, i) => (
+              <Cell
+                key={`indCell${i}`}
+                fill={`url(#indGrad${i})`}
+                stroke={colorFor(b.status)}
+                strokeWidth={1}
+              />
+            ))}
+            <LabelList
+              dataKey="general"
+              position="top"
+              formatter={(value) => `${Number(value || 0).toFixed(1)}%`}
+              style={{ fontSize: 12, fontWeight: 800, fill: CHART_COLORS.text }}
+            />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  }
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart
@@ -6117,8 +6207,11 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
                     }}
                   >
                     <span>
-                      Tendencia general
-                      {dashboardFilter.period === "week" &&
+                      {isStandardIndicatorSelected
+                        ? "Tendencia general"
+                        : "Indicadores del proceso · % general"}
+                      {isStandardIndicatorSelected &&
+                      dashboardFilter.period === "week" &&
                       dashboardFilter.week_segment
                         ? ` - ${weekRangeLabel}`
                         : ""}
