@@ -12,6 +12,8 @@ import {
   Trash2,
   AlertTriangle,
   Loader2,
+  ChevronDown,
+  Eraser,
 } from "lucide-react";
 import {
   generarAnalisisInventario,
@@ -77,6 +79,70 @@ function NumInput({ value, onChange }) {
   );
 }
 
+// Filtro desplegable con checkboxes (multi-selección). Vacío = todas.
+function MultiCheck({ options, selected, onChange, allLabel = "TODAS", searchable = false, placeholder = "Buscar…", minWidth = 220 }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const selSet = new Set(selected);
+  const norm = (s) => String(s || "").toLowerCase();
+  const visibles = searchable && q.trim()
+    ? options.filter((o) => norm(o.label).includes(norm(q)) || norm(o.value).includes(norm(q)))
+    : options;
+  const toggle = (val) =>
+    onChange(selSet.has(val) ? selected.filter((v) => v !== val) : [...selected, val]);
+  const resumen =
+    selected.length === 0
+      ? allLabel
+      : selected.length === 1
+      ? options.find((o) => o.value === selected[0])?.label || selected[0]
+      : `${selected.length} seleccionadas`;
+
+  const btn = {
+    width: "100%", height: 38, padding: "0 10px", borderRadius: 8,
+    border: `1px solid ${selected.length ? "#0b3d91" : "#d9e2ec"}`,
+    background: "#fff", color: "#1f2d3d", fontSize: 13, fontWeight: 600,
+    boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between",
+    gap: 8, cursor: "pointer",
+  };
+  const linkBtn = { border: "none", background: "transparent", color: "#0b3d91", fontWeight: 800, fontSize: 12, cursor: "pointer", padding: "2px 4px" };
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button type="button" onClick={() => setOpen((o) => !o)} style={btn}>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{resumen}</span>
+        <ChevronDown size={15} color="#6b7a90" style={{ transform: open ? "rotate(180deg)" : "none", transition: ".15s" }} />
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+          <div style={{ position: "absolute", zIndex: 41, top: "calc(100% + 4px)", left: 0, minWidth, maxWidth: 380, width: "max-content", maxHeight: 340, background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 10, boxShadow: "0 12px 34px rgba(15,23,42,.18)", padding: 8, display: "flex", flexDirection: "column" }}>
+            {searchable && (
+              <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder}
+                style={{ height: 32, border: `1px solid ${colors.border}`, borderRadius: 7, padding: "0 8px", fontSize: 12.5, outline: "none", marginBottom: 6 }} />
+            )}
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "0 2px 6px" }}>
+              <button type="button" onClick={() => onChange(options.map((o) => o.value))} style={linkBtn}>Seleccionar todas</button>
+              <button type="button" onClick={() => onChange([])} style={linkBtn}>Limpiar</button>
+            </div>
+            <div style={{ overflowY: "auto", display: "grid", gap: 2 }}>
+              {visibles.length === 0 && <div style={{ padding: 8, color: colors.muted, fontSize: 12 }}>Sin resultados.</div>}
+              {visibles.map((o) => {
+                const on = selSet.has(o.value);
+                return (
+                  <label key={o.value} style={{ display: "flex", gap: 8, alignItems: "center", padding: "6px 8px", borderRadius: 6, cursor: "pointer", background: on ? "#eef4ff" : "transparent", fontSize: 12.5 }}>
+                    <input type="checkbox" checked={on} onChange={() => toggle(o.value)} style={{ width: 15, height: 15, cursor: "pointer" }} />
+                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label || o.value}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function AnalisisInventario() {
   const fileRef = useRef(null);
   const creadoPor = (sessionStorage.getItem("usuario") || sessionStorage.getItem("nombre") || "SISTEMA").trim();
@@ -90,8 +156,8 @@ export default function AnalisisInventario() {
   const [error, setError] = useState("");
   const [fileName, setFileName] = useState("");
 
-  const [fFamilia, setFFamilia] = useState("TODAS");
-  const [fMaterial, setFMaterial] = useState("");
+  const [famSel, setFamSel] = useState([]); // familias marcadas (vacío = todas)
+  const [matSel, setMatSel] = useState([]); // códigos marcados (vacío = todos)
   const [fTexto, setFTexto] = useState("");
 
   const [saveModal, setSaveModal] = useState(false);
@@ -126,8 +192,8 @@ export default function AnalisisInventario() {
     setOkMsg("");
     setCurrentId(null);
     setCurrentNombre("");
-    setFFamilia("TODAS");
-    setFMaterial("");
+    setFamSel([]);
+    setMatSel([]);
     setFTexto("");
     setVista("trabajo");
   };
@@ -189,21 +255,45 @@ export default function AnalisisInventario() {
     if (okMsg) setOkMsg("");
   };
 
-  const familias = useMemo(() => {
+  const famOptions = useMemo(() => {
     const set = new Set(rows.map((r) => String(r.familia || "").trim()).filter(Boolean));
-    return ["TODAS", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+    return Array.from(set).sort((a, b) => a.localeCompare(b)).map((f) => ({ value: f, label: f }));
   }, [rows]);
 
+  // Los códigos disponibles dependen de las familias marcadas (si hay).
+  const matOptions = useMemo(() => {
+    const famSet = new Set(famSel);
+    const map = new Map();
+    rows.forEach((r) => {
+      const cod = String(r.material || "").trim();
+      if (!cod) return;
+      if (famSet.size && !famSet.has(String(r.familia || "").trim())) return;
+      if (!map.has(cod)) map.set(cod, `${cod} · ${r.texto || ""}`.trim());
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([value, label]) => ({ value, label }));
+  }, [rows, famSel]);
+
+  const hayFiltros = famSel.length > 0 || matSel.length > 0 || fTexto.trim() !== "";
+
+  const limpiarFiltros = () => {
+    setFamSel([]);
+    setMatSel([]);
+    setFTexto("");
+  };
+
   const filtered = useMemo(() => {
-    const mat = fMaterial.trim().toLowerCase();
     const txt = fTexto.trim().toLowerCase();
+    const famSet = new Set(famSel);
+    const matSet = new Set(matSel);
     return rows.filter((r) => {
-      if (fFamilia !== "TODAS" && String(r.familia || "") !== fFamilia) return false;
-      if (mat && !String(r.material || "").toLowerCase().includes(mat)) return false;
+      if (famSet.size && !famSet.has(String(r.familia || "").trim())) return false;
+      if (matSet.size && !matSet.has(String(r.material || "").trim())) return false;
       if (txt && !String(r.texto || "").toLowerCase().includes(txt)) return false;
       return true;
     });
-  }, [rows, fFamilia, fMaterial, fTexto]);
+  }, [rows, famSel, matSel, fTexto]);
 
   const totales = useMemo(() => {
     return filtered.reduce(
@@ -448,20 +538,28 @@ export default function AnalisisInventario() {
 
           {rows.length > 0 && (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "minmax(180px,1fr) minmax(160px,1fr) minmax(220px,1.4fr) auto", gap: 10, marginBottom: 12, alignItems: "end" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(180px,1fr) minmax(200px,1.2fr) minmax(200px,1.4fr) auto auto", gap: 10, marginBottom: 12, alignItems: "end" }}>
                 <div>
                   <div style={lbl}>Familia</div>
-                  <select value={fFamilia} onChange={(e) => setFFamilia(e.target.value)} style={selectStyle}>
-                    {familias.map((f) => (<option key={f} value={f}>{f}</option>))}
-                  </select>
+                  <MultiCheck options={famOptions} selected={famSel} onChange={setFamSel} allLabel="TODAS" searchable placeholder="Buscar familia…" />
                 </div>
                 <div>
-                  <div style={lbl}>Material</div>
-                  <div style={searchBox}><Search size={14} color={colors.muted} /><input value={fMaterial} onChange={(e) => setFMaterial(e.target.value)} placeholder="Código…" style={searchInput} /></div>
+                  <div style={lbl}>Material (código)</div>
+                  <MultiCheck options={matOptions} selected={matSel} onChange={setMatSel} allLabel="TODOS" searchable placeholder="Buscar código o texto…" minWidth={300} />
                 </div>
                 <div>
                   <div style={lbl}>Texto</div>
                   <div style={searchBox}><Search size={14} color={colors.muted} /><input value={fTexto} onChange={(e) => setFTexto(e.target.value)} placeholder="Descripción…" style={searchInput} /></div>
+                </div>
+                <div>
+                  <button
+                    onClick={limpiarFiltros}
+                    disabled={!hayFiltros}
+                    title="Quitar todos los filtros"
+                    style={{ ...btnGhost, height: 38, opacity: hayFiltros ? 1 : 0.5, cursor: hayFiltros ? "pointer" : "default" }}
+                  >
+                    <Eraser size={15} /> Limpiar filtro
+                  </button>
                 </div>
                 <div style={{ fontSize: 12, color: colors.muted, fontWeight: 700, paddingBottom: 8, textAlign: "right" }}>
                   {fileName}<br />{filtered.length} de {rows.length} materiales
