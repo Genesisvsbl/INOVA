@@ -1471,8 +1471,9 @@ export default function OrdenPicking() {
   }
 
   @page {
-    /* Carta horizontal: hay muchas columnas y así entra todo sin cortar. */
-    size: Letter landscape;
+    /* Solo orientación horizontal, SIN forzar tamaño de papel: así se adapta
+       a la hoja que tenga cada impresora/PC (Carta, A4, etc.) y no se corta. */
+    size: landscape;
     margin: 8mm 6mm;
   }
 
