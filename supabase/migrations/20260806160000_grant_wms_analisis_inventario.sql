@@ -11,3 +11,10 @@ grant select, insert, update, delete on wms.analisis_inventario to anon, authent
 grant usage, select on all sequences in schema wms to anon, authenticated;
 grant all on wms.analisis_inventario to service_role;
 grant all on all sequences in schema wms to service_role;
+
+-- Esta tabla se quedó con RLS activado (sin políticas), lo que bloqueaba TODO
+-- insert/select desde la app (rol anon), con el error:
+--   "new row violates row-level security policy for table analisis_inventario".
+-- Las demás tablas del esquema wms operan con RLS desactivado (la seguridad la
+-- maneja la app). Se desactiva aquí para dejarla igual que las otras.
+alter table wms.analisis_inventario disable row level security;
