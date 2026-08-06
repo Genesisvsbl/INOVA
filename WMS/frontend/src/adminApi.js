@@ -120,6 +120,54 @@ export async function verificarClaveUsuarioActual(password) {
   }
 }
 
+// Cambio de contraseña del usuario logueado (autoservicio):
+// valida la clave actual y guarda la nueva. Devuelve { ok: true }.
+export async function cambiarMiClave({ claveActual, nuevaClave }) {
+  const actual = clean(claveActual);
+  const nueva = clean(nuevaClave);
+  if (!actual) throw new Error("Escribe tu contraseña actual.");
+  if (nueva.length < 8) throw new Error("La nueva contraseña debe tener mínimo 8 caracteres.");
+  if (nueva === actual) throw new Error("La nueva contraseña debe ser distinta a la actual.");
+
+  const login =
+    clean(sessionStorage.getItem("usuario")) || clean(sessionStorage.getItem("nombre"));
+  if (!login) throw new Error("No se pudo identificar tu sesión. Vuelve a iniciar sesión.");
+
+  const usuarios = await safeSelect("public", "usuarios", {
+    select: "id,usuario,email,nombre,clave_acceso,estado",
+    or: `(usuario.ilike.${login},email.ilike.${login})`,
+    limit: "1",
+  });
+  const user = usuarios?.[0];
+  if (!user) throw new Error("No se encontró tu usuario en el sistema.");
+  if (clean(user.clave_acceso) !== actual) {
+    throw new Error("La contraseña actual no es correcta.");
+  }
+
+  // Cambio crítico: debe persistir sí o sí.
+  await updateById("public", "usuarios", user.id, { clave_acceso: nueva });
+
+  // Best-effort: limpiar el flag de "debe cambiar" y registrar fecha (si existen).
+  const nowIso = new Date().toISOString();
+  updateUsuarioSecurity(user.id, {
+    debe_cambiar_clave: false,
+    fecha_cambio_clave: nowIso,
+    fecha_actualizacion: nowIso,
+  }).catch(() => {});
+
+  try { clearLocalLoginState(user.email); } catch { /* opcional */ }
+
+  sendPasswordSecurityEmail({
+    type: "changed",
+    email: user.email,
+    nombre: user.nombre || user.usuario || user.email,
+    pilar: "wms",
+    loginUrl: APPROVAL_LOGIN_URL,
+  }).catch((error) => console.warn("No se pudo enviar aviso de cambio de clave:", error));
+
+  return { ok: true };
+}
+
 function slugIdentity(value) {
   return clean(value)
     .toLowerCase()

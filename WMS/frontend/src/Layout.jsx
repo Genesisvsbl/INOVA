@@ -10,6 +10,7 @@ import {
   Database,
   FileText,
   Home,
+  KeyRound,
   LogOut,
   Map,
   MapPin,
@@ -23,6 +24,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import CambiarClaveModal from "./components/CambiarClaveModal";
 
 const COLORS = {
   navy: "#070b1a",
@@ -34,6 +36,23 @@ const COLORS = {
   muted: "#667085",
   line: "#e7ecf4",
   soft: "#f7f9fd",
+};
+
+const USER_MENU = {
+  panel: {
+    position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 1501, minWidth: 220,
+    background: "#fff", border: "1px solid #e7ecf4", borderRadius: 12,
+    boxShadow: "0 16px 40px rgba(8,14,30,.22)", padding: 6, overflow: "hidden",
+  },
+  head: {
+    display: "flex", flexDirection: "column", gap: 1, padding: "8px 10px 10px",
+    borderBottom: "1px solid #eef2f7", marginBottom: 4,
+  },
+  item: {
+    width: "100%", display: "flex", alignItems: "center", gap: 9, padding: "10px 10px",
+    border: "none", background: "transparent", borderRadius: 8, cursor: "pointer",
+    fontSize: 13, fontWeight: 700, color: "#26364d", textAlign: "left",
+  },
 };
 
 function useViewport() {
@@ -76,6 +95,8 @@ export default function Layout() {
   const [sidebarPinned, setSidebarPinned] = useState(false);
   const [sidebarHover, setSidebarHover] = useState(false);
   const [openMenu, setOpenMenu] = useState(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [claveModal, setClaveModal] = useState(false);
 
   const usuario = sessionStorage.getItem("usuario") || "Gvisbal";
   const rol = sessionStorage.getItem("rol") || "SUPER_ADMIN";
@@ -184,18 +205,54 @@ export default function Layout() {
             <i />
           </button>
 
-          <div className="user-chip">
-            <div className="user-avatar">
-              <UserRound size={17} />
+          <div style={{ position: "relative" }}>
+            <div
+              className="user-chip"
+              onClick={() => setUserMenuOpen((o) => !o)}
+              style={{ cursor: "pointer" }}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="user-avatar">
+                <UserRound size={17} />
+              </div>
+              <div className="user-info">
+                <strong>{usuario}</strong>
+                <small>{rol}</small>
+              </div>
+              <ChevronDown className="user-chevron" size={16} style={{ transform: userMenuOpen ? "rotate(180deg)" : "none", transition: ".15s" }} />
             </div>
-            <div className="user-info">
-              <strong>{usuario}</strong>
-              <small>{rol}</small>
-            </div>
-            <ChevronDown className="user-chevron" size={16} />
+
+            {userMenuOpen && (
+              <>
+                <div onClick={() => setUserMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 1500 }} />
+                <div style={USER_MENU.panel}>
+                  <div style={USER_MENU.head}>
+                    <strong style={{ fontSize: 13, color: "#12203a" }}>{usuario}</strong>
+                    <span style={{ fontSize: 11, color: "#667085", fontWeight: 700 }}>{rol}</span>
+                  </div>
+                  <button
+                    type="button"
+                    style={USER_MENU.item}
+                    onClick={() => { setUserMenuOpen(false); setClaveModal(true); }}
+                  >
+                    <KeyRound size={15} color="#0b3d91" /> Cambiar contraseña
+                  </button>
+                  <button
+                    type="button"
+                    style={{ ...USER_MENU.item, color: "#b42318" }}
+                    onClick={() => { setUserMenuOpen(false); handleLogout(); }}
+                  >
+                    <LogOut size={15} /> Cerrar sesión
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </header>
+
+      <CambiarClaveModal open={claveModal} onClose={() => setClaveModal(false)} usuario={usuario} />
 
       {!config.isMobile && !sidebarPinned && (
         <div
