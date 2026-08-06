@@ -274,7 +274,10 @@ function DeliveryEvidenceBadge({ estado, diferencia }) {
   );
 }
 
-function QuantityMetaBox({ sugerido, maximo, exceso }) {
+function QuantityMetaBox({ sugerido, maximo, exceso, tomado = 0 }) {
+  // Saldo que queda en la ubicación tras tomar la cantidad indicada.
+  const saldo = Math.max(0, Number(maximo || 0) - Number(tomado || 0));
+  const hayParcial = Number(tomado || 0) > 0 && Number(tomado || 0) < Number(maximo || 0);
   return (
     <div
       style={{
@@ -298,9 +301,12 @@ function QuantityMetaBox({ sugerido, maximo, exceso }) {
         lineHeight: 1.15,
       }}
     >
+      <span>En ubic.: {formatQty(maximo)}</span>
       <span>Sug: {formatQty(sugerido)}</span>
-      <span>Max: {formatQty(maximo)}</span>
       {exceso > 0 && <span>Exc: {formatQty(exceso)}</span>}
+      {hayParcial && (
+        <span style={{ color: colors.warn }}>Saldo: {formatQty(saldo)}</span>
+      )}
     </div>
   );
 }
@@ -2297,7 +2303,7 @@ export default function OrdenPicking() {
                                   color: sumCant > sumSug ? colors.bad : colors.text, background: "#fff",
                                 }}
                               />
-                              <QuantityMetaBox sugerido={sumSug} maximo={sumSug} exceso={Math.max(0, sumCant - sumSug)} />
+                              <QuantityMetaBox sugerido={sumSug} maximo={sumSug} exceso={Math.max(0, sumCant - sumSug)} tomado={sumCant} />
                             </div>
                           </td>
                           <td style={{ ...tdStyle, minWidth: 160, whiteSpace: "nowrap" }}>
@@ -2467,6 +2473,7 @@ export default function OrdenPicking() {
                               sugerido={cantidadSugeridaVisual}
                               maximo={maximoCantidad}
                               exceso={cantidadActual > 0 ? excesoSobreSugerido : 0}
+                              tomado={cantidadActual}
                             />
                           </div>
                         </td>
