@@ -853,6 +853,143 @@ export default function Despacho() {
     w.focus();
   };
 
+  // Imprime el RESULTADO FINAL (materiales confirmados) de todas las reservas
+  // CUMPLIDAS del filtro de fechas actual, una hoja por reserva, de una vez.
+  const imprimirCumplidasResultado = async () => {
+    // Reservas cumplidas dentro del filtro Desde/Hasta ya aplicado en reservasFiltradas.
+    const cumplidas = reservasFiltradas.filter(
+      (r) => String(r.clasificacion_base || "").toUpperCase() === "CUMPLIDA"
+    );
+    if (!cumplidas.length) {
+      showToast({
+        type: "warn",
+        title: "Sin reservas cumplidas",
+        message: "No hay reservas CUMPLIDAS con el filtro de fechas actual.",
+      });
+      return;
+    }
+
+    setProcesandoLote(true);
+    try {
+      // Traigo el resumen (detalles) y las líneas confirmadas de cada reserva.
+      const datos = [];
+      for (const r of cumplidas) {
+        const rv = r.reserva;
+        try {
+          const [detalles, lineas] = await Promise.all([
+            getDespachos({ reserva: rv }),
+            verPicking(rv),
+          ]);
+          const confirmadas = (lineas || []).filter(
+            (p) => !!p.confirmado || Number(p.cantidad_confirmada || 0) > 0
+          );
+          datos.push({ reserva: rv, detalles, confirmadas });
+        } catch (e) {
+          datos.push({ reserva: rv, error: e?.message || String(e) });
+        }
+      }
+
+      const conResultado = datos.filter((d) => !d.error && (d.confirmadas || []).length);
+      if (!conResultado.length) {
+        showToast({
+          type: "warn",
+          title: "Sin materiales confirmados",
+          message: "Las reservas cumplidas no tienen líneas confirmadas para imprimir.",
+        });
+        return;
+      }
+
+      const w = window.open("", "_blank", "width=1150,height=800");
+      if (!w) {
+        showToast({ type: "warn", title: "Ventana bloqueada", message: "El navegador bloqueó la impresión." });
+        return;
+      }
+      const logo = `${window.location.origin}/inova-azul.png`;
+      const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const q = (v) =>
+        Number(v || 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const d10 = (v) => String(v || "").slice(0, 10);
+      const hoy = new Date().toLocaleDateString("es-CO");
+
+      const paginas = conResultado
+        .map(({ reserva, detalles, confirmadas }, idx) => {
+          const resumen = (detalles || [])
+            .map(
+              (d) =>
+                `<tr><td>${esc(d10(d.fecha_necesidad))}</td><td class="cod">${esc(d.sku)}</td><td>${esc(
+                  d.texto_breve || ""
+                )}</td><td class="r">${q(d.cantidad)}</td><td class="r">${q(d.cantidad_retirada)}</td><td class="r">${q(
+                  d.diferencia
+                )}</td><td>${esc(d.clasificacion_sku || d.clasificacion_final || "")}</td></tr>`
+            )
+            .join("");
+          const confs = (confirmadas || [])
+            .map(
+              (p) =>
+                `<tr><td class="cod">${esc(p.sku)}</td><td>${esc(p.texto_breve || "")}</td><td class="r">${q(
+                  p.cantidad_requerida
+                )}</td><td class="r">${q(p.cantidad_sugerida)}</td><td class="r">${q(
+                  p.cantidad_confirmada
+                )}</td><td>${esc(p.ubicacion_alternativa || p.ubicacion || "")}</td><td>${esc(
+                  p.lote_almacen_alternativo || p.lote_almacen || ""
+                )}</td><td>${esc(p.lote_proveedor_alternativo || p.lote_proveedor || "")}</td><td>${esc(
+                  d10(p.fecha_vencimiento_alternativa || p.fecha_vencimiento)
+                )}</td></tr>`
+            )
+            .join("");
+          return `<div class="page"${idx === conResultado.length - 1 ? ' style="page-break-after:auto"' : ""}>
+            <div class="hd">
+              <img src="${logo}" onerror="this.style.display='none'"/>
+              <div class="ti"><div class="t">RESULTADO FINAL DE DESPACHO</div><div class="s">WMS INOVA · Control logístico</div></div>
+              <div class="meta"><div><b>Reserva:</b> ${esc(reserva)}</div><div><b>Usuario:</b> DESPACHO</div><div><b>Fecha impresión:</b> ${esc(
+                hoy
+              )}</div></div>
+            </div>
+            <div class="cap">Resumen de la reserva</div>
+            <table><thead><tr><th>Fecha necesidad</th><th>SKU</th><th>Texto breve</th><th>Cant. requerida</th><th>Cant. retirada</th><th>Diferencia</th><th>Clasificación</th></tr></thead><tbody>${
+              resumen || `<tr><td colspan="7">Sin resumen.</td></tr>`
+            }</tbody></table>
+            <div class="cap">Materiales confirmados</div>
+            <table><thead><tr><th>SKU</th><th>Texto breve</th><th>Cant. requerida</th><th>Cant. sugerida</th><th>Cant. confirmada</th><th>Ubicación</th><th>Lote almacén</th><th>Lote proveedor</th><th>Vencimiento</th></tr></thead><tbody>${
+              confs || `<tr><td colspan="9">Sin materiales confirmados.</td></tr>`
+            }</tbody></table>
+          </div>`;
+        })
+        .join("");
+
+      const html =
+        `<html><head><meta charset="utf-8"><title>Resultados de despacho</title><style>` +
+        `@page{size:letter landscape;margin:9mm}*{font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}` +
+        `body{margin:0;color:#0f172a}` +
+        `.page{page-break-after:always}` +
+        `.hd{display:flex;align-items:center;gap:14px;border-bottom:3px solid #0a1f52;padding:2px 2px 8px;margin-bottom:8px}` +
+        `.hd img{height:46px}.hd .ti{flex:1}.hd .t{font-size:20px;font-weight:900;color:#0a1f52;letter-spacing:.4px}.hd .s{font-size:11px;color:#0b3d91;font-weight:700}` +
+        `.hd .meta{font-size:11px;text-align:right;color:#0a1f52;font-weight:700;white-space:nowrap}` +
+        `.cap{font-weight:900;color:#0a1f52;font-size:12px;margin:10px 0 4px;padding-bottom:2px;border-bottom:1px solid #cdd9ee}` +
+        `table{border-collapse:collapse;width:100%;margin-bottom:6px}` +
+        `th{background:#dbe6fb;color:#0a1f52;font-size:9.5px;text-align:left;padding:4px 6px;border:1px solid #9db3d6;text-transform:uppercase}` +
+        `td{font-size:10.5px;padding:3px 6px;border:1px solid #c7d2e0}td.cod{font-weight:800;color:#0a1f52}td.r{text-align:right;font-weight:800}tr:nth-child(even) td{background:#f3f7fd}` +
+        `</style></head><body>${paginas}` +
+        `<script>setTimeout(function(){try{window.focus();window.print();}catch(e){}},350);window.onafterprint=function(){setTimeout(function(){try{window.close();}catch(e){}},150);};<\/script>` +
+        `</body></html>`;
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+      w.focus();
+
+      const sinResultado = cumplidas.length - conResultado.length;
+      showToast({
+        type: "success",
+        title: "Resultados enviados a impresión",
+        message: `${conResultado.length} reserva(s) cumplida(s) impresa(s)${
+          sinResultado ? ` · ${sinResultado} sin líneas confirmadas` : ""
+        }.`,
+      });
+    } finally {
+      setProcesandoLote(false);
+    }
+  };
+
   // Genera el picking de CADA reserva seleccionada y COMPROMETE sus ubicaciones,
   // de forma secuencial para que una reserva no repita las ubicaciones ya
   // comprometidas por otra. Al final ofrece imprimir todo junto.
@@ -1470,6 +1607,28 @@ export default function Despacho() {
             >
               <Printer size={14} />
               Generar, comprometer e imprimir
+            </button>
+            <button
+              type="button"
+              onClick={imprimirCumplidasResultado}
+              disabled={
+                procesandoLote ||
+                reservasFiltradas.filter(
+                  (r) => String(r.clasificacion_base || "").toUpperCase() === "CUMPLIDA"
+                ).length === 0
+              }
+              style={{ ...primaryButtonStyle, ...compactActionButtonStyle }}
+              title="Imprime el resultado final de TODAS las reservas cumplidas del filtro de fechas actual, de una vez (una hoja por reserva)"
+            >
+              <Printer size={14} />
+              {(() => {
+                const n = reservasFiltradas.filter(
+                  (r) => String(r.clasificacion_base || "").toUpperCase() === "CUMPLIDA"
+                ).length;
+                return procesandoLote
+                  ? "Procesando..."
+                  : `Imprimir cumplidas del filtro${n ? ` (${n})` : ""}`;
+              })()}
             </button>
             <button
               type="button"
