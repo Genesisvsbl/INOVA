@@ -9,6 +9,7 @@ import {
   guardarCertificadosCalidad,
   sugerirUbicaciones,
   getUbicacionesVacias,
+  getMovimientosLayoutStock,
   borrarRecetaPorSerial,
   borrarRecetaPorDocumento,
   fechaReciboPorDocumento,
@@ -598,6 +599,78 @@ export default function DesdeRecibo() {
   const [guardando, setGuardando] = useState(false);
 
   const [ubicPorLinea, setUbicPorLinea] = useState({});
+  // Stock actual por ubicación (para avisar/bloquear al almacenar en una
+  // ubicación ocupada). Zonas dedicadas (lata/azúcar 400/600, preforma 200)
+  // no permiten mezclar materiales distintos.
+  const [stockOcupacion, setStockOcupacion] = useState(() => new Map());
+
+  useEffect(() => {
+    getMovimientosLayoutStock()
+      .then((rows) => {
+        const m = new Map();
+        (rows || []).forEach((r) => {
+          const cant = Number(r.cantidad ?? r.cantidad_r ?? 0);
+          if (cant <= 0) return;
+          const code = String(r.ubicacion || "").toUpperCase();
+          if (!code) return;
+          if (!m.has(code)) m.set(code, new Map());
+          const inner = m.get(code);
+          const key = `${r.codigo_material}|${r.lote_almacen || ""}`;
+          if (!inner.has(key)) {
+            inner.set(key, {
+              codigo: r.codigo_material || "",
+              descripcion: r.descripcion_material || "",
+              lote: r.lote_almacen || "",
+              cantidad: 0,
+            });
+          }
+          inner.get(key).cantidad += cant;
+        });
+        const out = new Map();
+        m.forEach((inner, code) => out.set(code, Array.from(inner.values())));
+        setStockOcupacion(out);
+      })
+      .catch(() => {});
+  }, []);
+
+  const esZonaDedicada = (baseOUbic) => {
+    const n = String(baseOUbic || "").replace(/\D/g, "");
+    return n.startsWith("400") || n.startsWith("600") || n.startsWith("200");
+  };
+
+  const normCod = (v) => String(v || "").trim().toUpperCase();
+
+  // Devuelve true si se puede continuar almacenando en esa ubicación.
+  // Bloquea mezcla en zonas dedicadas; en el resto muestra lo que hay y pide aceptar.
+  const chequeoUbicacionOcupada = async (idx, base, ubicacion) => {
+    const code = String(ubicacion || "").toUpperCase();
+    const items = (stockOcupacion.get(code) || []).filter((it) => Number(it.cantidad) > 0);
+    if (!items.length) return true;
+
+    const codLinea = normCod(lineas?.[idx]?.codigo);
+    const distintos = items.filter((it) => normCod(it.codigo) !== codLinea);
+
+    if (esZonaDedicada(base || ubicacion) && distintos.length) {
+      await showWmsAlert(
+        `La ubicación ${code} es de zona dedicada (lata / azúcar / preforma) y ya tiene ` +
+          `${distintos[0].codigo}${distintos[0].descripcion ? ` - ${distintos[0].descripcion}` : ""}.\n\n` +
+          `No se permite mezclar materiales distintos en esta zona. Elige otra ubicación.`
+      );
+      return false;
+    }
+
+    const detalle = items
+      .map(
+        (it) =>
+          `• ${it.codigo}${it.descripcion ? ` ${it.descripcion}` : ""} — ${Number(
+            it.cantidad || 0
+          ).toLocaleString("es-CO")}${it.lote ? ` (lote ${it.lote})` : ""}`
+      )
+      .join("\n");
+    return await showWmsConfirm(
+      `La ubicación ${code} ya tiene material almacenado:\n\n${detalle}\n\n¿Almacenar aquí de todas formas?`
+    );
+  };
 
   // Toolbox de ubicaciones vacías por base/zona (sugerencia + imprimir + confirmar).
   const [tbLinea, setTbLinea] = useState(null); // { idx, codigo, texto }
@@ -1136,7 +1209,7 @@ export default function DesdeRecibo() {
     return value.toUpperCase().replace(/\s+/g, "");
   };
 
-  const aplicarUbicacionEscaneada = (idx, raw) => {
+  const aplicarUbicacionEscaneada = async (idx, raw) => {
     const codigo = limpiarCodigoUbicacion(raw);
 
     if (!codigo) {
@@ -1187,6 +1260,15 @@ export default function DesdeRecibo() {
       }
 
       if (matchDetectado) {
+        const proceder = await chequeoUbicacionOcupada(
+          idx,
+          matchDetectado.base,
+          matchDetectado.ubicacion
+        );
+        if (!proceder) {
+          cerrarScanner();
+          return;
+        }
         setUbicPorLinea((prev) => ({
           ...prev,
           [idx]: {
@@ -1211,6 +1293,13 @@ export default function DesdeRecibo() {
     const base = (ubic.ubicacion_base || "").toString().trim();
     const posicion = (ubic.posicion || "").toString().trim();
     const ubicacion = (ubic.ubicacion || `${base}${posicion}`).toString().trim().toUpperCase();
+
+    // Aviso/bloqueo si la ubicación ya está ocupada.
+    const proceder = await chequeoUbicacionOcupada(idx, base, ubicacion);
+    if (!proceder) {
+      cerrarScanner();
+      return;
+    }
 
     setUbicPorLinea((prev) => ({
       ...prev,
