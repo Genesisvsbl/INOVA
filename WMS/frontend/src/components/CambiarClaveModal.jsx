@@ -191,7 +191,7 @@ const S = {
   },
   header: {
     display: "flex", alignItems: "center", gap: 12, padding: "16px 18px",
-    background: "linear-gradient(135deg,#0b3d91,#2563eb)", color: "#fff",
+    background: "linear-gradient(135deg, #0b1630, #163b73 55%, #6d28d9)", color: "#fff",
   },
   headIcon: {
     width: 40, height: 40, borderRadius: 11, background: "rgba(255,255,255,.18)",
