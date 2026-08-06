@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { showWmsAlert } from "../wmsDialog.jsx";
-import { getUbicaciones, getUbicacionesVacias, getMateriales } from "../api";
-import { Search, Printer, FileText, MapPin, ArrowLeft, Check } from "lucide-react";
+import { getUbicaciones, getUbicacionesVacias, getMateriales, getMovimientosLayoutStock } from "../api";
+import { Search, Printer, FileText, MapPin, ArrowLeft, Check, Boxes } from "lucide-react";
 
 const colors = {
   navy: "#0a1f52",
@@ -48,6 +48,11 @@ const rackDe = (u) => {
 };
 
 const esc = (s) => String(s ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+const fmtDMY = (v) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || ""));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : String(v || "");
+};
+const nfmt = (n) => Number(n || 0).toLocaleString("es-CO");
 
 // ---- Rótulo(s) de ubicación vacía (con barcode). Uno o varios por hoja. ----
 function labelCss() {
@@ -159,13 +164,88 @@ export default function ConsultaUbicacionesVacias() {
   const [buscado, setBuscado] = useState(false);
   const [sel, setSel] = useState({});
   const [necesito, setNecesito] = useState("");
+  const [modo, setModo] = useState("vacias"); // "vacias" | "ocupadas"
+  const [stock, setStock] = useState([]);
 
   useEffect(() => {
     getUbicaciones().then((u) => setUbicaciones(Array.isArray(u) ? u : [])).catch(() => setUbicaciones([]));
     getMateriales()
       .then((m) => setFamiliasMaestro([...new Set((m || []).map((x) => String(x.familia || "").trim()).filter(Boolean))]))
       .catch(() => setFamiliasMaestro([]));
+    getMovimientosLayoutStock()
+      .then((s) => setStock(Array.isArray(s) ? s : []))
+      .catch(() => setStock([]));
   }, []);
+
+  // Mapa código de ubicación -> registro maestro (para base/zona/familia).
+  const ubicMap = useMemo(() => {
+    const m = new Map();
+    (ubicaciones || []).forEach((u) => m.set(codeUbic(u), u));
+    return m;
+  }, [ubicaciones]);
+
+  // Ubicaciones OCUPADAS: una fila por material/lote almacenado (varios
+  // materiales por ubicación se ven como varias filas de la misma ubicación).
+  const ocupadas = useMemo(() => {
+    const map = new Map();
+    (stock || []).forEach((s) => {
+      const cant = Number(s.cantidad ?? s.cantidad_r ?? 0);
+      if (cant <= 0) return;
+      const code = String(s.ubicacion || "").toUpperCase();
+      if (!code) return;
+      const fv = String(s.fecha_vencimiento || "").slice(0, 10);
+      const key = `${code}|${s.codigo_material}|${s.lote_almacen || ""}|${fv}`;
+      if (!map.has(key)) {
+        const u = ubicMap.get(code) || {};
+        map.set(key, {
+          id: key,
+          ubicacion: code,
+          ubicacion_base: u.ubicacion_base || "",
+          zona: u.zona || "",
+          familias: u.familias || "",
+          bodega: u.bodega || s.bodega || "",
+          codigo: s.codigo_material || "",
+          descripcion: s.descripcion_material || "",
+          lote: s.lote_almacen || s.lote_proveedor || "",
+          fv,
+          cantidad: 0,
+        });
+      }
+      map.get(key).cantidad += cant;
+    });
+    let arr = Array.from(map.values()).filter((u) => {
+      if (soloRack && !esRack(u)) return false;
+      if (base && String(u.ubicacion_base || "").trim() !== base) return false;
+      if (zona && String(u.zona || "").trim() !== zona) return false;
+      if (pasillo && pasilloDe(u) !== pasillo) return false;
+      if (rack && String(rackDe(u)) !== rack) return false;
+      if (modulo && moduloDe(u) !== modulo) return false;
+      if (nivel && nivelDe(u) !== nivel) return false;
+      if (texto) {
+        const t = texto.toLowerCase();
+        if (
+          !(`${u.ubicacion} ${u.zona} ${u.bodega} ${u.codigo} ${u.descripcion} ${u.lote}`
+            .toLowerCase()
+            .includes(t))
+        )
+          return false;
+      }
+      return true;
+    });
+    const num = (v) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : 9999; };
+    arr.sort((a, b) => {
+      const ra = rackDe(a); const rb = rackDe(b);
+      if (ra != null && rb != null && ra !== rb) return ra - rb;
+      if (ra != null && rb == null) return -1;
+      if (ra == null && rb != null) return 1;
+      if (num(moduloDe(a)) !== num(moduloDe(b))) return num(moduloDe(a)) - num(moduloDe(b));
+      if (num(nivelDe(a)) !== num(nivelDe(b))) return num(nivelDe(a)) - num(nivelDe(b));
+      const ca = columnaDe(a); const cb = columnaDe(b);
+      if (ca != null && cb != null && ca !== cb) return ca - cb;
+      return String(a.codigo).localeCompare(String(b.codigo));
+    });
+    return arr;
+  }, [stock, ubicMap, soloRack, base, zona, pasillo, rack, modulo, nivel, texto]);
 
   const scope = useMemo(
     () => (ubicaciones || []).filter(
@@ -277,8 +357,26 @@ export default function ConsultaUbicacionesVacias() {
       <button onClick={() => navigate(-1)} style={{ ...btn("#fff", colors.border), marginBottom: 12 }}><ArrowLeft size={16} /> Volver</button>
 
       <div style={{ background: "#fff", borderRadius: 14, border: `1px solid ${colors.border}`, overflow: "hidden" }}>
-        <div style={{ background: colors.navy, color: "#fff", padding: "14px 18px", display: "flex", alignItems: "center", gap: 10, fontWeight: 800 }}>
-          <MapPin size={18} /> Consulta de ubicaciones vacías
+        <div style={{ background: colors.navy, color: "#fff", padding: "14px 18px", display: "flex", alignItems: "center", gap: 12, fontWeight: 800, flexWrap: "wrap" }}>
+          <MapPin size={18} /> Ubicaciones
+          <div style={{ flex: 1 }} />
+          <div style={{ display: "inline-flex", background: "rgba(255,255,255,.14)", borderRadius: 10, padding: 3, gap: 3 }}>
+            {[["vacias", "Vacías", MapPin], ["ocupadas", "Ocupadas", Boxes]].map(([val, lab, Icon]) => (
+              <button
+                key={val}
+                onClick={() => setModo(val)}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  padding: "6px 14px", borderRadius: 8, border: "none", cursor: "pointer",
+                  fontWeight: 800, fontSize: 13,
+                  background: modo === val ? "#fff" : "transparent",
+                  color: modo === val ? colors.navy : "#fff",
+                }}
+              >
+                <Icon size={15} /> {lab}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div style={{ padding: 18 }}>
@@ -309,7 +407,7 @@ export default function ConsultaUbicacionesVacias() {
             <button onClick={consultar} disabled={loading} style={btn(colors.blue)}><Search size={15} /> {loading ? "Buscando…" : "Consultar"}</button>
           </div>
 
-          {buscado && !loading && (
+          {modo === "vacias" && buscado && !loading && (
             <div style={{ marginTop: 16 }}>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
                 <div style={{ fontSize: 13, color: colors.text }}><b>{lista.length}</b> ubicación(es) vacía(s) · <b style={{ color: colors.blue }}>{seleccionadas.length}</b> seleccionada(s)</div>
@@ -351,6 +449,49 @@ export default function ConsultaUbicacionesVacias() {
                           <td style={{ padding: "6px 10px", borderBottom: `1px solid ${colors.border}` }}>
                             <button onClick={() => imprimirRotulos([u])} title="Imprimir rótulo" style={{ ...btn(colors.navy), height: 28, padding: "0 8px", fontSize: 11 }}><Printer size={13} /> Rótulo</button>
                           </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {modo === "ocupadas" && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 13, color: colors.text, marginBottom: 10 }}>
+                <b>{ocupadas.length}</b> registro(s) ocupado(s){" "}
+                <span style={{ color: colors.muted }}>
+                  (una ubicación puede tener varios materiales)
+                </span>
+              </div>
+              {ocupadas.length === 0 ? (
+                <div style={{ padding: 16, color: colors.muted, fontWeight: 600 }}>
+                  No hay ubicaciones ocupadas con esos filtros.
+                </div>
+              ) : (
+                <div style={{ border: `1px solid ${colors.border}`, borderRadius: 8, overflow: "auto", maxHeight: 520 }}>
+                  <table className="table-tools-skip" style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr>
+                        {["Ubicación", "Rack", "Módulo", "Nivel", "Código", "Descripción", "Lote", "Vencimiento", "Cantidad"].map((h, i) => (
+                          <th key={i} style={{ position: "sticky", top: 0, background: colors.navy, color: "#fff", fontSize: 12, textAlign: "left", padding: "8px 10px", whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ocupadas.map((u) => (
+                        <tr key={u.id}>
+                          <td style={{ padding: "6px 10px", borderBottom: `1px solid ${colors.border}`, fontWeight: 800, color: colors.blue, whiteSpace: "nowrap" }}>{u.ubicacion}</td>
+                          <td style={{ padding: "6px 10px", borderBottom: `1px solid ${colors.border}`, textAlign: "center", fontWeight: 800, color: colors.navy }}>{rackDe(u) ?? "-"}</td>
+                          <td style={{ padding: "6px 10px", borderBottom: `1px solid ${colors.border}`, textAlign: "center" }}>{moduloDe(u) || "-"}</td>
+                          <td style={{ padding: "6px 10px", borderBottom: `1px solid ${colors.border}`, textAlign: "center" }}>{nivelDe(u) || "-"}</td>
+                          <td style={{ padding: "6px 10px", borderBottom: `1px solid ${colors.border}`, fontWeight: 800, color: colors.navy, whiteSpace: "nowrap" }}>{u.codigo || "-"}</td>
+                          <td style={{ padding: "6px 10px", borderBottom: `1px solid ${colors.border}` }}>{u.descripcion || "-"}</td>
+                          <td style={{ padding: "6px 10px", borderBottom: `1px solid ${colors.border}`, whiteSpace: "nowrap" }}>{u.lote || "-"}</td>
+                          <td style={{ padding: "6px 10px", borderBottom: `1px solid ${colors.border}`, textAlign: "center" }}>{u.fv ? fmtDMY(u.fv) : "-"}</td>
+                          <td style={{ padding: "6px 10px", borderBottom: `1px solid ${colors.border}`, textAlign: "right", fontWeight: 800 }}>{nfmt(u.cantidad)}</td>
                         </tr>
                       ))}
                     </tbody>

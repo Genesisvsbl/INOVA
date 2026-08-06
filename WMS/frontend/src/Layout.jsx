@@ -339,7 +339,7 @@ export default function Layout() {
                   {sidebarExpanded && visibleOpenMenu === "consultas" && (
                     <SubNav>
                       <NavLink to="/stock" style={childNavStyle}>Consulta general</NavLink>
-                      <NavLink to="/ubicaciones-vacias" style={childNavStyle}>Ubicaciones vacías</NavLink>
+                      <NavLink to="/ubicaciones-vacias" style={childNavStyle}>Ubicaciones</NavLink>
                       <NavLink to="/vencimientos" style={childNavStyle}>Vencimientos</NavLink>
                     </SubNav>
                   )}
