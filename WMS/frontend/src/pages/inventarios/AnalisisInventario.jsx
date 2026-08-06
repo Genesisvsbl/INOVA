@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Eraser,
 } from "lucide-react";
+import { exportarAnalisisExcel } from "./analisisExcel";
 import {
   generarAnalisisInventario,
   guardarAnalisisInventario,
@@ -255,6 +256,11 @@ export default function AnalisisInventario() {
     if (okMsg) setOkMsg("");
   };
 
+  const setObs = (idx, texto) => {
+    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, observacion: texto } : r)));
+    if (okMsg) setOkMsg("");
+  };
+
   const famOptions = useMemo(() => {
     const set = new Set(rows.map((r) => String(r.familia || "").trim()).filter(Boolean));
     return Array.from(set).sort((a, b) => a.localeCompare(b)).map((f) => ({ value: f, label: f }));
@@ -310,16 +316,18 @@ export default function AnalisisInventario() {
     );
   }, [filtered]);
 
+  const [exportando, setExportando] = useState(false);
   const exportar = async () => {
-    const XLSX = await import("xlsx");
-    const aoa = [
-      ["FAMILIA", "MATERIAL", "TEXTO BREVE DEL MATERIAL", "TEORICO", "P. INGRESO", "P. DESCARGAR", "DEVOLUCION", "FISICO", "DIFERENCIA"],
-      ...filtered.map((r) => [r.familia, r.material, r.texto, Number(r.teorico || 0), Number(r.p_ingreso || 0), Number(r.p_descargar || 0), Number(r.devolucion || 0), Number(r.fisico || 0), calcDiferencia(r)]),
-    ];
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Analisis");
-    XLSX.writeFile(wb, `analisis_inventario_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    if (!filtered.length) return;
+    setExportando(true);
+    setError("");
+    try {
+      await exportarAnalisisExcel({ rows: filtered, fileName });
+    } catch (e) {
+      setError(e?.message || "No se pudo exportar el Excel.");
+    } finally {
+      setExportando(false);
+    }
   };
 
   const generarInforme = () => {
@@ -350,6 +358,7 @@ export default function AnalisisInventario() {
       p_ingreso: Number(r.p_ingreso || 0),
       p_descargar: Number(r.p_descargar || 0),
       devolucion: Number(r.devolucion || 0),
+      observacion: r.observacion || "",
     }));
     const difs = datos.map(calcDiferencia);
     return {
@@ -510,7 +519,9 @@ export default function AnalisisInventario() {
                   <button onClick={abrirGuardar} disabled={saving} style={btnGreen}><Save size={15} /> Guardar</button>
                 )}
                 <button onClick={generarInforme} style={btnDark}><FileText size={15} /> Generar informe</button>
-                <button onClick={exportar} style={btnGhost}><Download size={15} /> Excel</button>
+                <button onClick={exportar} disabled={exportando} style={btnGhost}>
+                  {exportando ? <Loader2 size={15} className="spin" /> : <Download size={15} />} {exportando ? "Generando…" : "Excel"}
+                </button>
               </>
             )}
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={onFile} style={{ display: "none" }} />
@@ -578,7 +589,8 @@ export default function AnalisisInventario() {
                       <th style={th}>P. DESCARGAR</th>
                       <th style={th}>DEVOLUCION</th>
                       <th style={th}>FISICO</th>
-                      <th style={{ ...th, borderRight: "none", minWidth: 130 }}>DIFERENCIA</th>
+                      <th style={{ ...th, minWidth: 130 }}>DIFERENCIA</th>
+                      <th style={{ ...thL, borderRight: "none", minWidth: 200 }}>OBSERVACIÓN</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -599,7 +611,6 @@ export default function AnalisisInventario() {
                           <td
                             style={{
                               ...td,
-                              borderRight: "none",
                               textAlign: "center",
                               padding: 0,
                               background: bg,
@@ -609,6 +620,15 @@ export default function AnalisisInventario() {
                             }}
                           >
                             {fmt(dif)}
+                          </td>
+                          <td style={{ ...tdL, borderRight: "none", padding: "3px 6px" }}>
+                            <input
+                              type="text"
+                              value={r.observacion || ""}
+                              onChange={(e) => setObs(realIdx, e.target.value)}
+                              placeholder="Nota…"
+                              style={{ width: "100%", minWidth: 180, height: 26, border: "1px solid #e2e8f0", borderRadius: 6, padding: "0 8px", fontSize: 11.5, outline: "none", background: "#fff" }}
+                            />
                           </td>
                         </tr>
                       );
@@ -622,7 +642,8 @@ export default function AnalisisInventario() {
                       <td style={td}>{fmtInt(totales.p_descargar)}</td>
                       <td style={td}>{fmtInt(totales.devolucion)}</td>
                       <td style={td}>{fmt(totales.fisico)}</td>
-                      <td style={{ ...td, borderRight: "none", textAlign: "center", background: difBg(totales.diferencia), color: totales.diferencia === 0 ? "#334155" : "#fff", fontWeight: 900, fontSize: 14 }}>{fmt(totales.diferencia)}</td>
+                      <td style={{ ...td, textAlign: "center", background: difBg(totales.diferencia), color: totales.diferencia === 0 ? "#334155" : "#fff", fontWeight: 900, fontSize: 14 }}>{fmt(totales.diferencia)}</td>
+                      <td style={{ ...tdL, borderRight: "none" }} />
                     </tr>
                   </tfoot>
                 </table>
@@ -713,7 +734,7 @@ function buildInformeHtml({ base, fileName }) {
       <div class="cat">
         <div class="cat-h" style="color:${color}"><span class="tag" style="background:${color}"></span>${titulo}<span class="cnt" style="background:${color}">${list.length}</span></div>
         <table class="t">
-          <thead><tr><th>Material</th><th>Descripción</th><th class="r">Teórico</th><th class="r">Físico</th><th class="r">Diferencia</th></tr></thead>
+          <thead><tr><th>Material</th><th>Descripción</th><th class="r">Teórico</th><th class="r">Físico</th><th class="r">Diferencia</th><th>Observación</th></tr></thead>
           <tbody>
             ${list.map((r) => `<tr>
               <td class="mono">${r.material}</td>
@@ -721,8 +742,9 @@ function buildInformeHtml({ base, fileName }) {
               <td class="r">${money(r.teorico)}</td>
               <td class="r">${money(r.fisico)}</td>
               <td class="r b" style="color:${color}">${money(r.diferencia)}</td>
+              <td>${String(r.observacion || "")}</td>
             </tr>`).join("")}
-            <tr class="sub"><td colspan="4" class="r">Subtotal</td><td class="r" style="color:${color}">${money(sub)}</td></tr>
+            <tr class="sub"><td colspan="4" class="r">Subtotal</td><td class="r" style="color:${color}">${money(sub)}</td><td></td></tr>
           </tbody>
         </table>
       </div>`;
