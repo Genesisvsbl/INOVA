@@ -1618,6 +1618,20 @@ export function getAnalisisInventario(id) {
   }).then((r) => (Array.isArray(r) ? r[0] : r));
 }
 
+export function actualizarAnalisisInventario(id, payload) {
+  if (!supabaseEnabled) return Promise.reject(new Error("Servicio operativo no configurado."));
+  const patch = {};
+  if (payload.nombre !== undefined) patch.nombre = payload.nombre || null;
+  if (payload.archivo !== undefined) patch.archivo = payload.archivo || null;
+  if (payload.creado_por !== undefined) patch.creado_por = payload.creado_por || null;
+  if (payload.total_materiales !== undefined) patch.total_materiales = Number(payload.total_materiales || 0);
+  if (payload.total_faltantes !== undefined) patch.total_faltantes = Number(payload.total_faltantes || 0);
+  if (payload.total_sobrantes !== undefined) patch.total_sobrantes = Number(payload.total_sobrantes || 0);
+  if (payload.total_cuadrados !== undefined) patch.total_cuadrados = Number(payload.total_cuadrados || 0);
+  if (payload.datos !== undefined) patch.datos = Array.isArray(payload.datos) ? payload.datos : [];
+  return updateById("wms", "analisis_inventario", id, patch).then((r) => (Array.isArray(r) ? r[0] : r));
+}
+
 export function eliminarAnalisisInventario(id) {
   if (!supabaseEnabled) return Promise.reject(new Error("Servicio operativo no configurado."));
   return deleteById("wms", "analisis_inventario", id);

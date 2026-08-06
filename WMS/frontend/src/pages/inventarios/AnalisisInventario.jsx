@@ -16,6 +16,7 @@ import {
 import {
   generarAnalisisInventario,
   guardarAnalisisInventario,
+  actualizarAnalisisInventario,
   listarAnalisisInventario,
   getAnalisisInventario,
   eliminarAnalisisInventario,
@@ -97,6 +98,11 @@ export default function AnalisisInventario() {
   const [saveName, setSaveName] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Análisis actualmente abierto (para "Guardar cambios" sobre el mismo registro).
+  const [currentId, setCurrentId] = useState(null);
+  const [currentNombre, setCurrentNombre] = useState("");
+  const [okMsg, setOkMsg] = useState("");
+
   const cargarLista = async () => {
     setLoadingList(true);
     try {
@@ -117,6 +123,9 @@ export default function AnalisisInventario() {
     setRows([]);
     setFileName("");
     setError("");
+    setOkMsg("");
+    setCurrentId(null);
+    setCurrentNombre("");
     setFFamilia("TODAS");
     setFMaterial("");
     setFTexto("");
@@ -127,11 +136,15 @@ export default function AnalisisInventario() {
     setVista("trabajo");
     setLoading(true);
     setError("");
+    setOkMsg("");
     try {
       const a = await getAnalisisInventario(id);
       const datos = Array.isArray(a?.datos) ? a.datos : [];
       setRows(datos.map((r) => ({ p_ingreso: 0, p_descargar: 0, devolucion: 0, ...r })));
-      setFileName(a?.nombre || a?.archivo || `Análisis ${fmtFecha(a?.fecha)}`);
+      const nombre = a?.nombre || a?.archivo || `Análisis ${fmtFecha(a?.fecha)}`;
+      setFileName(nombre);
+      setCurrentId(a?.id ?? id);
+      setCurrentNombre(a?.nombre || nombre);
     } catch (e) {
       setError(e?.message || "No se pudo abrir el análisis.");
     } finally {
@@ -155,10 +168,14 @@ export default function AnalisisInventario() {
     if (!file) return;
     setLoading(true);
     setError("");
+    setOkMsg("");
     try {
       const data = await generarAnalisisInventario(file);
       setRows(data.map((r) => ({ ...r, p_ingreso: 0, p_descargar: 0, devolucion: 0 })));
       setFileName(file.name);
+      // Un archivo nuevo es un análisis nuevo: se guarda como registro aparte.
+      setCurrentId(null);
+      setCurrentNombre("");
     } catch (err) {
       setError(err?.message || "No se pudo procesar el archivo.");
       setRows([]);
@@ -169,6 +186,7 @@ export default function AnalisisInventario() {
 
   const setVal = (idx, key, num) => {
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, [key]: Number.isFinite(num) ? num : 0 } : r)));
+    if (okMsg) setOkMsg("");
   };
 
   const familias = useMemo(() => {
@@ -231,36 +249,70 @@ export default function AnalisisInventario() {
     setSaveModal(true);
   };
 
+  // Arma los datos + totales a guardar a partir de las filas actuales.
+  const construirPayload = (nombre) => {
+    const datos = rows.map((r) => ({
+      familia: r.familia,
+      material: r.material,
+      texto: r.texto,
+      teorico: Number(r.teorico || 0),
+      fisico: Number(r.fisico || 0),
+      p_ingreso: Number(r.p_ingreso || 0),
+      p_descargar: Number(r.p_descargar || 0),
+      devolucion: Number(r.devolucion || 0),
+    }));
+    const difs = datos.map(calcDiferencia);
+    return {
+      nombre: nombre || null,
+      archivo: fileName || null,
+      creado_por: creadoPor,
+      total_materiales: datos.length,
+      total_faltantes: difs.filter((d) => d < 0).length,
+      total_sobrantes: difs.filter((d) => d > 0).length,
+      total_cuadrados: difs.filter((d) => d === 0).length,
+      datos,
+    };
+  };
+
+  // Guardar como NUEVO (desde el modal). Al terminar deja ese análisis abierto
+  // para poder seguir editándolo y guardando cambios.
   const confirmarGuardar = async () => {
     setSaving(true);
     setError("");
+    setOkMsg("");
     try {
-      const datos = rows.map((r) => ({
-        familia: r.familia,
-        material: r.material,
-        texto: r.texto,
-        teorico: Number(r.teorico || 0),
-        fisico: Number(r.fisico || 0),
-        p_ingreso: Number(r.p_ingreso || 0),
-        p_descargar: Number(r.p_descargar || 0),
-        devolucion: Number(r.devolucion || 0),
-      }));
-      const difs = datos.map(calcDiferencia);
-      await guardarAnalisisInventario({
-        nombre: saveName.trim() || null,
-        archivo: fileName || null,
-        creado_por: creadoPor,
-        total_materiales: datos.length,
-        total_faltantes: difs.filter((d) => d < 0).length,
-        total_sobrantes: difs.filter((d) => d > 0).length,
-        total_cuadrados: difs.filter((d) => d === 0).length,
-        datos,
-      });
+      const nombre = saveName.trim() || null;
+      const creado = await guardarAnalisisInventario(construirPayload(nombre));
       setSaveModal(false);
+      if (creado?.id) {
+        setCurrentId(creado.id);
+        setCurrentNombre(nombre || fileName || "");
+      }
       await cargarLista();
-      setVista("lista");
+      setOkMsg("Análisis guardado. Puedes seguir editando y darle \"Guardar cambios\".");
     } catch (e) {
       setError(e?.message || "No se pudo guardar el análisis.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Guardar cambios SOBRE el análisis ya abierto (actualiza el mismo registro).
+  const guardarCambios = async () => {
+    if (!currentId) {
+      abrirGuardar();
+      return;
+    }
+    setSaving(true);
+    setError("");
+    setOkMsg("");
+    try {
+      await actualizarAnalisisInventario(currentId, construirPayload(currentNombre || fileName || null));
+      await cargarLista();
+      const hora = new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+      setOkMsg(`Cambios guardados (${hora}). Al reabrir este análisis verás lo actualizado.`);
+    } catch (e) {
+      setError(e?.message || "No se pudieron guardar los cambios.");
     } finally {
       setSaving(false);
     }
@@ -357,7 +409,16 @@ export default function AnalisisInventario() {
             </button>
             {rows.length > 0 && (
               <>
-                <button onClick={abrirGuardar} style={btnGreen}><Save size={15} /> Guardar</button>
+                {currentId ? (
+                  <>
+                    <button onClick={guardarCambios} disabled={saving} style={btnGreen}>
+                      {saving ? <Loader2 size={15} className="spin" /> : <Save size={15} />} Guardar cambios
+                    </button>
+                    <button onClick={abrirGuardar} disabled={saving} style={btnGhost}><Plus size={15} /> Guardar como nuevo</button>
+                  </>
+                ) : (
+                  <button onClick={abrirGuardar} disabled={saving} style={btnGreen}><Save size={15} /> Guardar</button>
+                )}
                 <button onClick={generarInforme} style={btnDark}><FileText size={15} /> Generar informe</button>
                 <button onClick={exportar} style={btnGhost}><Download size={15} /> Excel</button>
               </>
@@ -370,6 +431,12 @@ export default function AnalisisInventario() {
           {error && (
             <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8, fontWeight: 700, fontSize: 13, border: "1px solid #f3c7c7", background: "#fdf0f0", color: "#b42318", display: "flex", gap: 8, alignItems: "center" }}>
               <AlertTriangle size={16} /> {error}
+            </div>
+          )}
+
+          {okMsg && !error && (
+            <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8, fontWeight: 700, fontSize: 13, border: "1px solid #bfe3c9", background: "#eefaf1", color: "#1f7a3d", display: "flex", gap: 8, alignItems: "center" }}>
+              <Save size={16} /> {okMsg}
             </div>
           )}
 
