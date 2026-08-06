@@ -41,22 +41,6 @@ const esc = (s) =>
 
 const num = (v) => Number(v || 0); // valor crudo para Excel
 
-async function logoDataUrl() {
-  try {
-    const resp = await fetch("/inova-azul.png");
-    if (!resp.ok) return "";
-    const blob = await resp.blob();
-    return await new Promise((res) => {
-      const fr = new FileReader();
-      fr.onload = () => res(fr.result);
-      fr.onerror = () => res("");
-      fr.readAsDataURL(blob);
-    });
-  } catch {
-    return "";
-  }
-}
-
 export async function exportarAnalisisExcel({ rows = [], fileName = "" }) {
   const data = rows.map((r) => ({ ...r, diferencia: calcDif(r) }));
   const gFalt = data.filter((r) => r.diferencia < 0).length;
@@ -74,7 +58,6 @@ export async function exportarAnalisisExcel({ rows = [], fileName = "" }) {
   const ahora = new Date();
   const hoy = ahora.toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" });
   const hora = ahora.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
-  const logo = await logoDataUrl();
 
   const cellBase = `border:1px solid ${C.border};padding:5px 8px;font-size:11px;font-family:Segoe UI,Arial,sans-serif;`;
 
@@ -148,15 +131,17 @@ export async function exportarAnalisisExcel({ rows = [], fileName = "" }) {
     `<head><meta charset="utf-8"/>` +
     `<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>` +
     `<x:Name>Análisis SAP vs físico</x:Name>` +
-    `<x:WorksheetOptions><x:DisplayGridlines>False</x:DisplayGridlines></x:WorksheetOptions>` +
+    `<x:WorksheetOptions><x:DoNotDisplayGridlines/></x:WorksheetOptions>` +
     `</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->` +
     `</head><body>` +
     `<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;">` +
     `<colgroup><col style="width:120px"/><col style="width:340px"/><col style="width:110px"/><col style="width:110px"/><col style="width:120px"/><col style="width:260px"/></colgroup>` +
     // Encabezado con logo
     `<tr>` +
-    `<td colspan="3" style="padding:4px 2px 10px;border-bottom:3px solid ${C.navy};">` +
-    (logo ? `<img src="${logo}" width="150" height="46"/>` : `<span style="font-weight:900;color:${C.navy};font-size:20px;">INOVA</span>`) +
+    `<td colspan="3" style="padding:6px 2px 10px;border-bottom:3px solid ${C.navy};">` +
+    `<span style="font-size:24px;font-weight:900;color:${C.navy};">&#9673; INOVA</span>` +
+    `<span style="font-size:11px;font-weight:800;color:${C.blue};"> &nbsp; SISTEMA WMS</span>` +
+    `<br/><span style="font-size:10px;font-weight:700;color:${C.muted};">Gestión de inventarios</span>` +
     `</td>` +
     `<td colspan="3" style="padding:4px 2px 10px;border-bottom:3px solid ${C.navy};text-align:right;font-size:11px;color:#64748b;">` +
     `<b style="color:${C.navy};">Informe de análisis de inventario</b><br/>${hoy} &#183; ${hora}` +
