@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMovimientosLayoutStock, getPncBloqueado } from "../api";
-import { AlertTriangle, Clock, ArrowLeft, RefreshCw, ShieldAlert } from "lucide-react";
+import { AlertTriangle, Clock, ArrowLeft, RefreshCw, ShieldAlert, Copy, Check } from "lucide-react";
 
 const colors = {
   navy: "#0a1f52",
@@ -37,6 +37,7 @@ export default function ConsultaVencimientos() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [dias, setDias] = useState(60); // umbral por defecto
+  const [copiado, setCopiado] = useState("");
 
   const cargar = async () => {
     setLoading(true);
@@ -115,10 +116,60 @@ export default function ConsultaVencimientos() {
     return { txt: `${d} días`, bg: "#eef4ff", color: colors.blue };
   };
 
+  const copiarTabla = async (rows, titulo) => {
+    const headers = ["Código", "Descripción", "Ubicación", "Lote", "Vencimiento", "Días", "Cantidad"];
+    const lineas = [headers.join("\t")];
+    rows.forEach((r) => {
+      lineas.push(
+        [r.codigo, r.descripcion, r.ubicacion, r.lote || "-", fmtDMY(r.fv), r.dias, r.cantidad]
+          .map((x) => String(x ?? "").replace(/\t/g, " ").replace(/\r?\n/g, " "))
+          .join("\t")
+      );
+    });
+    const texto = lineas.join("\n");
+    try {
+      await navigator.clipboard.writeText(texto);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = texto;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); } catch { /* noop */ }
+      ta.remove();
+    }
+    setCopiado(titulo);
+    setTimeout(() => setCopiado(""), 1800);
+  };
+
   const tabla = (rows, titulo, icon, tone) => (
     <div style={{ background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 14, overflow: "hidden", marginBottom: 18 }}>
       <div style={{ background: tone, color: "#fff", padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, fontWeight: 800 }}>
         {icon} {titulo} <span style={{ opacity: 0.85 }}>({rows.length})</span>
+        <button
+          type="button"
+          onClick={() => copiarTabla(rows, titulo)}
+          disabled={rows.length === 0}
+          title="Copiar toda la tabla (para pegar en Excel)"
+          style={{
+            marginLeft: "auto",
+            height: 32,
+            padding: "0 12px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,.5)",
+            background: copiado === titulo ? "#157347" : "rgba(255,255,255,.15)",
+            color: "#fff",
+            fontWeight: 800,
+            fontSize: 12.5,
+            cursor: rows.length === 0 ? "not-allowed" : "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            opacity: rows.length === 0 ? 0.5 : 1,
+          }}
+        >
+          {copiado === titulo ? <Check size={14} /> : <Copy size={14} />}
+          {copiado === titulo ? "Copiado" : "Copiar"}
+        </button>
       </div>
       <div style={{ maxHeight: 420, overflow: "auto" }}>
         <table className="table-tools-skip" style={{ width: "100%", borderCollapse: "collapse" }}>
