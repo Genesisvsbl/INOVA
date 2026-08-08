@@ -142,9 +142,11 @@ export default function ConsultaVencimientos() {
   };
 
   const tabla = (rows, titulo, icon, tone) => (
-    <div style={{ background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 14, overflow: "hidden", marginBottom: 18 }}>
-      <div style={{ background: tone, color: "#fff", padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, fontWeight: 800 }}>
-        {icon} {titulo} <span style={{ opacity: 0.85 }}>({rows.length})</span>
+    <div style={{ marginBottom: 22 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+        <span style={{ color: colors.navy, display: "inline-flex" }}>{icon}</span>
+        <span style={{ fontSize: 16, fontWeight: 800, color: colors.navy }}>{titulo}</span>
+        <span style={{ fontSize: 12, fontWeight: 800, color: colors.muted, background: "#eef2f7", padding: "1px 9px", borderRadius: 20 }}>{rows.length}</span>
         <button
           type="button"
           onClick={() => copiarTabla(rows, titulo)}
@@ -153,11 +155,11 @@ export default function ConsultaVencimientos() {
           style={{
             marginLeft: "auto",
             height: 32,
-            padding: "0 12px",
+            padding: "0 14px",
             borderRadius: 8,
-            border: "1px solid rgba(255,255,255,.5)",
-            background: copiado === titulo ? "#157347" : "rgba(255,255,255,.15)",
-            color: "#fff",
+            border: `1px solid ${copiado === titulo ? colors.good : colors.border}`,
+            background: copiado === titulo ? colors.good : "#fff",
+            color: copiado === titulo ? "#fff" : colors.navy,
             fontWeight: 800,
             fontSize: 12.5,
             cursor: rows.length === 0 ? "not-allowed" : "pointer",
@@ -168,41 +170,52 @@ export default function ConsultaVencimientos() {
           }}
         >
           {copiado === titulo ? <Check size={14} /> : <Copy size={14} />}
-          {copiado === titulo ? "Copiado" : "Copiar"}
+          {copiado === titulo ? "Copiado" : "Copiar tabla"}
         </button>
       </div>
-      <div style={{ maxHeight: 420, overflow: "auto" }}>
-        <table className="table-tools-skip" style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              {["Código", "Descripción", "Ubicación", "Lote", "Vencimiento", "Días", "Cantidad"].map((h) => (
-                <th key={h} style={th}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr><td style={{ ...td, color: colors.muted }} colSpan={7}>Sin registros.</td></tr>
-            ) : (
-              rows.map((r, i) => {
-                const e = filaEstado(r.dias);
-                return (
-                  <tr key={i}>
-                    <td style={{ ...td, fontWeight: 800, color: colors.blue }}>{r.codigo}</td>
-                    <td style={td}>{r.descripcion}</td>
-                    <td style={{ ...td, fontWeight: 700, color: colors.navy }}>{r.ubicacion}</td>
-                    <td style={td}>{r.lote || "-"}</td>
-                    <td style={{ ...td, textAlign: "center" }}>{fmtDMY(r.fv)}</td>
-                    <td style={{ ...td, textAlign: "center" }}>
-                      <span style={{ background: e.bg, color: e.color, fontWeight: 800, padding: "2px 8px", borderRadius: 6, whiteSpace: "nowrap" }}>{e.txt}</span>
-                    </td>
-                    <td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{nf(r.cantidad)}</td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+
+      <div style={{ maxHeight: 460, overflow: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
+        {rows.length === 0 ? (
+          <div style={{ background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 10, padding: "16px", color: colors.muted, fontSize: 13 }}>
+            Sin registros.
+          </div>
+        ) : (
+          rows.map((r, i) => {
+            const e = filaEstado(r.dias);
+            return (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  background: "#fff",
+                  border: `1px solid ${colors.border}`,
+                  borderLeft: `3px solid ${e.color}`,
+                  padding: "11px 16px",
+                }}
+              >
+                <div style={{ flex: "0 0 70px", fontFamily: "monospace", fontSize: 13, fontWeight: 700, color: colors.blue }}>
+                  {r.codigo}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, color: colors.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {r.descripcion}
+                  </div>
+                  <div style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
+                    {r.ubicacion} · lote {r.lote || "-"} · vence {fmtDMY(r.fv)}
+                  </div>
+                </div>
+                <div style={{ background: e.bg, color: e.color, fontWeight: 800, fontSize: 12, padding: "3px 12px", borderRadius: 20, whiteSpace: "nowrap" }}>
+                  {e.txt}
+                </div>
+                <div style={{ flex: "0 0 70px", textAlign: "right", fontFamily: "monospace", fontSize: 15, fontWeight: 700, color: colors.text }}>
+                  {nf(r.cantidad)}
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
