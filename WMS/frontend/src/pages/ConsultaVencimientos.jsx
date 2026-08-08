@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMovimientosLayoutStock, getPncBloqueado } from "../api";
 import { AlertTriangle, Clock, ArrowLeft, RefreshCw, ShieldAlert, Copy, Check } from "lucide-react";
@@ -116,49 +116,75 @@ export default function ConsultaVencimientos() {
     return { txt: `${d} días`, bg: "#eef4ff", color: colors.blue };
   };
 
+  const secRefs = useRef({});
+
+  // Copia la IMAGEN de la tabla al portapapeles (para pegarla como foto en
+  // WhatsApp, correo, etc.). Si el navegador no permite copiar imagen, la
+  // descarga como PNG.
   const copiarTabla = async (rows, titulo) => {
-    const headers = ["Código", "Descripción", "Ubicación", "Lote", "Vencimiento", "Días", "Cantidad"];
-    const lineas = [headers.join("\t")];
-    rows.forEach((r) => {
-      lineas.push(
-        [r.codigo, r.descripcion, r.ubicacion, r.lote || "-", fmtDMY(r.fv), r.dias, r.cantidad]
-          .map((x) => String(x ?? "").replace(/\t/g, " ").replace(/\r?\n/g, " "))
-          .join("\t")
-      );
-    });
-    const texto = lineas.join("\n");
+    const el = secRefs.current[titulo];
+    if (!el) return;
+    const scroller = el.querySelector("[data-scroller]");
+    const prev = scroller ? { m: scroller.style.maxHeight, o: scroller.style.overflow } : null;
+    if (scroller) { scroller.style.maxHeight = "none"; scroller.style.overflow = "visible"; }
     try {
-      await navigator.clipboard.writeText(texto);
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = texto;
-      document.body.appendChild(ta);
-      ta.select();
-      try { document.execCommand("copy"); } catch { /* noop */ }
-      ta.remove();
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(el, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        ignoreElements: (node) => node?.getAttribute?.("data-copy-btn") === "1",
+      });
+      await new Promise((res) =>
+        canvas.toBlob(async (blob) => {
+          if (!blob) return res();
+          try {
+            await navigator.clipboard.write([new window.ClipboardItem({ "image/png": blob })]);
+          } catch {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${titulo}.png`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+          }
+          res();
+        }, "image/png")
+      );
+      setCopiado(titulo);
+      setTimeout(() => setCopiado(""), 1800);
+    } catch (e) {
+      showErr(e);
+    } finally {
+      if (scroller && prev) { scroller.style.maxHeight = prev.m; scroller.style.overflow = prev.o; }
     }
-    setCopiado(titulo);
-    setTimeout(() => setCopiado(""), 1800);
+  };
+
+  const showErr = (e) => {
+    setErr("No se pudo copiar la imagen: " + (e?.message || e));
+    setTimeout(() => setErr(""), 2500);
   };
 
   const tabla = (rows, titulo, icon, tone) => (
-    <div style={{ marginBottom: 22 }}>
+    <div style={{ marginBottom: 22 }} ref={(el) => { secRefs.current[titulo] = el; }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
         <span style={{ color: colors.navy, display: "inline-flex" }}>{icon}</span>
         <span style={{ fontSize: 16, fontWeight: 800, color: colors.navy }}>{titulo}</span>
         <span style={{ fontSize: 12, fontWeight: 800, color: colors.muted, background: "#eef2f7", padding: "1px 9px", borderRadius: 20 }}>{rows.length}</span>
         <button
           type="button"
+          data-copy-btn="1"
           onClick={() => copiarTabla(rows, titulo)}
           disabled={rows.length === 0}
-          title="Copiar toda la tabla (para pegar en Excel)"
+          title="Copiar la tabla como imagen (para pegar en WhatsApp, correo, etc.)"
           style={{
             marginLeft: "auto",
-            height: 32,
-            padding: "0 14px",
-            borderRadius: 8,
-            border: `1px solid ${copiado === titulo ? colors.good : colors.border}`,
-            background: copiado === titulo ? colors.good : "#fff",
+            height: 34,
+            padding: "0 16px",
+            borderRadius: 9,
+            border: copiado === titulo ? "1px solid #0f9d58" : `1px solid ${colors.border}`,
+            background: copiado === titulo ? "linear-gradient(135deg,#22c55e,#12a150)" : "#fff",
             color: copiado === titulo ? "#fff" : colors.navy,
             fontWeight: 800,
             fontSize: 12.5,
@@ -166,15 +192,16 @@ export default function ConsultaVencimientos() {
             display: "inline-flex",
             alignItems: "center",
             gap: 6,
+            boxShadow: copiado === titulo ? "0 6px 16px rgba(18,161,80,.3)" : "none",
             opacity: rows.length === 0 ? 0.5 : 1,
           }}
         >
           {copiado === titulo ? <Check size={14} /> : <Copy size={14} />}
-          {copiado === titulo ? "Copiado" : "Copiar tabla"}
+          {copiado === titulo ? "Copiado" : "Copiar imagen"}
         </button>
       </div>
 
-      <div style={{ maxHeight: 460, overflow: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
+      <div data-scroller style={{ maxHeight: 460, overflow: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
         {rows.length === 0 ? (
           <div style={{ background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 10, padding: "16px", color: colors.muted, fontSize: 13 }}>
             Sin registros.
