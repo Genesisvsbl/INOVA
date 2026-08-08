@@ -1459,8 +1459,26 @@ export default function EnTransito() {
             </div>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-              <StatusChip label={`Pendientes: ${filtered.length}`} tone="amber" />
-              <StatusChip label={`Cantidad total: ${fmtNumberCO(totalQty)}`} tone="blue" />
+              {[
+                { k: "Lotes", v: fmtNumberCO(groupedView.length), c: colors.navy },
+                { k: "Unidades", v: fmtNumberCO(totalQty), c: colors.blue },
+              ].map((s) => (
+                <div
+                  key={s.k}
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: 6,
+                    padding: "6px 12px",
+                    borderRadius: 999,
+                    border: `1px solid ${colors.border}`,
+                    background: "#fff",
+                  }}
+                >
+                  <span style={{ fontSize: 11, fontWeight: 700, color: colors.muted, textTransform: "uppercase", letterSpacing: ".03em" }}>{s.k}</span>
+                  <span style={{ fontSize: 14, fontWeight: 900, color: s.c }}>{s.v}</span>
+                </div>
+              ))}
             </div>
 
             <button onClick={onExportExcel} disabled={exportandoExcel} style={secondaryButtonStyle}>
