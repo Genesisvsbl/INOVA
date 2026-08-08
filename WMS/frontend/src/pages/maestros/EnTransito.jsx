@@ -448,14 +448,22 @@ const tdStyle = {
 // Filtro desplegable con checkboxes (multi-selección). Vacío = todas.
 function MultiCheckFamilia({ options, selected, onChange, allLabel = "TODAS" }) {
   const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState(null);
+  const btnRef = useRef(null);
   const selSet = new Set(selected);
   const toggle = (val) => onChange(selSet.has(val) ? selected.filter((v) => v !== val) : [...selected, val]);
   const resumen = selected.length === 0 ? allLabel : selected.length === 1 ? selected[0] : `${selected.length} familias`;
+  const abrir = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) setRect({ top: r.bottom + 4, left: r.left, width: r.width });
+    setOpen((o) => !o);
+  };
   return (
     <div style={{ position: "relative" }}>
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={abrir}
         style={{
           height: 38, minWidth: 190, width: "100%", padding: "0 10px", borderRadius: 8,
           border: `1px solid ${selected.length ? colors.blue : colors.border}`, background: "#fff",
@@ -466,10 +474,10 @@ function MultiCheckFamilia({ options, selected, onChange, allLabel = "TODAS" }) 
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{resumen}</span>
         <span style={{ color: colors.muted, fontSize: 11 }}>{open ? "▲" : "▼"}</span>
       </button>
-      {open && (
+      {open && rect && (
         <>
-          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 60 }} />
-          <div style={{ position: "absolute", zIndex: 61, top: "calc(100% + 4px)", left: 0, minWidth: 220, maxHeight: 320, overflowY: "auto", background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 10, boxShadow: "0 12px 34px rgba(15,23,42,.18)", padding: 8 }}>
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 3000 }} />
+          <div style={{ position: "fixed", zIndex: 3001, top: rect.top, left: rect.left, minWidth: Math.max(rect.width, 220), maxHeight: 320, overflowY: "auto", background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 10, boxShadow: "0 12px 34px rgba(15,23,42,.18)", padding: 8 }}>
             <div style={{ display: "flex", justifyContent: "space-between", padding: "0 2px 6px" }}>
               <button type="button" onClick={() => onChange(options.slice())} style={{ border: "none", background: "transparent", color: colors.blue, fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Todas</button>
               <button type="button" onClick={() => onChange([])} style={{ border: "none", background: "transparent", color: colors.blue, fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Limpiar</button>
