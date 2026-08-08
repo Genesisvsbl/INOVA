@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { showWmsAlert, showWmsConfirm, showWmsPrompt } from "../../wmsDialog.jsx";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import {
@@ -458,6 +458,7 @@ export default function EnTransito() {
   const [ubicPorId, setUbicPorId] = useState({});
   const [validacionPorId, setValidacionPorId] = useState({});
   const [cantPorId, setCantPorId] = useState({}); // cantidad a ubicar por grupo
+  const [familiaFiltro, setFamiliaFiltro] = useState("TODAS");
 
   // Toolbox de ubicaciones vacías (sugerencia estratégica al ubicar).
   const [tbRow, setTbRow] = useState(null); // material que se está ubicando
@@ -622,6 +623,29 @@ export default function EnTransito() {
     });
     return Array.from(map.values());
   }, [filtered]);
+
+  const familiasDisponibles = useMemo(() => {
+    const set = new Set(grouped.map((g) => String(g.familia || "").trim()).filter(Boolean));
+    return ["TODAS", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+  }, [grouped]);
+
+  // Vista final: filtrada por familia y ordenada por familia -> material -> lote,
+  // para poder mostrar un encabezado de sección por cada familia.
+  const groupedView = useMemo(() => {
+    const base =
+      familiaFiltro === "TODAS"
+        ? grouped
+        : grouped.filter((g) => String(g.familia || "").trim() === familiaFiltro);
+    return base.slice().sort((a, b) => {
+      const fa = String(a.familia || "~").toLowerCase();
+      const fb = String(b.familia || "~").toLowerCase();
+      if (fa !== fb) return fa.localeCompare(fb);
+      const ma = String(a.codigo_material || "");
+      const mb = String(b.codigo_material || "");
+      if (ma !== mb) return ma.localeCompare(mb);
+      return String(a.lote_almacen || "").localeCompare(String(b.lote_almacen || ""));
+    });
+  }, [grouped, familiaFiltro]);
 
   const totalQty = useMemo(() => {
     return filtered.reduce((acc, r) => acc + Number(r.cantidad || 0), 0);
@@ -1316,7 +1340,7 @@ export default function EnTransito() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(320px, 1fr) auto auto auto",
+              gridTemplateColumns: "minmax(280px, 1fr) auto auto auto auto",
               gap: 10,
               alignItems: "end",
             }}
@@ -1351,6 +1375,29 @@ export default function EnTransito() {
                   }}
                 />
               </div>
+            </div>
+
+            <div>
+              <div style={fieldLabelStyle}>Familia</div>
+              <select
+                value={familiaFiltro}
+                onChange={(e) => setFamiliaFiltro(e.target.value)}
+                style={{
+                  height: 38,
+                  minWidth: 160,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 8,
+                  background: "#fff",
+                  color: colors.text,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  padding: "0 10px",
+                }}
+              >
+                {familiasDisponibles.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
             </div>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -1425,12 +1472,40 @@ export default function EnTransito() {
                 </tr>
               )}
 
-              {grouped.map((r) => {
+              {groupedView.map((r, idx) => {
                 const estadoValidacion = validacionPorId[r.id] || "empty";
                 const cantAUbicar = cantPorId[r.id] ?? r.cantidad;
+                const famActual = String(r.familia || "").trim() || "(sin familia)";
+                const famAnterior = idx > 0 ? (String(groupedView[idx - 1].familia || "").trim() || "(sin familia)") : null;
+                const nuevaFamilia = famActual !== famAnterior;
+                const famRows = groupedView.filter((g) => (String(g.familia || "").trim() || "(sin familia)") === famActual);
+                const famTotal = famRows.reduce((acc, g) => acc + Number(g.cantidad || 0), 0);
 
                 return (
-                  <tr key={r.id}>
+                  <Fragment key={r.id}>
+                    {nuevaFamilia && (
+                      <tr>
+                        <td
+                          colSpan={18}
+                          style={{
+                            background: "#eef2fb",
+                            borderTop: `2px solid ${colors.navy}`,
+                            borderBottom: `1px solid ${colors.border}`,
+                            padding: "7px 12px",
+                            fontWeight: 900,
+                            color: colors.navy,
+                            fontSize: 13.5,
+                            letterSpacing: ".02em",
+                          }}
+                        >
+                          {famActual}
+                          <span style={{ fontWeight: 700, color: colors.muted, fontSize: 11.5, marginLeft: 10 }}>
+                            {famRows.length} lote(s) · {fmtNumberCO(famTotal)} un.
+                          </span>
+                        </td>
+                      </tr>
+                    )}
+                  <tr>
                     <td style={{ ...tdStyle, fontSize: 13 }}>{fmtDateTime(r.fecha)}</td>
                     <td style={{ ...tdStyle, padding: "5px 2px", whiteSpace: "nowrap" }}>
                       <StatusChip label="EN TRÁNSITO" tone="amber" />
@@ -1637,6 +1712,7 @@ export default function EnTransito() {
                       </div>
                     </td>
                   </tr>
+                  </Fragment>
                 );
               })}
             </tbody>
