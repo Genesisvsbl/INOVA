@@ -811,18 +811,30 @@ export async function corregirTrazabilidadPorSerial(serial, correcciones) {
   const [movs, rots] = await Promise.all([
     selectRows("wms", "movimientos", {
       empresa_id: `eq.${empresaId}`,
-      codigo_cita: `like.${s}-*`,
+      codigo_cita: `eq.${s}`,
       select: "id,codigo_cita",
     }),
+    // Trae TODOS los rótulos del recibo (por serial o por su impresión serial-XX),
+    // para poder actualizarlos y limpiar duplicados de guardados anteriores.
     selectRows("wms", "rotulos", {
       empresa_id: `eq.${empresaId}`,
-      codigo_cita: `eq.${s}`,
-      select: "id,impresion",
+      or: `(codigo_cita.eq.${s},impresion.like.${s}-*)`,
+      select: "id,impresion,codigo_cita",
     }),
   ]);
 
+  // Agrupa rótulos por impresión (debería haber 1 por línea; si hay más son
+  // duplicados de guardados previos y se eliminan).
+  const rotsPorImpresion = new Map();
+  (rots || []).forEach((rt) => {
+    const key = String(rt.impresion || "");
+    if (!rotsPorImpresion.has(key)) rotsPorImpresion.set(key, []);
+    rotsPorImpresion.get(key).push(rt);
+  });
+
   let movActualizados = 0;
   let rotActualizados = 0;
+  let rotDuplicadosEliminados = 0;
 
   for (const c of correcciones || []) {
     const la = buildLoteAlmacen15(c.lote_proveedor, c.fecha_vencimiento);
@@ -832,17 +844,34 @@ export async function corregirTrazabilidadPorSerial(serial, correcciones) {
       fecha_vencimiento: c.fecha_vencimiento || null,
       ...(la ? { lote_almacen: la } : {}),
     };
-    for (const mv of (movs || []).filter((m) => m.codigo_cita === c.codigo_cita)) {
+    // Movimientos: el serial guardado en codigo_cita es el del recibo (sin -XX).
+    for (const mv of (movs || []).filter((m) => String(m.codigo_cita) === s)) {
       await updateById("wms", "movimientos", mv.id, campos);
       movActualizados += 1;
     }
-    for (const rt of (rots || []).filter((r) => r.impresion === c.codigo_cita)) {
-      await updateById("wms", "rotulos", rt.id, campos);
-      rotActualizados += 1;
+    // Rótulos de esta impresión: actualiza el primero, borra los duplicados.
+    const grupo = rotsPorImpresion.get(String(c.codigo_cita)) || [];
+    for (let i = 0; i < grupo.length; i++) {
+      if (i === 0) {
+        await updateById("wms", "rotulos", grupo[0].id, campos);
+        rotActualizados += 1;
+      } else {
+        await deleteById("wms", "rotulos", grupo[i].id);
+        rotDuplicadosEliminados += 1;
+      }
+    }
+    rotsPorImpresion.delete(String(c.codigo_cita));
+  }
+
+  // Limpia cualquier duplicado restante de impresiones no corregidas.
+  for (const grupo of rotsPorImpresion.values()) {
+    for (let i = 1; i < grupo.length; i++) {
+      await deleteById("wms", "rotulos", grupo[i].id);
+      rotDuplicadosEliminados += 1;
     }
   }
 
-  return { movActualizados, rotActualizados };
+  return { movActualizados, rotActualizados, rotDuplicadosEliminados };
 }
 
 export function getMovimientosLayoutStock() {
