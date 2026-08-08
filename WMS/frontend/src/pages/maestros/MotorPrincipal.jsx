@@ -6,6 +6,7 @@ import {
   WMS_DATA_GROUPS,
 } from "../../api";
 import { verificarClaveUsuarioActual } from "../../adminApi";
+import { exportarMotorExcel } from "./motorExcel";
 import {
   Cpu,
   Search,
@@ -436,6 +437,7 @@ export default function MotorPrincipal() {
   const [zona, setZona] = useState("TODAS");
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
+  const [exportandoExcel, setExportandoExcel] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -731,20 +733,20 @@ export default function MotorPrincipal() {
     return { total, entradas, salidas, sumEntradas, sumSalidasAbs, enTransito, totalStock };
   }, [filtered, stockRows]);
 
-  const onExport = () => {
-    const stamp = new Date();
-    const yyyy = stamp.getFullYear();
-    const mm = String(stamp.getMonth() + 1).padStart(2, "0");
-    const dd = String(stamp.getDate()).padStart(2, "0");
-
-    if (tipo === "STOCK") {
-      const csv = toCSVStock(stockRows);
-      downloadText(`motor_principal_stock_${yyyy}-${mm}-${dd}.csv`, csv);
-      return;
+  const onExport = async () => {
+    if (exportandoExcel) return;
+    setExportandoExcel(true);
+    try {
+      if (tipo === "STOCK") {
+        await exportarMotorExcel({ rows: stockRows, modo: "STOCK" });
+      } else {
+        await exportarMotorExcel({ rows: filtered, modo: "MOV" });
+      }
+    } catch (e) {
+      setErr("No se pudo exportar el Excel: " + (e?.message || e));
+    } finally {
+      setExportandoExcel(false);
     }
-
-    const csv = toCSV(filtered);
-    downloadText(`motor_principal_${yyyy}-${mm}-${dd}.csv`, csv);
   };
 
   const resetFilters = () => {
@@ -1058,9 +1060,9 @@ export default function MotorPrincipal() {
                 <FilterX size={15} />
                 Limpiar
               </button>
-              <button onClick={onExport} style={primaryButtonStyle} title="Exportar CSV">
+              <button onClick={onExport} disabled={exportandoExcel} style={primaryButtonStyle} title="Exportar a Excel">
                 <Download size={15} />
-                Exportar
+                {exportandoExcel ? "Generando…" : "Exportar"}
               </button>
             </div>
           </div>
