@@ -178,11 +178,11 @@ function buildRotuloUbicacionHtml({ logo, codigo, descripcion, lote, vencimiento
     `.top{display:flex;justify-content:space-between;align-items:flex-start;gap:3mm}` +
     `.info{min-width:0;flex:1}` +
     `.cod{font-size:15px;font-weight:900;color:#000;line-height:1.02}` +
-    `.desc{font-size:8px;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}` +
-    `.meta{font-size:8.5px;color:#0f172a;margin-top:.3mm}` +
-    `.meta b{color:#0f172a}` +
+    `.desc{font-size:8.5px;font-weight:800;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}` +
+    `.meta{font-size:9px;font-weight:800;color:#000;margin-top:.3mm}` +
+    `.meta b{color:#000;font-weight:900}` +
     `.qtybox{text-align:right;flex-shrink:0}` +
-    `.lab{font-size:7px;color:#475569;text-transform:uppercase;letter-spacing:.5px}` +
+    `.lab{font-size:7.5px;font-weight:900;color:#000;text-transform:uppercase;letter-spacing:.5px}` +
     `.qty{font-size:32px;font-weight:900;color:#000;line-height:.95}` +
     `.ubwrap{text-align:center;margin-top:3mm}` +
     `.ub{font-size:31px;font-weight:900;color:#000;letter-spacing:2px;line-height:1}` +
@@ -2089,16 +2089,17 @@ export default function EnTransito() {
                             disabled={!tbSel || savingId === tbRow.id}
                             style={{
                               height: 40,
-                              padding: "0 18px",
-                              borderRadius: 8,
-                              border: "none",
-                              background: colors.good,
+                              padding: "0 20px",
+                              borderRadius: 10,
+                              border: "1px solid #0f9d58",
+                              background: "linear-gradient(135deg,#22c55e,#12a150)",
                               color: "#fff",
                               fontWeight: 800,
                               cursor: tbSel ? "pointer" : "not-allowed",
                               display: "inline-flex",
                               alignItems: "center",
                               gap: 6,
+                              boxShadow: "0 8px 18px rgba(18,161,80,.32)",
                               opacity: savingId === tbRow.id ? 0.7 : 1,
                             }}
                           >
