@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { showWmsAlert, showWmsConfirm, showWmsPrompt } from "../../wmsDialog.jsx";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import {
-  asignarUbicacionDesdeTransito,
+  ubicarCantidadTransito,
   getEnTransito,
   getUbicaciones,
   getUbicacionesVacias,
@@ -457,6 +457,7 @@ export default function EnTransito() {
   const [q, setQ] = useState("");
   const [ubicPorId, setUbicPorId] = useState({});
   const [validacionPorId, setValidacionPorId] = useState({});
+  const [cantPorId, setCantPorId] = useState({}); // cantidad a ubicar por grupo
 
   // Toolbox de ubicaciones vacías (sugerencia estratégica al ubicar).
   const [tbRow, setTbRow] = useState(null); // material que se está ubicando
@@ -593,6 +594,34 @@ export default function EnTransito() {
       return hay.includes(needle);
     });
   }, [rows, q]);
+
+  // Consolida las filas repetidas del MISMO lote en una sola (totaliza la
+  // cantidad). Guarda los ids de origen para poder ubicar por cantidad después.
+  const grouped = useMemo(() => {
+    const map = new Map();
+    filtered.forEach((r) => {
+      const key = [
+        r.codigo_material,
+        r.lote_almacen,
+        r.lote_proveedor,
+        r.fecha_vencimiento,
+        r.fecha_fabricacion,
+        r.um,
+        r.umb,
+        r.observacion,
+      ]
+        .map((x) => String(x ?? "").trim())
+        .join("¦");
+      if (!map.has(key)) {
+        map.set(key, { ...r, id: `g:${key}`, ids: [], cantidad: 0, count: 0 });
+      }
+      const g = map.get(key);
+      g.ids.push(r.id);
+      g.cantidad += Number(r.cantidad || 0);
+      g.count += 1;
+    });
+    return Array.from(map.values());
+  }, [filtered]);
 
   const totalQty = useMemo(() => {
     return filtered.reduce((acc, r) => acc + Number(r.cantidad || 0), 0);
@@ -1172,7 +1201,7 @@ export default function EnTransito() {
       lote: tbRow.lote_almacen || tbRow.lote_proveedor || "",
       vencimiento: tbRow.fecha_vencimiento || "",
       ubicacion: tbSel,
-      cantidad: tbRow.cantidad ?? tbRow.cantidad_r ?? "",
+      cantidad: cantPorId[tbRow.id] ?? tbRow.cantidad ?? tbRow.cantidad_r ?? "",
     });
     w.document.open();
     w.document.write(html);
@@ -1192,10 +1221,22 @@ export default function EnTransito() {
       showWmsAlert(`La ubicación "${ubicacion}" no existe en la lista válida.`);
       return;
     }
+    const disponible = Number(tbRow.cantidad || 0);
+    const cantidad = Math.min(Number(cantPorId[tbRow.id] ?? disponible) || 0, disponible);
+    if (cantidad <= 0) {
+      showWmsAlert("Indica una cantidad válida a ubicar (mayor que 0).");
+      return;
+    }
     setSavingId(tbRow.id);
     try {
-      await asignarUbicacionDesdeTransito(tbRow.id, ubicacion);
-      showWmsAlert(`Ubicación ${ubicacion} asignada al material ${tbRow.codigo_material}`);
+      const ids = tbRow.ids || [tbRow.id];
+      const res = await ubicarCantidadTransito(ids, cantidad, ubicacion);
+      const restante = res?.restante ?? 0;
+      showWmsAlert(
+        `Ubicadas ${fmtNumberCO(res?.asignado ?? cantidad)} un. de ${tbRow.codigo_material} en ${ubicacion}.` +
+          (restante > 0 ? `\nQuedan ${fmtNumberCO(restante)} un. en tránsito de este lote.` : "")
+      );
+      setCantPorId((prev) => ({ ...prev, [tbRow.id]: undefined }));
       cerrarToolbox();
       await cargarTodo();
     } catch (e) {
@@ -1222,12 +1263,24 @@ export default function EnTransito() {
       return;
     }
 
+    const disponible = Number(row.cantidad || 0);
+    const cantidad = Math.min(Number(cantPorId[row.id] ?? disponible) || 0, disponible);
+    if (cantidad <= 0) {
+      showWmsAlert("Indica una cantidad válida a ubicar (mayor que 0).");
+      return;
+    }
+
     setSavingId(row.id);
 
     try {
-      await asignarUbicacionDesdeTransito(row.id, ubicacion);
-
-      showWmsAlert(`Ubicación ${ubicacion} asignada al material ${row.codigo_material}`);
+      const ids = row.ids || [row.id];
+      const res = await ubicarCantidadTransito(ids, cantidad, ubicacion);
+      const restante = res?.restante ?? 0;
+      showWmsAlert(
+        `Ubicadas ${fmtNumberCO(res?.asignado ?? cantidad)} un. de ${row.codigo_material} en ${ubicacion}.` +
+          (restante > 0 ? `\nQuedan ${fmtNumberCO(restante)} un. en tránsito de este lote.` : "")
+      );
+      setCantPorId((prev) => ({ ...prev, [row.id]: undefined }));
       await cargarTodo();
     } catch (e) {
       showWmsAlert("Error asignando ubicación:\n" + (e?.message || e));
@@ -1372,8 +1425,9 @@ export default function EnTransito() {
                 </tr>
               )}
 
-              {filtered.map((r) => {
+              {grouped.map((r) => {
                 const estadoValidacion = validacionPorId[r.id] || "empty";
+                const cantAUbicar = cantPorId[r.id] ?? r.cantidad;
 
                 return (
                   <tr key={r.id}>
@@ -1417,9 +1471,27 @@ export default function EnTransito() {
                       }}
                     >
                       {fmtNumberCO(r.cantidad)}
+                      {r.count > 1 && (
+                        <div style={{ fontSize: 10, fontWeight: 700, color: colors.muted }}>
+                          {r.count} registros
+                        </div>
+                      )}
                     </td>
 
                     <td style={{ ...tdStyle, padding: "5px 3px" }}>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={cantAUbicar === "" ? "" : fmtNumberCO(cantAUbicar)}
+                        onChange={(e) => {
+                          const digits = e.target.value.replace(/[^\d]/g, "");
+                          const val = digits ? Math.min(parseInt(digits, 10), Number(r.cantidad || 0)) : "";
+                          setCantPorId((prev) => ({ ...prev, [r.id]: val }));
+                        }}
+                        title="Cantidad a ubicar (máx. el total del lote)"
+                        placeholder="Cant. a ubicar"
+                        style={{ ...inputStyle, width: "100%", height: 22, padding: "0 4px", fontSize: 10, marginBottom: 3, textAlign: "right", fontWeight: 800 }}
+                      />
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 20px 20px", gap: 3, alignItems: "center" }}>
                         <input
                           list="ubicacionesListEnTransito"

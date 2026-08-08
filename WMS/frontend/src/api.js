@@ -911,6 +911,63 @@ export function asignarUbicacionDesdeTransito(movimientoId, codigoUbicacion) {
   return Promise.reject(new Error("No se pudo actualizar el transito."));
 }
 
+// Ubica una CANTIDAD de un lote (que puede estar repartido en varias filas de
+// tránsito) en una ubicación. Consume filas completas y, si la última no
+// alcanza justo, DIVIDE el movimiento: la parte ubicada pasa a ALMACENADO y el
+// resto se queda EN_TRANSITO. Así se guarda totalizado por lote y se ubica por
+// cantidad.
+export async function ubicarCantidadTransito(movimientoIds, cantidad, codigoUbicacion) {
+  if (!supabaseEnabled) throw new Error("Servicio operativo no configurado.");
+  const ids = (movimientoIds || []).filter((x) => x !== null && x !== undefined);
+  if (!ids.length) throw new Error("No hay registros de tránsito para ubicar.");
+
+  let restante = Math.round(toNumber(cantidad));
+  if (restante <= 0) throw new Error("La cantidad a ubicar debe ser mayor que 0.");
+
+  const ubicacionId = await resolveUbicacionId(codigoUbicacion);
+
+  const raw = await selectRows("wms", "movimientos", {
+    id: `in.(${ids.join(",")})`,
+    estado: "eq.EN_TRANSITO",
+    select: "*",
+  });
+  const filas = (raw || []).slice().sort((a, b) => Number(a.id) - Number(b.id));
+  const total = filas.reduce((acc, f) => acc + toNumber(f.cantidad_r), 0);
+  if (restante > total) restante = total;
+
+  let asignado = 0;
+  for (const fila of filas) {
+    if (restante <= 0) break;
+    const qty = toNumber(fila.cantidad_r);
+    if (qty <= 0) continue;
+
+    if (qty <= restante) {
+      await updateById("wms", "movimientos", fila.id, {
+        ubicacion_id: ubicacionId,
+        estado: "ALMACENADO",
+      });
+      restante -= qty;
+      asignado += qty;
+    } else {
+      // División: baja la fila de tránsito y crea la parte ubicada.
+      const mueve = restante;
+      await updateById("wms", "movimientos", fila.id, { cantidad_r: qty - mueve });
+      const clon = { ...fila };
+      delete clon.id;
+      delete clon.material;
+      delete clon.ubicacion;
+      clon.cantidad_r = mueve;
+      clon.estado = "ALMACENADO";
+      clon.ubicacion_id = ubicacionId;
+      await insertRow("wms", "movimientos", clon);
+      asignado += mueve;
+      restante = 0;
+    }
+  }
+
+  return { asignado, restante: Math.max(total - asignado, 0) };
+}
+
 export function getStock(codigo) {
   const sku = normalizeText(codigo);
   if (!sku) return Promise.reject(new Error("Codigo de material obligatorio."));
