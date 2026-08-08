@@ -1135,7 +1135,7 @@ export default function EnTransito() {
             .sheet { width: 100%; padding: 0; }
             .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 2px solid #072B5A; padding-bottom: 10px; margin-bottom: 14px; }
             .header-left { display: flex; align-items: center; gap: 14px; }
-            .logo { width: 90px; height: auto; object-fit: contain; }
+            .logo { display: inline-block; width: 132px; height: 42px; background-color: #072B5A; -webkit-mask: url("${window.location.origin}/inova-azul.png") left center / contain no-repeat; mask: url("${window.location.origin}/inova-azul.png") left center / contain no-repeat; }
             .title { margin: 0; font-size: 22px; font-weight: 900; color: #072B5A; }
             .subtitle { margin-top: 4px; font-size: 12px; color: #64748B; }
             .meta { text-align: right; font-size: 12px; font-weight: 700; color: #0f172a; }
@@ -1154,7 +1154,7 @@ export default function EnTransito() {
           <div class="sheet">
             <div class="header">
               <div class="header-left">
-                <img src="${window.location.origin}/INOVA2026.png" alt="Logo" class="logo" onerror="this.style.display='none'" />
+                <span class="logo" role="img" aria-label="INOVA"></span>
                 <div>
                   <h1 class="title">SOPORTE DE MATERIALES EN TRÁNSITO</h1>
                   <div class="subtitle">Material pendiente por ubicación definitiva</div>
