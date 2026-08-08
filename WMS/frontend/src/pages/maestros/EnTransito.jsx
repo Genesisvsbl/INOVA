@@ -1774,32 +1774,47 @@ export default function EnTransito() {
             >
               <div
                 style={{
-                  background: "linear-gradient(135deg, #0b1630, #163b73 55%, #6d28d9)",
-                  color: "#fff",
-                  padding: "16px 18px",
+                  background: "#fff",
+                  color: colors.navy,
+                  padding: "16px 18px 12px",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
+                  borderBottom: `3px solid ${colors.navy}`,
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 42, height: 42, borderRadius: 11, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(0,0,0,.18)" }}>
-                    <img src="/inova-azul.png" alt="INOVA" style={{ height: 24, width: "auto" }} />
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 900, fontSize: 16.5, letterSpacing: ".01em" }}>Almacenar material</div>
-                    <div style={{ fontSize: 11.5, opacity: .85, display: "flex", alignItems: "center", gap: 5 }}>
-                      <MapPin size={12} /> Ubicación sugerida automáticamente
-                    </div>
+                  <span
+                    aria-label="INOVA"
+                    style={{
+                      display: "inline-block",
+                      width: 132,
+                      height: 40,
+                      backgroundColor: colors.navy,
+                      WebkitMask: "url(/inova-azul.png) left center / contain no-repeat",
+                      mask: "url(/inova-azul.png) left center / contain no-repeat",
+                    }}
+                  />
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".14em", color: colors.navy }}>
+                    SISTEMA WMS
+                    <small style={{ display: "block", color: colors.muted, fontWeight: 700, letterSpacing: ".08em" }}>
+                      Gestión de inventarios
+                    </small>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={cerrarToolbox}
-                  style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(255,255,255,.15)", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                >
-                  <X size={18} />
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontWeight: 900, fontSize: 15, color: colors.navy }}>Almacenar material</div>
+                    <div style={{ fontSize: 11, color: colors.muted, fontWeight: 700 }}>Ubicación sugerida</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={cerrarToolbox}
+                    style={{ width: 32, height: 32, borderRadius: 9, background: "#f1f5fa", border: "none", color: colors.navy, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
 
               <div style={{ padding: 18 }}>
