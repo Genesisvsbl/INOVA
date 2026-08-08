@@ -1163,7 +1163,7 @@ export default function EnTransito() {
   };
 
   // ---- Toolbox de ubicaciones vacías ----
-  const abrirToolbox = (row) => {
+  const abrirToolbox = async (row) => {
     setTbRow(row);
     setTbBase("");
     setTbZona("");
@@ -1172,7 +1172,20 @@ export default function EnTransito() {
     setTbPasillo("");
     setTbList([]);
     setTbSel("");
-    setTbBuscado(false);
+    // Al abrir, ya trae la ubicación SUGERIDA (primera vacía) para no hacerlo
+    // uno por uno, como en Recibo.
+    setTbBuscado(true);
+    setTbLoading(true);
+    try {
+      const list = await getUbicacionesVacias(null, null);
+      setTbList(list || []);
+      setTbSel(list && list.length ? normalizeUbicacion(list[0].ubicacion) : "");
+    } catch {
+      setTbList([]);
+      setTbSel("");
+    } finally {
+      setTbLoading(false);
+    }
   };
 
   const cerrarToolbox = () => {
@@ -1505,7 +1518,14 @@ export default function EnTransito() {
                         </td>
                       </tr>
                     )}
-                  <tr>
+                  <tr
+                    onClick={(e) => {
+                      if (e.target.closest("input,button,select,textarea,a")) return;
+                      abrirToolbox(r);
+                    }}
+                    style={{ cursor: "pointer" }}
+                    title="Clic en la línea para almacenar (abre el panel con la ubicación sugerida)"
+                  >
                     <td style={{ ...tdStyle, fontSize: 13 }}>{fmtDateTime(r.fecha)}</td>
                     <td style={{ ...tdStyle, padding: "5px 2px", whiteSpace: "nowrap" }}>
                       <StatusChip label="EN TRÁNSITO" tone="amber" />
@@ -1747,40 +1767,67 @@ export default function EnTransito() {
                 maxHeight: "90vh",
                 overflow: "auto",
                 background: "#fff",
-                borderRadius: 14,
-                boxShadow: "0 20px 60px rgba(0,0,0,.3)",
+                borderRadius: 16,
+                boxShadow: "0 24px 70px rgba(8,14,30,.4)",
+                border: "1px solid #e7ecf4",
               }}
             >
               <div
                 style={{
-                  background: "#0a1f52",
+                  background: "linear-gradient(135deg, #0b1630, #163b73 55%, #6d28d9)",
                   color: "#fff",
-                  padding: "14px 18px",
+                  padding: "16px 18px",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 800 }}>
-                  <MapPin size={18} /> Ubicaciones vacías (sugerencia)
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 11, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(0,0,0,.18)" }}>
+                    <img src="/inova-azul.png" alt="INOVA" style={{ height: 24, width: "auto" }} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 900, fontSize: 16.5, letterSpacing: ".01em" }}>Almacenar material</div>
+                    <div style={{ fontSize: 11.5, opacity: .85, display: "flex", alignItems: "center", gap: 5 }}>
+                      <MapPin size={12} /> Ubicación sugerida automáticamente
+                    </div>
+                  </div>
                 </div>
                 <button
                   type="button"
                   onClick={cerrarToolbox}
-                  style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer" }}
+                  style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(255,255,255,.15)", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
 
               <div style={{ padding: 18 }}>
-                <div style={{ fontSize: 13, color: colors.muted }}>Material</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: colors.navy }}>
-                  {tbRow.codigo_material} — {tbRow.descripcion_material}
-                </div>
-                <div style={{ fontSize: 12.5, color: colors.text, marginTop: 4 }}>
-                  Lote: <b>{tbRow.lote_almacen || tbRow.lote_proveedor || "-"}</b> &nbsp;·&nbsp; Vencimiento:{" "}
-                  <b>{(tbRow.fecha_vencimiento || "-").toString().slice(0, 10)}</b>
+                <div style={{ background: "#f7f9fd", border: "1px solid #e7ecf4", borderRadius: 12, padding: "12px 14px" }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 800, color: colors.muted, textTransform: "uppercase", letterSpacing: ".05em" }}>Material</div>
+                  <div style={{ fontSize: 15.5, fontWeight: 900, color: colors.navy, marginTop: 1 }}>
+                    {tbRow.codigo_material} — {tbRow.descripcion_material}
+                  </div>
+                  <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 8, fontSize: 12.5, color: colors.text }}>
+                    <span>Familia: <b>{tbRow.familia || "-"}</b></span>
+                    <span>Lote: <b>{tbRow.lote_almacen || tbRow.lote_proveedor || "-"}</b></span>
+                    <span>Vence: <b>{(tbRow.fecha_vencimiento || "-").toString().slice(0, 10)}</b></span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: colors.muted, textTransform: "uppercase" }}>Cantidad a ubicar</div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={fmtNumberCO(cantPorId[tbRow.id] ?? tbRow.cantidad)}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/[^\d]/g, "");
+                        const val = digits ? Math.min(parseInt(digits, 10), Number(tbRow.cantidad || 0)) : "";
+                        setCantPorId((prev) => ({ ...prev, [tbRow.id]: val }));
+                      }}
+                      style={{ ...tbInputStyle, width: 130, textAlign: "right", fontWeight: 800 }}
+                    />
+                    <span style={{ fontSize: 12, color: colors.muted }}>de {fmtNumberCO(tbRow.cantidad)} en el lote</span>
+                  </div>
                 </div>
 
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 14 }}>
