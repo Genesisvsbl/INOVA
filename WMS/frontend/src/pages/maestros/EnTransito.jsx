@@ -7,6 +7,7 @@ import {
   getUbicaciones,
   getUbicacionesVacias,
 } from "../../api";
+import { exportarTransitoExcel } from "./transitoExcel";
 import {
   Truck,
   Search,
@@ -444,6 +445,52 @@ const tdStyle = {
   fontSize: 13,
 };
 
+// Filtro desplegable con checkboxes (multi-selección). Vacío = todas.
+function MultiCheckFamilia({ options, selected, onChange, allLabel = "TODAS" }) {
+  const [open, setOpen] = useState(false);
+  const selSet = new Set(selected);
+  const toggle = (val) => onChange(selSet.has(val) ? selected.filter((v) => v !== val) : [...selected, val]);
+  const resumen = selected.length === 0 ? allLabel : selected.length === 1 ? selected[0] : `${selected.length} familias`;
+  return (
+    <div style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          height: 38, minWidth: 190, width: "100%", padding: "0 10px", borderRadius: 8,
+          border: `1px solid ${selected.length ? colors.blue : colors.border}`, background: "#fff",
+          color: colors.text, fontSize: 13, fontWeight: 700, cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+        }}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{resumen}</span>
+        <span style={{ color: colors.muted, fontSize: 11 }}>{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 60 }} />
+          <div style={{ position: "absolute", zIndex: 61, top: "calc(100% + 4px)", left: 0, minWidth: 220, maxHeight: 320, overflowY: "auto", background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 10, boxShadow: "0 12px 34px rgba(15,23,42,.18)", padding: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "0 2px 6px" }}>
+              <button type="button" onClick={() => onChange(options.slice())} style={{ border: "none", background: "transparent", color: colors.blue, fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Todas</button>
+              <button type="button" onClick={() => onChange([])} style={{ border: "none", background: "transparent", color: colors.blue, fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Limpiar</button>
+            </div>
+            {options.length === 0 && <div style={{ padding: 8, color: colors.muted, fontSize: 12 }}>Sin familias.</div>}
+            {options.map((o) => {
+              const on = selSet.has(o);
+              return (
+                <label key={o} style={{ display: "flex", gap: 8, alignItems: "center", padding: "6px 8px", borderRadius: 6, cursor: "pointer", background: on ? "#eef4ff" : "transparent", fontSize: 12.5 }}>
+                  <input type="checkbox" checked={on} onChange={() => toggle(o)} style={{ width: 15, height: 15, cursor: "pointer" }} />
+                  <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o}</span>
+                </label>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function EnTransito() {
   const fileInputRef = useRef(null);
 
@@ -458,7 +505,7 @@ export default function EnTransito() {
   const [ubicPorId, setUbicPorId] = useState({});
   const [validacionPorId, setValidacionPorId] = useState({});
   const [cantPorId, setCantPorId] = useState({}); // cantidad a ubicar por grupo
-  const [familiaFiltro, setFamiliaFiltro] = useState("TODAS");
+  const [familiasSel, setFamiliasSel] = useState([]); // familias marcadas (vacío = todas)
 
   // Toolbox de ubicaciones vacías (sugerencia estratégica al ubicar).
   const [tbRow, setTbRow] = useState(null); // material que se está ubicando
@@ -626,16 +673,14 @@ export default function EnTransito() {
 
   const familiasDisponibles = useMemo(() => {
     const set = new Set(grouped.map((g) => String(g.familia || "").trim()).filter(Boolean));
-    return ["TODAS", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [grouped]);
 
-  // Vista final: filtrada por familia y ordenada por familia -> material -> lote,
-  // para poder mostrar un encabezado de sección por cada familia.
+  // Vista final: filtrada por familias marcadas y ordenada por familia -> material
+  // -> lote, para mostrar un encabezado de sección por cada familia.
   const groupedView = useMemo(() => {
-    const base =
-      familiaFiltro === "TODAS"
-        ? grouped
-        : grouped.filter((g) => String(g.familia || "").trim() === familiaFiltro);
+    const famSet = new Set(familiasSel);
+    const base = famSet.size === 0 ? grouped : grouped.filter((g) => famSet.has(String(g.familia || "").trim()));
     return base.slice().sort((a, b) => {
       const fa = String(a.familia || "~").toLowerCase();
       const fb = String(b.familia || "~").toLowerCase();
@@ -645,7 +690,7 @@ export default function EnTransito() {
       if (ma !== mb) return ma.localeCompare(mb);
       return String(a.lote_almacen || "").localeCompare(String(b.lote_almacen || ""));
     });
-  }, [grouped, familiaFiltro]);
+  }, [grouped, familiasSel]);
 
   const totalQty = useMemo(() => {
     return filtered.reduce((acc, r) => acc + Number(r.cantidad || 0), 0);
@@ -1032,6 +1077,19 @@ export default function EnTransito() {
     downloadText(`en_transito_${yyyy}-${mm}-${dd}.csv`, csv);
   };
 
+  const [exportandoExcel, setExportandoExcel] = useState(false);
+  const onExportExcel = async () => {
+    if (!groupedView.length) return;
+    setExportandoExcel(true);
+    try {
+      await exportarTransitoExcel({ rows: groupedView });
+    } catch (e) {
+      showWmsAlert("No se pudo exportar el Excel:\n" + (e?.message || e));
+    } finally {
+      setExportandoExcel(false);
+    }
+  };
+
   const buildPrintHtml = () => {
     const rowsHtml = filtered
       .map(
@@ -1392,25 +1450,12 @@ export default function EnTransito() {
 
             <div>
               <div style={fieldLabelStyle}>Familia</div>
-              <select
-                value={familiaFiltro}
-                onChange={(e) => setFamiliaFiltro(e.target.value)}
-                style={{
-                  height: 38,
-                  minWidth: 160,
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: 8,
-                  background: "#fff",
-                  color: colors.text,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  padding: "0 10px",
-                }}
-              >
-                {familiasDisponibles.map((f) => (
-                  <option key={f} value={f}>{f}</option>
-                ))}
-              </select>
+              <MultiCheckFamilia
+                options={familiasDisponibles}
+                selected={familiasSel}
+                onChange={setFamiliasSel}
+                allLabel="TODAS"
+              />
             </div>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -1418,9 +1463,9 @@ export default function EnTransito() {
               <StatusChip label={`Cantidad total: ${fmtNumberCO(totalQty)}`} tone="blue" />
             </div>
 
-            <button onClick={onExport} style={secondaryButtonStyle}>
+            <button onClick={onExportExcel} disabled={exportandoExcel} style={secondaryButtonStyle}>
               <Download size={15} />
-              Exportar CSV
+              {exportandoExcel ? "Generando…" : "Exportar Excel"}
             </button>
 
             <button onClick={onPrint} style={primaryButtonStyle}>
