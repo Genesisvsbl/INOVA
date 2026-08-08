@@ -2096,7 +2096,9 @@ export function generarPicking(reserva) {
 
       const disponibles = stockRows
         .filter((s) => normalizeText(s.codigo_material || s.sku) === sku)
-        .filter((s) => !s.fecha_vencimiento || String(s.fecha_vencimiento).slice(0, 10) >= todayISO())
+        // Se incluyen TODOS los lotes, incluso los vencidos: el material debe
+        // aparecer en la orden aunque esté vencido (por FEFO, los vencidos /
+        // más próximos a vencer salen primero).
         .sort((a, b) => {
           // 1) Rotación (FEFO): lo que vence primero, sale primero.
           const fa = String(a.fecha_vencimiento || "9999-99-99").slice(0, 10);
