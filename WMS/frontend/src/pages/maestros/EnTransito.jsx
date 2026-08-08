@@ -1883,9 +1883,9 @@ export default function EnTransito() {
                     onClick={cerrarToolbox}
                     aria-label="Cerrar"
                     title="Cerrar"
-                    style={{ width: 36, height: 36, borderRadius: 10, background: "#eaf1fb", border: `1.5px solid ${colors.blue}`, color: colors.blue, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                    style={{ width: 36, height: 36, borderRadius: 10, background: "#eaf1fb", border: `1.5px solid ${colors.blue}`, color: colors.blue, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 900, lineHeight: 1, fontFamily: "Arial, sans-serif" }}
                   >
-                    <X size={20} strokeWidth={3} color={colors.blue} />
+                    ✕
                   </button>
                 </div>
               </div>
