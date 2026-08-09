@@ -22,6 +22,8 @@ import {
   X,
   Eye,
   EyeOff,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 
 const colors = {
@@ -47,6 +49,58 @@ function fmtNumber(v) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(n);
+}
+
+// Dropdown personalizado (bonito) que reemplaza el <select> nativo.
+function PrettySelect({ value, onChange, options, width = 210 }) {
+  const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState(null);
+  const btnRef = useRef(null);
+  const current = options.find((o) => o.value === value) || options[0];
+  const abrir = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) setRect({ top: r.bottom + 4, left: r.left, width: r.width });
+    setOpen((o) => !o);
+  };
+  return (
+    <div style={{ position: "relative", width }}>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={abrir}
+        style={{
+          width: "100%", height: 38, padding: "0 12px", borderRadius: 9,
+          border: `1px solid ${open ? "#0b3d91" : "#d9e2ec"}`, background: "#fff",
+          color: "#1f2d3d", fontSize: 13.5, fontWeight: 700, cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+        }}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{current?.label}</span>
+        <ChevronDown size={15} color="#6b7a90" style={{ transform: open ? "rotate(180deg)" : "none", transition: ".15s" }} />
+      </button>
+      {open && rect && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 3000 }} />
+          <div style={{ position: "fixed", zIndex: 3001, top: rect.top, left: rect.left, minWidth: rect.width, background: "#fff", border: "1px solid #d9e2ec", borderRadius: 10, boxShadow: "0 12px 34px rgba(15,23,42,.18)", padding: 6 }}>
+            {options.map((o) => {
+              const on = o.value === value;
+              return (
+                <div
+                  key={o.value}
+                  onClick={() => { onChange(o.value); setOpen(false); }}
+                  onMouseEnter={(e) => { if (!on) e.currentTarget.style.background = "#f5f8fc"; }}
+                  onMouseLeave={(e) => { if (!on) e.currentTarget.style.background = "transparent"; }}
+                  style={{ padding: "9px 12px", borderRadius: 7, cursor: "pointer", fontSize: 13.5, fontWeight: on ? 800 : 600, color: on ? "#0b3d91" : "#1f2d3d", background: on ? "#eef4ff" : "transparent", display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}
+                >
+                  {on ? <Check size={14} /> : <span style={{ width: 14 }} />} {o.label}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 export default function Reasignacion() {
@@ -839,12 +893,17 @@ export default function Reasignacion() {
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "end", padding: "12px 16px", background: "#f7f9fc" }}>
                       <div style={{ flex: "0 0 auto" }}>
                         <div style={miniLabel}>Acción</div>
-                        <select value={tipo} onChange={(e) => actualizarAccion(item, { tipo: e.target.value })} style={{ ...miniInput, width: 210 }}>
-                          <option value="TRASLADO">Reasignar ubicación</option>
-                          <option value="CAMBIO_LOTE">Cambiar lote/vencimiento</option>
-                          <option value="AJUSTE_NEGATIVO">Ajuste negativo</option>
-                          <option value="AJUSTE_POSITIVO">Ajuste positivo</option>
-                        </select>
+                        <PrettySelect
+                          value={tipo}
+                          onChange={(v) => actualizarAccion(item, { tipo: v })}
+                          width={210}
+                          options={[
+                            { value: "TRASLADO", label: "Reasignar ubicación" },
+                            { value: "CAMBIO_LOTE", label: "Cambiar lote/vencimiento" },
+                            { value: "AJUSTE_NEGATIVO", label: "Ajuste negativo" },
+                            { value: "AJUSTE_POSITIVO", label: "Ajuste positivo" },
+                          ]}
+                        />
                       </div>
 
                       {tipo === "TRASLADO" && (
