@@ -20,6 +20,8 @@ import {
   AlertTriangle,
   Package,
   X,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 const colors = {
@@ -73,6 +75,7 @@ export default function Reasignacion() {
   const [pncLoading, setPncLoading] = useState(false);
   const [pncUbic, setPncUbic] = useState({}); // { [movId]: codigoUbicacion }
   const [pncBusyId, setPncBusyId] = useState(null);
+  const [pncAbierto, setPncAbierto] = useState(false); // cerrado por defecto
 
   const cargarPnc = async () => {
     setPncLoading(true);
@@ -550,11 +553,26 @@ export default function Reasignacion() {
               Este stock NO cuenta para picking. Desbloquéalo dándole una ubicación, o dalo de baja.
             </div>
           </div>
-          <button onClick={cargarPnc} style={buttonSecondary}>
-            <RefreshCw size={16} /> Refrescar
-          </button>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button
+              onClick={() => setPncAbierto((v) => !v)}
+              style={{ ...buttonSecondary, borderColor: colors.bad, color: colors.bad }}
+              title={pncAbierto ? "Ocultar la tabla" : "Ver la tabla"}
+            >
+              {pncAbierto ? <EyeOff size={16} /> : <Eye size={16} />}
+              {pncAbierto ? "Ocultar" : `Ver (${pncRows.length})`}
+            </button>
+            <button onClick={cargarPnc} style={buttonSecondary}>
+              <RefreshCw size={16} /> Refrescar
+            </button>
+          </div>
         </div>
 
+        {!pncAbierto ? (
+          <div style={{ padding: 16, color: colors.muted, fontSize: 13, fontWeight: 700 }}>
+            Tabla oculta. Haz clic en el ojo <Eye size={14} style={{ verticalAlign: "middle" }} /> para ver los {pncRows.length} materiales bloqueados.
+          </div>
+        ) : (
         <div style={{ padding: 16 }}>
           {pncLoading ? (
             <div style={{ color: colors.muted, fontWeight: 700 }}>Cargando PNC…</div>
@@ -613,6 +631,7 @@ export default function Reasignacion() {
             </div>
           )}
         </div>
+        )}
       </div>
 
       <div style={card}>
