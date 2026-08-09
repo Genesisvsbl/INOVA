@@ -274,6 +274,11 @@ export default function Reasignacion() {
     }
 
     const destino = normalizeCode(accion.ubicacion_destino);
+    const nuevoLoteProv = String(accion.nuevo_lote_proveedor || "").trim();
+    const nuevaVenc = String(accion.nueva_fecha_vencimiento || "").slice(0, 10);
+    const hayCambioLote =
+      (nuevoLoteProv && nuevoLoteProv !== String(item.lote_proveedor || "").trim()) ||
+      (nuevaVenc && nuevaVenc !== String(item.fecha_vencimiento || "").slice(0, 10));
 
     if (tipo === "TRASLADO") {
       if (!destino) {
@@ -298,6 +303,11 @@ export default function Reasignacion() {
       }
     }
 
+    if (tipo === "CAMBIO_LOTE" && !hayCambioLote) {
+      setToast({ type: "error", message: "Indica el nuevo lote proveedor o el nuevo vencimiento" });
+      return;
+    }
+
     const payload = {
       tipo,
       usuario: usuario.trim(),
@@ -308,6 +318,8 @@ export default function Reasignacion() {
       lote_almacen: item.lote_almacen,
       lote_proveedor: item.lote_proveedor,
       fecha_vencimiento: item.fecha_vencimiento,
+      nuevo_lote_proveedor: nuevoLoteProv || null,
+      nueva_fecha_vencimiento: nuevaVenc || null,
       cantidad,
     };
 
@@ -797,6 +809,8 @@ export default function Reasignacion() {
                   <Th>Acción</Th>
                   <Th>Destino</Th>
                   <Th right>Cantidad</Th>
+                  <Th>Nuevo lote prov.</Th>
+                  <Th>Nuevo vencimiento</Th>
                   <Th>Motivo línea</Th>
                   <Th>Ejecutar</Th>
                 </tr>
@@ -806,7 +820,7 @@ export default function Reasignacion() {
                 {filteredStock.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={13}
+                      colSpan={15}
                       style={{
                         padding: 18,
                         color: colors.muted,
@@ -850,6 +864,7 @@ export default function Reasignacion() {
                             style={miniInput}
                           >
                             <option value="TRASLADO">Reasignar ubicación</option>
+                            <option value="CAMBIO_LOTE">Cambiar lote/vencimiento</option>
                             <option value="AJUSTE_NEGATIVO">Ajuste negativo</option>
                             <option value="AJUSTE_POSITIVO">Ajuste positivo</option>
                           </select>
@@ -894,6 +909,36 @@ export default function Reasignacion() {
                             }
                             style={{ ...miniInput, textAlign: "right" }}
                           />
+                        </Td>
+
+                        <Td>
+                          {["TRASLADO", "CAMBIO_LOTE"].includes(accion.tipo || "TRASLADO") ? (
+                            <input
+                              placeholder={item.lote_proveedor || "Lote prov."}
+                              value={accion.nuevo_lote_proveedor || ""}
+                              onChange={(e) =>
+                                actualizarAccion(item, { nuevo_lote_proveedor: e.target.value })
+                              }
+                              style={miniInput}
+                            />
+                          ) : (
+                            <span style={{ color: colors.muted, fontWeight: 800 }}>No aplica</span>
+                          )}
+                        </Td>
+
+                        <Td>
+                          {["TRASLADO", "CAMBIO_LOTE"].includes(accion.tipo || "TRASLADO") ? (
+                            <input
+                              type="date"
+                              value={(accion.nueva_fecha_vencimiento || "").slice(0, 10)}
+                              onChange={(e) =>
+                                actualizarAccion(item, { nueva_fecha_vencimiento: e.target.value })
+                              }
+                              style={miniInput}
+                            />
+                          ) : (
+                            <span style={{ color: colors.muted, fontWeight: 800 }}>No aplica</span>
+                          )}
                         </Td>
 
                         <Td>

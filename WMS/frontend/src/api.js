@@ -2468,13 +2468,35 @@ export function registrarAjusteInterno(payload) {
     fecha_vencimiento: payload.fecha_vencimiento,
   };
 
+  // Cambio de lote y/o vencimiento (opcional): recalcula el lote de almacén.
+  const nuevoLoteProvRaw = payload.nuevo_lote_proveedor;
+  const nuevaVencRaw = payload.nueva_fecha_vencimiento;
+  const cambiaLote =
+    (nuevoLoteProvRaw != null && String(nuevoLoteProvRaw).trim() !== "" && String(nuevoLoteProvRaw).trim() !== String(comun.lote_proveedor || "").trim()) ||
+    (nuevaVencRaw != null && String(nuevaVencRaw).trim() !== "" && String(nuevaVencRaw).slice(0, 10) !== String(comun.fecha_vencimiento || "").slice(0, 10));
+  const nuevoLoteProv = nuevoLoteProvRaw != null && String(nuevoLoteProvRaw).trim() !== "" ? String(nuevoLoteProvRaw).trim() : comun.lote_proveedor;
+  const nuevaVenc = nuevaVencRaw != null && String(nuevaVencRaw).trim() !== "" ? String(nuevaVencRaw).slice(0, 10) : comun.fecha_vencimiento;
+  const destComun = cambiaLote
+    ? { ...comun, lote_proveedor: nuevoLoteProv, fecha_vencimiento: nuevaVenc, lote_almacen: buildLoteAlmacen15(nuevoLoteProv, nuevaVenc) || comun.lote_almacen }
+    : comun;
+
+  // Cambio de lote/vencimiento en la MISMA ubicación (sin traslado).
+  if (tipo === "CAMBIO_LOTE") {
+    return crearMovimientosBulk({
+      items: [
+        { ...comun, ubicacion: payload.ubicacion_origen, estado: "ALMACENADO", cantidad_r: -cantidad },
+        { ...destComun, ubicacion: payload.ubicacion_origen, estado: "ALMACENADO", cantidad_r: cantidad },
+      ],
+    }).then(() => ({ mensaje: "Cambio de lote/vencimiento registrado" }));
+  }
+
   if (tipo === "TRASLADO") {
     return crearMovimientosBulk({
       items: [
         { ...comun, ubicacion: payload.ubicacion_origen, estado: "ALMACENADO", cantidad_r: -cantidad },
-        { ...comun, ubicacion: payload.ubicacion_destino, estado: "ALMACENADO", cantidad_r: cantidad },
+        { ...destComun, ubicacion: payload.ubicacion_destino, estado: "ALMACENADO", cantidad_r: cantidad },
       ],
-    }).then(() => ({ mensaje: "Traslado registrado" }));
+    }).then(() => ({ mensaje: cambiaLote ? "Traslado con cambio de lote registrado" : "Traslado registrado" }));
   }
 
   const sign = tipo === "AJUSTE_POSITIVO" ? 1 : -1;
