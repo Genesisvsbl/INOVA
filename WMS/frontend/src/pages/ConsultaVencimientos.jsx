@@ -118,22 +118,91 @@ export default function ConsultaVencimientos() {
 
   const secRefs = useRef({});
 
-  // Copia la IMAGEN de la tabla al portapapeles (para pegarla como foto en
-  // WhatsApp, correo, etc.). Si el navegador no permite copiar imagen, la
-  // descarga como PNG.
-  const copiarTabla = async (rows, titulo) => {
-    const el = secRefs.current[titulo];
-    if (!el) return;
-    const scroller = el.querySelector("[data-scroller]");
-    const prev = scroller ? { m: scroller.style.maxHeight, o: scroller.style.overflow } : null;
-    if (scroller) { scroller.style.maxHeight = "none"; scroller.style.overflow = "visible"; }
+  const escHtml = (s) =>
+    String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  // Construye una tabla LIMPIA oculta (solo para la imagen). html2canvas maneja
+  // mal el layout flex con nowrap/ellipsis (junta las palabras), por eso se
+  // captura esta tabla simple en su lugar.
+  const buildTablaImagen = (rows, titulo) => {
+    const wrap = document.createElement("div");
+    wrap.style.cssText =
+      "position:fixed;left:-12000px;top:0;width:1180px;background:#ffffff;padding:22px;font-family:Arial,Helvetica,sans-serif;color:#1f2d3d;letter-spacing:normal;word-spacing:normal;";
+    let html =
+      `<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">` +
+      `<span style="font-size:20px;font-weight:bold;color:#0a1f52;">${escHtml(titulo)}</span>` +
+      `<span style="font-size:13px;font-weight:bold;color:#64748b;background:#eef2f7;padding:2px 11px;border-radius:20px;">${rows.length}</span>` +
+      `</div>`;
+    html +=
+      `<table style="width:100%;border-collapse:collapse;font-size:14px;">` +
+      `<thead><tr style="background:#0b3d91;color:#ffffff;">` +
+      `<th style="padding:9px 10px;text-align:left;">Código</th>` +
+      `<th style="padding:9px 10px;text-align:left;">Descripción</th>` +
+      `<th style="padding:9px 10px;text-align:left;">Ubicación</th>` +
+      `<th style="padding:9px 10px;text-align:left;">Lote</th>` +
+      `<th style="padding:9px 10px;text-align:center;">Vence</th>` +
+      `<th style="padding:9px 10px;text-align:center;">Estado</th>` +
+      `<th style="padding:9px 10px;text-align:right;">Cantidad</th>` +
+      `</tr></thead><tbody>`;
+    rows.forEach((r, i) => {
+      const e = filaEstado(r.dias);
+      const bg = i % 2 ? "#f7f9fc" : "#ffffff";
+      html +=
+        `<tr style="background:${bg};border-bottom:1px solid #e6ecf3;">` +
+        `<td style="padding:8px 10px;font-weight:bold;color:#0b3d91;">${escHtml(r.codigo)}</td>` +
+        `<td style="padding:8px 10px;">${escHtml(r.descripcion)}</td>` +
+        `<td style="padding:8px 10px;">${escHtml(r.ubicacion)}</td>` +
+        `<td style="padding:8px 10px;">${escHtml(r.lote || "-")}</td>` +
+        `<td style="padding:8px 10px;text-align:center;">${escHtml(fmtDMY(r.fv))}</td>` +
+        `<td style="padding:8px 10px;text-align:center;"><span style="background:${e.bg};color:${e.color};font-weight:bold;padding:2px 8px;border-radius:6px;">${escHtml(e.txt)}</span></td>` +
+        `<td style="padding:8px 10px;text-align:right;font-weight:bold;">${escHtml(nf(r.cantidad))}</td>` +
+        `</tr>`;
+    });
+    html += `</tbody></table>`;
+    wrap.innerHTML = html;
+    document.body.appendChild(wrap);
+    return wrap;
+  };
+
+  // Tabla limpia de PNC (columnas propias) para la imagen.
+  const buildTablaImagenPnc = (rows, titulo) => {
+    const wrap = document.createElement("div");
+    wrap.style.cssText =
+      "position:fixed;left:-12000px;top:0;width:1180px;background:#ffffff;padding:22px;font-family:Arial,Helvetica,sans-serif;color:#1f2d3d;";
+    let html =
+      `<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">` +
+      `<span style="font-size:20px;font-weight:bold;color:#0a1f52;">${escHtml(titulo)}</span>` +
+      `<span style="font-size:13px;font-weight:bold;color:#64748b;background:#eef2f7;padding:2px 11px;border-radius:20px;">${rows.length}</span>` +
+      `</div>` +
+      `<table style="width:100%;border-collapse:collapse;font-size:14px;">` +
+      `<thead><tr style="background:#0b3d91;color:#ffffff;">` +
+      `<th style="padding:9px 10px;text-align:left;">Código</th>` +
+      `<th style="padding:9px 10px;text-align:left;">Descripción</th>` +
+      `<th style="padding:9px 10px;text-align:left;">Lote</th>` +
+      `<th style="padding:9px 10px;text-align:center;">Vencimiento</th>` +
+      `<th style="padding:9px 10px;text-align:right;">Cantidad</th>` +
+      `</tr></thead><tbody>`;
+    rows.forEach((p, i) => {
+      const bg = i % 2 ? "#f7f9fc" : "#ffffff";
+      html +=
+        `<tr style="background:${bg};border-bottom:1px solid #e6ecf3;">` +
+        `<td style="padding:8px 10px;font-weight:bold;color:#0b3d91;">${escHtml(p.codigo_material)}</td>` +
+        `<td style="padding:8px 10px;">${escHtml(p.descripcion_material)}</td>` +
+        `<td style="padding:8px 10px;">${escHtml(p.lote_almacen || p.lote_proveedor || "-")}</td>` +
+        `<td style="padding:8px 10px;text-align:center;">${escHtml(fmtDMY(p.fecha_vencimiento))}</td>` +
+        `<td style="padding:8px 10px;text-align:right;font-weight:bold;">${escHtml(nf(p.cantidad))}</td>` +
+        `</tr>`;
+    });
+    html += `</tbody></table>`;
+    wrap.innerHTML = html;
+    document.body.appendChild(wrap);
+    return wrap;
+  };
+
+  const capturarYCopiar = async (node, titulo) => {
     try {
       const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(el, {
-        backgroundColor: "#ffffff",
-        scale: 2,
-        ignoreElements: (node) => node?.getAttribute?.("data-copy-btn") === "1",
-      });
+      const canvas = await html2canvas(node, { backgroundColor: "#ffffff", scale: 2 });
       await new Promise((res) =>
         canvas.toBlob(async (blob) => {
           if (!blob) return res();
@@ -155,15 +224,21 @@ export default function ConsultaVencimientos() {
       setCopiado(titulo);
       setTimeout(() => setCopiado(""), 1800);
     } catch (e) {
-      showErr(e);
+      setErr("No se pudo copiar la imagen: " + (e?.message || e));
+      setTimeout(() => setErr(""), 2500);
     } finally {
-      if (scroller && prev) { scroller.style.maxHeight = prev.m; scroller.style.overflow = prev.o; }
+      node.remove();
     }
   };
 
-  const showErr = (e) => {
-    setErr("No se pudo copiar la imagen: " + (e?.message || e));
-    setTimeout(() => setErr(""), 2500);
+  const copiarTabla = async (rows, titulo) => {
+    if (!rows.length) return;
+    await capturarYCopiar(buildTablaImagen(rows, titulo), titulo);
+  };
+
+  const copiarPnc = async (rows, titulo) => {
+    if (!rows.length) return;
+    await capturarYCopiar(buildTablaImagenPnc(rows, titulo), titulo);
   };
 
   const tabla = (rows, titulo, icon, tone) => (
@@ -271,31 +346,48 @@ export default function ConsultaVencimientos() {
           {tabla(vencidos, "Vencidos (retirar / dar de baja)", <AlertTriangle size={18} />, colors.navy)}
           {tabla(porVencer, `Por vencer (≤ ${dias} días)`, <Clock size={18} />, colors.navy)}
 
-          <div style={{ background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 14, overflow: "hidden" }}>
-            <div style={{ background: colors.navy, color: "#fff", padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, fontWeight: 800 }}>
-              <ShieldAlert size={18} /> PNC bloqueado sin gestionar <span style={{ opacity: 0.85 }}>({pnc.length})</span>
+          <div style={{ marginBottom: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <span style={{ color: colors.navy, display: "inline-flex" }}><ShieldAlert size={18} /></span>
+              <span style={{ fontSize: 16, fontWeight: 800, color: colors.navy }}>PNC bloqueado sin gestionar</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: colors.muted, background: "#eef2f7", padding: "1px 9px", borderRadius: 20 }}>{pnc.length}</span>
+              <button
+                type="button"
+                onClick={() => copiarPnc(pnc, "PNC bloqueado sin gestionar")}
+                disabled={pnc.length === 0}
+                title="Copiar la tabla como imagen"
+                style={{
+                  marginLeft: "auto", height: 34, padding: "0 16px", borderRadius: 9,
+                  border: copiado === "PNC bloqueado sin gestionar" ? "1px solid #0f9d58" : `1px solid ${colors.border}`,
+                  background: copiado === "PNC bloqueado sin gestionar" ? "linear-gradient(135deg,#22c55e,#12a150)" : "#fff",
+                  color: copiado === "PNC bloqueado sin gestionar" ? "#fff" : colors.navy,
+                  fontWeight: 800, fontSize: 12.5, cursor: pnc.length === 0 ? "not-allowed" : "pointer",
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  boxShadow: copiado === "PNC bloqueado sin gestionar" ? "0 6px 16px rgba(18,161,80,.3)" : "none",
+                  opacity: pnc.length === 0 ? 0.5 : 1,
+                }}
+              >
+                {copiado === "PNC bloqueado sin gestionar" ? <Check size={14} /> : <Copy size={14} />}
+                {copiado === "PNC bloqueado sin gestionar" ? "Copiado" : "Copiar imagen"}
+              </button>
             </div>
-            <div style={{ maxHeight: 320, overflow: "auto" }}>
-              <table className="table-tools-skip" style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>{["Código", "Descripción", "Lote", "Vencimiento", "Cantidad"].map((h) => <th key={h} style={th}>{h}</th>)}</tr>
-                </thead>
-                <tbody>
-                  {pnc.length === 0 ? (
-                    <tr><td style={{ ...td, color: colors.muted }} colSpan={5}>No hay material en PNC.</td></tr>
-                  ) : (
-                    pnc.map((p, i) => (
-                      <tr key={i}>
-                        <td style={{ ...td, fontWeight: 800, color: colors.blue }}>{p.codigo_material}</td>
-                        <td style={td}>{p.descripcion_material}</td>
-                        <td style={td}>{p.lote_almacen || p.lote_proveedor || "-"}</td>
-                        <td style={{ ...td, textAlign: "center" }}>{fmtDMY(p.fecha_vencimiento)}</td>
-                        <td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{nf(p.cantidad)}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+            <div style={{ maxHeight: 420, overflow: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
+              {pnc.length === 0 ? (
+                <div style={{ background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 10, padding: "16px", color: colors.muted, fontSize: 13 }}>
+                  No hay material en PNC.
+                </div>
+              ) : (
+                pnc.map((p, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${colors.border}`, borderLeft: `3px solid ${colors.navy}`, padding: "11px 16px" }}>
+                    <div style={{ flex: "0 0 70px", fontFamily: "monospace", fontSize: 13, fontWeight: 700, color: colors.blue }}>{p.codigo_material}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, color: colors.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.descripcion_material}</div>
+                      <div style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>lote {p.lote_almacen || p.lote_proveedor || "-"} · vence {fmtDMY(p.fecha_vencimiento)}</div>
+                    </div>
+                    <div style={{ flex: "0 0 70px", textAlign: "right", fontFamily: "monospace", fontSize: 15, fontWeight: 700, color: colors.text }}>{nf(p.cantidad)}</div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </>
