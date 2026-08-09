@@ -998,16 +998,17 @@ export default function Reasignacion() {
             position: "fixed",
             bottom: 20,
             right: 20,
-            background: toast.type === "error" ? colors.bad : colors.good,
+            background: toast.type === "error" ? colors.bad : "linear-gradient(135deg,#22c55e,#12a150)",
             color: "#fff",
-            padding: "12px 14px",
-            borderRadius: 10,
+            padding: "12px 16px",
+            borderRadius: 12,
             display: "flex",
             gap: 8,
             alignItems: "center",
-            fontWeight: 900,
+            fontWeight: 800,
             zIndex: 9999,
             maxWidth: 520,
+            boxShadow: toast.type === "error" ? "0 8px 20px rgba(180,35,24,.28)" : "0 8px 20px rgba(18,161,80,.32)",
           }}
         >
           {toast.type === "error" ? (
