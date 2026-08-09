@@ -812,9 +812,7 @@ export default function Reasignacion() {
                 const key = keyLinea(item);
                 const accion = acciones[key] || { tipo: "TRASLADO" };
                 const tipo = accion.tipo || "TRASLADO";
-                const editaLote = ["TRASLADO", "CAMBIO_LOTE"].includes(tipo);
                 const miniLabel = { fontSize: 11, color: colors.muted, marginBottom: 4, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".03em" };
-                const naDash = <div style={{ color: colors.muted, fontWeight: 800, fontSize: 12, height: 34, display: "flex", alignItems: "center" }}>—</div>;
                 const chip = (txt) => (
                   <span style={{ fontSize: 11, background: "#eef2f7", color: colors.navy, padding: "2px 8px", borderRadius: 6, fontWeight: 700, whiteSpace: "nowrap" }}>{txt}</span>
                 );
@@ -838,46 +836,50 @@ export default function Reasignacion() {
                       </div>
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0,1fr)) auto", gap: 10, alignItems: "end", padding: "12px 16px", background: "#f7f9fc" }}>
-                      <div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "end", padding: "12px 16px", background: "#f7f9fc" }}>
+                      <div style={{ flex: "0 0 auto" }}>
                         <div style={miniLabel}>Acción</div>
-                        <select value={tipo} onChange={(e) => actualizarAccion(item, { tipo: e.target.value })} style={{ ...miniInput, width: "100%" }}>
+                        <select value={tipo} onChange={(e) => actualizarAccion(item, { tipo: e.target.value })} style={{ ...miniInput, width: 210 }}>
                           <option value="TRASLADO">Reasignar ubicación</option>
                           <option value="CAMBIO_LOTE">Cambiar lote/vencimiento</option>
                           <option value="AJUSTE_NEGATIVO">Ajuste negativo</option>
                           <option value="AJUSTE_POSITIVO">Ajuste positivo</option>
                         </select>
                       </div>
-                      <div>
-                        <div style={miniLabel}>Destino</div>
-                        {tipo === "TRASLADO" ? (
-                          <input list="lista-ubicaciones" placeholder="Ubicación destino" value={accion.ubicacion_destino || ""} onChange={(e) => actualizarAccion(item, { ubicacion_destino: normalizeCode(e.target.value) })} style={{ ...miniInput, width: "100%" }} />
-                        ) : naDash}
-                      </div>
-                      <div>
+
+                      {tipo === "TRASLADO" && (
+                        <div style={{ flex: "1 1 200px", minWidth: 180 }}>
+                          <div style={miniLabel}>Ubicación destino</div>
+                          <input list="lista-ubicaciones" placeholder="Escribe o escanea la ubicación" value={accion.ubicacion_destino || ""} onChange={(e) => actualizarAccion(item, { ubicacion_destino: normalizeCode(e.target.value) })} style={{ ...miniInput, width: "100%" }} />
+                        </div>
+                      )}
+
+                      {tipo === "CAMBIO_LOTE" && (
+                        <>
+                          <div style={{ flex: "1 1 170px", minWidth: 150 }}>
+                            <div style={miniLabel}>Nuevo lote prov.</div>
+                            <input placeholder={item.lote_proveedor || "Lote prov."} value={accion.nuevo_lote_proveedor || ""} onChange={(e) => actualizarAccion(item, { nuevo_lote_proveedor: e.target.value })} style={{ ...miniInput, width: "100%" }} />
+                          </div>
+                          <div style={{ flex: "0 0 auto" }}>
+                            <div style={miniLabel}>Nuevo vencimiento</div>
+                            <input type="date" value={(accion.nueva_fecha_vencimiento || "").slice(0, 10)} onChange={(e) => actualizarAccion(item, { nueva_fecha_vencimiento: e.target.value })} style={{ ...miniInput, width: 160 }} />
+                          </div>
+                        </>
+                      )}
+
+                      <div style={{ flex: "0 0 auto" }}>
                         <div style={miniLabel}>Cantidad</div>
-                        <input type="number" min="0" step="0.01" placeholder="0" value={accion.cantidad || ""} onChange={(e) => actualizarAccion(item, { cantidad: e.target.value })} style={{ ...miniInput, width: "100%", textAlign: "right" }} />
+                        <input type="number" min="0" step="0.01" placeholder="0" value={accion.cantidad || ""} onChange={(e) => actualizarAccion(item, { cantidad: e.target.value })} style={{ ...miniInput, width: 130, textAlign: "right" }} />
                       </div>
-                      <div>
-                        <div style={miniLabel}>Nuevo lote prov.</div>
-                        {editaLote ? (
-                          <input placeholder={item.lote_proveedor || "Lote prov."} value={accion.nuevo_lote_proveedor || ""} onChange={(e) => actualizarAccion(item, { nuevo_lote_proveedor: e.target.value })} style={{ ...miniInput, width: "100%" }} />
-                        ) : naDash}
+
+                      <div style={{ flex: "1 1 160px", minWidth: 140 }}>
+                        <div style={miniLabel}>Motivo línea (opcional)</div>
+                        <input placeholder="Motivo por línea" value={accion.motivo || ""} onChange={(e) => actualizarAccion(item, { motivo: e.target.value })} style={{ ...miniInput, width: "100%" }} />
                       </div>
-                      <div>
-                        <div style={miniLabel}>Nuevo vencimiento</div>
-                        {editaLote ? (
-                          <input type="date" value={(accion.nueva_fecha_vencimiento || "").slice(0, 10)} onChange={(e) => actualizarAccion(item, { nueva_fecha_vencimiento: e.target.value })} style={{ ...miniInput, width: "100%" }} />
-                        ) : naDash}
-                      </div>
-                      <button onClick={() => ejecutarAccion(item)} disabled={loading} style={{ ...buttonPrimary, height: 38, opacity: loading ? 0.65 : 1, cursor: loading ? "not-allowed" : "pointer" }}>
+
+                      <button onClick={() => ejecutarAccion(item)} disabled={loading} style={{ ...buttonPrimary, height: 38, marginLeft: "auto", opacity: loading ? 0.65 : 1, cursor: loading ? "not-allowed" : "pointer" }}>
                         {tipo === "TRASLADO" ? <ArrowRightLeft size={15} /> : <SlidersHorizontal size={15} />} Ejecutar
                       </button>
-                    </div>
-
-                    <div style={{ padding: "0 16px 12px", background: "#f7f9fc" }}>
-                      <div style={miniLabel}>Motivo línea</div>
-                      <input placeholder="Motivo opcional por línea" value={accion.motivo || ""} onChange={(e) => actualizarAccion(item, { motivo: e.target.value })} style={{ ...miniInput, width: "100%" }} />
                     </div>
                   </div>
                 );
