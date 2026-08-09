@@ -648,16 +648,30 @@ export default function Reasignacion() {
 
       <div style={card}>
         <div style={header}>
-          <div>
-            <div style={eyebrow}>WMS / REASIGNACIÓN AUDITABLE</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <span
+              aria-label="INOVA"
+              style={{
+                display: "inline-block",
+                width: 118,
+                height: 38,
+                flexShrink: 0,
+                backgroundColor: colors.navy,
+                WebkitMask: "url(/inova-azul.png) left center / contain no-repeat",
+                mask: "url(/inova-azul.png) left center / contain no-repeat",
+              }}
+            />
+            <div>
+              <div style={eyebrow}>WMS / REASIGNACIÓN AUDITABLE</div>
 
-            <h2 style={{ margin: "4px 0", color: colors.navy }}>
-              Reasignación por ubicación
-            </h2>
+              <h2 style={{ margin: "4px 0", color: colors.navy }}>
+                Reasignación por ubicación
+              </h2>
 
-            <div style={{ color: colors.muted, fontSize: 13, fontWeight: 700 }}>
-              Escanea o selecciona una ubicación. El sistema trae todo el stock
-              almacenado allí.
+              <div style={{ color: colors.muted, fontSize: 13, fontWeight: 700 }}>
+                Escanea o selecciona una ubicación. El sistema trae todo el stock
+                almacenado allí.
+              </div>
             </div>
           </div>
 
@@ -788,196 +802,87 @@ export default function Reasignacion() {
             />
           </div>
 
-          <div style={tableWrap}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                minWidth: 1550,
-              }}
-            >
-              <thead>
-                <tr>
-                  <Th>SKU</Th>
-                  <Th>Descripción</Th>
-                  <Th>UM</Th>
-                  <Th>Familia</Th>
-                  <Th>Lote almacén</Th>
-                  <Th>Lote proveedor</Th>
-                  <Th>Vencimiento</Th>
-                  <Th right>Disponible</Th>
-                  <Th>Acción</Th>
-                  <Th>Destino</Th>
-                  <Th right>Cantidad</Th>
-                  <Th>Nuevo lote prov.</Th>
-                  <Th>Nuevo vencimiento</Th>
-                  <Th>Motivo línea</Th>
-                  <Th>Ejecutar</Th>
-                </tr>
-              </thead>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {filteredStock.length === 0 ? (
+              <div style={{ background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 12, padding: 18, color: colors.muted, fontWeight: 800 }}>
+                {loading ? "Cargando..." : "Escanea o selecciona una ubicación para ver su contenido."}
+              </div>
+            ) : (
+              filteredStock.map((item, i) => {
+                const key = keyLinea(item);
+                const accion = acciones[key] || { tipo: "TRASLADO" };
+                const tipo = accion.tipo || "TRASLADO";
+                const editaLote = ["TRASLADO", "CAMBIO_LOTE"].includes(tipo);
+                const miniLabel = { fontSize: 11, color: colors.muted, marginBottom: 4, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".03em" };
+                const naDash = <div style={{ color: colors.muted, fontWeight: 800, fontSize: 12, height: 34, display: "flex", alignItems: "center" }}>—</div>;
+                const chip = (txt) => (
+                  <span style={{ fontSize: 11, background: "#eef2f7", color: colors.navy, padding: "2px 8px", borderRadius: 6, fontWeight: 700, whiteSpace: "nowrap" }}>{txt}</span>
+                );
+                return (
+                  <div key={`${key}-${i}`} style={{ background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 12, overflow: "hidden" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderBottom: `1px solid ${colors.border}` }}>
+                      <div style={{ flex: "0 0 78px", fontFamily: "monospace", fontWeight: 800, color: colors.blue }}>{item.codigo_material}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, color: colors.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.descripcion_material}</div>
+                        <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                          {chip(`UM ${item.unidad_medida || "-"}`)}
+                          {chip(item.familia || "-")}
+                          {chip(`lote ${item.lote_almacen || "-"}`)}
+                          {chip(`prov ${item.lote_proveedor || "-"}`)}
+                          {chip(`vence ${String(item.fecha_vencimiento || "").slice(0, 10) || "-"}`)}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontSize: 11, color: colors.muted }}>disponible</div>
+                        <div style={{ fontSize: 18, fontWeight: 900, color: colors.navy }}>{fmtNumber(item.cantidad_disponible)}</div>
+                      </div>
+                    </div>
 
-              <tbody>
-                {filteredStock.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={15}
-                      style={{
-                        padding: 18,
-                        color: colors.muted,
-                        fontWeight: 900,
-                      }}
-                    >
-                      {loading
-                        ? "Cargando..."
-                        : "Escanea o selecciona una ubicación para ver su contenido."}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredStock.map((item, i) => {
-                    const key = keyLinea(item);
-                    const accion = acciones[key] || { tipo: "TRASLADO" };
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0,1fr)) auto", gap: 10, alignItems: "end", padding: "12px 16px", background: "#f7f9fc" }}>
+                      <div>
+                        <div style={miniLabel}>Acción</div>
+                        <select value={tipo} onChange={(e) => actualizarAccion(item, { tipo: e.target.value })} style={{ ...miniInput, width: "100%" }}>
+                          <option value="TRASLADO">Reasignar ubicación</option>
+                          <option value="CAMBIO_LOTE">Cambiar lote/vencimiento</option>
+                          <option value="AJUSTE_NEGATIVO">Ajuste negativo</option>
+                          <option value="AJUSTE_POSITIVO">Ajuste positivo</option>
+                        </select>
+                      </div>
+                      <div>
+                        <div style={miniLabel}>Destino</div>
+                        {tipo === "TRASLADO" ? (
+                          <input list="lista-ubicaciones" placeholder="Ubicación destino" value={accion.ubicacion_destino || ""} onChange={(e) => actualizarAccion(item, { ubicacion_destino: normalizeCode(e.target.value) })} style={{ ...miniInput, width: "100%" }} />
+                        ) : naDash}
+                      </div>
+                      <div>
+                        <div style={miniLabel}>Cantidad</div>
+                        <input type="number" min="0" step="0.01" placeholder="0" value={accion.cantidad || ""} onChange={(e) => actualizarAccion(item, { cantidad: e.target.value })} style={{ ...miniInput, width: "100%", textAlign: "right" }} />
+                      </div>
+                      <div>
+                        <div style={miniLabel}>Nuevo lote prov.</div>
+                        {editaLote ? (
+                          <input placeholder={item.lote_proveedor || "Lote prov."} value={accion.nuevo_lote_proveedor || ""} onChange={(e) => actualizarAccion(item, { nuevo_lote_proveedor: e.target.value })} style={{ ...miniInput, width: "100%" }} />
+                        ) : naDash}
+                      </div>
+                      <div>
+                        <div style={miniLabel}>Nuevo vencimiento</div>
+                        {editaLote ? (
+                          <input type="date" value={(accion.nueva_fecha_vencimiento || "").slice(0, 10)} onChange={(e) => actualizarAccion(item, { nueva_fecha_vencimiento: e.target.value })} style={{ ...miniInput, width: "100%" }} />
+                        ) : naDash}
+                      </div>
+                      <button onClick={() => ejecutarAccion(item)} disabled={loading} style={{ ...buttonPrimary, height: 38, opacity: loading ? 0.65 : 1, cursor: loading ? "not-allowed" : "pointer" }}>
+                        {tipo === "TRASLADO" ? <ArrowRightLeft size={15} /> : <SlidersHorizontal size={15} />} Ejecutar
+                      </button>
+                    </div>
 
-                    return (
-                      <tr
-                        key={`${key}-${i}`}
-                        style={{
-                          background: i % 2 === 0 ? "#fff" : "#fbfdff",
-                        }}
-                      >
-                        <Td strong>{item.codigo_material}</Td>
-                        <Td>{item.descripcion_material}</Td>
-                        <Td>{item.unidad_medida || ""}</Td>
-                        <Td>{item.familia || ""}</Td>
-                        <Td>{item.lote_almacen || ""}</Td>
-                        <Td>{item.lote_proveedor || ""}</Td>
-                        <Td>{item.fecha_vencimiento || ""}</Td>
-                        <Td right strong>
-                          {fmtNumber(item.cantidad_disponible)}
-                        </Td>
-
-                        <Td>
-                          <select
-                            value={accion.tipo || "TRASLADO"}
-                            onChange={(e) =>
-                              actualizarAccion(item, { tipo: e.target.value })
-                            }
-                            style={miniInput}
-                          >
-                            <option value="TRASLADO">Reasignar ubicación</option>
-                            <option value="CAMBIO_LOTE">Cambiar lote/vencimiento</option>
-                            <option value="AJUSTE_NEGATIVO">Ajuste negativo</option>
-                            <option value="AJUSTE_POSITIVO">Ajuste positivo</option>
-                          </select>
-                        </Td>
-
-                        <Td>
-                          {(accion.tipo || "TRASLADO") === "TRASLADO" ? (
-                            <input
-                              list="lista-ubicaciones"
-                              placeholder="Ubicación destino"
-                              value={accion.ubicacion_destino || ""}
-                              onChange={(e) =>
-                                actualizarAccion(item, {
-                                  ubicacion_destino: normalizeCode(e.target.value),
-                                })
-                              }
-                              style={miniInput}
-                            />
-                          ) : (
-                            <span
-                              style={{
-                                color: colors.muted,
-                                fontWeight: 800,
-                              }}
-                            >
-                              No aplica
-                            </span>
-                          )}
-                        </Td>
-
-                        <Td right>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="0"
-                            value={accion.cantidad || ""}
-                            onChange={(e) =>
-                              actualizarAccion(item, {
-                                cantidad: e.target.value,
-                              })
-                            }
-                            style={{ ...miniInput, textAlign: "right" }}
-                          />
-                        </Td>
-
-                        <Td>
-                          {["TRASLADO", "CAMBIO_LOTE"].includes(accion.tipo || "TRASLADO") ? (
-                            <input
-                              placeholder={item.lote_proveedor || "Lote prov."}
-                              value={accion.nuevo_lote_proveedor || ""}
-                              onChange={(e) =>
-                                actualizarAccion(item, { nuevo_lote_proveedor: e.target.value })
-                              }
-                              style={miniInput}
-                            />
-                          ) : (
-                            <span style={{ color: colors.muted, fontWeight: 800 }}>No aplica</span>
-                          )}
-                        </Td>
-
-                        <Td>
-                          {["TRASLADO", "CAMBIO_LOTE"].includes(accion.tipo || "TRASLADO") ? (
-                            <input
-                              type="date"
-                              value={(accion.nueva_fecha_vencimiento || "").slice(0, 10)}
-                              onChange={(e) =>
-                                actualizarAccion(item, { nueva_fecha_vencimiento: e.target.value })
-                              }
-                              style={miniInput}
-                            />
-                          ) : (
-                            <span style={{ color: colors.muted, fontWeight: 800 }}>No aplica</span>
-                          )}
-                        </Td>
-
-                        <Td>
-                          <input
-                            placeholder="Motivo opcional por línea"
-                            value={accion.motivo || ""}
-                            onChange={(e) =>
-                              actualizarAccion(item, {
-                                motivo: e.target.value,
-                              })
-                            }
-                            style={miniInput}
-                          />
-                        </Td>
-
-                        <Td>
-                          <button
-                            onClick={() => ejecutarAccion(item)}
-                            disabled={loading}
-                            style={{
-                              ...buttonTiny,
-                              opacity: loading ? 0.65 : 1,
-                              cursor: loading ? "not-allowed" : "pointer",
-                            }}
-                          >
-                            {(accion.tipo || "TRASLADO") === "TRASLADO" ? (
-                              <ArrowRightLeft size={15} />
-                            ) : (
-                              <SlidersHorizontal size={15} />
-                            )}
-                            Ejecutar
-                          </button>
-                        </Td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                    <div style={{ padding: "0 16px 12px", background: "#f7f9fc" }}>
+                      <div style={miniLabel}>Motivo línea</div>
+                      <input placeholder="Motivo opcional por línea" value={accion.motivo || ""} onChange={(e) => actualizarAccion(item, { motivo: e.target.value })} style={{ ...miniInput, width: "100%" }} />
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>
