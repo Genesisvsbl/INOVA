@@ -584,7 +584,7 @@ export default function Reasignacion() {
                 <thead>
                   <tr>
                     {["Código", "Descripción", "Lote almacén", "Vence", "Zona", "Cantidad", "Ubicación destino", "Acciones"].map((h) => (
-                      <th key={h} style={{ textAlign: "left", padding: "8px 10px", background: "#0f2744", color: "#eaf1f8", fontSize: 10.5, fontWeight: 800, whiteSpace: "nowrap" }}>{h}</th>
+                      <th key={h} style={{ textAlign: h === "Acciones" ? "center" : "left", padding: "8px 10px", background: "#0f2744", color: "#eaf1f8", fontSize: 10.5, fontWeight: 800, whiteSpace: "nowrap" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -607,20 +607,20 @@ export default function Reasignacion() {
                         />
                       </td>
                       <td style={{ padding: "7px 10px" }}>
-                        <div style={{ display: "flex", gap: 6 }}>
+                        <div style={{ display: "flex", gap: 8, justifyContent: "center", alignItems: "center" }}>
                           <button
                             onClick={() => onDesbloquear(r)}
                             disabled={pncBusyId === r.id}
-                            style={{ height: 30, padding: "0 10px", borderRadius: 6, border: "1px solid #1f7a3d", background: "#1f7a3d", color: "#fff", fontWeight: 800, fontSize: 11.5, cursor: "pointer" }}
+                            style={{ height: 32, padding: "0 14px", borderRadius: 8, border: "1px solid #0f9d58", background: "linear-gradient(135deg,#22c55e,#12a150)", color: "#fff", fontWeight: 800, fontSize: 11.5, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "0 4px 12px rgba(18,161,80,.30)", opacity: pncBusyId === r.id ? 0.7 : 1 }}
                           >
-                            {pncBusyId === r.id ? "…" : "Desbloquear"}
+                            <CheckCircle2 size={14} /> {pncBusyId === r.id ? "…" : "Desbloquear"}
                           </button>
                           <button
                             onClick={() => onDarDeBaja(r)}
                             disabled={pncBusyId === r.id}
-                            style={{ height: 30, padding: "0 10px", borderRadius: 6, border: `1px solid ${colors.bad}`, background: "#fff", color: colors.bad, fontWeight: 800, fontSize: 11.5, cursor: "pointer" }}
+                            style={{ height: 32, padding: "0 14px", borderRadius: 8, border: `1px solid ${colors.bad}`, background: "#fff", color: colors.bad, fontWeight: 800, fontSize: 11.5, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, opacity: pncBusyId === r.id ? 0.7 : 1 }}
                           >
-                            Dar de baja
+                            <X size={14} /> Dar de baja
                           </button>
                         </div>
                       </td>
