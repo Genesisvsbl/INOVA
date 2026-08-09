@@ -481,6 +481,35 @@ export default function OrdenPicking() {
   const [cargandoAlternativas, setCargandoAlternativas] = useState({});
   const [alternativaElegida, setAlternativaElegida] = useState({});
   const [motivosRotacion, setMotivosRotacion] = useState({});
+  // Causales/motivos adicionales que el usuario agrega con "+" (persisten).
+  const [causalesExtra, setCausalesExtra] = useState(() => {
+    try {
+      const a = JSON.parse(localStorage.getItem("wms_causales_rotacion") || "[]");
+      return Array.isArray(a) ? a : [];
+    } catch {
+      return [];
+    }
+  });
+  const causalesRotacion = useMemo(() => {
+    const set = [];
+    [...MOTIVOS_ROTACION, ...causalesExtra].forEach((c) => {
+      const v = String(c || "").trim();
+      if (v && !set.includes(v)) set.push(v);
+    });
+    return set;
+  }, [causalesExtra]);
+  const agregarCausal = async (rowId) => {
+    const nueva = await showWmsPrompt("Escribe la nueva causal / motivo (queda guardada para próximas veces):");
+    const val = String(nueva || "").trim();
+    if (!val) return;
+    setCausalesExtra((prev) => {
+      if (prev.includes(val) || MOTIVOS_ROTACION.includes(val)) return prev;
+      const next = [...prev, val];
+      try { localStorage.setItem("wms_causales_rotacion", JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+    if (rowId != null) setMotivosRotacion((prev) => ({ ...prev, [rowId]: val }));
+  };
   // Tipo de novedad por línea: "rotacion" (incumplimiento de rotación) o
   // "cambio_lote" (cambio de lote solicitado por el área). Y observación libre.
   const [tipoNovedad, setTipoNovedad] = useState({});
@@ -2974,23 +3003,33 @@ export default function OrdenPicking() {
               {(tipoNovedad[modalRow.id] || "rotacion") === "rotacion" && (
                 <div>
                   <div style={labelStyle}>Motivo obligatorio</div>
-                  <select
-                    value={currentModalMotivo}
-                    onChange={(e) =>
-                      setMotivosRotacion((prev) => ({
-                        ...prev,
-                        [modalRow.id]: e.target.value,
-                      }))
-                    }
-                    style={selectStyle}
-                  >
-                    <option value="">Selecciona un motivo</option>
-                    {MOTIVOS_ROTACION.map((motivo) => (
-                      <option key={motivo} value={motivo}>
-                        {motivo}
-                      </option>
-                    ))}
-                  </select>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <select
+                      value={currentModalMotivo}
+                      onChange={(e) =>
+                        setMotivosRotacion((prev) => ({
+                          ...prev,
+                          [modalRow.id]: e.target.value,
+                        }))
+                      }
+                      style={{ ...selectStyle, flex: 1 }}
+                    >
+                      <option value="">Selecciona un motivo</option>
+                      {causalesRotacion.map((motivo) => (
+                        <option key={motivo} value={motivo}>
+                          {motivo}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => agregarCausal(modalRow.id)}
+                      title="Agregar una causal nueva (queda guardada)"
+                      style={{ height: 40, minWidth: 44, borderRadius: 9, border: "1px solid #0b3d91", background: "#eaf1fb", color: "#0b3d91", fontWeight: 900, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
                 </div>
               )}
 
