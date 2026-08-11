@@ -1157,15 +1157,26 @@ export default function HistoryView({
         "id de quien report",
         "id quien reporto",
       ]);
+      // "Observado por": a esta persona se le CUENTA el reporte. Si viene vacío,
+      // se usa "quien reportó" como respaldo.
+      const obsKey = findColumnKey(rows[0], [
+        "observado por",
+        "observadopor",
+        "observado",
+      ]);
+      const codeOf = (raw) => {
+        const obs = obsKey ? String(raw[obsKey] ?? "").trim() : "";
+        return obs || (idKey ? String(raw[idKey] ?? "").trim() : "");
+      };
       const dateKey = findColumnKey(rows[0], [
         "fecha del informe",
         "fecha informe",
       ]);
       const impactKey = findColumnKey(rows[0], ["impacto ambiental", "impacto"]);
 
-      if (!idKey || !dateKey) {
+      if ((!idKey && !obsKey) || !dateKey) {
         setMessage(
-          "No encontre las columnas 'ID de quien reporto' y 'Fecha del informe' en el archivo."
+          "No encontre las columnas 'Observado por' (o 'ID de quien reporto') y 'Fecha del informe' en el archivo."
         );
         return;
       }
@@ -1225,7 +1236,7 @@ export default function HistoryView({
         let notFoundM = 0;
         let outM = 0;
         for (const raw of rows) {
-          const code = String(raw[idKey] ?? "").trim();
+          const code = codeOf(raw);
           if (!code) continue;
           const target = entityByCode.get(code);
           if (!target) {
@@ -1312,7 +1323,7 @@ export default function HistoryView({
       let invalidN = 0;
 
       for (const raw of rows) {
-        const code = String(raw[idKey] ?? "").trim();
+        const code = codeOf(raw);
         if (!code) continue;
         const target = entityByCode.get(code);
         if (!target) {
