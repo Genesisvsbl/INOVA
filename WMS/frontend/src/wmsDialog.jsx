@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, HelpCircle, ShieldCheck, Trash2, X } from "lucide-react";
+import { humanizarMensaje } from "./errorMensaje";
 
 function nativeWmsDialogFallback(options) {
   const message = options?.message || "";
@@ -91,7 +92,7 @@ export function WmsDialogHost() {
   if (!dialog) return null;
 
   const Icon = dialogIcon(dialog.tone, dialog.type);
-  const messageLines = String(dialog.message || "").split("\n").filter(Boolean);
+  const messageLines = String(humanizarMensaje(dialog.message) || "").split("\n").filter(Boolean);
   const closeValue = dialog.type === "alert" ? true : dialog.type === "confirm" ? false : null;
   const resolveDialog = (value) => {
     dialog.resolve?.(value);

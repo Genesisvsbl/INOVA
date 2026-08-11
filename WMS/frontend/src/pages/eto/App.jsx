@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import API from "./api";
+import { humanizarMensaje } from "../../errorMensaje";
 import {
   Activity,
   ArrowRight,
@@ -657,6 +658,7 @@ export default function App() {
       const parsed = JSON.parse(msg);
       if (parsed && parsed.message) msg = parsed.message;
     } catch (_) {}
+    msg = humanizarMensaje(msg);
     setMessage(msg);
     setMessageType("error");
     window.clearTimeout(window.__etoMsgTimeout);

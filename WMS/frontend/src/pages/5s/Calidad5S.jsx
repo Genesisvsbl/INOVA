@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import html2canvas from "html2canvas";
+import { humanizarMensaje } from "../../errorMensaje";
 import {
   Bar,
   BarChart,
@@ -291,7 +292,7 @@ function Calidad5SDialogHost() {
     dialog.resolve?.(value);
     setDialog(null);
   };
-  const messageLines = String(dialog.message || "").split("\n").filter(Boolean);
+  const messageLines = String(humanizarMensaje(dialog.message) || "").split("\n").filter(Boolean);
 
   return (
     <div className="calidad5s-dialog-layer" role="presentation">
