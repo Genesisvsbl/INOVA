@@ -172,7 +172,27 @@ export function limpiarCertificadosCacheLocal() {
 }
 
 function writeCertificadosCache(rows) {
-  localStorage.setItem(CERTIFICADOS_CACHE_KEY, JSON.stringify(rows || []));
+  // El caché es solo para listar rápido; NO debe guardar los archivos pesados
+  // (PDF/imagen en base64 ni el HTML del recibo), porque desbordan la cuota del
+  // navegador (~5MB) y rompen el guardado. Esos datos viven en la base.
+  const light = (rows || []).map((r) => {
+    const {
+      certificado_data_url,
+      recibo_documento_html,
+      ...rest
+    } = r || {};
+    return rest;
+  });
+  try {
+    localStorage.setItem(CERTIFICADOS_CACHE_KEY, JSON.stringify(light));
+  } catch {
+    // Si aún excede la cuota, se descarta el caché (la data está en Supabase).
+    try {
+      localStorage.removeItem(CERTIFICADOS_CACHE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 function certificadoEstado(row) {
