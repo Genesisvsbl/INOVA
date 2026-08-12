@@ -49,7 +49,16 @@ async function request(schema, table, { method = "GET", params, body, prefer = "
   }
 
   if (res.status === 204) return null;
-  return res.json();
+  // Con Prefer: return=minimal el cuerpo viene VACÍO (aunque el status sea 201).
+  // res.json() sobre un cuerpo vacío lanza "Unexpected end of JSON input", por
+  // eso leemos el texto y solo parseamos si hay contenido.
+  const text = await res.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 // Convierte los errores técnicos de PostgREST/Supabase en mensajes claros.
