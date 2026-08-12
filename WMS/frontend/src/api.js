@@ -417,6 +417,28 @@ async function findOne(table, params) {
 const _materialIdCache = new Map();
 const _ubicacionIdCache = new Map();
 
+// Precarga TODAS las ubicaciones y materiales de una sola vez y llena los
+// cachés, para que al guardar movimientos no se haga una consulta por pallet.
+export async function precargarCachesMovimiento() {
+  if (!supabaseEnabled) return;
+  try {
+    const [ubis, mats] = await Promise.all([
+      selectAllRows("wms", "ubicaciones", { empresa_id: `eq.${empresaId}`, select: "id,ubicacion", limit: "20000" }),
+      selectAllRows("wms", "materiales", { empresa_id: `eq.${empresaId}`, select: "id,codigo", limit: "20000" }),
+    ]);
+    (ubis || []).forEach((u) => {
+      const k = String(u.ubicacion || "").trim();
+      if (k) _ubicacionIdCache.set(k, u.id);
+    });
+    (mats || []).forEach((m) => {
+      const k = String(m.codigo || "").trim();
+      if (k) _materialIdCache.set(k, m.id);
+    });
+  } catch {
+    /* si falla, se resuelven on-demand */
+  }
+}
+
 async function resolveMaterialId(codigo) {
   const value = String(codigo || "").trim();
   if (!value) throw new Error("Material obligatorio.");

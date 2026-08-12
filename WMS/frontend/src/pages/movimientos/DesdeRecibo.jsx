@@ -5,6 +5,7 @@ import { BrowserMultiFormatReader } from "@zxing/browser";
 import {
   crearMovimiento,
   crearMovimientosBulk,
+  precargarCachesMovimiento,
   crearRotulosBulk,
   getUbicaciones,
   guardarCertificadosCalidad,
@@ -2539,6 +2540,10 @@ export default function DesdeRecibo() {
         await borrarRecetaPorDocumento(documentoActual);
       }
 
+      // Precarga ubicaciones y materiales una sola vez (evita una consulta por
+      // pallet al construir cada movimiento).
+      await precargarCachesMovimiento();
+
       // Se acumulan TODOS los movimientos y se guardan en UNA sola llamada
       // (bulk), en vez de uno por uno (mucho más rápido).
       const movs = [];
@@ -2659,6 +2664,10 @@ export default function DesdeRecibo() {
       if (documentoActual) {
         await borrarRecetaPorDocumento(documentoActual);
       }
+
+      // Precarga ubicaciones y materiales una sola vez (evita una consulta por
+      // pallet al construir cada movimiento).
+      await precargarCachesMovimiento();
 
       const movs = [];
       for (const nov of novedadesPNC) {
