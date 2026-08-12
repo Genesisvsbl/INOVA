@@ -1157,17 +1157,27 @@ export default function HistoryView({
         "id de quien report",
         "id quien reporto",
       ]);
-      // "Observado por": a esta persona se le CUENTA el reporte. Si viene vacío,
-      // se usa "quien reportó" como respaldo.
+      // "Observado por": a esta persona se le CUENTA el reporte. El cruce con la
+      // entidad es por CÉDULA/ID, así que se prioriza una columna de ID del
+      // observado/observador; el nombre solo sirve de respaldo. Si viene vacío,
+      // se usa "quien reportó".
       const obsKey = findColumnKey(rows[0], [
+        "id del observador",
+        "id del observado",
+        "id observador",
+        "id observado",
+        "cedula del observado",
+        "cédula del observado",
+        "cedula del observador",
+        "cédula del observador",
+        "documento del observado",
+        "documento del observador",
+        "cedula observado",
+        "cedula observador",
         "observado por",
         "observadopor",
         "observado",
       ]);
-      const codeOf = (raw) => {
-        const obs = obsKey ? String(raw[obsKey] ?? "").trim() : "";
-        return obs || (idKey ? String(raw[idKey] ?? "").trim() : "");
-      };
       const dateKey = findColumnKey(rows[0], [
         "fecha del informe",
         "fecha informe",
@@ -1194,6 +1204,17 @@ export default function HistoryView({
           t,
         ])
       );
+
+      // Resuelve a QUÉ entidad se le cuenta el reporte: primero el ID del
+      // observado; si ese no corresponde a ninguna entidad, se usa el de quien
+      // reportó. Así funciona aunque "Observado por" traiga un nombre.
+      const resolveCode = (raw) => {
+        const obs = obsKey ? String(raw[obsKey] ?? "").trim() : "";
+        const rep = idKey ? String(raw[idKey] ?? "").trim() : "";
+        if (obs && entityByCode.has(obs)) return obs;
+        if (rep && entityByCode.has(rep)) return rep;
+        return obs || rep;
+      };
 
       const year = Number(entityMatrixMeta.year);
       const month = Number(entityMatrixMeta.month);
@@ -1236,7 +1257,7 @@ export default function HistoryView({
         let notFoundM = 0;
         let outM = 0;
         for (const raw of rows) {
-          const code = codeOf(raw);
+          const code = resolveCode(raw);
           if (!code) continue;
           const target = entityByCode.get(code);
           if (!target) {
@@ -1323,7 +1344,7 @@ export default function HistoryView({
       let invalidN = 0;
 
       for (const raw of rows) {
-        const code = codeOf(raw);
+        const code = resolveCode(raw);
         if (!code) continue;
         const target = entityByCode.get(code);
         if (!target) {
