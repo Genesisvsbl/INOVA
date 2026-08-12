@@ -2447,7 +2447,7 @@ export default function DesdeRecibo() {
   };
   // Guarda los movimientos en LOTES (bulk) para ser rápido sin congelar la
   // pestaña cuando hay muchos. Entre lote y lote deja respirar la interfaz.
-  const guardarMovsEnLotes = async (movs, size = 250) => {
+  const guardarMovsEnLotes = async (movs, size = 120) => {
     setProgresoMov({ hechos: 0, total: movs.length });
     for (let i = 0; i < movs.length; i += size) {
       await crearMovimientosBulk({ items: movs.slice(i, i + size) });
