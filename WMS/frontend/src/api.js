@@ -1289,16 +1289,7 @@ export function importarUbicacionesExcel(file) {
 }
 
 export function getMotor() {
-  if (supabaseEnabled) {
-    // El listado del Motor trae solo los movimientos MÁS RECIENTES (con tope),
-    // no toda la tabla, para que cargue rápido aunque haya muchísimos registros.
-    return selectRows("wms", "movimientos", {
-      empresa_id: `eq.${empresaId}`,
-      select: "*,material:materiales(codigo,descripcion,unidad_medida,familia),ubicacion:ubicaciones(ubicacion,ubicacion_base,posicion,zona,familias,bodega)",
-      order: "fecha.desc",
-      limit: "3000",
-    }).then((rows) => (rows || []).map(mapMovimientoRow));
-  }
+  if (supabaseEnabled) return getMovimientos();
   return Promise.resolve([]);
 }
 
