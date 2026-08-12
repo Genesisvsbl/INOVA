@@ -2443,6 +2443,14 @@ export default function DesdeRecibo() {
   const postMovimiento = async (payload) => {
     await crearMovimiento(payload);
   };
+  // Guarda los movimientos en LOTES (bulk) para ser rápido sin congelar la
+  // pestaña cuando hay muchos. Entre lote y lote deja respirar la interfaz.
+  const guardarMovsEnLotes = async (movs, size = 250) => {
+    for (let i = 0; i < movs.length; i += size) {
+      await crearMovimientosBulk({ items: movs.slice(i, i + size) });
+      await new Promise((r) => setTimeout(r, 0));
+    }
+  };
   const buildPncPayload = (nov) => {
     const decision = { destino: "UBICAR_PNC", ...(pncPorNovedad[nov.key] || {}) };
     const codigoUbicacion = decision.destino === "TRANSITO_PNC" ? null : decision.ubicacion;
@@ -2601,7 +2609,7 @@ export default function DesdeRecibo() {
         }
       }
 
-      if (movs.length) await crearMovimientosBulk({ items: movs });
+      if (movs.length) await guardarMovsEnLotes(movs);
 
       await guardarRotulos();
       await guardarTrazabilidadCertificados();
@@ -2693,7 +2701,7 @@ export default function DesdeRecibo() {
         }
       }
 
-      if (movs.length) await crearMovimientosBulk({ items: movs });
+      if (movs.length) await guardarMovsEnLotes(movs);
 
       await guardarRotulos();
       await guardarTrazabilidadCertificados();
