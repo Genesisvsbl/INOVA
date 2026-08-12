@@ -599,6 +599,7 @@ export default function DesdeRecibo() {
   const [ubicaciones, setUbicaciones] = useState([]);
   const [ubicacionesError, setUbicacionesError] = useState("");
   const [guardando, setGuardando] = useState(false);
+  const [progresoMov, setProgresoMov] = useState(null); // { hechos, total }
 
   const [ubicPorLinea, setUbicPorLinea] = useState({});
   // Stock actual por ubicación (para avisar/bloquear al almacenar en una
@@ -2447,8 +2448,10 @@ export default function DesdeRecibo() {
   // Guarda los movimientos en LOTES (bulk) para ser rápido sin congelar la
   // pestaña cuando hay muchos. Entre lote y lote deja respirar la interfaz.
   const guardarMovsEnLotes = async (movs, size = 250) => {
+    setProgresoMov({ hechos: 0, total: movs.length });
     for (let i = 0; i < movs.length; i += size) {
       await crearMovimientosBulk({ items: movs.slice(i, i + size) });
+      setProgresoMov({ hechos: Math.min(i + size, movs.length), total: movs.length });
       await new Promise((r) => setTimeout(r, 0));
     }
   };
@@ -2627,6 +2630,7 @@ export default function DesdeRecibo() {
       showNotice({ tone: "error", title: "Error guardando", message: msg + (msg.includes("Failed to fetch") ? "\n\nNo se pudo comunicar con el servicio. Revisa la conexion e intenta nuevamente." : "") });
     } finally {
       setGuardando(false);
+      setProgresoMov(null);
       fechaOverrideRef.current = null; // vuelve a fecha actual para el próximo guardado
     }
   };
@@ -2724,6 +2728,7 @@ export default function DesdeRecibo() {
       showNotice({ tone: "error", title: "Error guardando en transito", message: msg + (msg.includes("Failed to fetch") ? "\n\nNo se pudo comunicar con el servicio. Revisa la conexion e intenta nuevamente." : "") });
     } finally {
       setGuardando(false);
+      setProgresoMov(null);
       fechaOverrideRef.current = null; // vuelve a fecha actual para el próximo guardado
     }
   };
@@ -2936,6 +2941,11 @@ export default function DesdeRecibo() {
             />
             <style>{`@keyframes wmsSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
             <div style={{ fontSize: 18, fontWeight: 1000, color: colors.navy }}>Guardando movimientos</div>
+            {progresoMov && progresoMov.total > 0 && (
+              <div style={{ marginTop: 4, fontSize: 15, fontWeight: 900, color: colors.blue }}>
+                {progresoMov.hechos} de {progresoMov.total} movimientos
+              </div>
+            )}
             <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: colors.muted }}>
               No cierres esta ventana. Estamos guardando movimientos y rotulos.
             </div>

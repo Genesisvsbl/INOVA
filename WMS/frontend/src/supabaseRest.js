@@ -168,7 +168,7 @@ export async function selectAllRows(schema, table, params = {}) {
   return all;
 }
 
-export function insertRow(schema, table, row) {
+export function insertRow(schema, table, row, opts = {}) {
   let body = row;
   // En una inserción por lotes, PostgREST exige que TODOS los objetos tengan
   // exactamente las mismas claves (si no: PGRST102 "All object keys must match").
@@ -184,7 +184,11 @@ export function insertRow(schema, table, row) {
       return o;
     });
   }
-  return request(schema, table, { method: "POST", body });
+  // Con { minimal: true } el servidor NO devuelve las filas insertadas: mucho
+  // más rápido cuando se insertan muchos registros (no serializa ni parsea la
+  // respuesta). Se usa cuando no necesitamos los IDs de vuelta.
+  const prefer = opts.minimal ? "return=minimal" : "return=representation";
+  return request(schema, table, { method: "POST", body, prefer });
 }
 
 export function upsertRows(schema, table, rows, onConflict) {

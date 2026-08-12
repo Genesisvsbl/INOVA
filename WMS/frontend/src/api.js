@@ -419,8 +419,10 @@ const _ubicacionIdCache = new Map();
 
 // Precarga TODAS las ubicaciones y materiales de una sola vez y llena los
 // cachés, para que al guardar movimientos no se haga una consulta por pallet.
-export async function precargarCachesMovimiento() {
+let _cachesPrecargados = false;
+export async function precargarCachesMovimiento(forzar = false) {
   if (!supabaseEnabled) return;
+  if (_cachesPrecargados && !forzar) return; // ya está en memoria: no re-consultar
   try {
     const [ubis, mats] = await Promise.all([
       selectAllRows("wms", "ubicaciones", { empresa_id: `eq.${empresaId}`, select: "id,ubicacion", limit: "20000" }),
@@ -434,6 +436,7 @@ export async function precargarCachesMovimiento() {
       const k = String(m.codigo || "").trim();
       if (k) _materialIdCache.set(k, m.id);
     });
+    _cachesPrecargados = true;
   } catch {
     /* si falla, se resuelven on-demand */
   }
@@ -635,7 +638,7 @@ export function crearMovimientosBulk(payload) {
   if (supabaseEnabled) {
     const items = Array.isArray(payload?.items) ? payload.items : [];
     return Promise.all(items.map(buildMovimientoInsert)).then((rows) =>
-      insertRow("wms", "movimientos", rows)
+      insertRow("wms", "movimientos", rows, { minimal: true })
     );
   }
 
