@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getMotor,
+  getMotorBuscar,
   importarInventarioInicial,
   borrarDatosWms,
   WMS_DATA_GROUPS,
@@ -439,33 +440,33 @@ export default function MotorPrincipal() {
   const [fechaHasta, setFechaHasta] = useState("");
   const [exportandoExcel, setExportandoExcel] = useState(false);
 
+  // Carga rápida: al abrir trae los recientes; al escribir en el buscador
+  // consulta TODA la base por ese término (con un pequeño retardo). Así abre al
+  // instante y encuentra cualquier registro aunque haya millones.
   useEffect(() => {
-    let mounted = true;
-
-    async function load() {
+    let alive = true;
+    const term = q.trim();
+    const t = setTimeout(async () => {
       try {
         setLoading(true);
         setErr("");
-
-        const data = await getMotor(2000);
-
-        if (!mounted) return;
+        const data = term ? await getMotorBuscar(term) : await getMotor(2000);
+        if (!alive) return;
         setRows(Array.isArray(data) ? data : []);
       } catch (e) {
-        if (!mounted) return;
+        if (!alive) return;
         setErr(String(e?.message || e));
         setRows([]);
       } finally {
-        if (mounted) setLoading(false);
+        if (alive) setLoading(false);
       }
-    }
-
-    load();
+    }, term ? 400 : 0);
 
     return () => {
-      mounted = false;
+      alive = false;
+      clearTimeout(t);
     };
-  }, []);
+  }, [q]);
 
   // ----- Toolbox administrador (importar / borrar) -----
   const isAdmin = useMemo(() => esAdminWms(), []);

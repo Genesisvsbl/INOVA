@@ -1288,9 +1288,36 @@ export function importarUbicacionesExcel(file) {
   });
 }
 
-export function getMotor() {
-  if (supabaseEnabled) return getMovimientos();
-  return Promise.resolve([]);
+// Carga RÁPIDA del Motor: trae solo los movimientos más recientes (por defecto
+// 2000). La base queda ilimitada; para buscar registros antiguos se usa
+// getMotorBuscar (consulta al servidor). Con esto la app abre al instante
+// aunque la tabla tenga millones de filas.
+export function getMotor(limite = 2000) {
+  if (!supabaseEnabled) return Promise.resolve([]);
+  return selectRows("wms", "movimientos", {
+    empresa_id: `eq.${empresaId}`,
+    select: "*,material:materiales(codigo,descripcion,unidad_medida,familia),ubicacion:ubicaciones(ubicacion,ubicacion_base,posicion,zona,familias,bodega)",
+    order: "fecha.desc",
+    limit: String(limite || 2000),
+  }).then((rows) => (rows || []).map(mapMovimientoRow));
+}
+
+// Busca movimientos en TODA la base por un término (documento, material, lote,
+// proveedor, cita). Se usa desde el buscador del Motor para no quedarse solo con
+// los recientes cargados.
+export function getMotorBuscar(q = "", limite = 5000) {
+  if (!supabaseEnabled) return Promise.resolve([]);
+  const s = String(q || "").trim();
+  const params = {
+    empresa_id: `eq.${empresaId}`,
+    select: "*,material:materiales(codigo,descripcion,unidad_medida,familia),ubicacion:ubicaciones(ubicacion,ubicacion_base,posicion,zona,familias,bodega)",
+    order: "fecha.desc",
+    limit: String(limite || 5000),
+  };
+  if (s) {
+    params.or = `(documento.ilike.*${s}*,codigo_material.ilike.*${s}*,lote_almacen.ilike.*${s}*,lote_proveedor.ilike.*${s}*,codigo_cita.ilike.*${s}*)`;
+  }
+  return selectRows("wms", "movimientos", params).then((rows) => (rows || []).map(mapMovimientoRow));
 }
 
 export function getRotulos(params = {}) {
