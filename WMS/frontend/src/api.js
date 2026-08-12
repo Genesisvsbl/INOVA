@@ -412,27 +412,36 @@ async function findOne(table, params) {
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
+// Cachés de IDs para no consultar N veces el mismo material/ubicación al guardar
+// muchos movimientos (un recibo puede tener decenas/cientos de pallets).
+const _materialIdCache = new Map();
+const _ubicacionIdCache = new Map();
+
 async function resolveMaterialId(codigo) {
   const value = String(codigo || "").trim();
   if (!value) throw new Error("Material obligatorio.");
+  if (_materialIdCache.has(value)) return _materialIdCache.get(value);
   const row = await findOne("materiales", {
     empresa_id: `eq.${empresaId}`,
     codigo: `eq.${value}`,
     select: "id,codigo",
   });
   if (!row) throw new Error(`No existe material ${value}.`);
+  _materialIdCache.set(value, row.id);
   return row.id;
 }
 
 async function resolveUbicacionId(codigo) {
   const value = String(codigo || "").trim();
   if (!value) return null;
+  if (_ubicacionIdCache.has(value)) return _ubicacionIdCache.get(value);
   const row = await findOne("ubicaciones", {
     empresa_id: `eq.${empresaId}`,
     ubicacion: `eq.${value}`,
     select: "id,ubicacion",
   });
   if (!row) throw new Error(`No existe ubicacion ${value}.`);
+  _ubicacionIdCache.set(value, row.id);
   return row.id;
 }
 

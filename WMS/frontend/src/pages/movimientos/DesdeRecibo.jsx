@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import {
   crearMovimiento,
+  crearMovimientosBulk,
   crearRotulosBulk,
   getUbicaciones,
   guardarCertificadosCalidad,
@@ -2442,16 +2443,14 @@ export default function DesdeRecibo() {
   const postMovimiento = async (payload) => {
     await crearMovimiento(payload);
   };
-  const crearMovimientoPnc = async (nov) => {
+  const buildPncPayload = (nov) => {
     const decision = { destino: "UBICAR_PNC", ...(pncPorNovedad[nov.key] || {}) };
     const codigoUbicacion = decision.destino === "TRANSITO_PNC" ? null : decision.ubicacion;
-    await postMovimiento(
-      construirPayloadMovimiento(nov.linea, nov.lineaIndex, {
-        codigo_ubicacion: codigoUbicacion || null,
-        estado: "PNC_BLOQUEADO",
-        cantidad_r: nov.cantidadNumero,
-      })
-    );
+    return construirPayloadMovimiento(nov.linea, nov.lineaIndex, {
+      codigo_ubicacion: codigoUbicacion || null,
+      estado: "PNC_BLOQUEADO",
+      cantidad_r: nov.cantidadNumero,
+    });
   };
 
   const cantidadNormal = (linea, idx) => {
@@ -2532,8 +2531,11 @@ export default function DesdeRecibo() {
         await borrarRecetaPorDocumento(documentoActual);
       }
 
+      // Se acumulan TODOS los movimientos y se guardan en UNA sola llamada
+      // (bulk), en vez de uno por uno (mucho más rápido).
+      const movs = [];
       for (const nov of novedadesPNC) {
-        await crearMovimientoPnc(nov);
+        movs.push(buildPncPayload(nov));
       }
 
       for (let i = 0; i < draft.lineas.length; i++) {
@@ -2550,7 +2552,7 @@ export default function DesdeRecibo() {
           for (const sug of conf.sugeridas || []) {
             const cantidadMovimiento = tomarNormal();
             if (cantidadMovimiento <= 0) continue;
-            await postMovimiento(
+            movs.push(
               construirPayloadMovimiento(linea, i, {
                 codigo_ubicacion: sug.ubicacion,
                 estado: "ALMACENADO",
@@ -2562,7 +2564,7 @@ export default function DesdeRecibo() {
           for (const sug of conf.sugeridasSecundarias || []) {
             const cantidadMovimiento = tomarNormal();
             if (cantidadMovimiento <= 0) continue;
-            await postMovimiento(
+            movs.push(
               construirPayloadMovimiento(linea, i, {
                 codigo_ubicacion: sug.ubicacion,
                 estado: "ALMACENADO",
@@ -2575,7 +2577,7 @@ export default function DesdeRecibo() {
             for (let x = 0; x < Number(conf.faltanteCantidad || 0); x++) {
               const cantidadMovimiento = tomarNormal();
               if (cantidadMovimiento <= 0) continue;
-              await postMovimiento(
+              movs.push(
                 construirPayloadMovimiento(linea, i, {
                   codigo_ubicacion: null,
                   estado: "EN_TRANSITO",
@@ -2589,7 +2591,7 @@ export default function DesdeRecibo() {
           const normal = cantidadNormal(linea, i);
           if (normal <= 0) continue;
 
-          await postMovimiento(
+          movs.push(
             construirPayloadMovimiento(linea, i, {
               codigo_ubicacion: ubic,
               estado: "ALMACENADO",
@@ -2598,6 +2600,8 @@ export default function DesdeRecibo() {
           );
         }
       }
+
+      if (movs.length) await crearMovimientosBulk({ items: movs });
 
       await guardarRotulos();
       await guardarTrazabilidadCertificados();
@@ -2648,8 +2652,9 @@ export default function DesdeRecibo() {
         await borrarRecetaPorDocumento(documentoActual);
       }
 
+      const movs = [];
       for (const nov of novedadesPNC) {
-        await crearMovimientoPnc(nov);
+        movs.push(buildPncPayload(nov));
       }
 
       for (let i = 0; i < draft.lineas.length; i++) {
@@ -2667,7 +2672,7 @@ export default function DesdeRecibo() {
           for (let x = 0; x < cantidadPallets; x++) {
             const cantidadMovimiento = tomarNormal();
             if (cantidadMovimiento <= 0) continue;
-            await postMovimiento(
+            movs.push(
               construirPayloadMovimiento(linea, i, {
                 codigo_ubicacion: null,
                 estado: "EN_TRANSITO",
@@ -2677,7 +2682,7 @@ export default function DesdeRecibo() {
             );
           }
         } else {
-          await postMovimiento(
+          movs.push(
             construirPayloadMovimiento(linea, i, {
               codigo_ubicacion: null,
               estado: "EN_TRANSITO",
@@ -2687,6 +2692,8 @@ export default function DesdeRecibo() {
           );
         }
       }
+
+      if (movs.length) await crearMovimientosBulk({ items: movs });
 
       await guardarRotulos();
       await guardarTrazabilidadCertificados();
