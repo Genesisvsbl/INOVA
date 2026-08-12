@@ -2447,6 +2447,21 @@ export default function DesdeRecibo() {
   };
   // Guarda los movimientos en LOTES (bulk) para ser rápido sin congelar la
   // pestaña cuando hay muchos. Entre lote y lote deja respirar la interfaz.
+  // CONSOLIDA los movimientos: junta los que van a la MISMA ubicación + lote +
+  // estado (y demás datos) en UNO solo, sumando la cantidad. Así un recibo que
+  // generaría miles/millones de movimientos por pallet queda en unos pocos
+  // (el stock es el mismo). Los rótulos son aparte (uno por línea).
+  const consolidarMovs = (movs) => {
+    const map = new Map();
+    for (const m of movs || []) {
+      const { cantidad_r, fecha, ...rest } = m;
+      const key = JSON.stringify(rest);
+      if (!map.has(key)) map.set(key, { ...rest, fecha, cantidad_r: 0 });
+      map.get(key).cantidad_r += Number(cantidad_r || 0);
+    }
+    return Array.from(map.values());
+  };
+
   const guardarMovsEnLotes = async (movs, size = 120) => {
     setProgresoMov({ hechos: 0, total: movs.length });
     for (let i = 0; i < movs.length; i += size) {
@@ -2472,12 +2487,20 @@ export default function DesdeRecibo() {
   const distribuirCantidadNormalAuto = (linea, idx, cantidadBase) => {
     const normalTotal = cantidadNormal(linea, idx);
     let restante = normalTotal;
-    return () => {
+    const tomar = () => {
       if (restante <= 0) return 0;
       const valor = Math.min(Number(cantidadBase || 0), restante);
       restante -= valor;
       return valor;
     };
+    // Toma N "pallets" de una sola vez (O(1)) sin iterar N veces: evita construir
+    // miles de movimientos cuando el faltante es enorme (luego se consolidan).
+    tomar.tomarN = (n) => {
+      const cuanto = Math.min(Number(cantidadBase || 0) * Number(n || 0), restante);
+      restante -= cuanto > 0 ? cuanto : 0;
+      return cuanto > 0 ? cuanto : 0;
+    };
+    return tomar;
   };
 
   // Abre el toolbox de fecha antes de guardar (para poder mantener la fecha del
@@ -2590,14 +2613,15 @@ export default function DesdeRecibo() {
           }
 
           if (Number(conf.faltanteCantidad || 0) > 0 && conf.faltanteATransito) {
-            for (let x = 0; x < Number(conf.faltanteCantidad || 0); x++) {
-              const cantidadMovimiento = tomarNormal();
-              if (cantidadMovimiento <= 0) continue;
+            // Todo el faltante va a tránsito (misma "ubicación"): UN solo
+            // movimiento con la cantidad total, sin iterar por pallet.
+            const cantidadTransito = tomarNormal.tomarN(Number(conf.faltanteCantidad || 0));
+            if (cantidadTransito > 0) {
               movs.push(
                 construirPayloadMovimiento(linea, i, {
                   codigo_ubicacion: null,
                   estado: "EN_TRANSITO",
-                  cantidad_r: cantidadMovimiento,
+                  cantidad_r: cantidadTransito,
                 })
               );
             }
@@ -2617,7 +2641,7 @@ export default function DesdeRecibo() {
         }
       }
 
-      if (movs.length) await guardarMovsEnLotes(movs);
+      if (movs.length) await guardarMovsEnLotes(consolidarMovs(movs));
 
       await guardarRotulos();
       await guardarTrazabilidadCertificados();
@@ -2680,41 +2704,24 @@ export default function DesdeRecibo() {
 
       for (let i = 0; i < draft.lineas.length; i++) {
         const linea = draft.lineas[i];
-        const cantidadPallets = Number(linea.cantidad || 0);
-        const totalLinea = Number(linea.total || 0);
         const normalTotal = cantidadNormal(linea, i);
 
         if (normalTotal <= 0) continue;
 
-        if (Number.isInteger(cantidadPallets) && cantidadPallets > 0) {
-          const valorUnitario = cantidadPallets > 0 ? totalLinea / cantidadPallets : 0;
-          const tomarNormal = distribuirCantidadNormalAuto(linea, i, valorUnitario);
-
-          for (let x = 0; x < cantidadPallets; x++) {
-            const cantidadMovimiento = tomarNormal();
-            if (cantidadMovimiento <= 0) continue;
-            movs.push(
-              construirPayloadMovimiento(linea, i, {
-                codigo_ubicacion: null,
-                estado: "EN_TRANSITO",
-                cantidad_r: cantidadMovimiento,
-                observacion: obs,
-              })
-            );
-          }
-        } else {
-          movs.push(
-            construirPayloadMovimiento(linea, i, {
-              codigo_ubicacion: null,
-              estado: "EN_TRANSITO",
-              cantidad_r: normalTotal,
-              observacion: obs,
-            })
-          );
-        }
+        // A tránsito TODO va a la misma "ubicación" (ninguna), así que se guarda
+        // UN solo movimiento por línea con la cantidad total (antes se creaba
+        // uno por pallet, lo que podía dar miles/millones de filas).
+        movs.push(
+          construirPayloadMovimiento(linea, i, {
+            codigo_ubicacion: null,
+            estado: "EN_TRANSITO",
+            cantidad_r: normalTotal,
+            observacion: obs,
+          })
+        );
       }
 
-      if (movs.length) await guardarMovsEnLotes(movs);
+      if (movs.length) await guardarMovsEnLotes(consolidarMovs(movs));
 
       await guardarRotulos();
       await guardarTrazabilidadCertificados();
