@@ -1303,21 +1303,44 @@ export function getMotor(limite = 2000) {
 }
 
 // Busca movimientos en TODA la base por un término (documento, material, lote,
-// proveedor, cita). Se usa desde el buscador del Motor para no quedarse solo con
-// los recientes cargados.
-export function getMotorBuscar(q = "", limite = 5000) {
-  if (!supabaseEnabled) return Promise.resolve([]);
+// proveedor, cita). El material se busca por su código/descripción en la tabla
+// materiales (la tabla movimientos no tiene el código, solo material_id).
+export async function getMotorBuscar(q = "", limite = 5000) {
+  if (!supabaseEnabled) return [];
   const s = String(q || "").trim();
-  const params = {
-    empresa_id: `eq.${empresaId}`,
-    select: "*,material:materiales(codigo,descripcion,unidad_medida,familia),ubicacion:ubicaciones(ubicacion,ubicacion_base,posicion,zona,familias,bodega)",
-    order: "fecha.desc",
-    limit: String(limite || 5000),
-  };
-  if (s) {
-    params.or = `(documento.ilike.*${s}*,codigo_material.ilike.*${s}*,lote_almacen.ilike.*${s}*,lote_proveedor.ilike.*${s}*,codigo_cita.ilike.*${s}*)`;
+  const select =
+    "*,material:materiales(codigo,descripcion,unidad_medida,familia),ubicacion:ubicaciones(ubicacion,ubicacion_base,posicion,zona,familias,bodega)";
+  const base = { empresa_id: `eq.${empresaId}`, select, order: "fecha.desc", limit: String(limite || 5000) };
+
+  if (!s) {
+    const rows = await selectRows("wms", "movimientos", base);
+    return (rows || []).map(mapMovimientoRow);
   }
-  return selectRows("wms", "movimientos", params).then((rows) => (rows || []).map(mapMovimientoRow));
+
+  // Materiales que coinciden por código o descripción → sus ids.
+  let matIds = [];
+  try {
+    const mats = await selectRows("wms", "materiales", {
+      empresa_id: `eq.${empresaId}`,
+      select: "id",
+      or: `(codigo.ilike.*${s}*,descripcion.ilike.*${s}*)`,
+      limit: "2000",
+    });
+    matIds = (mats || []).map((m) => m.id).filter((x) => x != null);
+  } catch {
+    matIds = [];
+  }
+
+  const ors = [
+    `documento.ilike.*${s}*`,
+    `lote_almacen.ilike.*${s}*`,
+    `lote_proveedor.ilike.*${s}*`,
+    `codigo_cita.ilike.*${s}*`,
+  ];
+  if (matIds.length) ors.push(`material_id.in.(${matIds.join(",")})`);
+
+  const rows = await selectRows("wms", "movimientos", { ...base, or: `(${ors.join(",")})` });
+  return (rows || []).map(mapMovimientoRow);
 }
 
 export function getRotulos(params = {}) {
