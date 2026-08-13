@@ -7788,3 +7788,33 @@ button {
   .calidad5s-dialog-actions { flex-direction: column-reverse; }
   .calidad5s-dialog-btn { width: 100%; }
 }
+
+/* ---------------------------------------------------------------------------
+   Vista previa del informe 5S en CELULAR: en pantallas chicas el informe formal
+   (tamaño Carta) NO debe apretarse al 100% (quedaba una palabra por línea y el
+   encabezado cortado). Se muestra a su tamaño real REDUCIDO con zoom, así
+   conserva EXACTAMENTE el diseño de escritorio, solo más pequeño. El modal
+   "Ver informe" (is-mobile-open) queda intacto a tamaño completo.
+--------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .report-preview-shell:not(.is-mobile-open) .report-preview-frame {
+    display: block !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+  .report-preview-shell:not(.is-mobile-open) #informe5s-preview,
+  .report-preview-shell:not(.is-mobile-open) .letter-report-page {
+    width: 8.5in !important;
+    min-width: 8.5in !important;
+    max-width: none !important;
+    margin: 0 auto !important;
+    transform: none !important;
+    zoom: 0.42;
+  }
+  .report-preview-shell:not(.is-mobile-open) .report-sheet {
+    width: 8.5in !important;
+    min-width: 8.5in !important;
+    max-width: none !important;
+  }
+}
