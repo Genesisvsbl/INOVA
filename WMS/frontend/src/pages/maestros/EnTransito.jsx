@@ -700,6 +700,20 @@ export default function EnTransito() {
     });
   }, [grouped, familiasSel]);
 
+  // Resumen por familia (lotes y total) calculado UNA vez, no dentro del map de
+  // cada fila (antes era O(n²) y hacía lenta la lista con muchos ítems).
+  const famResumen = useMemo(() => {
+    const m = new Map();
+    groupedView.forEach((g) => {
+      const fam = String(g.familia || "").trim() || "(sin familia)";
+      if (!m.has(fam)) m.set(fam, { lotes: 0, total: 0 });
+      const e = m.get(fam);
+      e.lotes += 1;
+      e.total += Number(g.cantidad || 0);
+    });
+    return m;
+  }, [groupedView]);
+
   const totalQty = useMemo(() => {
     return filtered.reduce((acc, r) => acc + Number(r.cantidad || 0), 0);
   }, [filtered]);
@@ -1562,8 +1576,7 @@ export default function EnTransito() {
                 const famActual = String(r.familia || "").trim() || "(sin familia)";
                 const famAnterior = idx > 0 ? (String(groupedView[idx - 1].familia || "").trim() || "(sin familia)") : null;
                 const nuevaFamilia = famActual !== famAnterior;
-                const famRows = groupedView.filter((g) => (String(g.familia || "").trim() || "(sin familia)") === famActual);
-                const famTotal = famRows.reduce((acc, g) => acc + Number(g.cantidad || 0), 0);
+                const famInfo = famResumen.get(famActual) || { lotes: 0, total: 0 };
 
                 return (
                   <Fragment key={r.id}>
@@ -1584,7 +1597,7 @@ export default function EnTransito() {
                         >
                           {famActual}
                           <span style={{ fontWeight: 700, color: colors.muted, fontSize: 11.5, marginLeft: 10 }}>
-                            {famRows.length} lote(s) · {fmtNumberCO(famTotal)} un.
+                            {famInfo.lotes} lote(s) · {fmtNumberCO(famInfo.total)} un.
                           </span>
                         </td>
                       </tr>
