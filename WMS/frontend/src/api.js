@@ -1060,16 +1060,30 @@ export async function ubicarCantidadTransito(movimientoIds, cantidad, codigoUbic
   return { asignado, restante: Math.max(total - asignado, 0) };
 }
 
-export function getStock(codigo) {
+export async function getStock(codigo) {
   const sku = normalizeText(codigo);
-  if (!sku) return Promise.reject(new Error("Codigo de material obligatorio."));
+  if (!sku) throw new Error("Codigo de material obligatorio.");
 
-  return Promise.all([getMateriales(sku), getMovimientos()]).then(([materiales, movimientos]) => {
-    const material =
-      (materiales || []).find((m) => normalizeText(m.codigo) === sku) ||
-      (materiales || [])[0] ||
-      {};
-    const rows = movimientos.filter((m) => normalizeText(m.codigo_material || m.sku) === sku);
+  const materiales = await getMateriales(sku);
+  const material =
+    (materiales || []).find((m) => normalizeText(m.codigo) === sku) ||
+    (materiales || [])[0] ||
+    {};
+
+  // Solo los movimientos de ESTE material (por material_id, con índice), no toda
+  // la tabla. Así consultar el stock de un código es rápido aunque haya millones.
+  let rows = [];
+  if (supabaseEnabled && material?.id != null) {
+    const raw = await selectAllRows("wms", "movimientos", {
+      empresa_id: `eq.${empresaId}`,
+      material_id: `eq.${material.id}`,
+      select:
+        "*,material:materiales(codigo,descripcion,unidad_medida,familia),ubicacion:ubicaciones(ubicacion,ubicacion_base,posicion,zona,familias,bodega)",
+    });
+    rows = (raw || []).map(mapMovimientoRow);
+  }
+
+  {
     const almacenado = rows
       .filter((m) => normalizeText(m.estado) === "ALMACENADO")
       .reduce((acc, m) => acc + toNumber(m.cantidad_r ?? m.cantidad), 0);
@@ -1091,7 +1105,7 @@ export function getStock(codigo) {
       stock_bloqueado_pnc: bloqueado,
       lotes: groupStock(rows),
     };
-  });
+  }
 }
 
 export function getProveedores(search = "") {
