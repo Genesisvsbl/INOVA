@@ -129,6 +129,9 @@ export async function selectAllRows(schema, table, params = {}) {
   const base = { ...params };
   delete base.limit;
   delete base.offset;
+  // La paginación por offset necesita un orden estable; si el caller no dio uno,
+  // se ordena por id para no duplicar ni saltar filas entre páginas.
+  if (!base.order) base.order = "id.asc";
 
   // Trae TODO (sin límite), pero SIN pedir "count=exact" (que obliga a Postgres a
   // contar exacto en cada carga → lento con millones). Se paginan tandas en

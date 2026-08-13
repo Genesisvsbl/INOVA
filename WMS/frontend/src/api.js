@@ -1065,10 +1065,9 @@ export async function getStock(codigo) {
   if (!sku) throw new Error("Codigo de material obligatorio.");
 
   const materiales = await getMateriales(sku);
-  const material =
-    (materiales || []).find((m) => normalizeText(m.codigo) === sku) ||
-    (materiales || [])[0] ||
-    {};
+  // Coincidencia EXACTA de código (no el primer parcial, para no devolver el
+  // stock de otro material cuando se escribe un código incompleto).
+  const material = (materiales || []).find((m) => normalizeText(m.codigo) === sku) || {};
 
   // Solo los movimientos de ESTE material (por material_id, con índice), no toda
   // la tabla. Así consultar el stock de un código es rápido aunque haya millones.
@@ -1330,7 +1329,9 @@ export function getMotor(limite = 2000) {
 // materiales (la tabla movimientos no tiene el código, solo material_id).
 export async function getMotorBuscar(q = "", limite = 5000) {
   if (!supabaseEnabled) return [];
-  const s = String(q || "").trim();
+  // Quita caracteres que rompen el filtro "or" de PostgREST (comas, paréntesis,
+  // comodines) para que la búsqueda no falle con textos raros.
+  const s = String(q || "").trim().replace(/[(),*\\]/g, " ").replace(/\s+/g, " ").trim();
   const select =
     "*,material:materiales(codigo,descripcion,unidad_medida,familia),ubicacion:ubicaciones(ubicacion,ubicacion_base,posicion,zona,familias,bodega)";
   const base = { empresa_id: `eq.${empresaId}`, select, order: "fecha.desc", limit: String(limite || 5000) };

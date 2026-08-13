@@ -2454,7 +2454,7 @@ export default function DesdeRecibo() {
   const consolidarMovs = (movs) => {
     const map = new Map();
     for (const m of movs || []) {
-      const { cantidad_r, fecha, ...rest } = m;
+      const { cantidad_r, cantidad_rl, fecha, ...rest } = m;
       const key = JSON.stringify(rest);
       if (!map.has(key)) map.set(key, { ...rest, fecha, cantidad_r: 0 });
       map.get(key).cantidad_r += Number(cantidad_r || 0);
