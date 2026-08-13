@@ -420,35 +420,23 @@ export default function ConsultaPersonaView() {
   // Copia la captura del reporte al portapapeles. Se pasa una PROMESA<Blob>
   // al ClipboardItem y se llama write DENTRO del clic (conserva el gesto),
   // que es la forma que funciona con imágenes generadas async en Chrome.
-  const copiarReporte = (p) => {
-    setCopyMsg("Copiando…");
+  // Copia/guarda/comparte el reporte. En PC copia al portapapeles; en celular
+  // abre el menú nativo para Guardar/Imprimir/Compartir (antes no salía nada).
+  const copiarReporte = async (p) => {
+    setCopyMsg("Generando…");
     try {
-      const item = new window.ClipboardItem({
-        "image/png": generarBlobReporte(p),
-      });
-      navigator.clipboard
-        .write([item])
-        .then(() => flashCopy("✓ Reporte copiado · pégalo con Ctrl+V"))
-        .catch(async () => {
-          try {
-            const blob = await generarBlobReporte(p);
-            await navigator.clipboard.write([
-              new window.ClipboardItem({ "image/png": blob }),
-            ]);
-            flashCopy("✓ Reporte copiado · pégalo con Ctrl+V");
-          } catch {
-            flashCopy("No se pudo copiar. Haz clic en Copiar de nuevo.");
-          }
-        });
+      const blob = await generarBlobReporte(p);
+      const nombre = `reporte_${String(p?.item?.entity_name || "persona")
+        .replace(/[^a-z0-9]+/gi, "_")
+        .toLowerCase()}`;
+      const { guardarOCompartirImagen } = await import("../../../../compartirImagen");
+      const metodo = await guardarOCompartirImagen(blob, nombre);
+      if (metodo === "shared") flashCopy("✓ Reporte listo para guardar/compartir/imprimir");
+      else if (metodo === "copied") flashCopy("✓ Reporte copiado · pégalo con Ctrl+V");
+      else if (metodo === "downloaded") flashCopy("✓ Reporte descargado");
+      else flashCopy("No se pudo generar el reporte. Intenta de nuevo.");
     } catch {
-      generarBlobReporte(p)
-        .then(async (blob) => {
-          await navigator.clipboard.write([
-            new window.ClipboardItem({ "image/png": blob }),
-          ]);
-          flashCopy("✓ Reporte copiado · pégalo con Ctrl+V");
-        })
-        .catch(() => flashCopy("No se pudo copiar. Intenta de nuevo."));
+      flashCopy("No se pudo generar el reporte. Intenta de nuevo.");
     }
   };
 

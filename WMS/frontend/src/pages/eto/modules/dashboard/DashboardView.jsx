@@ -4291,21 +4291,14 @@ export default function DashboardView({ accessLevel, processes, indicators }) {
       });
       canvas.toBlob(async (blob) => {
         if (!blob) return;
-        try {
-          await navigator.clipboard.write([
-            new window.ClipboardItem({ "image/png": blob }),
-          ]);
-          setMessage("Imagen copiada al portapapeles. Pégala donde quieras.");
-        } catch {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `${(detailPerson?.item?.entity_name || detailCard?.titulo || "reporte")
-            .replace(/[^a-z0-9]+/gi, "_")
-            .toLowerCase()}.png`;
-          a.click();
-          URL.revokeObjectURL(url);
-        }
+        const nombre = (detailPerson?.item?.entity_name || detailCard?.titulo || "reporte")
+          .replace(/[^a-z0-9]+/gi, "_")
+          .toLowerCase();
+        const { guardarOCompartirImagen } = await import("../../../../compartirImagen");
+        const metodo = await guardarOCompartirImagen(blob, nombre);
+        if (metodo === "shared") setMessage("Reporte listo para guardar/compartir.");
+        else if (metodo === "copied") setMessage("Imagen copiada al portapapeles. Pégala donde quieras.");
+        else if (metodo === "downloaded") setMessage("Reporte descargado.");
       });
     } catch {
       setMessage("No se pudo generar la imagen.");

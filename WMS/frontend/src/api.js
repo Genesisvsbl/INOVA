@@ -540,18 +540,27 @@ async function buildMovimientoInsert(payload) {
 
 async function buildRotuloInsert(payload) {
   const sku = String(payload.sku || payload.codigo_material || "").trim();
-  const material = sku
-    ? await findOne("materiales", {
+  // Usa el caché de materiales (igual que los movimientos) para NO hacer una
+  // consulta por cada rótulo. Así generar 100 rótulos no dispara 100 consultas.
+  let materialId = null;
+  if (sku) {
+    if (_materialIdCache.has(sku)) {
+      materialId = _materialIdCache.get(sku);
+    } else {
+      const material = await findOne("materiales", {
         empresa_id: `eq.${empresaId}`,
         codigo: `eq.${sku}`,
         select: "id,codigo",
-      })
-    : null;
+      });
+      materialId = material?.id || null;
+      if (materialId) _materialIdCache.set(sku, materialId);
+    }
+  }
 
   return compactObject({
     ...payload,
     empresa_id: empresaId,
-    material_id: material?.id || null,
+    material_id: materialId,
     sku,
     fecha_recepcion: payload.fecha_recepcion || new Date().toISOString().slice(0, 10),
   });
