@@ -130,50 +130,33 @@ export async function selectAllRows(schema, table, params = {}) {
   delete base.limit;
   delete base.offset;
 
-  // Primera página + total exacto.
-  const firstRes = await fetch(buildUrl(schema, table, { ...base, limit: String(pageSize), offset: "0" }), {
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-      Prefer: "count=exact",
-      "Accept-Profile": schema,
-    },
-  });
-  if (!firstRes.ok) {
-    const text = await firstRes.text();
-    throw new Error(text || `Supabase HTTP ${firstRes.status}`);
+  // Trae TODO (sin límite), pero SIN pedir "count=exact" (que obliga a Postgres a
+  // contar exacto en cada carga → lento con millones). Se paginan tandas en
+  // paralelo hasta que una página venga incompleta (ya no hay más datos).
+  const fetchPage = (offset) =>
+    request(schema, table, { params: { ...base, limit: String(pageSize), offset: String(offset) } });
+
+  const first = await fetchPage(0);
+  if (!Array.isArray(first) || first.length < pageSize) {
+    return Array.isArray(first) ? first : [];
   }
-  const first = await firstRes.json();
-  if (!Array.isArray(first) || first.length < pageSize) return Array.isArray(first) ? first : [];
 
-  const cr = firstRes.headers.get("content-range") || "";
-  const totalStr = cr.split("/").pop();
-  const total = totalStr && totalStr !== "*" ? Number(totalStr) : 0;
-  if (!total || total <= pageSize) return first;
-
-  // Offsets de las páginas restantes.
-  const offsets = [];
-  for (let off = pageSize; off < total; off += pageSize) offsets.push(off);
-
-  // Descarga en paralelo con concurrencia limitada (no saturar).
-  const CONCURRENCIA = 6;
-  const results = new Array(offsets.length);
-  let cursor = 0;
-  async function worker() {
-    while (cursor < offsets.length) {
-      const my = cursor;
-      cursor += 1;
-      results[my] = await request(schema, table, {
-        params: { ...base, limit: String(pageSize), offset: String(offsets[my]) },
-      });
+  let all = first.slice();
+  let offset = pageSize;
+  const BATCH = 6; // páginas en paralelo por tanda
+  // Límite de seguridad muy alto solo para no hacer un bucle infinito por error.
+  for (let vuelta = 0; vuelta < 100000; vuelta++) {
+    const offsets = [];
+    for (let k = 0; k < BATCH; k++) offsets.push(offset + k * pageSize);
+    const pages = await Promise.all(offsets.map(fetchPage));
+    let hayMas = true;
+    for (const page of pages) {
+      if (Array.isArray(page) && page.length) all = all.concat(page);
+      if (!Array.isArray(page) || page.length < pageSize) hayMas = false;
     }
+    if (!hayMas) break;
+    offset += BATCH * pageSize;
   }
-  await Promise.all(
-    Array.from({ length: Math.min(CONCURRENCIA, offsets.length) }, () => worker())
-  );
-
-  let all = first;
-  for (const page of results) if (Array.isArray(page)) all = all.concat(page);
   return all;
 }
 
