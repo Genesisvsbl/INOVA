@@ -1608,7 +1608,7 @@ export function importarInventarioInicial(file) {
     // Inserta en lotes para no exceder límites.
     const chunk = 500;
     for (let i = 0; i < items.length; i += chunk) {
-      await insertRow("wms", "movimientos", items.slice(i, i + chunk));
+      await insertRow("wms", "movimientos", items.slice(i, i + chunk), { minimal: true });
     }
 
     return {
@@ -1818,15 +1818,36 @@ export async function generarAnalisisInventario(file) {
   // Físico real del WMS: stock neto por material. Trae TODOS los movimientos
   // (sin límite, paginado) con una consulta liviana (solo código + cantidad)
   // para que sea rápido aunque haya mucha información.
-  const movs = await selectAllRows("wms", "movimientos", {
-    empresa_id: `eq.${empresaId}`,
-    select: "cantidad_r,material:materiales(codigo)",
-  });
-  const fisico = new Map();
-  for (const m of Array.isArray(movs) ? movs : []) {
-    const cod = String(m.material?.codigo || "").trim();
-    if (!cod) continue;
-    fisico.set(cod, (fisico.get(cod) || 0) + Number(m.cantidad_r ?? 0));
+  // Camino RÁPIDO: leer el físico ya sumado por material desde la vista
+  // (una fila por material, no toda la tabla). Fallback al método anterior.
+  let fisico = new Map();
+  let vistaOk = false;
+  try {
+    const tot = await selectAllRows("wms", "stock_total_material", {
+      empresa_id: `eq.${empresaId}`,
+      select: "codigo_material,fisico",
+    });
+    if (Array.isArray(tot)) {
+      for (const r of tot) {
+        const cod = String(r.codigo_material || "").trim();
+        if (cod) fisico.set(cod, Number(r.fisico ?? 0));
+      }
+      vistaOk = true;
+    }
+  } catch {
+    vistaOk = false;
+  }
+  if (!vistaOk) {
+    const movs = await selectAllRows("wms", "movimientos", {
+      empresa_id: `eq.${empresaId}`,
+      select: "cantidad_r,material:materiales(codigo)",
+    });
+    fisico = new Map();
+    for (const m of Array.isArray(movs) ? movs : []) {
+      const cod = String(m.material?.codigo || "").trim();
+      if (!cod) continue;
+      fisico.set(cod, (fisico.get(cod) || 0) + Number(m.cantidad_r ?? 0));
+    }
   }
 
   return Array.from(sap.values())
