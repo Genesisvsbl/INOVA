@@ -346,6 +346,48 @@ function groupStock(rows) {
 }
 
 async function getAllStockRows() {
+  // Camino RÁPIDO: leer la vista agregada del servidor (stock ALMACENADO ya
+  // sumado por material+ubicación+lote). Son unos pocos miles de filas en vez de
+  // TODA la tabla de movimientos. Si la vista no existe o falla, se usa el método
+  // anterior (calcular desde movimientos) para no romper nada.
+  if (supabaseEnabled) {
+    try {
+      const vista = await selectAllRows("wms", "stock_agregado", {
+        empresa_id: `eq.${empresaId}`,
+        select: "*",
+      });
+      if (Array.isArray(vista)) {
+        return vista.map((r) => {
+          const cant = toNumber(r.cantidad_disponible);
+          return {
+            estado: "ALMACENADO",
+            material_id: r.material_id,
+            codigo_material: r.codigo_material,
+            sku: r.codigo_material,
+            descripcion_material: r.descripcion_material,
+            unidad_medida: r.unidad_medida,
+            um: r.unidad_medida,
+            familia: r.familia,
+            ubicacion_id: r.ubicacion_id,
+            ubicacion: r.ubicacion,
+            ubicacion_base: r.ubicacion_base,
+            posicion: r.posicion,
+            zona: r.zona,
+            familias: r.familias ?? null,
+            bodega: r.bodega,
+            lote_almacen: r.lote_almacen,
+            lote_proveedor: r.lote_proveedor,
+            fecha_vencimiento: r.fecha_vencimiento,
+            cantidad: cant,
+            cantidad_r: cant,
+            cantidad_disponible: cant,
+          };
+        });
+      }
+    } catch {
+      /* la vista no está disponible: se usa el cálculo por movimientos */
+    }
+  }
   const rows = await getMovimientos();
   return groupStock(rows);
 }
