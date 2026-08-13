@@ -666,16 +666,40 @@ async function openPrintable5SDocument({ title, reportElement }) {
   const captureTargets = pages.length ? pages : [reportElement];
   const imagePages = [];
 
+  // Letter a 96dpi = 816 x 1056 px. Se captura SIEMPRE al ancho de escritorio
+  // (aunque se imprima desde el celular), forzando el ancho de la hoja y usando
+  // una ventana ancha en html2canvas para que NO se apliquen los estilos móviles
+  // (que ponen el informe al 100% y lo dejan cortado/encimado).
+  const LETTER_W = 816;
+  const LETTER_H = 1056;
   for (const page of captureTargets) {
-    const canvas = await html2canvas(page, {
-      backgroundColor: "#ffffff",
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-      windowWidth: page.scrollWidth,
-      windowHeight: page.scrollHeight,
-    });
+    const prevWidth = page.style.width;
+    const prevMinWidth = page.style.minWidth;
+    const prevMaxWidth = page.style.maxWidth;
+    const prevTransform = page.style.transform;
+    page.style.width = "8.5in";
+    page.style.minWidth = "8.5in";
+    page.style.maxWidth = "8.5in";
+    page.style.transform = "none";
+    let canvas;
+    try {
+      canvas = await html2canvas(page, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        width: LETTER_W,
+        height: LETTER_H,
+        windowWidth: 1400,
+        windowHeight: 1900,
+      });
+    } finally {
+      page.style.width = prevWidth;
+      page.style.minWidth = prevMinWidth;
+      page.style.maxWidth = prevMaxWidth;
+      page.style.transform = prevTransform;
+    }
     imagePages.push(canvas.toDataURL("image/jpeg", 0.95));
   }
 
