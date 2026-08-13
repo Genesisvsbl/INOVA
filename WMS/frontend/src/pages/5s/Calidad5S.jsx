@@ -723,26 +723,29 @@ async function openPrintable5SDocument({ title, reportElement }) {
             print-color-adjust: exact !important;
           }
           .pdf-page {
-            width: 8.5in;
-            height: 11in;
             margin: 0;
             padding: 0;
-            display: grid;
-            place-items: stretch;
+            text-align: center;
             overflow: hidden;
             page-break-after: always;
             break-after: page;
+            page-break-inside: avoid;
+            break-inside: avoid;
             background: #fff;
           }
           .pdf-page:last-child {
             page-break-after: auto;
             break-after: auto;
           }
+          /* La imagen ocupa un pelín menos que la hoja Carta (8.5x11") para NO
+             generar una página en blanco extra por desbordamiento de milímetros. */
           .pdf-page img {
-            width: 100%;
-            height: 100%;
+            width: 8.3in;
+            height: auto;
+            max-height: 10.7in;
             object-fit: contain;
-            display: block;
+            display: inline-block;
+            vertical-align: top;
           }
         </style>
       </head>
