@@ -722,14 +722,19 @@ async function openPrintable5SDocument({ title, reportElement }) {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
+          /* Alto un PELÍN menor que 11" (10.85") para que la imagen NO se
+             desborde por milímetros y no genere una página en blanco extra.
+             La imagen sigue llenando la hoja como antes. */
           .pdf-page {
+            width: 8.5in;
+            height: 10.85in;
             margin: 0;
             padding: 0;
-            text-align: center;
+            display: grid;
+            place-items: center;
             overflow: hidden;
             page-break-after: always;
             break-after: page;
-            page-break-inside: avoid;
             break-inside: avoid;
             background: #fff;
           }
@@ -737,15 +742,11 @@ async function openPrintable5SDocument({ title, reportElement }) {
             page-break-after: auto;
             break-after: auto;
           }
-          /* La imagen ocupa un pelín menos que la hoja Carta (8.5x11") para NO
-             generar una página en blanco extra por desbordamiento de milímetros. */
           .pdf-page img {
-            width: 8.3in;
-            height: auto;
-            max-height: 10.7in;
+            width: 100%;
+            height: 100%;
             object-fit: contain;
-            display: inline-block;
-            vertical-align: top;
+            display: block;
           }
         </style>
       </head>
