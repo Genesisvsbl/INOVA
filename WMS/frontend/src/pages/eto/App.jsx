@@ -162,6 +162,7 @@ const EMPTY_ENTITY_FORM = {
   code: "",
   name: "",
   entity_type: "",
+  position: "",
   is_active: true,
 };
 
@@ -548,6 +549,7 @@ export default function App() {
   const [selectedEntityTargetValue, setSelectedEntityTargetValue] =
     useState("");
   const [selectedTargetType, setSelectedTargetType] = useState("");
+  const [selectedTargetCargo, setSelectedTargetCargo] = useState("");
   const [selectedTypeTargetValue, setSelectedTypeTargetValue] = useState("");
 
   useEffect(() => {
@@ -974,6 +976,7 @@ export default function App() {
         code: String(entityForm.code || "").trim(),
         name: String(entityForm.name || "").trim(),
         entity_type: String(entityForm.entity_type || "").trim(),
+        position: String(entityForm.position || "").trim() || null,
         is_active: Boolean(entityForm.is_active),
       };
 
@@ -1149,11 +1152,17 @@ export default function App() {
     // (entity_indicator_targets) y item.entity_id el de la ENTIDAD. Debemos
     // editar la ENTIDAD para que el cambio (ej. corregir el código) se refleje
     // en TODOS los indicadores donde está asociada.
-    setEditingEntityId(item.entity_id || item.id);
+    const entId = item.entity_id || item.id;
+    // La fila de targets no trae "position"; lo tomamos de la entidad real
+    // para no borrar el cargo al guardar.
+    const fullEntity =
+      (entities || []).find((e) => Number(e.id) === Number(entId)) || {};
+    setEditingEntityId(entId);
     setEntityForm({
       code: item.entity_code || item.code || "",
       name: item.entity_name || item.name || "",
       entity_type: item.entity_type || "",
+      position: item.position ?? fullEntity.position ?? "",
       is_active: item.is_active ?? true,
     });
   }
@@ -1245,19 +1254,29 @@ export default function App() {
       }
 
       const tipo = String(selectedTargetType || "").trim();
-      if (!tipo) {
-        throw new Error("Debes seleccionar un tipo o cargo");
+      const cargo = String(selectedTargetCargo || "").trim();
+      if (!tipo && !cargo) {
+        throw new Error("Debes seleccionar un tipo y/o un cargo");
       }
 
-      const matches = (entities || []).filter(
-        (e) =>
-          e.is_active !== false &&
+      const matches = (entities || []).filter((e) => {
+        if (e.is_active === false) return false;
+        const okTipo =
+          !tipo ||
           String(e.entity_type || "").trim().toLowerCase() ===
-            tipo.toLowerCase()
-      );
+            tipo.toLowerCase();
+        const okCargo =
+          !cargo ||
+          String(e.position || "").trim().toLowerCase() === cargo.toLowerCase();
+        return okTipo && okCargo;
+      });
+
+      const criterio = [tipo && `tipo "${tipo}"`, cargo && `cargo "${cargo}"`]
+        .filter(Boolean)
+        .join(" y ");
 
       if (!matches.length) {
-        throw new Error(`No hay entidades activas del tipo "${tipo}"`);
+        throw new Error(`No hay entidades activas con ${criterio}`);
       }
 
       const value =
@@ -1287,7 +1306,7 @@ export default function App() {
       setSelectedIndicatorEntityTargets(targets || []);
       setSelectedTypeTargetValue("");
       clearMessageSoon(
-        `Meta aplicada a ${matches.length} entidad(es) del tipo "${tipo}"`
+        `Meta aplicada a ${matches.length} entidad(es) con ${criterio}`
       );
     } catch (err) {
       showError(err.message);
@@ -1415,6 +1434,8 @@ export default function App() {
           setSelectedEntityTargetValue={setSelectedEntityTargetValue}
           selectedTargetType={selectedTargetType}
           setSelectedTargetType={setSelectedTargetType}
+          selectedTargetCargo={selectedTargetCargo}
+          setSelectedTargetCargo={setSelectedTargetCargo}
           selectedTypeTargetValue={selectedTypeTargetValue}
           setSelectedTypeTargetValue={setSelectedTypeTargetValue}
           handleApplyTypeTarget={handleApplyTypeTarget}

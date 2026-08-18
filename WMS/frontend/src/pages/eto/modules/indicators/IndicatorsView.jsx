@@ -111,6 +111,8 @@ export default function IndicatorsView({
   setSelectedEntityTargetValue = () => {},
   selectedTargetType = "",
   setSelectedTargetType = () => {},
+  selectedTargetCargo = "",
+  setSelectedTargetCargo = () => {},
   selectedTypeTargetValue = "",
   setSelectedTypeTargetValue = () => {},
   handleApplyTypeTarget = () => {},
@@ -263,6 +265,15 @@ export default function IndicatorsView({
     (entities || []).forEach((item) => {
       const type = String(item.entity_type || "").trim();
       if (type) set.add(type);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [entities]);
+
+  const entityCargos = useMemo(() => {
+    const set = new Set();
+    (entities || []).forEach((item) => {
+      const cargo = String(item.position || "").trim();
+      if (cargo) set.add(cargo);
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [entities]);
@@ -1307,6 +1318,26 @@ export default function IndicatorsView({
                 </div>
 
                 <div className="indicator-field">
+                  <label>Cargo</label>
+                  <input
+                    list="eto-cargos-list"
+                    value={entityForm.position || ""}
+                    onChange={(e) =>
+                      setEntityForm({
+                        ...entityForm,
+                        position: e.target.value,
+                      })
+                    }
+                    placeholder="Ej. Operador, Supervisor"
+                  />
+                  <datalist id="eto-cargos-list">
+                    {entityCargos.map((cargo) => (
+                      <option key={cargo} value={cargo} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <div className="indicator-field">
                   <label>Estado</label>
                   <select
                     value={entityForm.is_active ? "true" : "false"}
@@ -1493,14 +1524,14 @@ export default function IndicatorsView({
                 <span>o define la meta por tipo / cargo</span>
               </div>
 
-              <div className="associate-grid">
+              <div className="associate-grid type-target-grid">
                 <div className="indicator-field">
-                  <label>Tipo o cargo</label>
+                  <label>Tipo</label>
                   <select
                     value={selectedTargetType}
                     onChange={(e) => setSelectedTargetType(e.target.value)}
                   >
-                    <option value="">Seleccione</option>
+                    <option value="">Todos</option>
                     {entityTypes.map((type) => (
                       <option key={type} value={type}>
                         {type}
@@ -1510,7 +1541,22 @@ export default function IndicatorsView({
                 </div>
 
                 <div className="indicator-field">
-                  <label>Meta del tipo</label>
+                  <label>Cargo</label>
+                  <select
+                    value={selectedTargetCargo}
+                    onChange={(e) => setSelectedTargetCargo(e.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    {entityCargos.map((cargo) => (
+                      <option key={cargo} value={cargo}>
+                        {cargo}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="indicator-field">
+                  <label>Meta</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1526,14 +1572,14 @@ export default function IndicatorsView({
                     className="indicator-secondary"
                     onClick={handleApplyTypeTarget}
                   >
-                    Aplicar a todo el tipo
+                    Aplicar meta
                   </button>
                 </div>
               </div>
 
               <small className="type-target-hint">
-                Aplica esa meta a todas las entidades de ese tipo/cargo. Solo
-                toca ese tipo: los demás no cambian.
+                Elige un tipo, un cargo, o ambos, y aplica esa meta a todas las
+                entidades que coincidan. Solo toca esas: las demás no cambian.
               </small>
 
               {!visibleEntities.length && (
@@ -2440,6 +2486,10 @@ const indicatorsCss = `
   flex: 1;
   height: 1px;
   background: #e2e8f0;
+}
+
+.type-target-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, .9fr) minmax(120px, .7fr);
 }
 
 .type-target-action {
