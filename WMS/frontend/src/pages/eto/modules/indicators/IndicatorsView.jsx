@@ -1931,12 +1931,10 @@ function WorkflowIcon() {
 const indicatorsCss = `
 .indicators-page {
   position: relative;
-  min-height: calc(100% / .90);
-  width: calc(100% / .90);
+  min-height: 100%;
+  width: 100%;
   overflow: hidden;
   padding: clamp(22px, 2.4vw, 34px);
-  transform: scale(.90);
-  transform-origin: top left;
   color: #0f172a;
   background:
     radial-gradient(circle at 92% 6%, rgba(34,197,94,.09), transparent 30%),
@@ -2032,7 +2030,7 @@ const indicatorsCss = `
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(440px, 520px) minmax(0, 1fr);
+  grid-template-columns: minmax(500px, 600px) minmax(0, 1fr);
   gap: clamp(20px, 2vw, 28px);
   align-items: stretch;
 }
@@ -2794,7 +2792,7 @@ const indicatorsCss = `
 
 @media (max-width: 1440px) {
   .indicators-grid {
-    grid-template-columns: minmax(420px, 480px) minmax(0, 1fr);
+    grid-template-columns: minmax(460px, 540px) minmax(0, 1fr);
   }
 
   .create-panel,
