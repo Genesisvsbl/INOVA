@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
   CheckCircle2,
@@ -143,7 +143,16 @@ export default function IndicatorsView({
   const [customEntityTypes, setCustomEntityTypes] = useState([]);
   const [newEntityType, setNewEntityType] = useState("");
 
-  const [customCargos, setCustomCargos] = useState([]);
+  const [customCargos, setCustomCargos] = useState(() => {
+    try {
+      const saved = JSON.parse(
+        window.localStorage.getItem("eto_cargos") || "[]"
+      );
+      return Array.isArray(saved) ? saved : [];
+    } catch (_) {
+      return [];
+    }
+  });
   const [cargoManagerOpen, setCargoManagerOpen] = useState(false);
   const [newCargo, setNewCargo] = useState("");
   const [editingCargo, setEditingCargo] = useState("");
@@ -278,8 +287,16 @@ export default function IndicatorsView({
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [entities]);
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("eto_cargos", JSON.stringify(customCargos));
+    } catch (_) {
+      /* noop */
+    }
+  }, [customCargos]);
+
   const entityCargos = useMemo(() => {
-    const set = new Set();
+    const set = new Set(["Operador", "Supervisor"]);
     (entities || []).forEach((item) => {
       const cargo = String(item.position || "").trim();
       if (cargo) set.add(cargo);
