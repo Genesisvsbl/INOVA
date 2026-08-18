@@ -116,6 +116,9 @@ export default function IndicatorsView({
   selectedTypeTargetValue = "",
   setSelectedTypeTargetValue = () => {},
   handleApplyTypeTarget = () => {},
+  handleSetEntityCargo = () => {},
+  handleRenameCargo = () => {},
+  handleDeleteCargo = () => {},
   handleLoadIndicatorEntityTargets = () => {},
   handleCreateOrUpdateEntityTarget = () => {},
   handleDeleteEntityTarget = () => {},
@@ -139,6 +142,12 @@ export default function IndicatorsView({
   const [entityTypeAdding, setEntityTypeAdding] = useState(false);
   const [customEntityTypes, setCustomEntityTypes] = useState([]);
   const [newEntityType, setNewEntityType] = useState("");
+
+  const [customCargos, setCustomCargos] = useState([]);
+  const [cargoManagerOpen, setCargoManagerOpen] = useState(false);
+  const [newCargo, setNewCargo] = useState("");
+  const [editingCargo, setEditingCargo] = useState("");
+  const [editingCargoValue, setEditingCargoValue] = useState("");
 
   const addEntityType = () => {
     const value = newEntityType.trim();
@@ -275,8 +284,55 @@ export default function IndicatorsView({
       const cargo = String(item.position || "").trim();
       if (cargo) set.add(cargo);
     });
+    (customCargos || []).forEach((cargo) => {
+      const c = String(cargo || "").trim();
+      if (c) set.add(c);
+    });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [entities]);
+  }, [entities, customCargos]);
+
+  const addCargo = () => {
+    const value = String(newCargo || "").trim();
+    if (!value) return;
+    setCustomCargos((prev) =>
+      prev.some((c) => c.toLowerCase() === value.toLowerCase())
+        ? prev
+        : [...prev, value]
+    );
+    setNewCargo("");
+  };
+
+  const startEditCargo = (cargo) => {
+    setEditingCargo(cargo);
+    setEditingCargoValue(cargo);
+  };
+
+  const confirmEditCargo = async () => {
+    const nuevo = String(editingCargoValue || "").trim();
+    if (nuevo && nuevo.toLowerCase() !== editingCargo.toLowerCase()) {
+      setCustomCargos((prev) =>
+        prev
+          .filter((c) => c.toLowerCase() !== editingCargo.toLowerCase())
+          .concat(nuevo)
+      );
+      await handleRenameCargo(editingCargo, nuevo);
+    }
+    setEditingCargo("");
+    setEditingCargoValue("");
+  };
+
+  const removeCargo = async (cargo) => {
+    if (
+      !window.confirm(
+        `¿Eliminar el cargo "${cargo}"? Se quitará de las entidades que lo tengan.`
+      )
+    )
+      return;
+    setCustomCargos((prev) =>
+      prev.filter((c) => c.toLowerCase() !== cargo.toLowerCase())
+    );
+    await handleDeleteCargo(cargo);
+  };
 
   const visibleIndicators = useMemo(() => {
     const query = String(indicatorFilter || "").trim().toLowerCase();
@@ -1319,22 +1375,129 @@ export default function IndicatorsView({
 
                 <div className="indicator-field">
                   <label>Cargo</label>
-                  <input
-                    list="eto-cargos-list"
-                    value={entityForm.position || ""}
-                    onChange={(e) =>
-                      setEntityForm({
-                        ...entityForm,
-                        position: e.target.value,
-                      })
-                    }
-                    placeholder="Ej. Operador, Supervisor"
-                  />
-                  <datalist id="eto-cargos-list">
-                    {entityCargos.map((cargo) => (
-                      <option key={cargo} value={cargo} />
-                    ))}
-                  </datalist>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <select
+                      value={entityForm.position || ""}
+                      onChange={(e) =>
+                        setEntityForm({
+                          ...entityForm,
+                          position: e.target.value,
+                        })
+                      }
+                      style={{ flex: 1 }}
+                    >
+                      <option value="">Sin cargo</option>
+                      {Array.from(
+                        new Set([
+                          ...entityCargos,
+                          ...(entityForm.position ? [entityForm.position] : []),
+                        ])
+                      ).map((cargo) => (
+                        <option key={cargo} value={cargo}>
+                          {cargo}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      title="Administrar cargos"
+                      onClick={() => setCargoManagerOpen((v) => !v)}
+                      style={{
+                        width: "38px",
+                        height: "38px",
+                        flexShrink: 0,
+                        borderRadius: "10px",
+                        border: "1px solid #cbd5e1",
+                        background: cargoManagerOpen ? "#16a34a" : "#f1f5f9",
+                        color: cargoManagerOpen ? "#ffffff" : "#0f172a",
+                        fontSize: "20px",
+                        lineHeight: 1,
+                        cursor: "pointer",
+                      }}
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  {cargoManagerOpen && (
+                    <div className="cargo-manager">
+                      <div className="cargo-manager-add">
+                        <input
+                          value={newCargo}
+                          onChange={(e) => setNewCargo(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addCargo();
+                            }
+                          }}
+                          placeholder="Nuevo cargo (ej. Operador, Supervisor)"
+                          style={{ flex: 1 }}
+                        />
+                        <button
+                          type="button"
+                          className="indicator-secondary"
+                          onClick={addCargo}
+                        >
+                          Agregar
+                        </button>
+                      </div>
+
+                      {entityCargos.length > 0 && (
+                        <ul className="cargo-list">
+                          {entityCargos.map((cargo) => (
+                            <li key={cargo}>
+                              {editingCargo === cargo ? (
+                                <>
+                                  <input
+                                    autoFocus
+                                    value={editingCargoValue}
+                                    onChange={(e) =>
+                                      setEditingCargoValue(e.target.value)
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        confirmEditCargo();
+                                      }
+                                    }}
+                                    style={{ flex: 1 }}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="cargo-chip-btn save"
+                                    onClick={confirmEditCargo}
+                                  >
+                                    Guardar
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="cargo-chip-name">
+                                    {cargo}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="cargo-chip-btn"
+                                    onClick={() => startEditCargo(cargo)}
+                                  >
+                                    Editar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="cargo-chip-btn del"
+                                    onClick={() => removeCargo(cargo)}
+                                  >
+                                    Eliminar
+                                  </button>
+                                </>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="indicator-field">
@@ -1597,6 +1760,7 @@ export default function IndicatorsView({
                   <th>Código</th>
                   <th>Entidad</th>
                   <th>Tipo</th>
+                  <th>Cargo</th>
                   <th>
                     {entityIndicatorConds.length > 0
                       ? "Metas por condición"
@@ -1612,6 +1776,37 @@ export default function IndicatorsView({
                     <td>{item.entity_code}</td>
                     <td>{item.entity_name}</td>
                     <td>{item.entity_type}</td>
+                    <td>
+                      {(() => {
+                        const ent =
+                          (entities || []).find(
+                            (e) =>
+                              Number(e.id) === Number(item.entity_id || item.id)
+                          ) || {};
+                        const current = String(ent.position || "");
+                        return (
+                          <select
+                            className="cargo-cell-select"
+                            value={current}
+                            onChange={(e) =>
+                              handleSetEntityCargo(item, e.target.value)
+                            }
+                          >
+                            <option value="">Sin cargo</option>
+                            {Array.from(
+                              new Set([
+                                ...entityCargos,
+                                ...(current ? [current] : []),
+                              ])
+                            ).map((cargo) => (
+                              <option key={cargo} value={cargo}>
+                                {cargo}
+                              </option>
+                            ))}
+                          </select>
+                        );
+                      })()}
+                    </td>
                     <td>
                       {entityIndicatorConds.length > 0
                         ? (() => {
@@ -1698,7 +1893,7 @@ export default function IndicatorsView({
 
                 {!selectedIndicatorEntityTargets.length && (
                   <tr>
-                    <td colSpan="6" className="empty">
+                    <td colSpan="7" className="empty">
                       Este indicador aún no tiene entidades asociadas
                     </td>
                   </tr>
@@ -1820,7 +2015,7 @@ const indicatorsCss = `
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(580px, 680px) minmax(0, 1fr);
+  grid-template-columns: minmax(440px, 520px) minmax(0, 1fr);
   gap: clamp(20px, 2vw, 28px);
   align-items: stretch;
 }
@@ -2492,6 +2687,78 @@ const indicatorsCss = `
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, .9fr) minmax(120px, .7fr);
 }
 
+.cargo-manager {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  background: rgba(248, 250, 252, .7);
+}
+
+.cargo-manager-add {
+  display: flex;
+  gap: 8px;
+}
+
+.cargo-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cargo-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 9px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+.cargo-chip-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.cargo-chip-btn {
+  border: 1px solid #cbd5e1;
+  background: #f1f5f9;
+  color: #0f172a;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cargo-chip-btn.save {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #ffffff;
+}
+
+.cargo-chip-btn.del {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.cargo-cell-select {
+  min-width: 140px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  font-size: 13px;
+  color: #0f172a;
+}
+
 .type-target-action {
   display: flex;
   align-items: flex-end;
@@ -2510,7 +2777,7 @@ const indicatorsCss = `
 
 @media (max-width: 1440px) {
   .indicators-grid {
-    grid-template-columns: minmax(520px, 620px) minmax(0, 1fr);
+    grid-template-columns: minmax(420px, 480px) minmax(0, 1fr);
   }
 
   .create-panel,

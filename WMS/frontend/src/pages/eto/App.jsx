@@ -1315,6 +1315,106 @@ export default function App() {
     }
   }
 
+  async function handleSetEntityCargo(item, cargo) {
+    try {
+      const entId = item.entity_id || item.id;
+      const ent =
+        (entities || []).find((e) => Number(e.id) === Number(entId)) || {};
+      setLoading(true);
+      await API.updateEntity(entId, {
+        code: item.entity_code || ent.code || "",
+        name: item.entity_name || ent.name || "",
+        entity_type: item.entity_type || ent.entity_type || "",
+        position: String(cargo || "").trim() || null,
+        is_active: item.is_active ?? ent.is_active ?? true,
+      });
+      await loadEntities();
+      if (selectedIndicatorForEntities?.id) {
+        const targets = await API.getEntityTargets({
+          indicator_id: selectedIndicatorForEntities.id,
+          active_only: true,
+        });
+        setSelectedIndicatorEntityTargets(targets || []);
+      }
+      clearMessageSoon("Cargo actualizado");
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleRenameCargo(oldName, newName) {
+    const o = String(oldName || "").trim();
+    const n = String(newName || "").trim();
+    if (!o || !n || o.toLowerCase() === n.toLowerCase()) return;
+    try {
+      setLoading(true);
+      const affected = (entities || []).filter(
+        (e) => String(e.position || "").trim().toLowerCase() === o.toLowerCase()
+      );
+      for (const e of affected) {
+        await API.updateEntity(e.id, {
+          code: e.code || "",
+          name: e.name || "",
+          entity_type: e.entity_type || "",
+          position: n,
+          is_active: e.is_active ?? true,
+        });
+      }
+      await loadEntities();
+      if (selectedIndicatorForEntities?.id) {
+        const targets = await API.getEntityTargets({
+          indicator_id: selectedIndicatorForEntities.id,
+          active_only: true,
+        });
+        setSelectedIndicatorEntityTargets(targets || []);
+      }
+      clearMessageSoon(
+        `Cargo renombrado a "${n}" en ${affected.length} entidad(es)`
+      );
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDeleteCargo(name) {
+    const o = String(name || "").trim();
+    if (!o) return;
+    try {
+      setLoading(true);
+      const affected = (entities || []).filter(
+        (e) => String(e.position || "").trim().toLowerCase() === o.toLowerCase()
+      );
+      for (const e of affected) {
+        await API.updateEntity(e.id, {
+          code: e.code || "",
+          name: e.name || "",
+          entity_type: e.entity_type || "",
+          position: null,
+          is_active: e.is_active ?? true,
+        });
+      }
+      await loadEntities();
+      if (selectedIndicatorForEntities?.id) {
+        const targets = await API.getEntityTargets({
+          indicator_id: selectedIndicatorForEntities.id,
+          active_only: true,
+        });
+        setSelectedIndicatorEntityTargets(targets || []);
+      }
+      clearMessageSoon(
+        `Cargo "${o}" eliminado de ${affected.length} entidad(es)`
+      );
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleDeleteEntityTarget(item) {
     const ok = await showEtoConfirm(
       `Deseas quitar a "${item.entity_name}" del indicador "${
@@ -1439,6 +1539,9 @@ export default function App() {
           selectedTypeTargetValue={selectedTypeTargetValue}
           setSelectedTypeTargetValue={setSelectedTypeTargetValue}
           handleApplyTypeTarget={handleApplyTypeTarget}
+          handleSetEntityCargo={handleSetEntityCargo}
+          handleRenameCargo={handleRenameCargo}
+          handleDeleteCargo={handleDeleteCargo}
           handleLoadIndicatorEntityTargets={handleLoadIndicatorEntityTargets}
           handleCreateOrUpdateEntityTarget={handleCreateOrUpdateEntityTarget}
           handleDeleteEntityTarget={handleDeleteEntityTarget}
