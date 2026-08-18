@@ -527,6 +527,8 @@ export default function App() {
   const [selectedEntityId, setSelectedEntityId] = useState("");
   const [selectedEntityTargetValue, setSelectedEntityTargetValue] =
     useState("");
+  const [selectedTargetType, setSelectedTargetType] = useState("");
+  const [selectedTypeTargetValue, setSelectedTypeTargetValue] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -1057,6 +1059,63 @@ export default function App() {
     }
   }
 
+  async function handleApplyTypeTarget() {
+    try {
+      if (!selectedIndicatorForEntities?.id) {
+        throw new Error("Primero debes seleccionar un indicador");
+      }
+
+      const tipo = String(selectedTargetType || "").trim();
+      if (!tipo) {
+        throw new Error("Debes seleccionar un tipo o cargo");
+      }
+
+      const matches = (entities || []).filter(
+        (e) =>
+          e.is_active !== false &&
+          String(e.entity_type || "").trim().toLowerCase() ===
+            tipo.toLowerCase()
+      );
+
+      if (!matches.length) {
+        throw new Error(`No hay entidades activas del tipo "${tipo}"`);
+      }
+
+      const value =
+        selectedTypeTargetValue === "" || selectedTypeTargetValue === null
+          ? Number(selectedIndicatorForEntities.target_value || 0)
+          : Number(selectedTypeTargetValue);
+
+      setLoading(true);
+
+      // Solo toca las entidades de ESTE tipo. Los demás tipos y las metas
+      // individuales de otros tipos quedan intactos.
+      for (const e of matches) {
+        await API.createOrUpdateEntityTarget({
+          indicator_id: Number(selectedIndicatorForEntities.id),
+          entity_id: Number(e.id),
+          target_value: value,
+          is_active: true,
+        });
+      }
+
+      const targets = await API.getEntityTargets({
+        indicator_id: selectedIndicatorForEntities.id,
+        active_only: true,
+      });
+
+      setSelectedIndicatorEntityTargets(targets || []);
+      setSelectedTypeTargetValue("");
+      clearMessageSoon(
+        `Meta aplicada a ${matches.length} entidad(es) del tipo "${tipo}"`
+      );
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleDeleteEntityTarget(item) {
     const ok = window.confirm(
       `¿Deseas quitar a "${item.entity_name}" del indicador "${
@@ -1165,6 +1224,11 @@ export default function App() {
           selectedEntityTargetValue={selectedEntityTargetValue}
           setSelectedEntityId={setSelectedEntityId}
           setSelectedEntityTargetValue={setSelectedEntityTargetValue}
+          selectedTargetType={selectedTargetType}
+          setSelectedTargetType={setSelectedTargetType}
+          selectedTypeTargetValue={selectedTypeTargetValue}
+          setSelectedTypeTargetValue={setSelectedTypeTargetValue}
+          handleApplyTypeTarget={handleApplyTypeTarget}
           handleLoadIndicatorEntityTargets={handleLoadIndicatorEntityTargets}
           handleCreateOrUpdateEntityTarget={handleCreateOrUpdateEntityTarget}
           handleDeleteEntityTarget={handleDeleteEntityTarget}

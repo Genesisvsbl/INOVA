@@ -1799,3 +1799,35 @@ tbody tr:hover {
     height: 110px;
   }
 }
+
+/* Meta por tipo / cargo (asociar entidad al indicador) */
+.type-target-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 6px;
+  color: #64748b;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.type-target-divider::before,
+.type-target-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+.type-target-action {
+  display: flex;
+  align-items: flex-end;
+}
+.type-target-action button {
+  width: 100%;
+}
+.type-target-hint {
+  display: block;
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 0.8rem;
+}
