@@ -109,6 +109,11 @@ export default function IndicatorsView({
   selectedEntityTargetValue = "",
   setSelectedEntityId = () => {},
   setSelectedEntityTargetValue = () => {},
+  selectedTargetType = "",
+  setSelectedTargetType = () => {},
+  selectedTypeTargetValue = "",
+  setSelectedTypeTargetValue = () => {},
+  handleApplyTypeTarget = () => {},
   handleLoadIndicatorEntityTargets = () => {},
   handleCreateOrUpdateEntityTarget = () => {},
   handleDeleteEntityTarget = () => {},
@@ -252,6 +257,15 @@ export default function IndicatorsView({
       return matches && !usedIds.has(entityId);
     });
   }, [entityFilter, entities, selectedIndicatorEntityTargets]);
+
+  const entityTypes = useMemo(() => {
+    const set = new Set();
+    (entities || []).forEach((item) => {
+      const type = String(item.entity_type || "").trim();
+      if (type) set.add(type);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [entities]);
 
   const visibleIndicators = useMemo(() => {
     const query = String(indicatorFilter || "").trim().toLowerCase();
@@ -1475,6 +1489,53 @@ export default function IndicatorsView({
                 </button>
               </div>
 
+              <div className="type-target-divider">
+                <span>o define la meta por tipo / cargo</span>
+              </div>
+
+              <div className="associate-grid">
+                <div className="indicator-field">
+                  <label>Tipo o cargo</label>
+                  <select
+                    value={selectedTargetType}
+                    onChange={(e) => setSelectedTargetType(e.target.value)}
+                  >
+                    <option value="">Seleccione</option>
+                    {entityTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="indicator-field">
+                  <label>Meta del tipo</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={selectedTypeTargetValue}
+                    onChange={(e) => setSelectedTypeTargetValue(e.target.value)}
+                    placeholder="Ej. 0, 10, 25"
+                  />
+                </div>
+
+                <div className="indicator-field type-target-action">
+                  <button
+                    type="button"
+                    className="indicator-secondary"
+                    onClick={handleApplyTypeTarget}
+                  >
+                    Aplicar a todo el tipo
+                  </button>
+                </div>
+              </div>
+
+              <small className="type-target-hint">
+                Aplica esa meta a todas las entidades de ese tipo/cargo. Solo
+                toca ese tipo: los demás no cambian.
+              </small>
+
               {!visibleEntities.length && (
                 <div className="indicator-alert">
                   No hay entidades disponibles para asociar con el filtro actual o todas ya fueron asociadas.
@@ -2360,6 +2421,41 @@ const indicatorsCss = `
 
 .entity-table-wrap {
   max-height: 420px;
+}
+
+.type-target-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 4px;
+  color: #64748b;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.type-target-divider::before,
+.type-target-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+.type-target-action {
+  display: flex;
+  align-items: flex-end;
+}
+
+.type-target-action button {
+  width: 100%;
+}
+
+.type-target-hint {
+  display: block;
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 0.8rem;
 }
 
 @media (max-width: 1440px) {
