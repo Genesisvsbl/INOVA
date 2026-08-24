@@ -109,16 +109,13 @@ export default function EntitiesView({
   return (
     <section className="ent-page">
       <header className="ent-header">
-        <div className="ent-brand">
-          <div className="ent-logo" aria-hidden="true" />
-          <div>
-            <div className="ent-kicker">DATOS MAESTROS</div>
-            <h1 className="ent-title">Personal y Entidades</h1>
-            <p className="ent-sub">
-              Administra las personas y la maquinaria. Los cambios se reflejan
-              automáticamente en Indicadores.
-            </p>
-          </div>
+        <div>
+          <div className="ent-kicker">DATOS MAESTROS</div>
+          <h1 className="ent-title">Entidades</h1>
+          <p className="ent-sub">
+            Administra las personas y la maquinaria. Los cambios se reflejan
+            automáticamente en Indicadores.
+          </p>
         </div>
         <div className="ent-kpis">
           <div className="ent-kpi">
@@ -330,13 +327,11 @@ export default function EntitiesView({
 
       <style>{`
         .ent-page { position: relative; width: 100%; min-height: 100%; padding: clamp(20px, 2.2vw, 32px); color: #0f172a; background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(244,251,246,.94)); }
-        .ent-header { display: flex; flex-direction: column; align-items: stretch; gap: 16px; margin-bottom: 18px; }
-        .ent-brand { display: flex; align-items: center; gap: 18px; }
-        .ent-logo { width: 156px; height: 48px; flex-shrink: 0; background-color: #15803d; -webkit-mask: url(/INOVA2026.png) left center / contain no-repeat; mask: url(/INOVA2026.png) left center / contain no-repeat; }
+        .ent-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; flex-wrap: wrap; margin-bottom: 18px; }
         .ent-kicker { color: #15803d; font-weight: 900; letter-spacing: .08em; font-size: 12px; }
         .ent-title { margin: 4px 0 6px; font-size: clamp(28px, 3vw, 42px); font-weight: 950; color: #0b1f14; }
         .ent-sub { color: #64748b; margin: 0; max-width: 520px; }
-        .ent-kpis { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+        .ent-kpis { display: flex; gap: 14px; flex-wrap: wrap; margin-left: auto; }
         .ent-kpi { background: #f6fdf9; border: 1px solid #d6e7dc; border-radius: 16px; padding: 14px 22px; min-width: 96px; text-align: center; }
         .ent-kpi span { display: block; color: #15803d; font-weight: 800; font-size: 12px; letter-spacing: .04em; }
         .ent-kpi strong { font-size: 30px; color: #0b1f14; }

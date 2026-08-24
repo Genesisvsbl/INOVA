@@ -40,11 +40,11 @@ const TABS = [
   { key: "portal", label: "Portal", permission: "eto.portal" },
   { key: "processes", label: "Procesos", permission: "eto.processes" },
   { key: "indicators", label: "Indicadores", permission: "eto.indicators" },
-  { key: "entities", label: "Personal", permission: "eto.indicators" },
   { key: "daily", label: "Captura diaria", permission: "eto.daily" },
   { key: "history", label: "Historico", permission: "eto.history" },
   { key: "dashboard", label: "Dashboard", permission: "eto.dashboard" },
   { key: "consulta", label: "Consulta 360", permission: "eto.dashboard" },
+  { key: "entities", label: "Entidades", permission: "eto.indicators" },
 ];
 
 const ACCESS_CODES = {
