@@ -179,6 +179,22 @@ export default function HistoryView({
     entity_id: "",
   });
 
+  // Umbral de caracteres para VALIDAR un reporte (descripción). Configurable
+  // por el usuario y persistente. Por defecto 100.
+  const [minChars, setMinCharsState] = useState(() => {
+    const n = Number(window.localStorage.getItem("eto_min_desc"));
+    return Number.isFinite(n) && n >= 0 ? n : 100;
+  });
+  const setMinChars = (v) => {
+    const n = Math.max(0, Math.floor(Number(v) || 0));
+    setMinCharsState(n);
+    try {
+      window.localStorage.setItem("eto_min_desc", String(n));
+    } catch (_) {
+      /* noop */
+    }
+  };
+
   const selectedHistoryIndicator = useMemo(() => {
     if (!historyFilter.indicator_id) return null;
     return indicators.find(
@@ -1244,7 +1260,7 @@ export default function HistoryView({
           "descripción",
           "description",
         ]);
-        const MIN_DESC = 100;
+        const MIN_DESC = minChars;
         const INVALID_DIM = "Invalido";
         // Se agrega por MES (una fila al 01), sumando todos los días, igual que
         // el import de inspecciones. Así el dashboard (que suma) y la matriz
@@ -1333,7 +1349,7 @@ export default function HistoryView({
         "descripci\u00f3n",
         "description",
       ]);
-      const MIN_DESC_N = 100;
+      const MIN_DESC_N = minChars;
 
       const counts = {};
       const validChars = {}; // caracteres de cada reporte VÁLIDO por entidad-fecha
@@ -1897,6 +1913,41 @@ export default function HistoryView({
                   ))}
                 </select>
               )}
+
+              <div
+                title="Los reportes con descripción de menos caracteres que este número se invalidan al importar. Tú defines la exigencia."
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  height: "38px",
+                  padding: "0 12px",
+                  borderRadius: "8px",
+                  border: "1px solid #cbd5e1",
+                  background: "#f0fdf4",
+                  color: "#166534",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                }}
+              >
+                <span>Validar reporte ≥</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={minChars}
+                  onChange={(e) => setMinChars(e.target.value)}
+                  style={{
+                    width: "64px",
+                    height: "28px",
+                    borderRadius: "6px",
+                    border: "1px solid #86efac",
+                    textAlign: "center",
+                    fontWeight: 800,
+                    color: "#15803d",
+                  }}
+                />
+                <span>caracteres</span>
+              </div>
 
               <label
                 className="history-secondary"
