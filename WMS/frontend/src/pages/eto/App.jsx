@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 
 import ProcessesView from "./modules/processes/ProcessesView";
+import EntitiesView from "./modules/entities/EntitiesView";
 import IndicatorsView from "./modules/indicators/IndicatorsView";
 import DailyView from "./modules/daily/DailyView";
 import HistoryView from "./modules/history/HistoryView";
@@ -39,6 +40,7 @@ const TABS = [
   { key: "portal", label: "Portal", permission: "eto.portal" },
   { key: "processes", label: "Procesos", permission: "eto.processes" },
   { key: "indicators", label: "Indicadores", permission: "eto.indicators" },
+  { key: "entities", label: "Personal", permission: "eto.indicators" },
   { key: "daily", label: "Captura diaria", permission: "eto.daily" },
   { key: "history", label: "Historico", permission: "eto.history" },
   { key: "dashboard", label: "Dashboard", permission: "eto.dashboard" },
@@ -1415,6 +1417,37 @@ export default function App() {
     }
   }
 
+  async function handleSaveEntityDirect(payload, editingId) {
+    try {
+      setLoading(true);
+      if (editingId) {
+        await API.updateEntity(editingId, payload);
+        clearMessageSoon("Entidad actualizada");
+      } else {
+        await API.createEntity(payload);
+        clearMessageSoon("Entidad creada");
+      }
+      await loadEntities();
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDeleteEntityById(id) {
+    try {
+      setLoading(true);
+      await API.deleteEntity(id);
+      await loadEntities();
+      clearMessageSoon("Entidad eliminada");
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleDeleteEntityTarget(item) {
     const ok = await showEtoConfirm(
       `Deseas quitar a "${item.entity_name}" del indicador "${
@@ -1553,6 +1586,17 @@ export default function App() {
           handleDeleteEntity={handleDeleteEntity}
           editingEntityId={editingEntityId}
           resetEntityForm={resetEntityForm}
+          loading={loading}
+        />
+      );
+    }
+
+    if (tab === "entities") {
+      return (
+        <EntitiesView
+          entities={entities}
+          onSave={handleSaveEntityDirect}
+          onDelete={handleDeleteEntityById}
           loading={loading}
         />
       );
