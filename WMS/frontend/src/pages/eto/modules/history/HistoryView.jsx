@@ -182,8 +182,9 @@ export default function HistoryView({
   // Umbral de caracteres para VALIDAR un reporte (descripción). Configurable
   // por el usuario y persistente. Por defecto 100.
   const [minChars, setMinCharsState] = useState(() => {
-    const n = Number(window.localStorage.getItem("eto_min_desc"));
-    return Number.isFinite(n) && n >= 0 ? n : 100;
+    const raw = window.localStorage.getItem("eto_min_desc");
+    const n = Number(raw);
+    return raw != null && raw !== "" && Number.isFinite(n) && n >= 1 ? n : 100;
   });
   const setMinChars = (v) => {
     const n = Math.max(0, Math.floor(Number(v) || 0));
