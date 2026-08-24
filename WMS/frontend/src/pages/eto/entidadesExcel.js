@@ -89,11 +89,23 @@ export async function exportarEntidadesExcel({ rows = [], titulo = "Personal" })
   ws.getRow(row).height = 34;
   ws.getRow(row + 1).height = 16;
   ws.getRow(row + 2).height = 16;
+  // Logo INOVA tiñéndolo de VERDE (el PNG original es blanco): se dibuja en un
+  // canvas y se rellena con verde usando "source-in" para que combine.
   try {
     const resp = await fetch("/INOVA2026.png");
     if (resp.ok) {
-      const buf = await resp.arrayBuffer();
-      const imgId = wb.addImage({ buffer: buf, extension: "png" });
+      const blob = await resp.blob();
+      const img = await createImageBitmap(blob);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width || 300;
+      canvas.height = img.height || 92;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      ctx.globalCompositeOperation = "source-in";
+      ctx.fillStyle = "#15803d";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const base64 = canvas.toDataURL("image/png").split(",")[1];
+      const imgId = wb.addImage({ base64, extension: "png" });
       ws.addImage(imgId, {
         tl: { col: CL - 1 + 0.05, row: ROW0 - 1 + 0.05 },
         ext: { width: 150, height: 48 },
@@ -105,7 +117,7 @@ export async function exportarEntidadesExcel({ rows = [], titulo = "Personal" })
 
   const metaCol = Math.max(CL, CR - 2);
   [
-    [row, "Reporte de Personal · ETO", { bold: true, color: C.navy, size: 11 }],
+    [row, "Base de entidades · ETO", { bold: true, color: C.navy, size: 11 }],
     [row + 1, `${hoy} · ${hora}`, { color: C.muted, size: 10 }],
     [row + 2, titulo, { color: C.green, size: 10, bold: true }],
   ].forEach(([r, val, font]) => {
@@ -121,7 +133,7 @@ export async function exportarEntidadesExcel({ rows = [], titulo = "Personal" })
 
   merge(row);
   const t = ws.getCell(row, CL);
-  t.value = `Personal · ${titulo}`;
+  t.value = `Base de entidades · ${titulo}`;
   t.font = { bold: true, size: 18, color: C.navy };
   ws.getRow(row).height = 26;
   row += 2;
@@ -136,7 +148,7 @@ export async function exportarEntidadesExcel({ rows = [], titulo = "Personal" })
         { text: `${value}`, font: { size: 20, bold: true, color: { argb: color } } },
       ],
     };
-    cell.alignment = { vertical: "middle", horizontal: "left", wrapText: true, indent: 1 };
+    cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: C.kpiBg } };
     outerBorder(ws, r0, c1, r0 + 1, c2, C.line);
   };
@@ -198,7 +210,7 @@ export async function exportarEntidadesExcel({ rows = [], titulo = "Personal" })
   row += 1;
   merge(row);
   const foot = ws.getCell(row, CL);
-  foot.value = "Generado por INOVA · ETO · Personal";
+  foot.value = "Generado por INOVA · ETO · Base de entidades";
   foot.font = { size: 9, color: { argb: C.muted }, italic: true };
   foot.alignment = { horizontal: "center", vertical: "middle" };
 
@@ -209,7 +221,7 @@ export async function exportarEntidadesExcel({ rows = [], titulo = "Personal" })
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `Personal ${titulo} ${ahora.toISOString().slice(0, 10)}.xlsx`;
+  a.download = `Base de entidades ${titulo} ${ahora.toISOString().slice(0, 10)}.xlsx`;
   document.body.appendChild(a);
   a.click();
   a.remove();
