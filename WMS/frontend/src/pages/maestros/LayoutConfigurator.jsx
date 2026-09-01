@@ -89,7 +89,13 @@ export default function LayoutConfigurator({ initialZona = "300", onDone = () =>
     try {
       setBusy(true);
       const res = await crearUbicacionesBulk(rows);
-      try { window.localStorage.setItem(builtKey(norm.zona), "true"); } catch (_) { /* noop */ }
+      try {
+        window.localStorage.setItem(builtKey(norm.zona), "true");
+        window.localStorage.setItem(
+          `wms_layout_cfg_${norm.zona}`,
+          JSON.stringify({ modulos: norm.modulos, niveles: norm.niveles, pasillos: norm.pasillos })
+        );
+      } catch (_) { /* noop */ }
       await showWmsAlert(
         `Estantería construida: ${res.creadas} ubicaciones nuevas${res.yaExistian ? `, ${res.yaExistian} ya existían` : ""}. Cierro y recargo el plano.`
       );

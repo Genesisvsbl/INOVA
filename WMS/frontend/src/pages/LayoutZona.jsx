@@ -31,11 +31,13 @@ const WMS_DEEP = "#1f1148";
 const WMS_CYAN = "#22d3ee";
 
 const RACKS = 4;
-const MODULES_PER_RACK = 9;
-const LEVELS = 6;
+const DEFAULT_MODULES_PER_RACK = 9;
+const DEFAULT_LEVELS = 6;
+let MODULES_PER_RACK = DEFAULT_MODULES_PER_RACK;
+let LEVELS = DEFAULT_LEVELS;
 const FRONT_POSITIONS = 2;
 const DEPTHS = 2;
-const SLOT_CAPACITY = RACKS * MODULES_PER_RACK * LEVELS * FRONT_POSITIONS * DEPTHS;
+let SLOT_CAPACITY = RACKS * MODULES_PER_RACK * LEVELS * FRONT_POSITIONS * DEPTHS;
 const POSITION_WIDTH = 1.15;
 const DEPTH_WIDTH = 1;
 const LEVEL_HEIGHT = 0.85;
@@ -45,10 +47,33 @@ const AISLE_WIDTH = 3.2;
 const CENTRAL_RACK_GAP = 0.35;
 const RACK_DEPTH = DEPTHS * DEPTH_WIDTH + 0.35;
 const BASE_Y = 0.25;
-const TOTAL_X = MODULES_PER_RACK * MODULE_WIDTH;
+let TOTAL_X = MODULES_PER_RACK * MODULE_WIDTH;
 const TOTAL_Z = 4 * RACK_DEPTH + 2 * AISLE_WIDTH + CENTRAL_RACK_GAP;
-const CENTER_X = TOTAL_X / 2;
+let CENTER_X = TOTAL_X / 2;
 const CENTER_Z = TOTAL_Z / 2;
+
+// Camino B · Paso 1: módulos/niveles dinámicos por zona. Lee la config que
+// guarda el configurador. Sin config -> valores por defecto (200/300 igual).
+function applyZoneDims(zone) {
+  let mod = DEFAULT_MODULES_PER_RACK;
+  let niv = DEFAULT_LEVELS;
+  try {
+    const z = String(zone || "").match(/\d+/)?.[0] || String(zone || "");
+    const raw = window.localStorage.getItem(`wms_layout_cfg_${z}`);
+    if (raw) {
+      const c = JSON.parse(raw);
+      if (Number(c.modulos)) mod = Math.max(1, Math.min(9, Math.floor(Number(c.modulos))));
+      if (Number(c.niveles)) niv = Math.max(1, Math.min(6, Math.floor(Number(c.niveles))));
+    }
+  } catch (_) {
+    /* usa defaults */
+  }
+  MODULES_PER_RACK = mod;
+  LEVELS = niv;
+  TOTAL_X = MODULES_PER_RACK * MODULE_WIDTH;
+  CENTER_X = TOTAL_X / 2;
+  SLOT_CAPACITY = RACKS * MODULES_PER_RACK * LEVELS * FRONT_POSITIONS * DEPTHS;
+}
 const RACK_ROW_Z = [-6.725, -1.175, 1.175, 6.725];
 const AISLE_Z = [-3.95, 3.95];
 const COMPACT_RACKS = 5;
@@ -690,6 +715,9 @@ export default function LayoutZona() {
   const [ubicaciones, setUbicaciones] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
   const [zone, setZone] = useState("300");
+  // Camino B · Paso 1: fija módulos/niveles según la config de la zona actual
+  // antes de calcular la geometría (se ejecuta en cada render, es determinista).
+  applyZoneDims(zone);
   const [showZoneDirectory, setShowZoneDirectory] = useState(!demoParams);
   const [zoneSearch, setZoneSearch] = useState("");
   const [zoneDisplay, setZoneDisplay] = useState("grid");
