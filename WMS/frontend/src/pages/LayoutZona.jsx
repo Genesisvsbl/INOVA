@@ -1488,17 +1488,21 @@ export default function LayoutZona() {
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              style={{ width: "min(1000px, 96vw)", maxHeight: "92vh", overflowY: "auto", background: "#f4fbf6", borderRadius: 20, padding: 18, position: "relative" }}
+              style={{ width: "min(1000px, 96vw)", maxHeight: "92vh", background: "#f4fbf6", borderRadius: 20, display: "flex", flexDirection: "column", overflow: "hidden" }}
             >
-              <button
-                type="button"
-                onClick={() => setShowLayoutConfig(false)}
-                title="Cerrar"
-                style={{ position: "absolute", top: 12, right: 12, width: 36, height: 36, borderRadius: 10, border: "1px solid #cbd5e1", background: "#fff", color: "#0f172a", fontSize: 18, cursor: "pointer", zIndex: 1 }}
-              >
-                ✕
-              </button>
-              <LayoutConfigurator initialZona={zone} />
+              <div style={{ display: "flex", justifyContent: "flex-end", padding: "10px 12px", flexShrink: 0 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowLayoutConfig(false)}
+                  title="Cerrar"
+                  style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #cbd5e1", background: "#fff", color: "#0f172a", fontSize: 18, lineHeight: 1, cursor: "pointer" }}
+                >
+                  ✕
+                </button>
+              </div>
+              <div style={{ overflowY: "auto", padding: "0 18px 18px" }}>
+                <LayoutConfigurator initialZona={zone} />
+              </div>
             </div>
           </div>
         )}
@@ -1685,35 +1689,26 @@ export default function LayoutZona() {
                 style={{
                   width: "min(1000px, 96vw)",
                   maxHeight: "92vh",
-                  overflowY: "auto",
                   background: "#f4fbf6",
                   borderRadius: 20,
-                  padding: 18,
-                  position: "relative",
+                  display: "flex",
+                  flexDirection: "column",
+                  overflow: "hidden",
                 }}
               >
-                <button
-                  type="button"
-                  onClick={() => setShowLayoutConfig(false)}
-                  title="Cerrar"
-                  style={{
-                    position: "absolute",
-                    top: 12,
-                    right: 12,
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    border: "1px solid #cbd5e1",
-                    background: "#fff",
-                    color: "#0f172a",
-                    fontSize: 18,
-                    cursor: "pointer",
-                    zIndex: 1,
-                  }}
-                >
-                  ✕
-                </button>
-                <LayoutConfigurator initialZona={zone} />
+                <div style={{ display: "flex", justifyContent: "flex-end", padding: "10px 12px", flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowLayoutConfig(false)}
+                    title="Cerrar"
+                    style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #cbd5e1", background: "#fff", color: "#0f172a", fontSize: 18, lineHeight: 1, cursor: "pointer" }}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div style={{ overflowY: "auto", padding: "0 18px 18px" }}>
+                  <LayoutConfigurator initialZona={zone} />
+                </div>
               </div>
             </div>
           )}
