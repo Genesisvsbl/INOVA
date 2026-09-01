@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { exportarEntidadesExcel } from "../../entidadesExcel";
+import { showEtoConfirm, showEtoAlert } from "../../etoDialog.jsx";
 
 const EMPTY = {
   code: "",
@@ -71,7 +72,10 @@ export default function EntitiesView({
 
   const save = async () => {
     if (!String(form.name || "").trim()) {
-      window.alert("Ingresa el nombre de la entidad");
+      await showEtoAlert("Ingresa el nombre de la entidad.", {
+        tone: "warning",
+        title: "Falta el nombre",
+      });
       return;
     }
     const payload = {
@@ -88,9 +92,17 @@ export default function EntitiesView({
   };
 
   const remove = async (e) => {
-    if (!window.confirm(`¿Eliminar "${e.name}"?`)) return;
+    const ok = await showEtoConfirm(
+      `¿Eliminar a "${e.name}"? Se quitará de las entidades y de los indicadores donde esté asociada.`,
+      { title: "Eliminar entidad", confirmLabel: "Sí, eliminar" }
+    );
+    if (!ok) return;
     await onDelete(e.id);
     if (editingId === e.id) resetForm();
+    await showEtoAlert(`"${e.name}" quedó eliminada correctamente.`, {
+      tone: "success",
+      title: "Entidad eliminada",
+    });
   };
 
   const exportar = () =>

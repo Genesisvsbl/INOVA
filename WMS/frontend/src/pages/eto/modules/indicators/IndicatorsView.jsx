@@ -116,6 +116,7 @@ export default function IndicatorsView({
   selectedTypeTargetValue = "",
   setSelectedTypeTargetValue = () => {},
   handleApplyTypeTarget = () => {},
+  handleApplyEntitiesToAll = () => {},
   handleSetEntityCargo = () => {},
   handleRenameCargo = () => {},
   handleDeleteCargo = () => {},
@@ -1770,6 +1771,17 @@ export default function IndicatorsView({
             </article>
           </div>
 
+          <div className="entity-apply-all">
+            <button
+              type="button"
+              className="indicator-secondary"
+              onClick={handleApplyEntitiesToAll}
+              title="Copia las entidades asociadas de este indicador a todos los demás indicadores por entidad"
+            >
+              Aplicar estas entidades a todos los indicadores
+            </button>
+          </div>
+
           <div className="indicators-table-wrap entity-table-wrap">
             <table className="indicators-table">
               <thead>
@@ -2788,6 +2800,12 @@ const indicatorsCss = `
   margin-top: 8px;
   color: #64748b;
   font-size: 0.8rem;
+}
+
+.entity-apply-all {
+  display: flex;
+  justify-content: flex-end;
+  margin: 14px 0 6px;
 }
 
 @media (max-width: 1440px) {

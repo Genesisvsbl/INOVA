@@ -1448,6 +1448,54 @@ export default function App() {
     }
   }
 
+  async function handleApplyEntitiesToAll() {
+    try {
+      if (!selectedIndicatorForEntities?.id) {
+        throw new Error("Primero selecciona un indicador");
+      }
+      const source = selectedIndicatorEntityTargets || [];
+      if (!source.length) {
+        throw new Error("Este indicador no tiene entidades para copiar");
+      }
+      const destinos = (indicators || []).filter(
+        (i) =>
+          i.scope_type === "entity" &&
+          Number(i.id) !== Number(selectedIndicatorForEntities.id)
+      );
+      if (!destinos.length) {
+        throw new Error("No hay otros indicadores por entidad");
+      }
+
+      const ok = await showEtoConfirm(
+        `Se copiarán ${source.length} entidad(es) a ${destinos.length} indicador(es) por entidad. Las metas individuales de cada quien se mantienen; solo se agregan los que falten. ¿Continuar?`,
+        { tone: "warning", title: "Aplicar a todos", confirmLabel: "Sí, aplicar" }
+      );
+      if (!ok) return;
+
+      setLoading(true);
+      let count = 0;
+      for (const ind of destinos) {
+        for (const t of source) {
+          await API.createOrUpdateEntityTarget({
+            indicator_id: Number(ind.id),
+            entity_id: Number(t.entity_id),
+            target_value: Number(t.target_value || 0),
+            is_active: true,
+            conditions_config: t.conditions_config || "",
+          });
+          count += 1;
+        }
+      }
+      clearMessageSoon(
+        `Entidades aplicadas: ${count} asociaciones en ${destinos.length} indicador(es)`
+      );
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleDeleteEntityTarget(item) {
     const ok = await showEtoConfirm(
       `Deseas quitar a "${item.entity_name}" del indicador "${
@@ -1572,6 +1620,7 @@ export default function App() {
           selectedTypeTargetValue={selectedTypeTargetValue}
           setSelectedTypeTargetValue={setSelectedTypeTargetValue}
           handleApplyTypeTarget={handleApplyTypeTarget}
+          handleApplyEntitiesToAll={handleApplyEntitiesToAll}
           handleSetEntityCargo={handleSetEntityCargo}
           handleRenameCargo={handleRenameCargo}
           handleDeleteCargo={handleDeleteCargo}
