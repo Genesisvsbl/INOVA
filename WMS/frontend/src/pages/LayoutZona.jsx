@@ -344,6 +344,18 @@ const ZONE_LABELS = {
 
 const RENDERABLE_ZONES = new Set(["200", "300"]);
 
+// Una zona se dibuja en 3D si está en la lista fija o si el super-admin la
+// construyó desde el configurador (marca guardada en localStorage).
+function zonaRenderable(zone) {
+  const z = String(zone);
+  if (RENDERABLE_ZONES.has(z)) return true;
+  try {
+    return window.localStorage.getItem(`wms_layout_built_${z}`) === "true";
+  } catch (_) {
+    return false;
+  }
+}
+
 const ZONE_SYSTEM_LABELS = {
   200: "Sistema de estanteria compacta tipo Pallet Shuttle",
   300: "Pallet Shuttle + AGV",
@@ -788,7 +800,7 @@ export default function LayoutZona() {
       .map((item, index) => ({
         ...item,
         name: zoneName(item.zone),
-        ready: RENDERABLE_ZONES.has(String(item.zone)),
+        ready: zonaRenderable(item.zone),
         palette: zonePalette(item.zone, index),
         Icon: zoneIcon(item.zone),
         displayName: zoneNames[item.zone]?.trim() || "Nombre de bodega pendiente",
@@ -1453,7 +1465,7 @@ export default function LayoutZona() {
     ? "Carriles compactos de alta densidad para operacion con shuttle, ocupacion por ubicacion y control visual de profundidad."
     : "Maqueta operacional por zona con racks, pasillos, recibo, despacho, AGV y ubicaciones reales desde el sistema.";
 
-  if (!RENDERABLE_ZONES.has(String(zone))) {
+  if (!zonaRenderable(zone)) {
     const currentZone = zoneCards.find((item) => item.zone === String(zone));
     return (
       <main className="layout-zone-page">
@@ -1501,7 +1513,7 @@ export default function LayoutZona() {
                 </button>
               </div>
               <div style={{ overflowY: "auto", padding: "0 18px 18px" }}>
-                <LayoutConfigurator initialZona={zone} />
+                <LayoutConfigurator initialZona={zone} onDone={() => { setShowLayoutConfig(false); loadData(); }} />
               </div>
             </div>
           </div>
@@ -1707,7 +1719,7 @@ export default function LayoutZona() {
                   </button>
                 </div>
                 <div style={{ overflowY: "auto", padding: "0 18px 18px" }}>
-                  <LayoutConfigurator initialZona={zone} />
+                  <LayoutConfigurator initialZona={zone} onDone={() => { setShowLayoutConfig(false); loadData(); }} />
                 </div>
               </div>
             </div>

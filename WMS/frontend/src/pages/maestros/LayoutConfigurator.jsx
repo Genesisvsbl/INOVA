@@ -1,25 +1,26 @@
-import { useEffect, useMemo, useState } from "react";
-import { showWmsAlert } from "../../wmsDialog.jsx";
+import { useMemo, useState } from "react";
+import { crearUbicacionesBulk, borrarUbicacionesPorCodigo, getUbicaciones } from "../../api";
+import { showWmsAlert, showWmsConfirm } from "../../wmsDialog.jsx";
 
-// Previsualización + configuración de la estantería por ZONA. Muestra en vivo
-// cómo queda la estructura (planta y alzado) a medida que cambias los valores.
-// Se guarda por zona. La creación real en el sistema + render 3D es la Etapa 2.
-//
-// Regla de pasillos:
-//   - "Racks por pasillo" = 0 (o vacío)  -> todos los racks van PEGADOS (un bloque).
-//   - "Racks por pasillo" = N (>=1)       -> se agrupan de a N por pasillo.
+// Camino A: construye la estantería de una zona de verdad. Genera las
+// ubicaciones en el formato que el plano 3D entiende (zona+pasillo+módulo+
+// nivel'final) y marca la zona como dibujable. Límite del motor 3D actual:
+// pasillos 1-2, módulos 1-9, niveles 1-6 (2 posiciones × 2 profundidades = 8
+// posiciones internas por celda, fijas por ahora).
 
+const pad2 = (n) => String(n).padStart(2, "0");
+const FINALS = 8;
 const cleanZone = (v) => {
   const m = String(v || "").match(/\d+/);
   return m ? m[0] : "";
 };
-const keyFor = (zona) => `wms_layout_cfg_${cleanZone(zona) || "default"}`;
 const clampInt = (v, min, max) => Math.max(min, Math.min(max, Math.floor(Number(v) || 0)));
+const builtKey = (z) => `wms_layout_built_${cleanZone(z)}`;
 
 const card = {
   border: "1px solid #d6e7dc", borderRadius: 18,
   background: "linear-gradient(135deg,#ffffff,#f4fbf6)",
-  boxShadow: "0 14px 40px rgba(15,23,42,.07)", padding: 22, marginBottom: 18,
+  boxShadow: "0 14px 40px rgba(15,23,42,.07)", padding: 22, marginBottom: 4,
 };
 const label = { fontWeight: 700, fontSize: 13, color: "#334155", marginBottom: 6, display: "block" };
 const input = {
@@ -27,65 +28,108 @@ const input = {
   padding: "0 12px", fontSize: 14, color: "#0f172a", background: "#fff",
 };
 const field = { display: "flex", flexDirection: "column" };
-const moduleBox = { width: 16, height: 22, borderRadius: 3, background: "#bbf7d0", border: "1px solid #16a34a" };
+const moduleBox = { width: 15, height: 20, borderRadius: 3, background: "#bbf7d0", border: "1px solid #16a34a" };
 
-const DEFAULT_CFG = {
-  racks: 5,
-  modulosPorRack: 9,
-  niveles: 6,
-  posiciones: 1,
-  profundidad: 1,
-  racksPorPasillo: 0, // 0 = pegados
-};
-
-export default function LayoutConfigurator({ initialZona = "300" }) {
-  const [zona, setZona] = useState(cleanZone(initialZona) || "300");
-  const [cfg, setCfg] = useState(DEFAULT_CFG);
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(keyFor(zona));
-      setCfg(raw ? { ...DEFAULT_CFG, ...JSON.parse(raw) } : DEFAULT_CFG);
-    } catch (_) {
-      setCfg(DEFAULT_CFG);
-    }
-  }, [zona]);
-
+export default function LayoutConfigurator({ initialZona = "300", onDone = () => {} }) {
+  const [cfg, setCfg] = useState({
+    zona: cleanZone(initialZona) || "300",
+    bodega: "",
+    familias: "",
+    pasillos: 2,
+    modulos: 9,
+    niveles: 6,
+  });
+  const [busy, setBusy] = useState(false);
   const set = (k, v) => setCfg((c) => ({ ...c, [k]: v }));
 
   const norm = useMemo(
     () => ({
-      racks: clampInt(cfg.racks, 1, 40),
-      modulosPorRack: clampInt(cfg.modulosPorRack, 1, 40),
-      niveles: clampInt(cfg.niveles, 1, 20),
-      posiciones: clampInt(cfg.posiciones, 1, 10),
-      profundidad: cfg.profundidad === 2 ? 2 : 1,
-      racksPorPasillo: clampInt(cfg.racksPorPasillo, 0, 40),
+      zona: cleanZone(cfg.zona),
+      pasillos: clampInt(cfg.pasillos, 1, 2),
+      modulos: clampInt(cfg.modulos, 1, 9),
+      niveles: clampInt(cfg.niveles, 1, 6),
     }),
     [cfg]
   );
 
-  const totalUbic =
-    norm.racks * norm.modulosPorRack * norm.niveles * norm.posiciones * norm.profundidad;
-
-  // Agrupa los racks en pasillos. Si racksPorPasillo = 0 -> un solo bloque (pegados).
-  const grupos = useMemo(() => {
-    const porGrupo = norm.racksPorPasillo === 0 ? norm.racks : norm.racksPorPasillo;
+  const rows = useMemo(() => {
     const out = [];
-    for (let i = 0; i < norm.racks; i += porGrupo) {
-      out.push(Array.from({ length: Math.min(porGrupo, norm.racks - i) }, (_, j) => i + j + 1));
+    if (!norm.zona) return out;
+    for (let p = 1; p <= norm.pasillos; p++) {
+      for (let m = 1; m <= norm.modulos; m++) {
+        for (let n = 1; n <= norm.niveles; n++) {
+          const base = `${norm.zona}${p}${m}${n}`;
+          for (let f = 1; f <= FINALS; f++) {
+            out.push({
+              ubicacion: `${base}'${pad2(f)}`,
+              ubicacion_base: base,
+              posicion: pad2(f),
+              zona: norm.zona,
+              bodega: cfg.bodega,
+              familias: cfg.familias,
+            });
+          }
+        }
+      }
     }
     return out;
-  }, [norm.racks, norm.racksPorPasillo]);
+  }, [norm, cfg.bodega, cfg.familias]);
 
-  const pegados = norm.racksPorPasillo === 0;
+  const total = rows.length;
+  const sample = rows.slice(0, 6).map((r) => r.ubicacion);
 
-  const guardar = async () => {
+  const construir = async () => {
+    if (!norm.zona) { await showWmsAlert("Indica la zona (solo números, ej. 400)."); return; }
+    if (!total) { await showWmsAlert("La configuración no genera ubicaciones."); return; }
+    const ok = await showWmsConfirm(
+      `Se construirá la estantería de la zona ${norm.zona}: ${total} ubicaciones (las que ya existan se omiten). Al terminar, el plano 3D la dibujará. ¿Continuar?`,
+      { confirmLabel: "Sí, construir" }
+    );
+    if (!ok) return;
     try {
-      window.localStorage.setItem(keyFor(zona), JSON.stringify(norm));
-      await showWmsAlert(`Configuración de la zona ${zona} guardada.`);
+      setBusy(true);
+      const res = await crearUbicacionesBulk(rows);
+      try { window.localStorage.setItem(builtKey(norm.zona), "true"); } catch (_) { /* noop */ }
+      await showWmsAlert(
+        `Estantería construida: ${res.creadas} ubicaciones nuevas${res.yaExistian ? `, ${res.yaExistian} ya existían` : ""}. Cierro y recargo el plano.`
+      );
+      onDone();
     } catch (e) {
-      await showWmsAlert("No se pudo guardar:\n" + (e?.message || e));
+      await showWmsAlert("Error construyendo la estantería:\n" + (e?.message || e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const borrarZona = async () => {
+    if (!norm.zona) { await showWmsAlert("Indica la zona."); return; }
+    const ok = await showWmsConfirm(
+      `Se borrará TODA la estantería de la zona ${norm.zona} (solo ubicaciones sin stock; las ocupadas se conservan). ¿Continuar?`,
+      { confirmLabel: "Sí, borrar la zona", tone: "danger" }
+    );
+    if (!ok) return;
+    try {
+      setBusy(true);
+      const todas = await getUbicaciones();
+      const delZona = (todas || []).filter(
+        (u) => cleanZone(u.zona || u.ubicacion_base || u.ubicacion) === norm.zona
+      );
+      const codigos = delZona.map((u) => u.ubicacion).filter(Boolean);
+      if (!codigos.length) { await showWmsAlert(`La zona ${norm.zona} no tiene ubicaciones registradas.`); return; }
+      const res = await borrarUbicacionesPorCodigo(codigos);
+      if (res.bloqueadas === 0) {
+        try { window.localStorage.removeItem(builtKey(norm.zona)); } catch (_) { /* noop */ }
+      }
+      await showWmsAlert(
+        `Zona ${norm.zona}: ${res.borradas} ubicaciones borradas${
+          res.bloqueadas ? `. ${res.bloqueadas} no se borraron (tienen stock; reasigna y reintenta).` : ""
+        }`
+      );
+      onDone();
+    } catch (e) {
+      await showWmsAlert("Error borrando la zona:\n" + (e?.message || e));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -94,113 +138,62 @@ export default function LayoutConfigurator({ initialZona = "300" }) {
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
         <div style={{ width: 40, height: 40, borderRadius: 12, display: "grid", placeItems: "center", background: "#dcfce7", color: "#15803d", fontWeight: 900 }}>▦</div>
         <div>
-          <h3 style={{ margin: 0, color: "#0b1f14", fontSize: 18 }}>Configurar estantería · Zona {zona}</h3>
+          <h3 style={{ margin: 0, color: "#0b1f14", fontSize: 18 }}>Configurar estantería · Zona {norm.zona}</h3>
           <p style={{ margin: "2px 0 0", color: "#64748b", fontSize: 13 }}>
-            Ajusta los valores y ve la previsualización en vivo. Racks por pasillo = 0 → racks pegados.
+            Ajusta la estructura, míra la previsualización y constrúyela. El plano 3D se dibuja al terminar.
           </p>
         </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14, marginTop: 14 }}>
-        <div style={field}>
-          <span style={label}>Zona</span>
-          <input style={input} value={zona} onChange={(e) => setZona(e.target.value)} />
-        </div>
-        <div style={field}>
-          <span style={label}>Racks</span>
-          <input style={input} type="number" min="1" value={cfg.racks} onChange={(e) => set("racks", e.target.value)} />
-        </div>
-        <div style={field}>
-          <span style={label}>Módulos por rack</span>
-          <input style={input} type="number" min="1" value={cfg.modulosPorRack} onChange={(e) => set("modulosPorRack", e.target.value)} />
-        </div>
-        <div style={field}>
-          <span style={label}>Niveles</span>
-          <input style={input} type="number" min="1" value={cfg.niveles} onChange={(e) => set("niveles", e.target.value)} />
-        </div>
-        <div style={field}>
-          <span style={label}>Posiciones / módulo</span>
-          <input style={input} type="number" min="1" value={cfg.posiciones} onChange={(e) => set("posiciones", e.target.value)} />
-        </div>
-        <div style={field}>
-          <span style={label}>Profundidad</span>
-          <select style={input} value={cfg.profundidad} onChange={(e) => set("profundidad", Number(e.target.value))}>
-            <option value={1}>Sencilla</option>
-            <option value={2}>Doble</option>
-          </select>
-        </div>
-        <div style={field}>
-          <span style={label}>Racks por pasillo (0 = pegados)</span>
-          <input style={input} type="number" min="0" value={cfg.racksPorPasillo} onChange={(e) => set("racksPorPasillo", e.target.value)} />
-        </div>
+        <div style={field}><span style={label}>Zona</span>
+          <input style={input} value={cfg.zona} onChange={(e) => set("zona", e.target.value)} /></div>
+        <div style={field}><span style={label}>Bodega</span>
+          <input style={input} value={cfg.bodega} onChange={(e) => set("bodega", e.target.value)} /></div>
+        <div style={field}><span style={label}>Familias (opcional)</span>
+          <input style={input} value={cfg.familias} onChange={(e) => set("familias", e.target.value)} /></div>
+        <div style={field}><span style={label}>Pasillos (1-2)</span>
+          <input style={input} type="number" min="1" max="2" value={cfg.pasillos} onChange={(e) => set("pasillos", e.target.value)} /></div>
+        <div style={field}><span style={label}>Módulos (1-9)</span>
+          <input style={input} type="number" min="1" max="9" value={cfg.modulos} onChange={(e) => set("modulos", e.target.value)} /></div>
+        <div style={field}><span style={label}>Niveles (1-6)</span>
+          <input style={input} type="number" min="1" max="6" value={cfg.niveles} onChange={(e) => set("niveles", e.target.value)} /></div>
       </div>
 
-      <div style={{ marginTop: 14, display: "flex", gap: 18, flexWrap: "wrap", color: "#166534", fontWeight: 700, fontSize: 13 }}>
-        <span>{pegados ? "Racks pegados (sin pasillo)" : `Pasillos: ${grupos.length}`}</span>
-        <span>Ubicaciones totales: {totalUbic.toLocaleString("es-CO")}</span>
-        <span>Profundidad: {norm.profundidad === 2 ? "Doble" : "Sencilla"}</span>
+      <div style={{ marginTop: 14, color: "#166534", fontWeight: 700, fontSize: 13 }}>
+        {norm.pasillos} pasillo(s) · {norm.modulos} módulos · {norm.niveles} niveles · {total.toLocaleString("es-CO")} ubicaciones
       </div>
 
-      {/* PLANTA (vista superior) */}
-      <div style={{ marginTop: 16, padding: 16, borderRadius: 14, background: "#f8fafc", border: "1px solid #e2e8f0", overflowX: "auto" }}>
-        <div style={{ fontWeight: 800, color: "#0b1f14", marginBottom: 10 }}>Planta · Zona {zona}</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {grupos.map((racks, gi) => (
-            <div key={gi}>
-              {!pegados && (
-                <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700, marginBottom: 4 }}>Pasillo {gi + 1}</div>
-              )}
-              <div style={{ display: "flex", flexDirection: "column", gap: pegados ? 2 : 6, padding: 8, borderRadius: 10, background: "#eef7f1", border: "1px dashed #bbf7d0" }}>
-                {racks.map((r) => (
-                  <div key={r} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ width: 58, fontSize: 12, fontWeight: 800, color: "#15803d" }}>Rack {r}</span>
-                    <div style={{ display: "flex", gap: 3 }}>
-                      {Array.from({ length: norm.modulosPorRack }, (_, m) => (
-                        <div key={m} title={`Módulo ${m + 1}`} style={moduleBox} />
-                      ))}
-                    </div>
-                    {norm.profundidad === 2 && <span style={{ fontSize: 11, color: "#64748b" }}>(doble prof.)</span>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ALZADO de un rack */}
-      <div style={{ marginTop: 14, padding: 16, borderRadius: 14, background: "#f8fafc", border: "1px solid #e2e8f0", overflowX: "auto" }}>
-        <div style={{ fontWeight: 800, color: "#0b1f14", marginBottom: 10 }}>
-          Alzado de un rack · {norm.niveles} niveles × {norm.modulosPorRack} módulos
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          {Array.from({ length: norm.niveles }, (_, ni) => {
-            const nivel = norm.niveles - ni;
-            return (
-              <div key={nivel} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ width: 26, fontSize: 11, fontWeight: 800, color: "#64748b" }}>N{nivel}</span>
-                <div style={{ display: "flex", gap: 3 }}>
-                  {Array.from({ length: norm.modulosPorRack }, (_, m) => (
-                    <div key={m} style={{ display: "flex", gap: 1 }}>
-                      {Array.from({ length: norm.posiciones * norm.profundidad }, (_, p) => (
-                        <div key={p} style={{ width: 12, height: 18, borderRadius: 2, background: "#dcfce7", border: "1px solid #86efac" }} />
-                      ))}
-                    </div>
-                  ))}
+      {/* Previsualización: pasillos con sus módulos */}
+      <div style={{ marginTop: 12, padding: 14, borderRadius: 12, background: "#f8fafc", border: "1px solid #e2e8f0", overflowX: "auto" }}>
+        {Array.from({ length: norm.pasillos }, (_, pi) => (
+          <div key={pi} style={{ marginBottom: pi < norm.pasillos - 1 ? 10 : 0 }}>
+            <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700, marginBottom: 4 }}>Pasillo {pi + 1}</div>
+            <div style={{ display: "flex", gap: 3, padding: 8, borderRadius: 10, background: "#eef7f1", border: "1px dashed #bbf7d0" }}>
+              {Array.from({ length: norm.modulos }, (_, m) => (
+                <div key={m} title={`Módulo ${m + 1} · ${norm.niveles} niveles`} style={{ display: "flex", flexDirection: "column-reverse", gap: 2 }}>
+                  {Array.from({ length: norm.niveles }, (_, n) => (<div key={n} style={moduleBox} />))}
                 </div>
-              </div>
-            );
-          })}
+              ))}
+            </div>
+          </div>
+        ))}
+        <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {sample.map((u) => (
+            <span key={u} style={{ fontFamily: "monospace", fontSize: 12, background: "#fff", border: "1px solid #d6e7dc", borderRadius: 8, padding: "3px 8px", color: "#0b1f14" }}>{u}</span>
+          ))}
+          {total > sample.length && <span style={{ color: "#64748b" }}>…</span>}
         </div>
       </div>
 
-      <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
-        <button
-          type="button"
-          onClick={guardar}
-          style={{ background: "#15803d", color: "#fff", border: "none", borderRadius: 12, padding: "12px 26px", fontWeight: 800, fontSize: 15, cursor: "pointer", boxShadow: "0 12px 26px rgba(21,128,61,.26)" }}
-        >
-          Guardar configuración de la zona {zona}
+      <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
+        <button type="button" onClick={borrarZona} disabled={busy}
+          style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", borderRadius: 12, padding: "12px 20px", fontWeight: 800, fontSize: 15, cursor: busy ? "not-allowed" : "pointer" }}>
+          Borrar estantería de la zona
+        </button>
+        <button type="button" onClick={construir} disabled={busy || !total}
+          style={{ background: busy ? "#86efac" : "#15803d", color: "#fff", border: "none", borderRadius: 12, padding: "12px 26px", fontWeight: 800, fontSize: 15, cursor: busy ? "not-allowed" : "pointer", boxShadow: "0 12px 26px rgba(21,128,61,.26)" }}>
+          {busy ? "Procesando…" : `Construir estantería (${total.toLocaleString("es-CO")})`}
         </button>
       </div>
     </div>
