@@ -1551,6 +1551,16 @@ export default function LayoutZona() {
             </div>
 
             <div className="layout3d-toolbox-section">
+              <span>Zona</span>
+              <div className="layout3d-view-grid">
+                <button type="button" onClick={backToZones}><ChevronLeft size={16} />Volver a zonas</button>
+                {canEditZoneNames && (
+                  <button type="button" onClick={() => setShowLayoutConfig(true)}><Settings2 size={16} />Configurar</button>
+                )}
+              </div>
+            </div>
+
+            <div className="layout3d-toolbox-section">
               <span>Opciones de vista</span>
               <div className="layout3d-view-grid">
                 <button type="button" className={view === "iso" ? "active" : ""} onClick={() => setView("iso")}><Camera size={16} />3D</button>
