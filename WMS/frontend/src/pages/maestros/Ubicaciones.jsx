@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { showWmsAlert, showWmsConfirm, showWmsPrompt } from "../../wmsDialog.jsx";
 import { getUbicaciones, crearUbicacion, editarUbicacion, eliminarUbicacion, importarUbicacionesExcel } from "../../api";
 import EstanteriaGenerator from "./EstanteriaGenerator.jsx";
+import LayoutConfigurator from "./LayoutConfigurator.jsx";
 import {
   MapPin,
   Search,
@@ -503,6 +504,7 @@ export default function Ubicaciones() {
         helper="Gestión de ubicaciones"
       />
 
+      {esSuperAdmin && <LayoutConfigurator />}
       {esSuperAdmin && <EstanteriaGenerator onDone={cargar} />}
 
       <div style={panelStyle}>
