@@ -15,6 +15,7 @@ import {
   PackageCheck,
   PencilLine,
   RefreshCcw,
+  Settings2,
   Search,
   ShieldCheck,
   Truck,
@@ -23,6 +24,7 @@ import {
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { getMovimientosLayoutStock, getUbicaciones } from "../api";
+import LayoutConfigurator from "./maestros/LayoutConfigurator.jsx";
 
 const WMS_PURPLE = "#6d28d9";
 const WMS_DEEP = "#1f1148";
@@ -730,6 +732,8 @@ export default function LayoutZona() {
     );
   }, []);
 
+  const [showLayoutConfig, setShowLayoutConfig] = useState(false);
+
   const loadData = async () => {
     setLoading(true);
     setError("");
@@ -814,7 +818,7 @@ export default function LayoutZona() {
     if (!q) return zoneCards;
     return zoneCards.filter((item) => normalize(`${item.zone} ${item.name} ${item.bodega} ${item.displayName}`).includes(q));
   }, [zoneCards, zoneSearch]);
-
+
   const rawCells = useMemo(() => buildCells(ubicaciones, stockMap, zone), [ubicaciones, stockMap, zone]);
   const cells = useMemo(() => enhanceRackData(rawCells), [rawCells]);
   const maxStock = useMemo(() => Math.max(0, ...cells.map((cell) => cell.stock)), [cells]);
@@ -1413,9 +1417,9 @@ export default function LayoutZona() {
                 <div>
                   <span className="layout3d-kicker">Toolbox administrador</span>
                   <h2>Asignar nombre de bodega</h2>
-                  <p>Zona {zoneNameEditor.zone} · Base {zoneNameEditor.zone} · {formatQty(zoneNameEditor.count)} ubicaciones</p>
+                  <p>Zona {zoneNameEditor.zone} ï¿½ Base {zoneNameEditor.zone} ï¿½ {formatQty(zoneNameEditor.count)} ubicaciones</p>
                 </div>
-                <button type="button" className="layout-zone-modal-close" onClick={closeZoneNameEditor}>×</button>
+                <button type="button" className="layout-zone-modal-close" onClick={closeZoneNameEditor}>ï¿½</button>
               </div>
               <label className="layout-zone-modal-field">
                 <span>Nombre operativo</span>
@@ -1611,7 +1615,67 @@ export default function LayoutZona() {
             <button type="button" className={view === "depth" ? "active" : ""} onClick={() => setView("depth")}>Profundidad</button>
             <button type="button" className={view === "close" ? "active" : ""} onClick={() => setView("close")}>Cerca</button>
             <button type="button" onClick={expandRender}>Ampliar</button>
+            {canEditZoneNames && (
+              <button
+                type="button"
+                onClick={() => setShowLayoutConfig(true)}
+                title="Configurar estanterÃ­as (super-admin)"
+                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+              >
+                <Settings2 size={16} /> Configurar
+              </button>
+            )}
           </div>
+          {showLayoutConfig && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 13000,
+                background: "rgba(15,23,42,.5)",
+                display: "grid",
+                placeItems: "center",
+                padding: 18,
+              }}
+              onClick={() => setShowLayoutConfig(false)}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  width: "min(1000px, 96vw)",
+                  maxHeight: "92vh",
+                  overflowY: "auto",
+                  background: "#f4fbf6",
+                  borderRadius: 20,
+                  padding: 18,
+                  position: "relative",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowLayoutConfig(false)}
+                  title="Cerrar"
+                  style={{
+                    position: "absolute",
+                    top: 12,
+                    right: 12,
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    background: "#fff",
+                    color: "#0f172a",
+                    fontSize: 18,
+                    cursor: "pointer",
+                    zIndex: 1,
+                  }}
+                >
+                  âœ•
+                </button>
+                <LayoutConfigurator initialZona={zone} />
+              </div>
+            </div>
+          )}
           <div className="layout3d-floating-filters">
             <label>
               <span>Ocupacion</span>

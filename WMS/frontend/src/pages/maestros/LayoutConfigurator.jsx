@@ -35,8 +35,8 @@ const field = { display: "flex", flexDirection: "column" };
 const clampInt = (v, min, max) =>
   Math.max(min, Math.min(max, Math.floor(Number(v) || 0)));
 
-export default function LayoutConfigurator() {
-  const [zona, setZona] = useState("300");
+export default function LayoutConfigurator({ initialZona = "300" }) {
+  const [zona, setZona] = useState(String(initialZona || "300"));
   const [cfg, setCfg] = useState(DEFAULT_CFG);
 
   // Carga la config guardada cuando cambia la zona.
