@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { showWmsAlert, showWmsConfirm, showWmsPrompt } from "../../wmsDialog.jsx";
 import { getUbicaciones, crearUbicacion, editarUbicacion, eliminarUbicacion, importarUbicacionesExcel } from "../../api";
+import EstanteriaGenerator from "./EstanteriaGenerator.jsx";
 import {
   MapPin,
   Search,
@@ -312,6 +313,11 @@ const tdStrongStyle = {
 };
 
 export default function Ubicaciones() {
+  const esSuperAdmin =
+    sessionStorage.getItem("esPlatformAdmin") === "true" ||
+    sessionStorage.getItem("esSuperAdmin") === "true" ||
+    String(sessionStorage.getItem("rol") || "").toUpperCase() === "SUPER_ADMIN";
+
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -496,6 +502,8 @@ export default function Ubicaciones() {
         subtitle="Administra, crea, edita, elimina e importa ubicación, posición, zona y bodega."
         helper="Gestión de ubicaciones"
       />
+
+      {esSuperAdmin && <EstanteriaGenerator onDone={cargar} />}
 
       <div style={panelStyle}>
         <div style={panelBodyStyle}>

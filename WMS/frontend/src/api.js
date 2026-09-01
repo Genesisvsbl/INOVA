@@ -1259,6 +1259,42 @@ export function crearUbicacion(payload) {
   });
 }
 
+// Crea muchas ubicaciones de una (para el generador de estanterías). No
+// duplica: omite las que ya existen por su código final "ubicacion".
+export async function crearUbicacionesBulk(rows) {
+  if (!supabaseEnabled) throw new Error("Servicio operativo no configurado.");
+  const limpio = (rows || [])
+    .map((r) => ({
+      empresa_id: empresaId,
+      ubicacion: String(r.ubicacion || "").trim(),
+      ubicacion_base: String(r.ubicacion_base || "").trim() || null,
+      posicion: String(r.posicion || "").trim() || null,
+      zona: String(r.zona || "").trim() || null,
+      bodega: String(r.bodega || "").trim() || null,
+      familias: String(r.familias || "").trim() || null,
+    }))
+    .filter((r) => r.ubicacion);
+
+  const byU = new Map();
+  for (const r of limpio) byU.set(r.ubicacion.toUpperCase(), r);
+  const unicos = Array.from(byU.values());
+
+  const existentes = await getUbicaciones();
+  const exSet = new Set(
+    (existentes || []).map((u) => String(u.ubicacion || "").trim().toUpperCase())
+  );
+  const nuevos = unicos.filter((r) => !exSet.has(r.ubicacion.toUpperCase()));
+
+  for (let i = 0; i < nuevos.length; i += 500) {
+    await insertRow("wms", "ubicaciones", nuevos.slice(i, i + 500));
+  }
+  return {
+    creadas: nuevos.length,
+    yaExistian: unicos.length - nuevos.length,
+    total: unicos.length,
+  };
+}
+
 export function editarUbicacion(id, payload) {
   if (supabaseEnabled) return updateById("wms", "ubicaciones", id, payload);
   return apiFetch(`/ubicaciones/${id}`, {
