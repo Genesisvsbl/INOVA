@@ -74,6 +74,25 @@ function applyZoneDims(zone) {
   CENTER_X = TOTAL_X / 2;
   SLOT_CAPACITY = RACKS * MODULES_PER_RACK * LEVELS * FRONT_POSITIONS * DEPTHS;
 }
+
+// Camino B · Paso 2: una zona va "pegada" (racks juntos, sin pasillo) si su
+// diseño tiene pasillos=0. Si no hay diseño, se conserva el comportamiento
+// previo (zonas shuttle compactas pegadas, el resto con pasillos).
+function zonaPegados(zone) {
+  try {
+    const z = String(zone || "").match(/\d+/)?.[0] || String(zone || "");
+    const raw = window.localStorage.getItem(`wms_layout_cfg_${z}`);
+    if (raw) {
+      const c = JSON.parse(raw);
+      if (c.pasillos !== undefined && c.pasillos !== null) {
+        return Number(c.pasillos) === 0;
+      }
+    }
+  } catch (_) {
+    /* usa el default de abajo */
+  }
+  return isCompactShuttleZone(zone);
+}
 const RACK_ROW_Z = [-6.725, -1.175, 1.175, 6.725];
 const AISLE_Z = [-3.95, 3.95];
 const COMPACT_RACKS = 5;
@@ -1120,6 +1139,7 @@ export default function LayoutZona() {
     };
 
     const compactShuttleZone = isCompactShuttleZone(zone);
+    const pegados = zonaPegados(zone);
     const focusMode = hasFocusedLayoutFilter(filters, query);
     const showFullStructure = shouldShowFullStructure(filters, query, showAllStructure);
     const structureScopeCells = buildStructureScopeCells(filteredCells, filters, query);
@@ -1156,7 +1176,7 @@ export default function LayoutZona() {
       createAgv(scene, [14, 0.28, -4], mats.agv);
     }
 
-    if (!focusMode && !compactShuttleZone) {
+    if (!focusMode && !pegados) {
       addBox(scene, [TOTAL_X + 1.2, 0.06, AISLE_WIDTH], [0, 0.05, AISLE_Z[0]], mats.aisle, "Pasillo operativo 1 - Rack 1 / Rack 2");
       addBox(scene, [TOTAL_X + 1.2, 0.06, AISLE_WIDTH], [0, 0.05, AISLE_Z[1]], mats.aisle, "Pasillo operativo 2 - Rack 3 / Rack 4");
       addText(scene, "PASILLO 1", [3, 1.05, AISLE_Z[0]], "#0891b2", 38);
@@ -1188,7 +1208,8 @@ export default function LayoutZona() {
       structureScopeCells,
       rackFace,
       zone,
-      view
+      view,
+      pegados
     );
 
     const raycaster = new THREE.Raycaster();
