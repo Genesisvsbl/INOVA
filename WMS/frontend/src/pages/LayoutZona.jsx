@@ -2134,7 +2134,11 @@ function rackZStart(rack) {
 
 function compactRackZStart(rack) {
   const safeRack = clamp(Number(rack) || 1, 1, COMPACT_RACKS);
-  return -COMPACT_CENTER_Z + (safeRack - 1) * (RACK_DEPTH + COMPACT_RACK_GAP);
+  // Racks pegados: separación = fondo real de las casillas + un pelín, y
+  // centrado. Antes usaba RACK_DEPTH (con relleno) y dejaba huecos.
+  const step = DEPTHS * DEPTH_WIDTH + COMPACT_RACK_GAP;
+  const total = (COMPACT_RACKS - 1) * step;
+  return -total / 2 + (safeRack - 1) * step;
 }
 
 function rackZStartFor(rack, compactLayout = false) {
