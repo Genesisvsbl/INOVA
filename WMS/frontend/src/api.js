@@ -1295,6 +1295,32 @@ export async function crearUbicacionesBulk(rows) {
   };
 }
 
+// Borra ubicaciones por su código final. Salta (no borra) las que tengan
+// movimientos/stock: esas fallan por la relación y se reportan como bloqueadas.
+export async function borrarUbicacionesPorCodigo(codigos) {
+  if (!supabaseEnabled) throw new Error("Servicio operativo no configurado.");
+  const set = new Set(
+    (codigos || [])
+      .map((c) => String(c || "").trim().toUpperCase())
+      .filter(Boolean)
+  );
+  const existentes = await getUbicaciones();
+  const target = (existentes || []).filter((u) =>
+    set.has(String(u.ubicacion || "").trim().toUpperCase())
+  );
+  let borradas = 0;
+  let bloqueadas = 0;
+  for (const u of target) {
+    try {
+      await eliminarUbicacion(u.id);
+      borradas += 1;
+    } catch (_) {
+      bloqueadas += 1;
+    }
+  }
+  return { borradas, bloqueadas, total: target.length };
+}
+
 export function editarUbicacion(id, payload) {
   if (supabaseEnabled) return updateById("wms", "ubicaciones", id, payload);
   return apiFetch(`/ubicaciones/${id}`, {

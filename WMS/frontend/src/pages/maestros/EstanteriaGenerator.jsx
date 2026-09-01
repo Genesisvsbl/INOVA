@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { crearUbicacionesBulk } from "../../api";
+import { crearUbicacionesBulk, borrarUbicacionesPorCodigo } from "../../api";
 import { showWmsConfirm, showWmsAlert } from "../../wmsDialog.jsx";
 
 const pad2 = (n) => String(n).padStart(2, "0");
@@ -109,6 +109,34 @@ export default function EstanteriaGenerator({ onDone = () => {} }) {
       onDone();
     } catch (e) {
       await showWmsAlert("Error generando estantería:\n" + (e?.message || e));
+    } finally {
+      setGenerando(false);
+    }
+  };
+
+  const borrar = async () => {
+    if (!total) {
+      await showWmsAlert("No hay ubicaciones en la configuración actual.");
+      return;
+    }
+    const ok = await showWmsConfirm(
+      `Se intentarán borrar ${total} ubicaciones de la zona ${cfg.zona} (según esta configuración). Las que tengan stock/movimientos NO se borran. ¿Continuar?`,
+      { confirmLabel: "Sí, borrar" }
+    );
+    if (!ok) return;
+    try {
+      setGenerando(true);
+      const res = await borrarUbicacionesPorCodigo(rows.map((r) => r.ubicacion));
+      await showWmsAlert(
+        `Borradas: ${res.borradas}${
+          res.bloqueadas
+            ? `. ${res.bloqueadas} no se pudieron borrar (tienen stock).`
+            : ""
+        }`
+      );
+      onDone();
+    } catch (e) {
+      await showWmsAlert("Error borrando:\n" + (e?.message || e));
     } finally {
       setGenerando(false);
     }
@@ -237,7 +265,25 @@ export default function EstanteriaGenerator({ onDone = () => {} }) {
         </div>
       </div>
 
-      <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
+      <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end", gap: 10 }}>
+        <button
+          type="button"
+          onClick={borrar}
+          disabled={generando || !total}
+          title="Borra las ubicaciones de esta configuración que estén vacías (sin stock)"
+          style={{
+            background: "#fef2f2",
+            color: "#dc2626",
+            border: "1px solid #fecaca",
+            borderRadius: 12,
+            padding: "12px 22px",
+            fontWeight: 800,
+            fontSize: 15,
+            cursor: generando ? "not-allowed" : "pointer",
+          }}
+        >
+          Borrar estas (solo vacías)
+        </button>
         <button
           type="button"
           onClick={generar}
