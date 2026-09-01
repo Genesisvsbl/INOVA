@@ -35,8 +35,10 @@ const DEFAULT_MODULES_PER_RACK = 9;
 const DEFAULT_LEVELS = 6;
 let MODULES_PER_RACK = DEFAULT_MODULES_PER_RACK;
 let LEVELS = DEFAULT_LEVELS;
-const FRONT_POSITIONS = 2;
-const DEPTHS = 2;
+const DEFAULT_FRONT_POSITIONS = 2;
+const DEFAULT_DEPTHS = 2;
+let FRONT_POSITIONS = DEFAULT_FRONT_POSITIONS;
+let DEPTHS = DEFAULT_DEPTHS;
 let SLOT_CAPACITY = RACKS * MODULES_PER_RACK * LEVELS * FRONT_POSITIONS * DEPTHS;
 const POSITION_WIDTH = 1.15;
 const DEPTH_WIDTH = 1;
@@ -57,6 +59,8 @@ const CENTER_Z = TOTAL_Z / 2;
 function applyZoneDims(zone) {
   let mod = DEFAULT_MODULES_PER_RACK;
   let niv = DEFAULT_LEVELS;
+  let pos = DEFAULT_FRONT_POSITIONS;
+  let prof = DEFAULT_DEPTHS;
   try {
     const z = String(zone || "").match(/\d+/)?.[0] || String(zone || "");
     const raw = window.localStorage.getItem(`wms_layout_cfg_${z}`);
@@ -64,12 +68,16 @@ function applyZoneDims(zone) {
       const c = JSON.parse(raw);
       if (Number(c.modulos)) mod = Math.max(1, Math.min(9, Math.floor(Number(c.modulos))));
       if (Number(c.niveles)) niv = Math.max(1, Math.min(6, Math.floor(Number(c.niveles))));
+      if (Number(c.posiciones)) pos = Math.max(1, Math.min(2, Math.floor(Number(c.posiciones))));
+      if (Number(c.profundidad)) prof = Number(c.profundidad) === 2 ? 2 : 1;
     }
   } catch (_) {
     /* usa defaults */
   }
   MODULES_PER_RACK = mod;
   LEVELS = niv;
+  FRONT_POSITIONS = pos;
+  DEPTHS = prof;
   TOTAL_X = MODULES_PER_RACK * MODULE_WIDTH;
   CENTER_X = TOTAL_X / 2;
   SLOT_CAPACITY = RACKS * MODULES_PER_RACK * LEVELS * FRONT_POSITIONS * DEPTHS;

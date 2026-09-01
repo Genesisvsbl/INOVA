@@ -30,7 +30,7 @@ const input = {
 const field = { display: "flex", flexDirection: "column" };
 const moduleBox = { width: 15, height: 20, borderRadius: 3, background: "#bbf7d0", border: "1px solid #16a34a" };
 
-const DEFAULT_CFG = { pasillos: 2, modulos: 9, niveles: 6 };
+const DEFAULT_CFG = { pasillos: 2, modulos: 9, niveles: 6, posiciones: 2, profundidad: 2 };
 
 export default function LayoutConfigurator({ initialZona = "300", onDone = () => {} }) {
   const [zona, setZona] = useState(cleanZone(initialZona) || "300");
@@ -53,6 +53,8 @@ export default function LayoutConfigurator({ initialZona = "300", onDone = () =>
       pasillos: clampInt(cfg.pasillos, 0, 2),
       modulos: clampInt(cfg.modulos, 1, 9),
       niveles: clampInt(cfg.niveles, 1, 6),
+      posiciones: clampInt(cfg.posiciones, 1, 2),
+      profundidad: Number(cfg.profundidad) === 2 ? 2 : 1,
     }),
     [cfg]
   );
@@ -114,6 +116,13 @@ export default function LayoutConfigurator({ initialZona = "300", onDone = () =>
           <input style={input} type="number" min="1" max="9" value={cfg.modulos} onChange={(e) => set("modulos", e.target.value)} /></div>
         <div style={field}><span style={label}>Niveles (1-6)</span>
           <input style={input} type="number" min="1" max="6" value={cfg.niveles} onChange={(e) => set("niveles", e.target.value)} /></div>
+        <div style={field}><span style={label}>Posiciones por módulo (1-2)</span>
+          <input style={input} type="number" min="1" max="2" value={cfg.posiciones} onChange={(e) => set("posiciones", e.target.value)} /></div>
+        <div style={field}><span style={label}>Profundidad</span>
+          <select style={input} value={cfg.profundidad} onChange={(e) => set("profundidad", Number(e.target.value))}>
+            <option value={1}>Sencilla</option>
+            <option value={2}>Doble</option>
+          </select></div>
       </div>
 
       <div style={{ marginTop: 14, color: "#166534", fontWeight: 700, fontSize: 13 }}>
