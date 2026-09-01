@@ -1469,8 +1469,39 @@ export default function LayoutZona() {
             <h1>Base {zone}</h1>
             <p>Esta base ya existe en ubicaciones. Queda creada para asignarle nombre de bodega y configurar su mapa operativo.</p>
             <strong>{currentZone?.count || 0} ubicaciones registradas</strong>
+            {canEditZoneNames && (
+              <button
+                type="button"
+                className="layout3d-secondary"
+                style={{ marginTop: 18, display: "inline-flex", alignItems: "center", gap: 8 }}
+                onClick={() => setShowLayoutConfig(true)}
+              >
+                <Settings2 size={16} /> Configurar layout de esta zona
+              </button>
+            )}
           </div>
         </section>
+        {showLayoutConfig && (
+          <div
+            style={{ position: "fixed", inset: 0, zIndex: 13000, background: "rgba(15,23,42,.5)", display: "grid", placeItems: "center", padding: 18 }}
+            onClick={() => setShowLayoutConfig(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: "min(1000px, 96vw)", maxHeight: "92vh", overflowY: "auto", background: "#f4fbf6", borderRadius: 20, padding: 18, position: "relative" }}
+            >
+              <button
+                type="button"
+                onClick={() => setShowLayoutConfig(false)}
+                title="Cerrar"
+                style={{ position: "absolute", top: 12, right: 12, width: 36, height: 36, borderRadius: 10, border: "1px solid #cbd5e1", background: "#fff", color: "#0f172a", fontSize: 18, cursor: "pointer", zIndex: 1 }}
+              >
+                ✕
+              </button>
+              <LayoutConfigurator initialZona={zone} />
+            </div>
+          </div>
+        )}
       </main>
     );
   }
